@@ -1069,12 +1069,13 @@ function ligarHunt() {
   res.querySelectorAll('[data-imb]').forEach((b) => b.addEventListener('click', () => abrirEmbuimento(b.dataset.imb)));
 }
 
+// Abre sempre limpo: a hunt anterior já está salva no Histórico (de lá dá para reabrir).
+// Só o "Seu personagem" é lembrado, para não ter que digitar toda vez.
 async function huntIniciar() {
   const r = await api.hunt_carregar();
-  H.entrada = { ...H.entrada, ...r.entrada, despesas: r.entrada.despesas || [], excluidos: r.entrada.excluidos || [] };
-  H.id = r.id || null;
+  H.entrada.personagem = (r.entrada && r.entrada.personagem) || '';
+  H.id = null;
   preencherHunt();
-  if (H.entrada.party || H.entrada.solo || H.entrada.dano) analisarHunt();
 }
 
 // ================= HISTÓRICO =================
