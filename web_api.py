@@ -498,10 +498,11 @@ class API:
             self._salvar_rascunho(r["entrada"], id_)
         return bool(historico.atualizar(id_, nome=nome))
 
-    def hunt_historico(self, personagem=""):
+    def hunt_historico(self, personagem="", tamanho=""):
         todas = historico.ordenar(historico.carregar())
         personagens = sorted({h.get("personagem") for h in todas if h.get("personagem")}, key=str.lower)
-        lista = [h for h in todas if historico.do_personagem(h, personagem)] if personagem else todas
+        lista = [h for h in todas if (not personagem or historico.do_personagem(h, personagem))
+                 and historico.do_tamanho(h, tamanho)]
         return {
             "personagens": personagens,
             "totais": historico.totais(lista),
@@ -513,6 +514,14 @@ class API:
                 "importada": bool(h.get("importado_em")),
             } for h in lista],
         }
+
+    def hunt_comparar(self, ids):
+        """Compara de 2 a 4 hunts do histórico (na ordem em que foram escolhidas)."""
+        todas = {h["id"]: h for h in historico.carregar()}
+        hunts = [todas[i] for i in ids if i in todas][:4]
+        if len(hunts) < 2:
+            return {"erro": "Escolha pelo menos 2 hunts para comparar."}
+        return historico.comparar(hunts)
 
     def hunt_abrir(self, id_):
         h = historico.obter(id_)

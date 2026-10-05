@@ -160,6 +160,119 @@ def importar(dados, substituir=False, caminho=None):
         return novas, ignoradas
 
 
+def tamanho_party(h):
+    return ((h.get("resumo") or {}).get("membros")) or 1
+
+
+def do_tamanho(h, filtro):
+    """filtro: '' (todas), '1' (solo), '2', '3', '4' ou '5+'."""
+    if not filtro:
+        return True
+    n = tamanho_party(h)
+    return n >= 5 if filtro == "5+" else n == int(filtro)
+
+
+# (chave, rótulo, o que é melhor: 'max' | 'min' | None, tipo de número)
+LINHAS_COMPARACAO = [
+    ("duracao", "Duração", None, "txt"),
+    ("membros", "Tamanho da party", None, "num"),
+    ("lucro_membro_h", "Lucro por membro / hora", "max", "gp"),
+    ("lucro_membro", "Lucro por membro (total)", "max", "gp"),
+    ("balance_h", "Balance da party / hora", "max", "gp"),
+    ("balance", "Balance da party (total)", "max", "gp"),
+    ("loot_membro_h", "Loot por membro / hora", "max", "gp"),
+    ("supplies_membro_h", "Supplies por membro / hora", "min", "gp"),
+    ("xp_h", "XP / hora", "max", "num"),
+    ("xp_raw_h", "Raw XP / hora", "max", "num"),
+    ("xp", "XP (total)", "max", "num"),
+    ("despesas", "Despesas extras", "min", "gp"),
+]
+
+
+def _por_hora(v, minutos):
+    return (v * 60) // minutos if (v is not None and minutos) else None
+
+
+def metricas(h):
+    """Números de uma hunt já normalizados por hora e por membro, para comparar hunts diferentes."""
+    r = h.get("resumo") or {}
+    m = r.get("minutos") or 0
+    n = tamanho_party(h)
+    por_membro = lambda v: (v // n) if v is not None else None
+    return {
+        "duracao": r.get("duracao") or "—", "minutos": m, "membros": n,
+        "lucro_membro": r.get("lucro"), "lucro_membro_h": _por_hora(r.get("lucro"), m),
+        "balance": r.get("balance"), "balance_h": r.get("balance_h") if r.get("balance_h") is not None else _por_hora(r.get("balance"), m),
+        "loot_membro_h": _por_hora(por_membro(r.get("loot")), m),
+        "supplies_membro_h": _por_hora(por_membro(r.get("supplies")), m),
+        "xp": r.get("xp"), "xp_h": r.get("xp_h"), "xp_raw_h": r.get("xp_raw_h"),
+        "despesas": r.get("despesas") or 0,
+    }
+
+
+def _monstros(h):
+    import monstros as mon
+    return {mon.singularizar(m.get("nome", "")) for m in h.get("monstros") or [] if m.get("nome")}
+
+
+def _fmt_dur(minutos):
+    return f"{minutos // 60}h{minutos % 60:02d}" if minutos else "?"
+
+
+def comparar(hunts):
+    """Compara 2 ou mais hunts do histórico lado a lado. Devolve linhas com o melhor valor de cada uma,
+    avisos de quando a comparação não é direta (party/duração/personagem/spawn diferentes) e um veredito."""
+    ms = [metricas(h) for h in hunts]
+    cab = [{"id": h["id"], "nome": h.get("nome") or "Hunt", "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
+            "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"],
+            "monstros": (h.get("monstros") or [])[:4],
+            "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]]}
+           for h, m in zip(hunts, ms)]
+
+    linhas = []
+    for chave, rotulo, melhor, tipo in LINHAS_COMPARACAO:
+        valores = [m[chave] for m in ms]
+        if all(v is None for v in valores):
+            continue
+        idx = None
+        numeros = [(i, v) for i, v in enumerate(valores) if isinstance(v, (int, float))]
+        if melhor and len(numeros) >= 2 and len({v for _, v in numeros}) > 1:
+            idx = (max if melhor == "max" else min)(numeros, key=lambda x: x[1])[0]
+        linhas.append({"chave": chave, "rotulo": rotulo, "tipo": tipo, "valores": valores, "melhor": idx})
+
+    avisos = []
+    tamanhos = [m["membros"] for m in ms]
+    if len(set(tamanhos)) > 1:
+        avisos.append(f"Parties de tamanhos diferentes ({' x '.join(str(t) for t in tamanhos)} membros): "
+                      "compare pelas linhas \"por membro\".")
+    minutos = [m["minutos"] for m in ms if m["minutos"]]
+    if minutos and max(minutos) > 1.2 * min(minutos):
+        avisos.append(f"Durações diferentes ({' x '.join(_fmt_dur(m['minutos']) for m in ms)}): "
+                      "compare pelas linhas \"/ hora\".")
+    personagens = {c["personagem"].lower() for c in cab if c["personagem"]}
+    if len(personagens) > 1:
+        avisos.append("Personagens diferentes: a XP é de cada um (vocação e level mudam muito a XP/h).")
+    conjuntos = [_monstros(h) for h in hunts]
+    if all(conjuntos):
+        base = conjuntos[0]
+        for c, s in zip(cab[1:], conjuntos[1:]):
+            if len(base & s) / len(base | s) < 0.5:
+                avisos.append(f"\"{c['nome']}\" foi em outro spawn (monstros diferentes de \"{cab[0]['nome']}\").")
+
+    veredito = []
+    for chave, rotulo in (("lucro_membro_h", "lucro por membro por hora"), ("xp_h", "XP por hora")):
+        vals = [(i, m[chave]) for i, m in enumerate(ms) if m[chave] is not None]
+        if len(vals) < 2:
+            continue
+        vals.sort(key=lambda x: -x[1])
+        (i1, v1), (i2, v2) = vals[0], vals[1]
+        if v1 == v2:
+            continue
+        dif = f"{(v1 - v2) / v2 * 100:.0f}% a mais" if v2 > 0 else "mais"
+        veredito.append(f"\"{cab[i1]['nome']}\" rendeu {dif} de {rotulo} que \"{cab[i2]['nome']}\".")
+    return {"hunts": cab, "linhas": linhas, "avisos": avisos, "veredito": veredito}
+
+
 def totais(hunts):
     """Totais para o topo do histórico."""
     minutos = sum((h.get("resumo") or {}).get("minutos") or 0 for h in hunts)

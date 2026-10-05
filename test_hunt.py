@@ -238,6 +238,45 @@ class TestHistorico(unittest.TestCase):
         self.assertEqual(historico.totais(historico.carregar(self.arq))["lucro_h"], 100)
 
 
+class TestComparar(unittest.TestCase):
+    def _h(self, id_, nome, membros, minutos, lucro, balance, xp_h=None, mons=("gloom maw",), personagem="Zandao"):
+        return {"id": id_, "nome": nome, "personagem": personagem, "data_hunt": "2026-10-05 10:00",
+                "monstros": [{"nome": m, "kills": 100} for m in mons],
+                "resumo": {"duracao": f"{minutos // 60:02d}:{minutos % 60:02d}h", "minutos": minutos, "membros": membros,
+                           "lucro": lucro, "balance": balance, "loot": balance * 2, "supplies": balance, "xp_h": xp_h}}
+
+    def test_normaliza_por_hora_e_membro(self):
+        # B lucrou menos no total, mas em metade do tempo: por hora, B é melhor
+        a = self._h("a", "A", 4, 120, 1_000_000, 4_000_000, xp_h=10_000_000)
+        b = self._h("b", "B", 4, 60, 700_000, 2_800_000, xp_h=12_000_000)
+        r = historico.comparar([a, b])
+        linha = {l["chave"]: l for l in r["linhas"]}
+        self.assertEqual(linha["lucro_membro_h"]["valores"], [500_000, 700_000])
+        self.assertEqual(linha["lucro_membro_h"]["melhor"], 1)
+        self.assertEqual(linha["lucro_membro"]["melhor"], 0)
+        self.assertEqual(linha["supplies_membro_h"]["valores"], [500_000, 700_000])
+        self.assertEqual(linha["supplies_membro_h"]["melhor"], 0)  # gastar menos é melhor
+        self.assertTrue(any("Durações diferentes" in x for x in r["avisos"]))
+        self.assertFalse(any("tamanhos" in x for x in r["avisos"]))
+        self.assertIn('"B" rendeu 40% a mais de lucro por membro por hora que "A".', r["veredito"])
+
+    def test_avisos_party_personagem_spawn(self):
+        a = self._h("a", "A", 4, 60, 1, 4)
+        b = self._h("b", "B", 3, 60, 1, 3, mons=("dragon lord", "dragon"), personagem="Outro")
+        r = historico.comparar([a, b])
+        texto = " ".join(r["avisos"])
+        self.assertIn("4 x 3 membros", texto)
+        self.assertIn("Personagens diferentes", texto)
+        self.assertIn("outro spawn", texto)
+        self.assertFalse(any("Durações" in x for x in r["avisos"]))
+
+    def test_filtro_tamanho(self):
+        self.assertTrue(historico.do_tamanho(self._h("a", "A", 4, 60, 1, 1), "4"))
+        self.assertFalse(historico.do_tamanho(self._h("a", "A", 3, 60, 1, 1), "4"))
+        self.assertTrue(historico.do_tamanho(self._h("a", "A", 6, 60, 1, 1), "5+"))
+        self.assertTrue(historico.do_tamanho({"resumo": {}}, "1"))
+
+
 class TestApiHunt(unittest.TestCase):
     """Fluxo da tela: analisar salva sozinho; limpar caixa não apaga o histórico; outra hunt vira outra entrada."""
 

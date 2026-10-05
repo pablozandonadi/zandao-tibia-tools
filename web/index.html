@@ -297,6 +297,20 @@
   .hist-mons { display: flex; gap: 4px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
   .hist-mons img { width: 28px; height: 28px; object-fit: contain; }
   .hist-acoes { display: flex; flex-direction: column; gap: 8px; }
+  .hist-card.sel { box-shadow: 4px 4px 0 var(--accent-2); border-color: var(--accent-2); }
+  .tag-pt { background: var(--surface-2); color: var(--ink); }
+  .comp-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 14px;
+    padding: 10px 14px; border: 2.5px dashed var(--ink-dim); border-radius: 10px; }
+  .comp-barra.ativa { border-style: solid; border-color: var(--accent-2); }
+  table.comp th.hunt { text-align: right; vertical-align: bottom; min-width: 150px; }
+  table.comp th.hunt b { display: block; color: var(--ink); font-size: .85rem; text-transform: none; letter-spacing: 0; }
+  table.comp th.hunt span { display: block; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  table.comp th.hunt img { width: 24px; height: 24px; object-fit: contain; }
+  table.comp td.melhor { color: var(--good); font-weight: 700; }
+  table.comp td.melhor::after { content: ' \2605'; color: var(--accent-2); }
+  table.comp tr.destaque td { background: rgba(255,183,3,.07); }
+  .veredito { background: rgba(62,207,142,.1); border: 2px solid var(--good); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; font-size: .84rem; font-weight: 600; }
+  .veredito div + div { margin-top: 4px; }
 
   @media (max-width: 1100px) {
     .caixas, .grid3 { grid-template-columns: 1fr; }
@@ -409,12 +423,21 @@
       <div class="card calmo">
         <div class="hist-barra">
           <div><label class="campo-label" for="hi-filtro">Personagem</label><select id="hi-filtro"><option value="">Todos</option></select></div>
+          <div><label class="campo-label" for="hi-tamanho">Tamanho da party</label><select id="hi-tamanho">
+            <option value="">Todas</option><option value="1">Solo</option><option value="2">PT 2</option><option value="3">PT 3</option>
+            <option value="4">PT 4</option><option value="5+">PT 5+</option></select></div>
           <button class="btn" id="hi-exportar">📤 Exportar</button>
           <button class="btn" id="hi-importar">📥 Importar (somar)</button>
           <button class="btn btn-danger" id="hi-substituir">Importar substituindo tudo</button>
         </div>
         <div class="resumo-chips" id="hi-totais"></div>
+        <div class="comp-barra" id="hi-comp-barra">
+          <span class="dica" id="hi-comp-texto"></span>
+          <span class="acoes"><button class="btn btn-sm" id="hi-comp-limpar" style="display:none">Limpar seleção</button>
+            <button class="btn btn-sm btn-primary" id="hi-comp-ir" disabled>⚖️ Comparar</button></span>
+        </div>
       </div>
+      <div id="hi-comparar"></div>
       <div id="hi-lista" style="margin-top:16px"></div>
     </section>
 
@@ -1081,7 +1104,7 @@ async function huntIniciar() {
 // ================= HISTÓRICO =================
 async function carregarHistorico() {
   const filtro = $('hi-filtro').value;
-  const r = await api.hunt_historico(filtro);
+  const r = await api.hunt_historico(filtro, $('hi-tamanho').value);
   $('hi-filtro').innerHTML = '<option value="">Todos os personagens</option>' +
     r.personagens.map((p) => `<option ${p === filtro ? 'selected' : ''}>${esc(p)}</option>`).join('');
   const t = r.totais;
@@ -1090,20 +1113,23 @@ async function carregarHistorico() {
     <span class="chip ${t.lucro < 0 ? 'chip-bad' : 'chip-good'}">lucro ${n(t.lucro)}</span><span class="chip chip-neutro">lucro/h ${n(t.lucro_h)}</span>
     <span class="chip chip-neutro">XP ${n(t.xp)}</span><span class="chip chip-neutro">XP/h ${n(t.xp_h)}</span>`;
   if (!r.hunts.length) {
-    $('hi-lista').innerHTML = '<div class="card calmo"><div class="vazio">Nenhuma hunt ainda. Analise uma no Hunt Analyser e ela aparece aqui.</div></div>';
+    $('hi-lista').innerHTML = `<div class="card calmo"><div class="vazio">${$('hi-tamanho').value || filtro ? 'Nenhuma hunt com esse filtro.' : 'Nenhuma hunt ainda. Analise uma no Hunt Analyser e ela aparece aqui.'}</div></div>`;
+    atualizarBarraComparar();
     return;
   }
   $('hi-lista').innerHTML = r.hunts.map((h) => {
     const s = h.resumo || {};
-    return `<div class="card calmo hist-card"><div>
-      <div class="hist-nome">${esc(h.nome || 'Hunt')}${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''}</div>
+    const tam = s.membros || 1;
+    return `<div class="card calmo hist-card ${compSel.includes(h.id) ? 'sel' : ''}" data-card="${h.id}"><div>
+      <div class="hist-nome">${esc(h.nome || 'Hunt')} <span class="tag tag-pt">${tam > 1 ? 'PT ' + tam : 'Solo'}</span>${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''}</div>
       <div class="hist-meta">${esc(h.data || '')}${h.personagem ? ' · ' + esc(h.personagem) : ''}${h.membros.length ? ' · ' + h.membros.length + ' membros: ' + esc(h.membros.join(', ')) : ''}</div>
       <div class="hist-nums"><span>Duração <b>${esc(s.duracao || '—')}</b></span><span>Balance <b class="${cls(s.balance)}">${n(s.balance)}</b></span>
         <span>Lucro${h.membros.length ? '/membro' : ''} <b class="${cls(s.lucro)}">${n(s.lucro)}</b></span>${s.xp_h ? `<span>XP/h <b>${n(s.xp_h)}</b></span>` : ''}
         ${s.balance_h !== undefined ? `<span>Balance/h <b class="${cls(s.balance_h)}">${n(s.balance_h)}</b></span>` : ''}</div>
       <div class="hist-mons">${h.monstros.map((m) => m.imagem ? `<img src="${esc(m.imagem)}" alt="" title="${esc(m.kills + 'x ' + m.nome)}">` : `<span class="chip chip-neutro">${esc(m.kills + 'x ' + m.nome)}</span>`).join('')}
         ${h.protecoes.length ? `<span class="dica" style="margin-left:8px">🛡️ ${esc(h.protecoes.join(', '))}</span>` : ''}</div>
-    </div><div class="hist-acoes"><button class="btn btn-sm btn-primary" data-abrir="${h.id}">Abrir</button><button class="btn btn-sm btn-danger" data-apagar="${h.id}">Apagar</button></div></div>`;
+    </div><div class="hist-acoes"><label class="check" style="font-size:.8rem"><input type="checkbox" data-comp="${h.id}" ${compSel.includes(h.id) ? 'checked' : ''}> Comparar</label>
+      <button class="btn btn-sm btn-primary" data-abrir="${h.id}">Abrir</button><button class="btn btn-sm btn-danger" data-apagar="${h.id}">Apagar</button></div></div>`;
   }).join('');
   $('hi-lista').querySelectorAll('[data-abrir]').forEach((b) => b.addEventListener('click', async () => {
     const e = await api.hunt_abrir(b.dataset.abrir);
@@ -1119,10 +1145,65 @@ async function carregarHistorico() {
     if (!confirm('Apagar essa hunt do histórico? Não dá para desfazer (a não ser que você tenha exportado antes).')) return;
     await api.hunt_apagar(b.dataset.apagar);
     if (H.id === b.dataset.apagar) H.id = null;
+    compSel = compSel.filter((x) => x !== b.dataset.apagar);
     carregarHistorico();
   }));
+  $('hi-lista').querySelectorAll('[data-comp]').forEach((c) => c.addEventListener('change', () => {
+    const id = c.dataset.comp;
+    if (c.checked && compSel.length >= 4) { c.checked = false; toast('Dá para comparar até 4 hunts de uma vez.', true); return; }
+    compSel = c.checked ? [...compSel, id] : compSel.filter((x) => x !== id);
+    document.querySelector(`[data-card="${id}"]`).classList.toggle('sel', c.checked);
+    atualizarBarraComparar();
+  }));
+  atualizarBarraComparar();
+}
+
+// ---------- comparar hunts ----------
+let compSel = [];  // ids na ordem em que foram marcados (a 1ª é a referência)
+function atualizarBarraComparar() {
+  const k = compSel.length;
+  $('hi-comp-barra').classList.toggle('ativa', k > 0);
+  $('hi-comp-ir').disabled = k < 2;
+  $('hi-comp-ir').textContent = k >= 2 ? `⚖️ Comparar ${k} hunts` : '⚖️ Comparar';
+  $('hi-comp-limpar').style.display = k ? '' : 'none';
+  $('hi-comp-texto').innerHTML = k === 0 ? '⚖️ Marque <b>Comparar</b> em 2 a 4 hunts para ver lado a lado (por hora e por membro).'
+    : k === 1 ? 'Marque mais uma hunt (dica: use o filtro <b>Tamanho da party</b> para achar hunts parecidas).'
+    : `${k} hunts marcadas.`;
+}
+$('hi-comp-limpar').addEventListener('click', () => {
+  compSel = []; $('hi-comparar').innerHTML = '';
+  document.querySelectorAll('[data-comp]').forEach((c) => { c.checked = false; });
+  document.querySelectorAll('.hist-card.sel').forEach((c) => c.classList.remove('sel'));
+  atualizarBarraComparar();
+});
+$('hi-comp-ir').addEventListener('click', async () => {
+  const r = await api.hunt_comparar(compSel);
+  if (r.erro) { toast(r.erro, true); return; }
+  renderComparacao(r);
+});
+
+function renderComparacao(r) {
+  const fmtv = (v, tipo) => v === null || v === undefined ? '—' : tipo === 'txt' ? esc(v) : tipo === 'gp' ? `<span class="${cls(v)}">${n(v)}</span>` : n(v);
+  const cab = r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${esc(h.data || '')}</span>
+    <span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}${h.personagem ? ' · ' + esc(h.personagem) : ''}</span>
+    <span>${h.monstros.map((m) => m.imagem ? `<img src="${esc(m.imagem)}" alt="" title="${esc(m.kills + 'x ' + m.nome)}">` : '').join('')}</span></th>`).join('');
+  const linhas = r.linhas.map((l) => `<tr class="${l.chave === 'lucro_membro_h' || l.chave === 'xp_h' ? 'destaque' : ''}"><td>${esc(l.rotulo)}</td>
+    ${l.valores.map((v, i) => `<td class="r ${l.melhor === i ? 'melhor' : ''}">${fmtv(v, l.tipo)}</td>`).join('')}</tr>`).join('');
+  const prot = r.hunts.some((h) => h.protecoes.length)
+    ? `<tr><td>Proteções</td>${r.hunts.map((h) => `<td class="r dim">${esc(h.protecoes.join(', ') || '—')}</td>`).join('')}</tr>` : '';
+  $('hi-comparar').innerHTML = `<div class="card" style="margin-top:16px">
+    <div class="h-titulo"><h2 class="sub">⚖️ Comparação</h2><button class="btn btn-sm" id="hi-comp-fechar">Fechar</button></div>
+    ${r.veredito.length ? `<div class="veredito">${r.veredito.map((v) => `<div>🏆 ${esc(v)}</div>`).join('')}</div>` : ''}
+    ${r.avisos.length ? `<div class="avisos">${r.avisos.map((a) => `<div>⚠ ${esc(a)}</div>`).join('')}</div>`
+      : '<div class="dica" style="margin-bottom:12px">✔ Mesmo tamanho de party, duração parecida e mesmo spawn: dá para comparar direto.</div>'}
+    <div class="tabela-wrap"><table class="tab comp"><tr><th></th>${cab}</tr>${linhas}${prot}</table></div>
+    <p class="dica" style="margin:10px 0 0">★ = melhor valor da linha. As linhas "/ hora" e "por membro" corrigem durações e tamanhos de party diferentes.</p>
+  </div>`;
+  $('hi-comp-fechar').addEventListener('click', () => { $('hi-comparar').innerHTML = ''; });
+  $('hi-comparar').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 $('hi-filtro').addEventListener('change', carregarHistorico);
+$('hi-tamanho').addEventListener('change', carregarHistorico);
 $('hi-exportar').addEventListener('click', async () => {
   const r = await api.hunt_exportar($('hi-filtro').value);
   if (r.ok) toast(`${r.qtd} hunt(s) exportada(s)!`);
