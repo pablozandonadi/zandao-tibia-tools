@@ -1,0 +1,16 @@
+# dados pessoais de quem usa o programa (cada um tem os seus; nunca vão para o GitHub)
+historico_hunts.json
+historico_hunts.json.tmp
+hunt_atual.json
+dados_embuimentos.json
+settings.json
+preferencias.json
+cache_monstros.json
+macro/tibia_macro_config.ini
+
+# executáveis e build (o instalador vai como anexo da Release, não no código)
+*.exe
+build/
+dist/
+*.spec
+__pycache__/

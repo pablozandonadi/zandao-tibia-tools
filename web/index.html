@@ -1,0 +1,1210 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<title>Zandao Tibia Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Work+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14171c; --surface: #1b1f26; --surface-2: #0f1115;
+    --ink: #f3efe6; --ink-dim: #9aa1b0;
+    --accent: #ff6b3d; --accent-2: #ffb703;
+    --good: #3ecf8e; --bad: #ff6b6b;
+    --font-display: 'Archivo Black', 'Arial Black', sans-serif;
+    --font-body: 'Work Sans', system-ui, sans-serif;
+    --font-mono: 'Space Mono', 'Consolas', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); overflow: hidden; font-size: 14px; }
+  .app { display: flex; height: 100%; }
+
+  /* ---- menu lateral (igual ao Radar) ---- */
+  .sidebar { width: 230px; flex: 0 0 230px; background: var(--surface-2); border-right: 3px solid var(--ink);
+    padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+  .brand { font-family: var(--font-display); color: var(--accent); font-size: 1.1rem; line-height: 1.25; margin: 4px 4px 18px; }
+  .brand span { color: var(--ink); }
+  .nav-item { font-weight: 700; font-size: 0.85rem; padding: 10px 12px; border: 3px solid transparent; border-radius: 8px; cursor: pointer; user-select: none; }
+  .nav-item.active { background: var(--accent); color: #1a1108; border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
+  .nav-item:not(.active):hover { border-color: var(--ink-dim); }
+  @keyframes entradaLateral { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+  .nav-item { animation: entradaLateral .35s ease both; }
+  .nav-item:nth-child(3) { animation-delay: .04s; }
+  .nav-item:nth-child(4) { animation-delay: .08s; }
+  .nav-item:nth-child(5) { animation-delay: .12s; }
+  .nav-item:nth-child(6) { animation-delay: .16s; }
+  .assinatura { font-size: .7rem; color: var(--ink-dim); line-height: 1.4; padding: 0 6px; margin-top: 14px; }
+
+  /* ---- fixar por cima + transparência ---- */
+  .sobrepor { margin-top: auto; padding: 12px 8px 4px; border-top: 3px solid rgba(243,239,230,.25); display: flex; flex-direction: column; gap: 10px; }
+  .pino { font-family: var(--font-body); font-weight: 700; font-size: .8rem; color: var(--ink-dim); background: var(--surface);
+    border: 2.5px solid var(--ink-dim); border-radius: 9px; padding: 8px 10px; cursor: pointer; text-align: left; }
+  .pino:hover { border-color: var(--ink); color: var(--ink); }
+  .pino.on { background: var(--accent-2); color: #1d1500; border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+  .sobrepor .campo-label { margin: 0; display: flex; justify-content: space-between; }
+  .sobrepor .campo-label b { color: var(--ink); font-family: var(--font-mono); }
+  input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; margin: 0; }
+
+  /* janela estreita (ex.: fixada num canto em cima do Tibia): menu vira só ícones */
+  @media (max-width: 760px) {
+    .sidebar { width: 62px; flex-basis: 62px; padding: 14px 7px; align-items: stretch; }
+    .sidebar .txt, .brand span, .assinatura { display: none; }
+    .brand { font-size: 1.2rem; text-align: center; margin: 0 0 12px; }
+    .brand br { display: none; }
+    .nav-item { text-align: center; padding: 9px 0; font-size: 1.05rem; }
+    .sobrepor { padding: 10px 0 0; align-items: center; }
+    .pino { text-align: center; font-size: 1rem; padding: 7px 0; width: 100%; }
+    .sobrepor .campo-label { justify-content: center; font-size: .62rem; }
+    input[type=range] { writing-mode: vertical-lr; direction: rtl; height: 110px; width: 22px; }
+    .content { padding: 14px 12px; }
+    .vars { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .grid-emb { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  .content { flex: 1; min-width: 0; padding: 20px 26px; overflow-y: auto; }
+  .page { display: none; }
+  .page.shown { display: block; animation: entradaPagina .25s ease both; }
+  @keyframes entradaPagina { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  h1.titulo { font-family: var(--font-display); font-size: 1.5rem; margin: 0 0 14px; }
+  h2.sub { font-family: var(--font-display); font-size: 1rem; margin: 0 0 10px; letter-spacing: .01em; }
+  .dica { color: var(--ink-dim); font-size: .8rem; }
+
+  /* ---- controles ---- */
+  .btn { font-family: var(--font-body); font-weight: 700; font-size: 0.8rem; color: var(--ink); background: var(--surface);
+    border: 2.5px solid var(--ink); border-radius: 9px; padding: 8px 14px; box-shadow: 3px 3px 0 var(--ink);
+    cursor: pointer; transition: transform .08s, box-shadow .08s; }
+  .btn:hover:not(:disabled) { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+  .btn:active:not(:disabled) { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn-primary { background: var(--accent); color: #1a1108; }
+  .btn-danger { background: var(--bad); color: #2a0e0e; }
+  .btn-sm { padding: 6px 10px; font-size: .72rem; box-shadow: 2px 2px 0 var(--ink); }
+  input[type=text] { background: var(--surface); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 8px;
+    padding: 8px 11px; font-family: var(--font-body); font-size: .85rem; outline: none; width: 100%; }
+  input[type=text]:focus { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
+  input.num { font-family: var(--font-mono); text-align: right; padding: 6px 9px; font-size: .82rem; }
+  label.campo-label { display: block; font-size: .72rem; font-weight: 700; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
+  .check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: .85rem; cursor: pointer; user-select: none; }
+  .check input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+
+  .chip { font-family: var(--font-mono); font-weight: 700; font-size: .7rem; padding: 4px 9px; border: 2px solid var(--ink); border-radius: 999px; white-space: nowrap; }
+  .chip-good { background: var(--good); color: #062b19; }
+  .chip-bad { background: var(--bad); color: #2a0e0e; }
+  .chip-neutro { background: var(--surface-2); color: var(--ink-dim); }
+
+  .card { background: var(--surface); border: 2.5px solid var(--ink); border-radius: 12px; box-shadow: 5px 5px 0 var(--accent); padding: 14px 16px; }
+  .card + .card { margin-top: 14px; }
+  .card.calmo { box-shadow: 4px 4px 0 var(--ink); }
+
+  /* ---- embuimentos ---- */
+  .vars { display: grid; grid-template-columns: repeat(3, minmax(130px, 180px)) 1fr; gap: 14px; align-items: end; }
+  .grid-emb { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(380px, 1.15fr); gap: 20px; margin-top: 18px; align-items: start; }
+  @media (max-width: 1100px) { .grid-emb { grid-template-columns: 1fr; } .vars { grid-template-columns: 1fr 1fr; } }
+  .coluna-resultado { position: sticky; top: 0; }
+  .coluna-resultado .card { max-height: calc(100vh - 48px); overflow-y: auto; }
+  @media (max-width: 1100px) { .coluna-resultado { position: static; } .coluna-resultado .card { max-height: none; } }
+
+  .grupo-label { font-size: .68rem; font-weight: 700; letter-spacing: .08em; color: var(--ink-dim); text-transform: uppercase; margin: 12px 0 6px; }
+  .grupo-label:first-child { margin-top: 0; }
+  .pilulas { display: flex; flex-wrap: wrap; gap: 7px; }
+  .pilula { font-weight: 700; font-size: .78rem; padding: 6px 11px; border: 2px solid var(--ink-dim); border-radius: 999px; cursor: pointer;
+    color: var(--ink-dim); user-select: none; transition: transform .08s; }
+  .pilula:hover { border-color: var(--ink); color: var(--ink); }
+  .pilula.on { background: var(--accent-2); color: #1d1500; border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
+  .pilula.on:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink); }
+  .pilula small { font-weight: 500; opacity: .75; }
+
+  .escolhidos { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-bottom: 12px; }
+  .escolhidos .grupo-label { margin: 0 4px 0 0; }
+  .escolhidos .pilula b { margin-left: 3px; }
+  .grupo { border: 2.5px solid var(--ink-dim); border-radius: 10px; margin-top: 8px; overflow: hidden; }
+  .grupo.aberto { border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
+  .grupo-cab { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; user-select: none; background: var(--surface-2); }
+  .grupo-cab:hover { background: #161a20; }
+  .grupo-cab .seta { color: var(--accent); font-size: .8rem; transition: transform .15s; }
+  .grupo.aberto .seta { transform: rotate(90deg); }
+  .grupo-nome { flex: 1; font-weight: 800; font-size: .86rem; }
+  .grupo-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 2px 8px; padding: 8px 10px 10px;
+    border-top: 2px solid rgba(243,239,230,.15); animation: entradaPagina .18s ease both; }
+  .linha-imb { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 7px; cursor: pointer; }
+  .linha-imb:hover { background: var(--surface-2); }
+  .linha-imb input { width: 17px; height: 17px; accent-color: var(--accent-2); cursor: pointer; flex: none; }
+  .linha-imb .nm { font-weight: 700; font-size: .85rem; }
+  .linha-imb .sb { color: var(--ink-dim); font-size: .76rem; margin-left: auto; }
+  .linha-imb.on .nm { color: var(--accent-2); }
+
+  .tabela-itens { width: 100%; border-collapse: collapse; }
+  .tabela-itens th { font-size: .66rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-dim); text-align: right; padding: 0 4px 6px; }
+  .tabela-itens th:first-child { text-align: left; }
+  .tabela-itens td { padding: 3px 4px; vertical-align: middle; }
+  .tabela-itens td.nome { font-weight: 600; font-size: .85rem; }
+  .tabela-itens td.qtd { font-family: var(--font-mono); color: var(--ink-dim); font-size: .78rem; text-align: right; width: 42px; }
+  .tabela-itens td.preco { width: 120px; }
+  .tabela-itens td.tenho { width: 72px; }
+  .copiar-nome { font-size: .78rem; line-height: 1; background: var(--surface-2); border: 2px solid var(--ink-dim); border-radius: 6px;
+    padding: 3px 4px; margin-right: 7px; cursor: pointer; vertical-align: middle; transition: transform .08s, border-color .1s; }
+  .copiar-nome:hover { border-color: var(--accent); transform: translate(-1px,-1px); }
+  .copiar-nome:active { transform: translate(1px,1px); }
+  .copiar-nome.ok { background: var(--good); border-color: var(--ink); }
+  .tabela-itens td.nome { white-space: nowrap; }
+  .tabela-itens tr.linha-scroll td { border-top: 2px dashed rgba(243,239,230,.18); padding-top: 8px; }
+  .tabela-itens tr.linha-scroll td.nome { font-style: italic; color: var(--accent-2); }
+  .card-titulo { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .card-titulo b { font-size: .95rem; }
+
+  .falta { background: rgba(255,107,107,.1); border: 2px solid var(--bad); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: .8rem; }
+  .falta b { color: var(--bad); }
+  .falta ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink-dim); }
+  .res-imb + .res-imb { margin-top: 16px; padding-top: 14px; border-top: 2px dashed rgba(243,239,230,.18); }
+  .res-imb .nome { font-weight: 800; font-size: .95rem; margin-bottom: 7px; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .faca { background: var(--good); color: #062b19; border: 2.5px solid var(--ink); border-radius: 10px; padding: 9px 12px; font-weight: 700; font-size: .85rem; box-shadow: 3px 3px 0 var(--ink); margin-bottom: 9px; }
+  .faca.sem { background: var(--surface-2); color: var(--ink-dim); }
+  .rota { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 2px; font-size: .84rem; }
+  .rota .valor { font-family: var(--font-mono); font-weight: 700; }
+  .rota .diff { font-family: var(--font-mono); color: var(--ink-dim); font-size: .74rem; margin-left: 6px; }
+  .rota.melhor .valor, .rota.melhor .rotulo { color: var(--good); }
+  .rota.sem-preco { color: var(--ink-dim); opacity: .6; }
+  .economia { font-size: .76rem; color: var(--ink-dim); margin-top: 4px; }
+  .economia b { color: var(--accent-2); font-family: var(--font-mono); }
+  .total-grande { font-family: var(--font-display); font-size: 1.6rem; color: var(--accent); margin: 2px 0 10px; }
+  .plano-linha { display: flex; justify-content: space-between; padding: 4px 0; font-size: .84rem; color: var(--ink-dim); }
+  .plano-linha b { font-family: var(--font-mono); color: var(--ink); }
+  .resumo-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .vazio { color: var(--ink-dim); padding: 24px 0; text-align: center; }
+
+  /* ---- prints ---- */
+  .linha-pasta { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+  .linha-pasta input { flex: 1; }
+  .segmentado { display: inline-flex; border: 2.5px solid var(--ink); border-radius: 10px; overflow: hidden; box-shadow: 3px 3px 0 var(--ink); }
+  .segmentado button { font-family: var(--font-body); font-weight: 700; font-size: .78rem; background: var(--surface); color: var(--ink-dim); border: none; padding: 8px 14px; cursor: pointer; }
+  .segmentado button + button { border-left: 2.5px solid var(--ink); }
+  .segmentado button.on { background: var(--accent); color: #1a1108; }
+  .opcoes { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; margin: 4px 0 18px; }
+  .acoes { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .log { background: var(--surface-2); border: 2.5px solid var(--ink); border-radius: 12px; padding: 12px 14px; margin-top: 16px;
+    font-family: var(--font-mono); font-size: .74rem; color: var(--ink-dim); height: 330px; overflow: auto; white-space: pre; }
+  .barra { height: 8px; border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; margin-top: 14px; background: var(--surface-2); visibility: hidden; }
+  .barra.on { visibility: visible; }
+  .barra i { display: block; height: 100%; width: 35%; background: var(--accent); animation: vaivem 1.1s ease-in-out infinite alternate; }
+  @keyframes vaivem { from { margin-left: 0; } to { margin-left: 65%; } }
+
+  /* ---- macro ---- */
+  .macro-status { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .luz { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--ink-dim); }
+  .luz.on { background: var(--good); box-shadow: 0 0 0 4px rgba(62,207,142,.25); animation: pulso 1.6s ease-in-out infinite; }
+  .luz.off { background: var(--bad); }
+  @keyframes pulso { 50% { box-shadow: 0 0 0 8px rgba(62,207,142,.08); } }
+  .status-texto { font-family: var(--font-display); font-size: 1.15rem; }
+  kbd { font-family: var(--font-mono); font-weight: 700; font-size: .76rem; background: var(--surface-2); border: 2px solid var(--ink); border-bottom-width: 4px; border-radius: 7px; padding: 3px 8px; }
+  .atalhos { display: grid; grid-template-columns: auto 1fr; gap: 12px 14px; align-items: center; margin: 4px 0; font-size: .86rem; }
+  .aviso { margin-top: 14px; color: var(--bad); font-weight: 600; font-size: .82rem; }
+  p.texto { font-size: .88rem; line-height: 1.55; color: var(--ink-dim); max-width: 640px; margin: 0 0 14px; }
+  p.texto b { color: var(--ink); }
+
+  .toast { position: fixed; right: 22px; bottom: 22px; background: var(--good); color: #062b19; border: 2.5px solid var(--ink);
+    border-radius: 10px; padding: 10px 16px; font-weight: 700; box-shadow: 4px 4px 0 var(--ink); opacity: 0; transform: translateY(10px);
+    transition: opacity .2s, transform .2s; pointer-events: none; }
+  .toast.on { opacity: 1; transform: none; }
+  .toast.erro { background: var(--bad); color: #2a0e0e; }
+
+  /* ---- hunt analyser ---- */
+  .hunt-topo { display: grid; grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) auto; gap: 14px; align-items: end; }
+  .caixas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+  .caixa-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .caixa-cab .campo-label { margin: 0; }
+  .caixa textarea { width: 100%; height: 118px; resize: vertical; background: var(--surface-2); color: var(--ink); border: 2.5px solid var(--ink-dim);
+    border-radius: 8px; font-family: var(--font-mono); font-size: .68rem; line-height: 1.45; padding: 8px 9px; outline: none; }
+  .caixa textarea:focus { border-color: var(--accent); }
+  .caixa.ok textarea { border-color: var(--good); }
+  .caixa.erro textarea { border-color: var(--bad); }
+  .caixa-rod { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 6px; }
+  .caixa-rod .dica { font-size: .72rem; }
+  .linha-despesa { display: grid; grid-template-columns: minmax(120px, 1.4fr) 130px minmax(120px, 1fr) auto; gap: 8px; margin-bottom: 8px; align-items: center; }
+  select { background: var(--surface); color: var(--ink); border: 2.5px solid var(--ink); border-radius: 8px; padding: 7px 9px;
+    font-family: var(--font-body); font-size: .84rem; outline: none; width: 100%; }
+  select:focus { border-color: var(--accent); }
+
+  .h-titulo { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .h-titulo h2 { margin: 0; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 18px; }
+  .stat .k { font-size: .64rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); }
+  .stat .v { font-family: var(--font-mono); font-weight: 700; font-size: 1rem; margin-top: 3px; overflow-wrap: anywhere; }
+  .pos { color: var(--good); } .neg { color: var(--bad); } .dim { color: var(--ink-dim); }
+  .tabela-wrap { overflow-x: auto; }
+  table.tab { width: 100%; border-collapse: collapse; font-size: .84rem; }
+  table.tab th { font-size: .64rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-dim);
+    text-align: left; padding: 0 8px 7px; white-space: nowrap; }
+  table.tab td { padding: 7px 8px; border-top: 1px solid rgba(243,239,230,.1); vertical-align: middle; }
+  table.tab .r { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
+  table.tab th.r { font-family: var(--font-body); }
+  table.tab tr.fora td { opacity: .4; }
+  table.tab tr.fora td.nome-membro { text-decoration: line-through; }
+  .nome-membro { cursor: pointer; font-weight: 700; }
+  .nome-membro:hover { color: var(--accent-2); }
+  .tag { font-size: .62rem; font-weight: 800; padding: 2px 6px; border-radius: 5px; margin-left: 6px; vertical-align: 1px; border: 1.5px solid var(--ink); }
+  .tag-lider { background: var(--accent-2); color: #1d1500; }
+  .tag-eu { background: var(--accent); color: #1a1108; }
+  .pct { color: var(--ink-dim); font-size: .74rem; }
+  .cmd { font-family: var(--font-mono); font-size: .76rem; color: var(--ink-dim); }
+  .grande-pos { font-family: var(--font-display); font-size: 1.35rem; color: var(--good); margin: 0 0 10px; }
+  .abas { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .det-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 16px; }
+  .mon-img { width: 32px; height: 32px; object-fit: contain; vertical-align: middle; margin-right: 8px; }
+  .mon-ph { display: inline-block; width: 32px; height: 32px; margin-right: 8px; vertical-align: middle; border-radius: 6px; background: var(--surface-2); }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .grid3 > .card { margin: 0 !important; }
+  .linha-el { display: flex; align-items: center; gap: 9px; font-size: .82rem; margin: 6px 0; }
+  .linha-el .rot { width: 92px; flex: none; }
+  .barra-el { flex: 1; height: 12px; background: var(--surface-2); border: 2px solid var(--ink); border-radius: 999px; overflow: hidden; }
+  .barra-el i { display: block; height: 100%; }
+  .linha-el .val { width: 50px; text-align: right; font-family: var(--font-mono); font-weight: 700; flex: none; }
+  .prot { border: 2px solid var(--ink-dim); border-radius: 9px; padding: 8px 10px; margin-bottom: 8px; }
+  .prot-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 800; font-size: .85rem; }
+  .prot .motivo { color: var(--ink-dim); font-size: .74rem; margin-top: 4px; line-height: 1.4; }
+  .ofens { display: flex; flex-wrap: wrap; gap: 7px; }
+  .ofens .chip { font-size: .74rem; }
+  .avisos { background: rgba(255,183,3,.08); border: 2px solid var(--accent-2); border-radius: 10px; padding: 8px 12px; margin-bottom: 14px; font-size: .78rem; }
+  .avisos div + div { margin-top: 4px; }
+  .fichas { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; }
+  .ficha { border: 2.5px solid var(--ink-dim); border-radius: 10px; padding: 10px 12px; background: var(--surface-2); }
+  .ficha-cab { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .ficha-cab img { width: 40px; height: 40px; object-fit: contain; }
+  .ficha-cab b { font-size: .92rem; }
+  .ficha-cab a { color: var(--ink-dim); font-size: .7rem; }
+  .resists { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+  .rz { font-family: var(--font-mono); font-size: .66rem; font-weight: 700; padding: 2px 5px; border-radius: 5px; border: 1.5px solid var(--ink-dim); color: var(--ink-dim); }
+  .rz.fraco { border-color: var(--good); color: var(--good); }
+  .rz.forte { border-color: var(--bad); color: var(--bad); }
+  .rz.imune { background: var(--bad); color: #2a0e0e; border-color: var(--bad); }
+  .ataque { font-size: .74rem; color: var(--ink-dim); padding: 2px 0; }
+  .carregando { color: var(--ink-dim); padding: 14px 0; display: flex; align-items: center; gap: 10px; }
+  .carregando::before { content: ''; width: 14px; height: 14px; border: 3px solid var(--ink-dim); border-top-color: var(--accent); border-radius: 50%; animation: gira .8s linear infinite; }
+  @keyframes gira { to { transform: rotate(360deg); } }
+  details.itens summary { cursor: pointer; font-weight: 700; font-size: .82rem; color: var(--ink-dim); margin-top: 12px; }
+  .lista-itens { columns: 3 220px; font-size: .78rem; color: var(--ink-dim); margin-top: 8px; }
+
+  /* ---- histórico ---- */
+  .hist-barra { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .hist-barra > div:first-child { min-width: 200px; }
+  .hist-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
+  .hist-card + .hist-card { margin-top: 12px; }
+  .hist-nome { font-weight: 800; font-size: .98rem; }
+  .hist-meta { color: var(--ink-dim); font-size: .76rem; margin-top: 2px; }
+  .hist-nums { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: .8rem; }
+  .hist-nums b { font-family: var(--font-mono); }
+  .hist-mons { display: flex; gap: 4px; margin-top: 8px; align-items: center; flex-wrap: wrap; }
+  .hist-mons img { width: 28px; height: 28px; object-fit: contain; }
+  .hist-acoes { display: flex; flex-direction: column; gap: 8px; }
+
+  @media (max-width: 1100px) {
+    .caixas, .grid3 { grid-template-columns: 1fr; }
+    .stats, .det-grid { grid-template-columns: 1fr 1fr; }
+    .hunt-topo { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 760px) {
+    .hunt-topo, .linha-despesa { grid-template-columns: 1fr; }
+    .hist-card { grid-template-columns: 1fr; }
+    .hist-acoes { flex-direction: row; }
+  }
+
+  /* ---- atualização ---- */
+  .modal-fundo { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+  .modal-caixa { background: var(--surface); border: 2.5px solid var(--ink); border-radius: 12px; box-shadow: 6px 6px 0 var(--accent);
+    padding: 18px 20px; width: 440px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .modal-caixa h3 { margin: 0; font-family: var(--font-display); }
+  .modal-acoes { display: flex; justify-content: flex-end; gap: 8px; }
+  .notas-atualizacao { white-space: pre-wrap; font-size: .76rem; color: var(--ink-dim); max-height: 140px; overflow-y: auto; margin: 0; }
+  .barra-progresso { height: 14px; border: 2px solid var(--ink); border-radius: 8px; background: var(--surface-2); overflow: hidden; }
+  .barra-progresso div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+
+  ::-webkit-scrollbar { width: 11px; height: 11px; }
+  ::-webkit-scrollbar-track { background: var(--surface-2); }
+  ::-webkit-scrollbar-thumb { background: #3a404c; border-radius: 6px; border: 2px solid var(--surface-2); }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">⚔️ Zandao<br><span>Tibia Tools</span></div>
+    <div class="nav-item active" data-pagina="emb" title="Embuimentos">💎<span class="txt"> Embuimentos</span></div>
+    <div class="nav-item" data-pagina="hunt" title="Hunt Analyser (Loot Split + Dano)">🪓<span class="txt"> Hunt Analyser</span></div>
+    <div class="nav-item" data-pagina="hist" title="Histórico de hunts">📜<span class="txt"> Histórico</span></div>
+    <div class="nav-item" data-pagina="prints" title="Prints">📸<span class="txt"> Prints</span></div>
+    <div class="nav-item" data-pagina="macro" title="Simulated Keys">⌨️<span class="txt"> Simulated Keys</span></div>
+    <div class="sobrepor">
+      <button class="pino" id="j-topo" title="Fixar por cima do Tibia (fica visível mesmo clicando no jogo)">📌<span class="txt"> Fixar por cima</span></button>
+      <label class="campo-label" for="j-opac"><span class="txt">Transparência </span><b id="j-opac-val">100%</b></label>
+      <input type="range" id="j-opac" min="40" max="100" step="5" value="100" title="Transparência da janela">
+    </div>
+    <div class="assinatura">Created by Zandao,<br>the best Master Sorcerer in Tibia<br><span id="versao-app"></span></div>
+  </aside>
+
+  <main class="content" id="content">
+    <!-- ================= EMBUIMENTOS ================= -->
+    <section class="page shown" id="page-emb">
+      <h1 class="titulo">Embuimentos</h1>
+      <div class="card calmo">
+        <div class="vars">
+          <div><label class="campo-label" for="v-token">Gold Token</label><input type="text" class="num" id="v-token" placeholder="ex.: 53.805"></div>
+          <div><label class="campo-label" for="v-taxa">Taxa de embuir</label><input type="text" class="num" id="v-taxa"></div>
+          <div><label class="campo-label" for="v-blank">Blank scroll</label><input type="text" class="num" id="v-blank"></div>
+          <label class="check"><input type="checkbox" id="v-scroll"> Fazer scroll para usar depois (soma o blank)</label>
+        </div>
+      </div>
+
+      <div class="grid-emb">
+        <div>
+          <div class="card calmo">
+            <h2 class="sub">Quais vai fazer</h2>
+            <div id="seletor"></div>
+          </div>
+          <p class="dica" style="margin:16px 2px 10px;">Preço unitário em gp. Aceita 4.475, 4,475, 4.5k ou 1.2kk. Em <b>Tenho</b>, o que já está no seu inventário.</p>
+          <div id="itens"></div>
+        </div>
+        <div class="coluna-resultado">
+          <div class="card" id="resultado"><div class="vazio">Carregando...</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= HUNT ANALYSER ================= -->
+    <section class="page" id="page-hunt">
+      <h1 class="titulo">Hunt Analyser</h1>
+      <div class="card calmo">
+        <div class="hunt-topo">
+          <div><label class="campo-label" for="h-nome">Nome da hunt</label><input type="text" id="h-nome" placeholder="ex.: norfectarus pt 4x"></div>
+          <div><label class="campo-label" for="h-personagem">Seu personagem</label><input type="text" id="h-personagem" list="h-personagens" placeholder="ex.: Zandao"><datalist id="h-personagens"></datalist></div>
+          <div class="acoes"><button class="btn btn-primary" id="h-colar">📋 Colar do Tibia</button><button class="btn" id="h-nova">✚ Nova hunt</button></div>
+        </div>
+        <p class="dica" style="margin:12px 0 0;line-height:1.5">No Tibia, clique em <b>Copy</b> no <b>Party Hunt Analyser</b>, no <b>Hunting Analyser</b> e no <b>Input Analyser</b> (Received Damage), um de cada vez, e clique em <b>Colar do Tibia</b>: o app reconhece qual é qual. Também dá para colar direto nas caixas. Toda análise fica salva no Histórico.</p>
+        <div class="caixas">
+          <div class="caixa" id="cx-party">
+            <div class="caixa-cab"><label class="campo-label" for="h-party">Party Hunt Analyser</label><span class="chip chip-neutro" id="st-party">vazio</span></div>
+            <textarea id="h-party" data-tipo="party" spellcheck="false" placeholder="Session data: From ...&#10;Session: 02:47h&#10;Loot Type: Market&#10;Loot: ...&#10;Zandao&#10;    Loot: ...&#10;    Damage: ..."></textarea>
+            <div class="caixa-rod"><span class="dica">loot split, dano e cura do grupo</span><button class="btn btn-sm" data-limpar="party">Limpar</button></div>
+          </div>
+          <div class="caixa" id="cx-solo">
+            <div class="caixa-cab"><label class="campo-label" for="h-solo">Hunting Analyser</label><span class="chip chip-neutro" id="st-solo">vazio</span></div>
+            <textarea id="h-solo" data-tipo="solo" spellcheck="false" placeholder="Session: 02:47h&#10;Raw XP Gain: ...&#10;XP Gain: ...&#10;Killed Monsters:&#10;  1262x norcferatu heartless&#10;Looted Items: ..."></textarea>
+            <div class="caixa-rod"><span class="dica">sua XP, monstros mortos e itens</span><button class="btn btn-sm" data-limpar="solo">Limpar</button></div>
+          </div>
+          <div class="caixa" id="cx-dano">
+            <div class="caixa-cab"><label class="campo-label" for="h-dano">Damage Input</label><span class="chip chip-neutro" id="st-dano">vazio</span></div>
+            <textarea id="h-dano" data-tipo="dano" spellcheck="false" placeholder="Received Damage&#10;Total: ...&#10;Damage Types&#10;  Physical 120,000 (60.0%)&#10;Damage Sources&#10;  Gloom Maw 90,000 (45.0%)"></textarea>
+            <div class="caixa-rod"><span class="dica">dano recebido, para as proteções</span><button class="btn btn-sm" data-limpar="dano">Limpar</button></div>
+          </div>
+        </div>
+        <div class="card-titulo" style="margin:16px 0 8px"><b>Despesas extras</b><button class="btn btn-sm" id="h-add-despesa">+ Despesa</button></div>
+        <div id="h-despesas"><div class="dica">Boat, hireling, montaria alugada... quem pagou é reembolsado na divisão.</div></div>
+      </div>
+      <div id="h-res"></div>
+    </section>
+
+    <!-- ================= HISTÓRICO ================= -->
+    <section class="page" id="page-hist">
+      <h1 class="titulo">Histórico de hunts</h1>
+      <p class="texto">Cada análise do Hunt Analyser (loot split + dano) fica salva aqui, só neste computador, em <b>historico_hunts.json</b>. Para levar para outro PC ou mandar para alguém, use <b>Exportar</b>; quem recebe usa <b>Importar</b>.</p>
+      <div class="card calmo">
+        <div class="hist-barra">
+          <div><label class="campo-label" for="hi-filtro">Personagem</label><select id="hi-filtro"><option value="">Todos</option></select></div>
+          <button class="btn" id="hi-exportar">📤 Exportar</button>
+          <button class="btn" id="hi-importar">📥 Importar (somar)</button>
+          <button class="btn btn-danger" id="hi-substituir">Importar substituindo tudo</button>
+        </div>
+        <div class="resumo-chips" id="hi-totais"></div>
+      </div>
+      <div id="hi-lista" style="margin-top:16px"></div>
+    </section>
+
+    <!-- ================= PRINTS ================= -->
+    <section class="page" id="page-prints">
+      <h1 class="titulo">Organizar prints</h1>
+      <p class="texto">Separa as screenshots do Tibia em <b>Personagem / Tipo</b> (e por mês, se quiser). Prints que já foram organizados não são copiados de novo.</p>
+      <div class="card calmo">
+        <label class="campo-label" for="p-origem">Pasta de screenshots do Tibia</label>
+        <div class="linha-pasta"><input type="text" id="p-origem"><button class="btn btn-sm" data-escolher="p-origem">Procurar...</button></div>
+        <label class="campo-label" for="p-destino">Pasta de destino</label>
+        <div class="linha-pasta"><input type="text" id="p-destino"><button class="btn btn-sm" data-escolher="p-destino">Procurar...</button></div>
+        <div class="opcoes">
+          <div class="segmentado" id="p-modo">
+            <button data-copiar="1">Copiar</button><button data-copiar="0">Mover</button>
+          </div>
+          <label class="check"><input type="checkbox" id="p-mes"> Separar por mês</label>
+          <label class="check"><input type="checkbox" id="p-abrir"> Abrir destino ao terminar</label>
+        </div>
+        <div class="acoes">
+          <button class="btn btn-primary" id="p-organizar">📂 Organizar agora</button>
+          <button class="btn" id="p-abrir-destino">Abrir pasta de destino</button>
+        </div>
+        <div class="barra" id="p-barra"><i></i></div>
+        <div class="resumo-chips" id="p-resumo"></div>
+        <div class="log" id="p-log">Pronto para organizar.</div>
+      </div>
+    </section>
+
+    <!-- ================= MACRO ================= -->
+    <section class="page" id="page-macro">
+      <h1 class="titulo">Simulated Keys</h1>
+      <div class="card">
+        <div class="macro-status"><div class="luz" id="m-luz"></div><div class="status-texto" id="m-status">verificando...</div></div>
+        <div class="acoes">
+          <button class="btn btn-primary" id="m-ligar" disabled>▶ Ligar Simulated Keys</button>
+          <button class="btn btn-danger" id="m-fechar" disabled>■ Desligar</button>
+          <button class="btn" id="m-atualizar">↻ Atualizar status</button>
+          <button class="btn" id="m-pasta">Abrir pasta</button>
+        </div>
+        <div class="aviso" id="m-aviso" style="display:none;"></div>
+      </div>
+      <div class="card calmo">
+        <h2 class="sub">Como funciona</h2>
+        <p class="texto">Segurar uma tecla configurada repete a tecla-alvo no intervalo escolhido (ex.: segurar <b>F</b> manda <b>F1</b>). Só age com o Tibia (<b>client.exe</b>) em foco. Continua rodando mesmo se você fechar o Tibia Tools (ícone perto do relógio). Não precisa instalar o AutoHotkey: ele já vem dentro do programa.</p>
+        <div class="atalhos">
+          <span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd></span><span>liga / desliga o Simulated Keys</span>
+          <span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>F10</kbd></span><span>abre a janela para configurar as teclas</span>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal-fundo" id="modal-atualizacao" style="display:none;">
+  <div class="modal-caixa">
+    <h3>Nova versão disponível!</h3>
+    <p class="texto" id="atualizacao-texto" style="margin:0;"></p>
+    <p class="notas-atualizacao" id="atualizacao-notas"></p>
+    <div class="barra-progresso" id="atualizacao-progresso" style="display:none;"><div id="atualizacao-barra"></div></div>
+    <p class="dica" id="atualizacao-status" style="margin:0;"></p>
+    <div class="modal-acoes">
+      <button class="btn btn-sm" id="atualizacao-depois">Agora não</button>
+      <button class="btn btn-sm btn-primary" id="atualizacao-instalar">Baixar e instalar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let api = null;
+let IMBS = [], GRUPOS = [];
+let estado = null;        // mesmo formato de "dados" do Python
+let ultimoTexto = '';
+
+function toast(msg, erro = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast on' + (erro ? ' erro' : '');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => (t.className = 'toast' + (erro ? ' erro' : '')), 2200);
+}
+
+// ---------- navegação ----------
+function irPara(pagina) {
+  document.querySelectorAll('.nav-item').forEach((x) => x.classList.toggle('active', x.dataset.pagina === pagina));
+  document.querySelectorAll('.page').forEach((p) => p.classList.toggle('shown', p.id === 'page-' + pagina));
+  $('content').scrollTop = 0;
+  if (pagina === 'macro') atualizarMacro();
+  if (pagina === 'hist') carregarHistorico();
+}
+document.querySelectorAll('.nav-item').forEach((n) => n.addEventListener('click', () => irPara(n.dataset.pagina)));
+
+// ================= EMBUIMENTOS =================
+// grupos em lista sanfona: só um aberto por vez; os escolhidos ficam visíveis no topo
+let grupoAberto = null;
+const nomeCurto = (i) => i.nome.replace('Powerful ', '');
+
+function alternarSelecao(id) {
+  const marcados = new Set(estado.selecionados);
+  marcados.has(id) ? marcados.delete(id) : marcados.add(id);
+  estado.selecionados = IMBS.map((x) => x.id).filter((x) => marcados.has(x));  // mantém a ordem da lista
+  montarSeletor();
+  montarItens();
+  calcular();
+}
+
+function montarSeletor() {
+  const sel = new Set(estado.selecionados);
+  const escolhidos = IMBS.filter((i) => sel.has(i.id));
+  let h = '<div class="escolhidos"><span class="grupo-label">Selecionados</span>' + (escolhidos.length
+    ? escolhidos.map((i) => `<span class="pilula on" data-tirar="${i.id}" title="Tirar">${esc(nomeCurto(i))} <b>✕</b></span>`).join('')
+    : '<span class="dica">nenhum, abra um grupo abaixo</span>') + '</div>';
+
+  for (const g of GRUPOS) {
+    const doGrupo = IMBS.filter((i) => i.grupo === g);
+    if (!doGrupo.length) continue;
+    const n = doGrupo.filter((i) => sel.has(i.id)).length;
+    const aberto = grupoAberto === g;
+    h += `<div class="grupo ${aberto ? 'aberto' : ''}">
+      <div class="grupo-cab" data-grupo="${esc(g)}"><span class="seta">▸</span><span class="grupo-nome">${esc(g)}</span>
+        <span class="chip ${n ? 'chip-good' : 'chip-neutro'}">${n}/${doGrupo.length}</span></div>`;
+    if (aberto) {
+      h += '<div class="grupo-lista">' + doGrupo.map((i) => `
+        <label class="linha-imb ${sel.has(i.id) ? 'on' : ''}"><input type="checkbox" data-id="${i.id}" ${sel.has(i.id) ? 'checked' : ''}>
+          <span class="nm">${esc(nomeCurto(i))}</span><span class="sb">${esc(i.sub)}</span></label>`).join('') + '</div>';
+    }
+    h += '</div>';
+  }
+  $('seletor').innerHTML = h;
+
+  $('seletor').querySelectorAll('.grupo-cab').forEach((c) => c.addEventListener('click', () => {
+    grupoAberto = grupoAberto === c.dataset.grupo ? null : c.dataset.grupo;
+    montarSeletor();
+  }));
+  $('seletor').querySelectorAll('input[data-id]').forEach((c) => c.addEventListener('change', () => alternarSelecao(c.dataset.id)));
+  $('seletor').querySelectorAll('[data-tirar]').forEach((p) => p.addEventListener('click', () => alternarSelecao(p.dataset.tirar)));
+}
+
+function inputNum(tipo, key) {
+  const v = (tipo === 'preco' ? estado.precos : estado.inventario)[key] ?? '';
+  return `<input type="text" class="num" data-tipo="${tipo}" data-key="${esc(key)}" value="${esc(v)}" placeholder="${tipo === 'preco' ? '—' : '0'}">`;
+}
+
+function montarItens() {
+  const sel = IMBS.filter((i) => estado.selecionados.includes(i.id));
+  if (!sel.length) {
+    $('itens').innerHTML = '<div class="card calmo"><div class="vazio">Escolha um ou mais embuimentos acima.</div></div>';
+    return;
+  }
+  $('itens').innerHTML = sel.map((imb) => `
+    <div class="card calmo">
+      <div class="card-titulo"><b>${esc(imb.nome)}</b><span class="chip ${imb.token ? 'chip-good' : 'chip-neutro'}">${imb.token ? 'aceita token' : esc(imb.sub)}</span></div>
+      <table class="tabela-itens">
+        <tr><th>Item</th><th>Qtd</th><th>Preço un.</th><th>Tenho</th></tr>
+        ${imb.itens.map((it) => `<tr><td class="nome">${btnCopiar(it.nome)}${esc(it.nome)}</td><td class="qtd">x${it.qtd}</td>
+          <td class="preco">${inputNum('preco', it.key)}</td><td class="tenho">${inputNum('inv', it.key)}</td></tr>`).join('')}
+        <tr class="linha-scroll"><td class="nome">${btnCopiar(imb.scrollNome)}Scroll pronto</td><td></td><td class="preco">${inputNum('preco', imb.scrollKey)}</td><td></td></tr>
+      </table>
+    </div>`).join('');
+}
+
+// 📋 ao lado do nome: copia o nome para colar (Ctrl+V) na busca do Market
+const btnCopiar = (nome) => `<button class="copiar-nome" data-copiar-nome="${esc(nome)}" title="Copiar &quot;${esc(nome)}&quot;">📋</button>`;
+$('itens').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-copiar-nome]');
+  if (!b) return;
+  const nome = b.dataset.copiarNome;
+  if (await api.copiar(nome)) {
+    toast(`Copiado: ${nome}`);
+    b.classList.add('ok');
+    setTimeout(() => b.classList.remove('ok'), 900);
+  } else {
+    toast('Não consegui copiar.', true);
+  }
+});
+
+// um item pode aparecer em mais de um card: espelha o valor nos outros campos iguais
+$('itens').addEventListener('input', (e) => {
+  const el = e.target;
+  if (!el.dataset.key) return;
+  const alvo = el.dataset.tipo === 'preco' ? estado.precos : estado.inventario;
+  alvo[el.dataset.key] = el.value;
+  $('itens').querySelectorAll(`input[data-tipo="${el.dataset.tipo}"]`).forEach((o) => {
+    if (o !== el && o.dataset.key === el.dataset.key) o.value = el.value;
+  });
+  calcular();
+});
+
+[['v-token', 'token'], ['v-taxa', 'taxa'], ['v-blank', 'blank']].forEach(([id, k]) =>
+  $(id).addEventListener('input', () => { estado[k] = $(id).value; calcular(); }));
+$('v-scroll').addEventListener('change', () => { estado.fazer_scroll = $('v-scroll').checked; calcular(); });
+
+let tCalc = null;
+function calcular() {
+  clearTimeout(tCalc);
+  tCalc = setTimeout(async () => renderResultado(await api.calcular(estado)), 180);
+}
+
+function renderResultado(r) {
+  if (r.vazio) {
+    ultimoTexto = '';
+    $('resultado').innerHTML = '<div class="vazio">Nenhum embuimento escolhido.</div>';
+    return;
+  }
+  ultimoTexto = r.texto;
+  let h = '<div class="card-titulo"><h2 class="sub" style="margin:0">Faça assim</h2><button class="btn btn-sm btn-primary" id="btn-copiar">📋 Copiar resultado</button></div>';
+  if (r.falta.length) {
+    h += `<div class="falta"><b>Faltam preços</b>, as rotas sem preço ficam de fora:<ul>${r.falta.map((f) => `<li>${esc(f)}</li>`).join('')}</ul></div>`;
+  }
+  for (const res of r.resultados) {
+    h += `<div class="res-imb"><div class="nome"><span>${esc(res.label)}</span>${res.custo ? `<span class="chip chip-good">${esc(res.custo)}</span>` : ''}</div>`;
+    h += res.faca ? `<div class="faca">${esc(res.faca)}</div>` : '<div class="faca sem">Faltam preços para calcular.</div>';
+    for (const ro of res.rotas) {
+      if (!ro.custo) { h += `<div class="rota sem-preco"><span>${esc(ro.label)}</span><span>sem preço</span></div>`; continue; }
+      h += `<div class="rota ${ro.melhor ? 'melhor' : ''}"><span class="rotulo">${ro.melhor ? '✔ ' : ''}${esc(ro.label)}</span>
+        <span><span class="valor">${esc(ro.custo)}</span>${ro.diff ? `<span class="diff">+${esc(ro.diff)}</span>` : ''}</span></div>`;
+    }
+    if (res.economia) h += `<div class="economia">Economia vs scroll pronto: <b>${esc(res.economia)}</b></div>`;
+    h += '</div>';
+  }
+  const pl = r.plano;
+  h += `<div class="res-imb"><div class="grupo-label" style="margin:0">Plano inteiro recomendado</div>
+    <div class="total-grande">${esc(pl.recomendado)}</div>
+    ${pl.linhas.map(([l, v]) => `<div class="plano-linha"><span>${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}
+    <div class="resumo-chips"><span class="chip chip-good">economia ${esc(pl.economia)}</span><span class="chip chip-neutro">${esc(pl.tokens)} gold tokens</span></div></div>`;
+  $('resultado').innerHTML = h;
+  $('btn-copiar').addEventListener('click', async () => {
+    (await api.copiar(ultimoTexto)) ? toast('Resultado copiado!') : toast('Não consegui copiar.', true);
+  });
+}
+
+// ================= PRINTS =================
+let copiar = true;
+function setModo(v) {
+  copiar = v;
+  $('p-modo').querySelectorAll('button').forEach((b) => b.classList.toggle('on', (b.dataset.copiar === '1') === v));
+}
+$('p-modo').querySelectorAll('button').forEach((b) => b.addEventListener('click', () => setModo(b.dataset.copiar === '1')));
+document.querySelectorAll('[data-escolher]').forEach((b) => b.addEventListener('click', async () => {
+  const campo = $(b.dataset.escolher);
+  const p = await api.escolher_pasta(campo.value);
+  if (p) campo.value = p;
+}));
+$('p-abrir-destino').addEventListener('click', async () => {
+  if (!(await api.abrir_pasta($('p-destino').value.trim()))) toast('A pasta de destino ainda não existe.', true);
+});
+
+function cfgPrints() {
+  return { 'print-dir': $('p-origem').value.trim(), destination: $('p-destino').value.trim(),
+    copy: copiar, 'by-month': $('p-mes').checked, 'open-when-done': $('p-abrir').checked };
+}
+function logPrints(msg) { const l = $('p-log'); l.textContent += msg + '\n'; l.scrollTop = l.scrollHeight; }
+function fimOrganizar() { $('p-barra').classList.remove('on'); $('p-organizar').disabled = false; }
+
+$('p-organizar').addEventListener('click', async () => {
+  const cfg = cfgPrints();
+  if (!cfg.destination) { toast('Escolha a pasta de destino.', true); return; }
+  if (!cfg.copy && !confirm('Modo MOVER: as fotos vão sair da pasta do Tibia.\n\nContinuar?')) return;
+  $('p-log').textContent = 'Organizando...\n\n';
+  $('p-resumo').innerHTML = '';
+  $('p-organizar').disabled = true;
+  $('p-barra').classList.add('on');
+  const r = await api.organizar(cfg);
+  if (!r.ok) { fimOrganizar(); toast(r.erro, true); }
+});
+
+window.fimPrints = ({ resultado, porTipo }) => {
+  fimOrganizar();
+  const c = (cls, txt) => `<span class="chip ${cls}">${txt}</span>`;
+  let h = c('chip-good', `${resultado.processadas || 0} novas`) + c('chip-neutro', `${resultado.existentes || 0} já existiam`);
+  if (resultado.reorganizadas) h += c('chip-neutro', `${resultado.reorganizadas} reorganizadas`);
+  if (resultado.invalidas) h += c('chip-bad', `${resultado.invalidas} nome inválido`);
+  if (resultado.erros) h += c('chip-bad', `${resultado.erros} erros`);
+  $('p-resumo').innerHTML = h;
+  if (porTipo.length) {
+    logPrints('\n' + '='.repeat(40));
+    porTipo.forEach(([t, q]) => logPrints(`  ${t.padEnd(24)} ${q}`));
+  }
+  toast('Prints organizados!');
+};
+window.erroPrints = (msg) => { fimOrganizar(); logPrints('\nERRO: ' + msg); toast(msg, true); };
+window.logPrints = logPrints;
+
+// ================= MACRO =================
+async function atualizarMacro() {
+  $('m-status').textContent = 'verificando...';
+  $('m-luz').className = 'luz';
+  $('m-ligar').disabled = $('m-fechar').disabled = true;
+  const s = await api.macro_status();
+  $('m-luz').className = 'luz ' + (s.rodando ? 'on' : 'off');
+  $('m-status').textContent = s.rodando ? 'Simulated Keys ligado' : 'Simulated Keys desligado';
+  $('m-ligar').disabled = !s.ahk || s.rodando;
+  $('m-fechar').disabled = !s.rodando;
+  $('m-aviso').style.display = s.ahk ? 'none' : 'block';
+  $('m-aviso').textContent = 'Simulated Keys não encontrado. Reinstale o Zandao Tibia Tools (ou, rodando pelo código, instale o AutoHotkey v1.1).';
+}
+$('m-ligar').addEventListener('click', async () => {
+  const r = await api.macro_ligar();
+  if (!r.ok) { toast(r.erro, true); return; }
+  setTimeout(atualizarMacro, 1200);
+});
+$('m-fechar').addEventListener('click', async () => { await api.macro_fechar(); setTimeout(atualizarMacro, 400); });
+$('m-atualizar').addEventListener('click', atualizarMacro);
+$('m-pasta').addEventListener('click', () => api.macro_abrir_pasta());
+
+// ================= HUNT ANALYSER (loot split + dano) =================
+const EL = {
+  physical: ['Físico', '⚔️', '#cfc7b8'], fire: ['Fogo', '🔥', '#ff7a3d'], earth: ['Terra', '🌿', '#7bc96f'],
+  energy: ['Energia', '⚡', '#b27cff'], ice: ['Gelo', '❄️', '#6fd3ff'], death: ['Morte', '💀', '#8f95a6'],
+  holy: ['Sagrado', '✨', '#ffd86b'], drowning: ['Afogamento', '💧', '#4fb3b3'], lifedrain: ['Life Drain', '🩸', '#d0546a'],
+  manadrain: ['Mana Drain', '🔮', '#8a7cff'], healing: ['Cura', '💚', '#3ecf8e'],
+};
+const ORDEM_RESIST = ['physical', 'fire', 'ice', 'earth', 'energy', 'death', 'holy', 'lifedrain', 'drowning'];
+const TIPOS = ['party', 'solo', 'dano'];
+const NOME_TIPO = { party: 'Party Hunt Analyser', solo: 'Hunting Analyser', dano: 'Damage Input' };
+const n = (v) => (v === null || v === undefined) ? '—' : Number(v).toLocaleString('en-US');
+const cls = (v) => (v === null || v === undefined) ? '' : (v < 0 ? 'neg' : 'pos');
+const ouro = (v) => `<span class="${cls(v)}">${n(v)}</span>`;
+const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+
+const H = {
+  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '' },
+  id: null, assinatura: null, a: null, pagos: [], texto: '', dano: null, aba: null, seq: 0,
+};
+
+let tAnalise = null;
+function agendarAnalise(ms = 500) { clearTimeout(tAnalise); tAnalise = setTimeout(analisarHunt, ms); }
+
+function preencherHunt() {
+  $('h-nome').value = H.entrada.nome || '';
+  $('h-personagem').value = H.entrada.personagem || '';
+  TIPOS.forEach((t) => { $('h-' + t).value = H.entrada[t] || ''; });
+  montarDespesas();
+}
+
+function statusCaixas(a) {
+  for (const t of TIPOS) {
+    const tem = (H.entrada[t] || '').trim();
+    const erro = a && a.erros && a.erros[t];
+    const ok = tem && !erro && a && a.tem && a.tem[t];
+    $('cx-' + t).className = 'caixa' + (erro ? ' erro' : ok ? ' ok' : '');
+    let txt = 'vazio', c = 'chip-neutro';
+    if (erro) { txt = 'não reconhecido'; c = 'chip-bad'; }
+    else if (ok && t === 'party') { txt = `✔ ${a.resumo.membros} membros`; c = 'chip-good'; }
+    else if (ok && t === 'solo') { txt = `✔ ${a.kills.length} monstros`; c = 'chip-good'; }
+    else if (ok && t === 'dano') { txt = `✔ ${Object.keys(a.dano_input.tipos).length} elementos`; c = 'chip-good'; }
+    else if (tem) { txt = '...'; }
+    $('st-' + t).textContent = txt;
+    $('st-' + t).className = 'chip ' + c;
+    $('st-' + t).title = erro || '';
+  }
+}
+
+// ---------- entrada ----------
+$('h-colar').addEventListener('click', async () => {
+  const r = await api.hunt_ler_clipboard();
+  if (!r.texto.trim()) { toast('A área de transferência está vazia. Clique em Copy no Tibia primeiro.', true); return; }
+  if (!r.tipo) { toast('O que está copiado não parece um texto do Tibia (Party Hunt, Hunting ou Input Analyser).', true); return; }
+  H.entrada[r.tipo] = r.texto;
+  $('h-' + r.tipo).value = r.texto;
+  toast(`${NOME_TIPO[r.tipo]} colado!`);
+  analisarHunt();
+});
+
+TIPOS.forEach((t) => {
+  const el = $('h-' + t);
+  el.addEventListener('input', () => { H.entrada[t] = el.value; agendarAnalise(700); });
+  // colou o texto na caixa errada: manda para a certa
+  el.addEventListener('paste', () => setTimeout(async () => {
+    const tipo = await api.hunt_detectar(el.value);
+    if (tipo && tipo !== t && !(H.entrada[tipo] || '').trim()) {
+      H.entrada[tipo] = el.value; $('h-' + tipo).value = el.value;
+      H.entrada[t] = ''; el.value = '';
+      toast(`Isso é ${NOME_TIPO[tipo]}: movi para a caixa certa.`);
+      analisarHunt();
+    }
+  }, 0));
+});
+document.querySelectorAll('[data-limpar]').forEach((b) => b.addEventListener('click', () => {
+  const t = b.dataset.limpar;
+  H.entrada[t] = ''; $('h-' + t).value = '';
+  analisarHunt();
+}));
+
+let tNome = null;
+$('h-nome').addEventListener('input', () => {
+  H.entrada.nome = $('h-nome').value;
+  if ($('h-titulo-nome')) $('h-titulo-nome').textContent = H.entrada.nome || 'Hunt';
+  clearTimeout(tNome);
+  tNome = setTimeout(() => { if (H.id) api.hunt_renomear(H.id, H.entrada.nome); }, 500);
+});
+$('h-personagem').addEventListener('change', () => { H.entrada.personagem = $('h-personagem').value.trim(); analisarHunt(); });
+
+$('h-nova').addEventListener('click', () => {
+  if ((H.entrada.party || H.entrada.solo || H.entrada.dano) && !confirm('Começar uma hunt nova? A atual já está salva no Histórico.')) return;
+  const personagem = H.entrada.personagem;
+  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem };
+  H.id = null; H.a = null; H.dano = null; H.aba = null;
+  preencherHunt();
+  analisarHunt();
+});
+
+// ---------- despesas extras ----------
+function montarDespesas() {
+  const ds = H.entrada.despesas || [];
+  if (!ds.length) { $('h-despesas').innerHTML = '<div class="dica">Boat, hireling, montaria alugada... quem pagou é reembolsado na divisão.</div>'; return; }
+  const nomes = (H.a && H.a.personagens) || [];
+  $('h-despesas').innerHTML = ds.map((d, i) => `<div class="linha-despesa">
+    <input type="text" data-d="${i}" data-campo="descricao" value="${esc(d.descricao)}" placeholder="Descrição (ex.: boat)">
+    <input type="text" class="num" data-d="${i}" data-campo="valor" value="${esc(d.valor)}" placeholder="valor (ex.: 50k)">
+    <select data-d="${i}" data-campo="pago_por"><option value="">Quem pagou?</option>${nomes.map((x) => `<option ${x === d.pago_por ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>
+    <button class="btn btn-sm btn-danger" data-tirar-d="${i}" title="Remover">✕</button></div>`).join('');
+}
+$('h-add-despesa').addEventListener('click', () => {
+  H.entrada.despesas = [...(H.entrada.despesas || []), { descricao: '', valor: '', pago_por: '' }];
+  montarDespesas();
+});
+$('h-despesas').addEventListener('input', (e) => {
+  const el = e.target;
+  if (el.dataset.d === undefined) return;
+  H.entrada.despesas[+el.dataset.d][el.dataset.campo] = el.value;
+  agendarAnalise(600);
+});
+$('h-despesas').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tirar-d]');
+  if (!b) return;
+  H.entrada.despesas.splice(+b.dataset.tirarD, 1);
+  montarDespesas();
+  analisarHunt();
+});
+
+// ---------- análise ----------
+async function analisarHunt() {
+  clearTimeout(tAnalise);
+  const seq = ++H.seq;
+  const r = await api.hunt_analisar({ ...H.entrada, id: H.id });
+  if (seq !== H.seq) return;  // chegou uma análise mais nova no meio
+  const a = r.analise;
+  statusCaixas(a);
+  if (a.vazio) {
+    H.a = null; H.dano = null; H.id = r.id || null;
+    $('h-res').innerHTML = '';
+    return;
+  }
+  const mudouHunt = H.assinatura !== r.assinatura;
+  if (r.id !== H.id) H.aba = null;
+  H.id = r.id; H.assinatura = r.assinatura; H.a = a; H.pagos = r.pagos || []; H.texto = r.texto; H.salvo = r.salvo;
+  if (mudouHunt) H.dano = null;
+  if (!(H.entrada.nome || '').trim()) { H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
+  else if (H.entrada.nome !== r.nome && r.salvo !== false) api.hunt_renomear(H.id, H.entrada.nome);  // digitou o nome durante a análise
+  $('h-personagens').innerHTML = (a.personagens || []).map((x) => `<option value="${esc(x)}">`).join('');
+  montarDespesas();
+  renderHunt();
+}
+
+window.huntDano = (d) => {
+  if (d.id !== H.id || d.assinatura !== H.assinatura) return;  // resposta de uma análise antiga
+  H.dano = d;
+  if (d.texto) H.texto = d.texto;
+  renderHunt();
+};
+
+function renderHunt() {
+  const a = H.a;
+  if (!a) return;
+  const r = a.resumo;
+  let h = `<div class="card" style="margin-top:18px">
+    <div class="h-titulo"><div><h2 class="sub" style="font-size:1.3rem" id="h-titulo-nome">${esc(H.entrada.nome || 'Hunt')}</h2>
+      <div class="dica">${esc(a.data || '')}${H.entrada.personagem ? ' · por ' + esc(H.entrada.personagem) : ''}${r.loot_type ? ' · Loot Type: ' + esc(r.loot_type) : ''} · ${H.salvo === false ? '<span style="color:var(--accent-2)">caixa limpa: o Histórico mantém a versão salva até você colar o texto de novo</span>' : 'salva no Histórico'}</div></div>
+      <button class="btn btn-sm btn-primary" id="h-copiar-resumo">📋 Copiar resumo</button></div>
+    <h2 class="sub">Resumo da hunt</h2>
+    <div class="stats">
+      ${stat('Duração', esc(r.duracao))}
+      ${stat('XP Gain', n(r.xp))}
+      ${stat('Raw XP Gain', n(r.xp_raw))}
+      ${stat('Balance', ouro(r.balance))}
+      ${stat(a.tem.party ? 'Lucro final (por membro)' : 'Lucro', ouro(r.lucro))}
+      ${stat('XP/h', n(r.xp_h))}
+      ${stat('Raw XP/h', n(r.xp_raw_h))}
+      ${stat('Balance/h', ouro(r.balance_h))}
+      ${stat('Top dano', esc(r.top_dano_nome || '—'))}
+      ${stat('Top dano (valor)', n(r.top_dano))}
+      ${stat('Loot/h', n(r.loot_h))}
+      ${stat('Despesas extras', `<span class="${r.despesas ? 'neg' : 'dim'}">${n(r.despesas || 0)}</span>`)}
+    </div>
+    ${r.xp === undefined ? '<p class="dica" style="margin:12px 0 0">XP aparece quando você cola também o <b>Hunting Analyser</b>.</p>' : ''}
+  </div>`;
+
+  if (a.tem.party) h += renderMembros(a) + renderPagamentos(a) + renderDetalhes(a);
+  h += renderMonstros(a) + renderDano(a);
+  $('h-res').innerHTML = h;
+  ligarHunt();
+}
+
+function renderMembros(a) {
+  return `<div class="card calmo" style="margin-top:18px"><div class="h-titulo"><h2 class="sub">Membros da party</h2>
+    <span class="dica">clique no nome para tirar/voltar alguém da divisão</span></div>
+    <div class="tabela-wrap"><table class="tab"><tr><th>#</th><th>Membro</th><th class="r">Dano</th><th class="r">Cura</th><th class="r">Loot</th><th class="r">Supplies</th><th class="r">Balance</th><th class="r">Ajuste</th></tr>
+    ${a.membros.map((m, i) => `<tr class="${m.excluido ? 'fora' : ''}"><td class="dim">#${i + 1}</td>
+      <td class="nome-membro" data-excluir="${esc(m.nome)}" title="${m.excluido ? 'Voltar para a divisão' : 'Tirar da divisão'}">${esc(m.nome)}${m.lider ? '<span class="tag tag-lider">líder</span>' : ''}${m.eu ? '<span class="tag tag-eu">você</span>' : ''}</td>
+      <td class="r">${n(m.dano)} <span class="pct">(${m.dano_pct.toFixed(1)}%)</span></td>
+      <td class="r">${n(m.cura)} <span class="pct">(${m.cura_pct.toFixed(1)}%)</span></td>
+      <td class="r">${n(m.loot)}</td><td class="r neg">-${n(m.supplies)}</td><td class="r">${ouro(m.balance)}</td>
+      <td class="r">${m.excluido ? '—' : (m.ajuste > 0 ? `<span class="pos">recebe ${n(m.ajuste)}</span>` : m.ajuste < 0 ? `<span class="neg">paga ${n(-m.ajuste)}</span>` : '0')}</td></tr>`).join('')}
+    </table></div></div>`;
+}
+
+function renderPagamentos(a) {
+  const t = a.transferencias;
+  return `<div class="card" style="margin-top:18px"><h2 class="sub">✅ Distribuição dos pagamentos</h2>
+    <div class="stat" style="margin-bottom:6px"><div class="k">Lucro por membro</div></div><div class="grande-pos">${ouro(a.resumo.lucro)}</div>
+    ${t.length ? `<div class="tabela-wrap"><table class="tab"><tr><th>#</th><th>Pagador</th><th>Recebedor</th><th>Valor</th><th>Pago?</th></tr>
+    ${t.map((x, i) => `<tr><td class="dim">#${i + 1}</td><td>${esc(x.pagador)}</td><td>${esc(x.recebedor)}</td>
+      <td><button class="copiar-nome" data-copiar-cmd="${esc(x.comando)}" title="Copiar o comando para o NPC do banco">📋</button><b class="pos" style="font-family:var(--font-mono)">${n(x.valor)}</b> <span class="cmd">(${esc(x.comando)})</span></td>
+      <td><label class="check"><input type="checkbox" data-pago="${esc(x.chave)}" ${H.pagos.includes(x.chave) ? 'checked' : ''}></label></td></tr>`).join('')}
+    </table></div>` : '<div class="dica">Ninguém precisa transferir nada.</div>'}</div>`;
+}
+
+function renderDetalhes(a) {
+  const ds = a.detalhes;
+  if (!H.aba || !ds.some((d) => d.nome === H.aba)) H.aba = (ds.find((d) => d.eu) || ds[0]).nome;
+  const d = ds.find((x) => x.nome === H.aba);
+  const s = a.solo;
+  let corpo = `<div class="det-grid">
+    ${stat('Loot', n(d.loot))}${stat('Supplies', `<span class="neg">-${n(d.supplies)}</span>`)}${stat('Balance', ouro(d.balance))}${stat('Fica com', ouro(d.excluido ? d.balance : d.fica_com))}
+    ${stat('Dano', `${n(d.dano)} <span class="pct">${d.dano_pct.toFixed(1)}%</span>`)}${stat('Cura', `${n(d.cura)} <span class="pct">${d.cura_pct.toFixed(1)}%</span>`)}
+    ${stat('Paga', d.paga.length ? d.paga.map((t) => `${n(t.valor)} → ${esc(t.recebedor)}`).join('<br>') : '—')}
+    ${stat('Recebe', d.recebe.length ? d.recebe.map((t) => `${n(t.valor)} ← ${esc(t.pagador)}`).join('<br>') : '—')}
+  </div>`;
+  if (d.hunt && s) {
+    corpo += `<h2 class="sub" style="margin-top:16px">Hunt de ${esc(d.nome)}</h2><div class="det-grid">
+      ${stat('XP Gain', n(s.xp))}${stat('Raw XP', n(s.xp_raw))}${stat('Bônus de XP', n(s.bonus))}${stat('Monstros mortos', n(s.kills_total))}
+      ${stat('Dano/h', n(s.dano_h))}${stat('Cura/h', n(s.cura_h))}${stat('Itens coletados', n(s.itens_total))}${stat('Balance solo', ouro(s.balance))}</div>`;
+  } else {
+    corpo += `<p class="dica" style="margin:14px 0 0">Não há Hunting Analyser ligado a <b>${esc(d.nome)}</b>.${a.tem.solo ? ' Escolha esse nome em "Seu personagem" se o Hunting Analyser colado for dele.' : ''}</p>`;
+  }
+  return `<div class="card calmo" style="margin-top:18px"><h2 class="sub">Detalhes por membro</h2>
+    <div class="abas">${ds.map((x) => `<span class="pilula ${x.nome === H.aba ? 'on' : ''}" data-aba="${esc(x.nome)}">${esc(x.nome)}</span>`).join('')}</div>${corpo}</div>`;
+}
+
+function renderMonstros(a) {
+  const kills = (H.dano && H.dano.kills) || a.kills;
+  if (!kills.length) return '';
+  const total = kills.reduce((s, k) => s + k.kills, 0);
+  const itens = (a.solo && a.solo.itens) || [];
+  return `<div class="card calmo" style="margin-top:18px"><div class="h-titulo"><h2 class="sub">Monstros mortos</h2><span class="chip chip-neutro">${n(total)} no total</span></div>
+    <div class="tabela-wrap"><table class="tab"><tr><th>#</th><th>Monstro</th><th class="r">Mortos</th><th class="r">%</th></tr>
+    ${kills.map((k, i) => `<tr><td class="dim">#${i + 1}</td><td>${k.imagem ? `<img class="mon-img" src="${esc(k.imagem)}" alt="">` : '<span class="mon-ph"></span>'}${esc(k.nome)}</td>
+      <td class="r">${n(k.kills)}</td><td class="r dim">${(k.kills / total * 100).toFixed(1)}%</td></tr>`).join('')}</table></div>
+    ${itens.length ? `<details class="itens"><summary>Itens coletados (${n(a.solo.itens_total)})</summary><div class="lista-itens">${itens.map((x) => `<div>${n(x.qtd)}x ${esc(x.nome)}</div>`).join('')}</div></details>` : ''}
+  </div>`;
+}
+
+function renderDano(a) {
+  const titulo = '<h2 class="sub">🛡️ Dano recebido, proteções e elemento para atacar</h2>';
+  const d = H.dano;
+  if (!d) {
+    if (!a.kills.length && !a.tem.dano) {
+      return `<div class="card calmo" style="margin-top:18px">${titulo}<p class="dica" style="margin:0">Cole o <b>Hunting Analyser</b> (monstros mortos) e/ou o <b>Damage Input</b> para ver de que elemento vem o dano, quais proteções usar e o melhor elemento para atacar.</p></div>`;
+    }
+    return `<div class="card calmo" style="margin-top:18px">${titulo}<div class="carregando">Buscando as fichas dos monstros na TibiaWiki e no TibiaData...</div></div>`;
+  }
+  if (d.erro) return `<div class="card calmo" style="margin-top:18px">${titulo}<div class="falta"><b>Não consegui montar a análise de dano:</b> ${esc(d.erro)}</div></div>`;
+  const an = d.analise;
+  if (d.vazio || !an) return `<div class="card calmo" style="margin-top:18px">${titulo}<p class="dica" style="margin:0">Sem monstros reconhecidos nem Damage Input.</p></div>`;
+
+  let h = `<div class="card calmo" style="margin-top:18px">${titulo}`;
+  if (an.avisos.length) h += `<div class="avisos">${an.avisos.map((x) => `<div>⚠ ${esc(x)}</div>`).join('')}</div>`;
+  if (an.total) h += `<div class="resumo-chips" style="margin:0 0 14px"><span class="chip chip-neutro">dano recebido ${n(an.total)}</span>${an.max_dps ? `<span class="chip chip-neutro">max DPS ${n(an.max_dps)}</span>` : ''}</div>`;
+  const real = an.elementos.some((e) => e.real);
+  h += `<div class="grid3">
+    <div class="card calmo"><div class="h-titulo"><b>Distribuição</b><span class="dica">${real ? 'dano real (Damage Input)' : 'estimada pelos ataques da wiki'}</span></div>
+      ${an.elementos.length ? an.elementos.map((e) => `<div class="linha-el"><span class="rot">${EL[e.elemento][1]} ${EL[e.elemento][0]}</span>
+        <span class="barra-el"><i style="width:${(e.parte * 100).toFixed(1)}%;background:${EL[e.elemento][2]}"></i></span><span class="val">${(e.parte * 100).toFixed(1)}%</span></div>`).join('')
+        : '<div class="dica">Sem dados de ataque. Cole o Damage Input.</div>'}
+    </div>
+    <div class="card calmo"><b>Proteções recomendadas</b><div style="margin-top:10px">
+      ${an.protecoes.length ? an.protecoes.map((p, i) => `<div class="prot"><div class="prot-cab"><span>#${i + 1} ${EL[p.elemento][1]} ${esc(p.rotulo)}</span>
+        <span class="chip chip-good" title="redução no dano total recebido">-${(p.ganho * 100).toFixed(1)}%</span></div>
+        <div class="motivo">${esc(nomeImb(p.imbuement))} · ${esc(p.motivo)}</div>
+        <button class="btn btn-sm" style="margin-top:7px" data-imb="${esc(p.imbuement)}">💎 Abrir em Embuimentos</button></div>`).join('')
+        : '<div class="dica">Nenhum elemento com embuimento de proteção.</div>'}
+    </div></div>
+    <div class="card calmo"><div class="h-titulo"><b>Melhor elemento para atacar</b><span class="dica">maior % = melhor</span></div>
+      <div class="ofens">${an.ofensivo.map((o) => `<span class="chip ${o.sem_dados ? 'chip-neutro' : o.imunes || o.delta < -0.5 ? 'chip-bad' : o.delta > 0.5 ? 'chip-good' : 'chip-neutro'}" title="${esc(o.motivo)}">${EL[o.elemento][1]} ${esc(o.rotulo)} ${o.sem_dados ? '?' : o.media.toFixed(0) + '%'}</span>`).join('')}</div>
+      <p class="dica" style="margin:10px 0 0">Média ponderada do dano que os monstros recebem de cada elemento (100% = normal). Passe o mouse para ver o motivo.</p>
+      <div style="margin-top:10px">${an.pesos.map((p) => `<div class="linha-el"><span class="rot" style="width:auto;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.nome)}</span><span class="val" style="width:auto">${(p.peso * 100).toFixed(0)}%</span></div>`).join('')}
+      <div class="dica">peso de cada monstro nessa média (kills${an.fontes.length ? ' + dano de cada um no Damage Input' : ''})</div></div>
+    </div>
+  </div>`;
+  if (d.fichas && d.fichas.length) {
+    h += `<h2 class="sub" style="margin-top:18px">Ficha dos monstros</h2><div class="fichas">${d.fichas.map(fichaHtml).join('')}</div>`;
+  }
+  return h + '</div>';
+}
+
+function fichaHtml(f) {
+  const rz = ORDEM_RESIST.filter((el) => f.resist[el] !== undefined).map((el) => {
+    const v = f.resist[el];
+    const c = v <= 0 ? 'imune' : v > 100 ? 'fraco' : v < 100 ? 'forte' : '';
+    return `<span class="rz ${c}" title="${EL[el][0]}: recebe ${v}% do dano${f.incertos.includes(el) ? ' (incerto na wiki)' : ''}">${EL[el][1]}${v}%</span>`;
+  }).join('');
+  const atq = f.ataques.map((x) => `<div class="ataque">${EL[x.elemento] ? EL[x.elemento][1] : ''} ${esc(x.nome)}${x.dano ? ` · ${esc(x.dano)}` : ''}${x.area ? ` · ${esc(x.area)}` : ''}${x.condicao ? ` · ${esc(x.condicao)}` : ''}</div>`).join('');
+  return `<div class="ficha"><div class="ficha-cab">${f.imagem ? `<img src="${esc(f.imagem)}" alt="">` : '<span class="mon-ph"></span>'}
+    <div><b>${esc(f.nome)}</b><div class="dica">${f.hp ? n(f.hp) + ' HP' : ''}${f.xp ? ' · ' + n(f.xp) + ' XP' : ''}${f.kills ? ' · ' + n(f.kills) + ' mortos' : ''}</div></div></div>
+    <div class="resists">${rz || '<span class="dica">sem resistências na wiki</span>'}</div>
+    ${atq || `<div class="ataque">${esc((f.parcial || []).join(' · ') || 'sem ataques listados')}</div>`}
+  </div>`;
+}
+
+const nomeImb = (id) => { const i = IMBS.find((x) => x.id === id); return i ? i.nome : id; };
+
+function abrirEmbuimento(id) {
+  if (!estado.selecionados.includes(id)) {
+    const marcados = new Set([...estado.selecionados, id]);
+    estado.selecionados = IMBS.map((x) => x.id).filter((x) => marcados.has(x));
+  }
+  const imb = IMBS.find((x) => x.id === id);
+  if (imb) grupoAberto = imb.grupo;
+  montarSeletor(); montarItens(); calcular();
+  irPara('emb');
+  toast(`${nomeImb(id)} adicionado aos embuimentos`);
+}
+
+function ligarHunt() {
+  const res = $('h-res');
+  const bc = $('h-copiar-resumo');
+  if (bc) bc.addEventListener('click', async () => {
+    (await api.copiar(H.texto)) ? toast('Resumo copiado! Cole no Discord/WhatsApp.') : toast('Não consegui copiar.', true);
+  });
+  res.querySelectorAll('[data-excluir]').forEach((el) => el.addEventListener('click', () => {
+    const nome = el.dataset.excluir;
+    const ex = new Set(H.entrada.excluidos || []);
+    ex.has(nome) ? ex.delete(nome) : ex.add(nome);
+    H.entrada.excluidos = [...ex];
+    analisarHunt();
+  }));
+  res.querySelectorAll('[data-copiar-cmd]').forEach((b) => b.addEventListener('click', async () => {
+    if (await api.copiar(b.dataset.copiarCmd)) {
+      toast(`Copiado: ${b.dataset.copiarCmd}`);
+      b.classList.add('ok'); setTimeout(() => b.classList.remove('ok'), 900);
+    } else toast('Não consegui copiar.', true);
+  }));
+  res.querySelectorAll('[data-pago]').forEach((c) => c.addEventListener('change', async () => {
+    const chave = c.dataset.pago;
+    H.pagos = H.pagos.filter((x) => x !== chave).concat(c.checked ? [chave] : []);
+    await api.hunt_pago(H.id, chave, c.checked);
+  }));
+  res.querySelectorAll('[data-aba]').forEach((p) => p.addEventListener('click', () => { H.aba = p.dataset.aba; renderHunt(); }));
+  res.querySelectorAll('[data-imb]').forEach((b) => b.addEventListener('click', () => abrirEmbuimento(b.dataset.imb)));
+}
+
+async function huntIniciar() {
+  const r = await api.hunt_carregar();
+  H.entrada = { ...H.entrada, ...r.entrada, despesas: r.entrada.despesas || [], excluidos: r.entrada.excluidos || [] };
+  H.id = r.id || null;
+  preencherHunt();
+  if (H.entrada.party || H.entrada.solo || H.entrada.dano) analisarHunt();
+}
+
+// ================= HISTÓRICO =================
+async function carregarHistorico() {
+  const filtro = $('hi-filtro').value;
+  const r = await api.hunt_historico(filtro);
+  $('hi-filtro').innerHTML = '<option value="">Todos os personagens</option>' +
+    r.personagens.map((p) => `<option ${p === filtro ? 'selected' : ''}>${esc(p)}</option>`).join('');
+  const t = r.totais;
+  const horas = t.minutos ? `${Math.floor(t.minutos / 60)}h${String(t.minutos % 60).padStart(2, '0')}` : '0h';
+  $('hi-totais').innerHTML = `<span class="chip chip-neutro">${t.hunts} hunt(s)</span><span class="chip chip-neutro">${horas} caçando</span>
+    <span class="chip ${t.lucro < 0 ? 'chip-bad' : 'chip-good'}">lucro ${n(t.lucro)}</span><span class="chip chip-neutro">lucro/h ${n(t.lucro_h)}</span>
+    <span class="chip chip-neutro">XP ${n(t.xp)}</span><span class="chip chip-neutro">XP/h ${n(t.xp_h)}</span>`;
+  if (!r.hunts.length) {
+    $('hi-lista').innerHTML = '<div class="card calmo"><div class="vazio">Nenhuma hunt ainda. Analise uma no Hunt Analyser e ela aparece aqui.</div></div>';
+    return;
+  }
+  $('hi-lista').innerHTML = r.hunts.map((h) => {
+    const s = h.resumo || {};
+    return `<div class="card calmo hist-card"><div>
+      <div class="hist-nome">${esc(h.nome || 'Hunt')}${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''}</div>
+      <div class="hist-meta">${esc(h.data || '')}${h.personagem ? ' · ' + esc(h.personagem) : ''}${h.membros.length ? ' · ' + h.membros.length + ' membros: ' + esc(h.membros.join(', ')) : ''}</div>
+      <div class="hist-nums"><span>Duração <b>${esc(s.duracao || '—')}</b></span><span>Balance <b class="${cls(s.balance)}">${n(s.balance)}</b></span>
+        <span>Lucro${h.membros.length ? '/membro' : ''} <b class="${cls(s.lucro)}">${n(s.lucro)}</b></span>${s.xp_h ? `<span>XP/h <b>${n(s.xp_h)}</b></span>` : ''}
+        ${s.balance_h !== undefined ? `<span>Balance/h <b class="${cls(s.balance_h)}">${n(s.balance_h)}</b></span>` : ''}</div>
+      <div class="hist-mons">${h.monstros.map((m) => m.imagem ? `<img src="${esc(m.imagem)}" alt="" title="${esc(m.kills + 'x ' + m.nome)}">` : `<span class="chip chip-neutro">${esc(m.kills + 'x ' + m.nome)}</span>`).join('')}
+        ${h.protecoes.length ? `<span class="dica" style="margin-left:8px">🛡️ ${esc(h.protecoes.join(', '))}</span>` : ''}</div>
+    </div><div class="hist-acoes"><button class="btn btn-sm btn-primary" data-abrir="${h.id}">Abrir</button><button class="btn btn-sm btn-danger" data-apagar="${h.id}">Apagar</button></div></div>`;
+  }).join('');
+  $('hi-lista').querySelectorAll('[data-abrir]').forEach((b) => b.addEventListener('click', async () => {
+    const e = await api.hunt_abrir(b.dataset.abrir);
+    if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
+    H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
+      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '' };
+    H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null;
+    preencherHunt();
+    irPara('hunt');
+    analisarHunt();
+  }));
+  $('hi-lista').querySelectorAll('[data-apagar]').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm('Apagar essa hunt do histórico? Não dá para desfazer (a não ser que você tenha exportado antes).')) return;
+    await api.hunt_apagar(b.dataset.apagar);
+    if (H.id === b.dataset.apagar) H.id = null;
+    carregarHistorico();
+  }));
+}
+$('hi-filtro').addEventListener('change', carregarHistorico);
+$('hi-exportar').addEventListener('click', async () => {
+  const r = await api.hunt_exportar($('hi-filtro').value);
+  if (r.ok) toast(`${r.qtd} hunt(s) exportada(s)!`);
+  else if (!r.cancelado) toast(r.erro, true);
+});
+async function importarHunts(substituir) {
+  if (substituir && !confirm('Isso APAGA todo o seu histórico e fica só com as hunts do arquivo. Continuar?')) return;
+  const r = await api.hunt_importar(substituir);
+  if (r.ok) { toast(`${r.novas} hunt(s) importada(s)${r.repetidas ? `, ${r.repetidas} já existiam` : ''}.`); carregarHistorico(); }
+  else if (!r.cancelado) toast(r.erro, true);
+}
+$('hi-importar').addEventListener('click', () => importarHunts(false));
+$('hi-substituir').addEventListener('click', () => importarHunts(true));
+
+// ================= atualização automática =================
+async function checarAtualizacao() {
+  let info = null;
+  try { info = await api.verificar_atualizacao(); } catch (e) { return; }
+  if (!info) return;
+  $('atualizacao-texto').textContent = `Tem uma versão nova do Zandao Tibia Tools: ${info.versao} (você está na v${info.versao_atual}). ` +
+    'Baixar e instalar agora? O programa fecha durante a instalação. Seu histórico, preços e teclas continuam salvos.';
+  $('atualizacao-notas').textContent = info.notas || '';
+  $('atualizacao-status').textContent = '';
+  $('atualizacao-progresso').style.display = 'none';
+  $('atualizacao-instalar').disabled = false;
+  $('modal-atualizacao').style.display = 'flex';
+}
+$('atualizacao-depois').addEventListener('click', () => { $('modal-atualizacao').style.display = 'none'; });
+$('atualizacao-instalar').addEventListener('click', async () => {
+  $('atualizacao-instalar').disabled = true;
+  $('atualizacao-status').textContent = 'Baixando...';
+  $('atualizacao-barra').style.width = '0%';
+  $('atualizacao-progresso').style.display = 'block';
+  await api.instalar_atualizacao();
+});
+window.onProgressoAtualizacao = (d) => { $('atualizacao-barra').style.width = d.pct + '%'; $('atualizacao-status').textContent = `Baixando... ${d.pct}%`; };
+window.onFalhaAtualizacao = (d) => {
+  $('atualizacao-status').textContent = `${d.mensagem} Baixe manualmente em: ${d.url_release}`;
+  $('atualizacao-instalar').disabled = false;
+};
+
+// ================= janela: fixar por cima + transparência =================
+let janela = { por_cima: false, opacidade: 100 };
+let tJanela = null;
+function mostrarJanela() {
+  $('j-topo').classList.toggle('on', janela.por_cima);
+  $('j-opac').value = janela.opacidade;
+  $('j-opac-val').textContent = janela.opacidade + '%';
+}
+function aplicarJanela() {
+  mostrarJanela();
+  clearTimeout(tJanela);
+  tJanela = setTimeout(() => api.janela_aplicar(janela.por_cima, janela.opacidade), 60);
+}
+$('j-topo').addEventListener('click', () => {
+  janela.por_cima = !janela.por_cima;
+  aplicarJanela();
+  toast(janela.por_cima ? 'Fixado por cima do Tibia' : 'Não está mais fixado');
+});
+$('j-opac').addEventListener('input', () => { janela.opacidade = Number($('j-opac').value); aplicarJanela(); });
+
+// ================= início =================
+async function iniciar() {
+  api = window.pywebview.api;
+  janela = await api.janela_prefs();
+  aplicarJanela();
+  const d = await api.carregar();
+  IMBS = d.imbuements; GRUPOS = d.grupos; estado = d.dados;
+  $('v-token').value = estado.token; $('v-taxa').value = estado.taxa; $('v-blank').value = estado.blank;
+  $('v-scroll').checked = !!estado.fazer_scroll;
+  montarSeletor(); montarItens(); calcular();
+
+  $('p-origem').value = d.prints['print-dir'] || '';
+  $('p-destino').value = d.prints.destination || '';
+  setModo(d.prints.copy !== false);
+  $('p-mes').checked = !!d.prints['by-month'];
+  $('p-abrir').checked = !!d.prints['open-when-done'];
+  huntIniciar();
+  api.versao_app().then((v) => { $('versao-app').textContent = 'v' + v; });
+  setTimeout(checarAtualizacao, 2500);
+}
+if (window.pywebview && window.pywebview.api) iniciar();
+else window.addEventListener('pywebviewready', iniciar);
+</script>
+</body>
+</html>

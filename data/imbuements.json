@@ -1,0 +1,246 @@
+[
+  {
+    "id": "void", "name": "Powerful Void", "subtitle": "Mana leech", "group": "Com token",
+    "has_token": true, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Void",
+    "items": [
+      { "name": "Rope Belt", "qty": 25, "aliases": [] },
+      { "name": "Silencer Claws", "qty": 25, "aliases": ["silencer claw"] },
+      { "name": "Some Grimeleech Wings", "qty": 5, "aliases": ["grimeleech wings", "grimeleech wing"] }
+    ]
+  },
+  {
+    "id": "strike", "name": "Powerful Strike", "subtitle": "Crítico", "group": "Com token",
+    "has_token": true, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Strike",
+    "items": [
+      { "name": "Protective Charm", "qty": 20, "aliases": [] },
+      { "name": "Sabretooth", "qty": 25, "aliases": ["sabre tooth"] },
+      { "name": "Vexclaw Talon", "qty": 5, "aliases": [] }
+    ]
+  },
+  {
+    "id": "vampirism", "name": "Powerful Vampirism", "subtitle": "Life leech", "group": "Com token",
+    "has_token": true, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Vampirism",
+    "items": [
+      { "name": "Vampire Teeth", "qty": 25, "aliases": ["vampire tooth"] },
+      { "name": "Bloody Pincers", "qty": 15, "aliases": ["bloody pincer"] },
+      { "name": "Piece of Dead Brain", "qty": 5, "aliases": ["dead brain"] }
+    ]
+  },
+
+  {
+    "id": "featherweight", "name": "Powerful Featherweight", "subtitle": "Capacidade", "group": "Utilidades",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Featherweight",
+    "items": [
+      { "name": "Fairy Wings", "qty": 20, "aliases": [] },
+      { "name": "Little Bowl of Myrrh", "qty": 10, "aliases": ["bowl of myrrh"] },
+      { "name": "Goosebump Leather", "qty": 5, "aliases": [] }
+    ]
+  },
+  {
+    "id": "swiftness", "name": "Powerful Swiftness", "subtitle": "Velocidade", "group": "Utilidades",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Swiftness",
+    "items": [
+      { "name": "Damselfly Wing", "qty": 15, "aliases": [] },
+      { "name": "Compass", "qty": 25, "aliases": [] },
+      { "name": "Waspoid Wing", "qty": 20, "aliases": [] }
+    ]
+  },
+  {
+    "id": "vibrancy", "name": "Powerful Vibrancy", "subtitle": "Paralyze", "group": "Utilidades",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Vibrancy",
+    "items": [
+      { "name": "Wereboar Hooves", "qty": 20, "aliases": ["wereboar hoof"] },
+      { "name": "Crystallized Anger", "qty": 15, "aliases": [] },
+      { "name": "Quill", "qty": 5, "aliases": [] }
+    ]
+  },
+
+  {
+    "id": "cloudfabric", "name": "Powerful Cloud Fabric", "subtitle": "Energia", "group": "Proteções",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Cloud Fabric",
+    "items": [
+      { "name": "Wyvern Talisman", "qty": 20, "aliases": [] },
+      { "name": "Crawler Head Plating", "qty": 15, "aliases": [] },
+      { "name": "Wyrm Scale", "qty": 10, "aliases": [] }
+    ]
+  },
+  {
+    "id": "demonpresence", "name": "Powerful Demon Presence", "subtitle": "Sagrado", "group": "Proteções",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Demon Presence",
+    "items": [
+      { "name": "Cultish Robe", "qty": 25, "aliases": [] },
+      { "name": "Cultish Mask", "qty": 25, "aliases": [] },
+      { "name": "Hellspawn Tail", "qty": 20, "aliases": [] }
+    ]
+  },
+  {
+    "id": "dragonhide", "name": "Powerful Dragon Hide", "subtitle": "Fogo", "group": "Proteções",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Dragon Hide",
+    "items": [
+      { "name": "Green Dragon Leather", "qty": 20, "aliases": [] },
+      { "name": "Blazing Bone", "qty": 10, "aliases": [] },
+      { "name": "Draken Sulphur", "qty": 5, "aliases": [] }
+    ]
+  },
+  {
+    "id": "lichshroud", "name": "Powerful Lich Shroud", "subtitle": "Morte", "group": "Proteções",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Lich Shroud",
+    "items": [
+      { "name": "Flask of Embalming Fluid", "qty": 25, "aliases": ["embalming fluid"] },
+      { "name": "Gloom Wolf Fur", "qty": 20, "aliases": [] },
+      { "name": "Mystical Hourglass", "qty": 5, "aliases": [] }
+    ]
+  },
+  {
+    "id": "quarascale", "name": "Powerful Quara Scale", "subtitle": "Gelo", "group": "Proteções",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Quara Scale",
+    "items": [
+      { "name": "Winter Wolf Fur", "qty": 25, "aliases": [] },
+      { "name": "Thick Fur", "qty": 15, "aliases": [] },
+      { "name": "Deepling Warts", "qty": 10, "aliases": ["deepling wart"] }
+    ]
+  },
+  {
+    "id": "snakeskin", "name": "Powerful Snake Skin", "subtitle": "Terra", "group": "Proteções",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Snake Skin",
+    "items": [
+      { "name": "Piece of Swampling Wood", "qty": 25, "aliases": ["swampling wood"] },
+      { "name": "Snake Skin", "qty": 20, "aliases": [] },
+      { "name": "Brimstone Fangs", "qty": 10, "aliases": ["brimstone fang"] }
+    ]
+  },
+
+  {
+    "id": "blockade", "name": "Powerful Blockade", "subtitle": "Escudo", "group": "Skillboost",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Blockade",
+    "items": [
+      { "name": "Piece of Scarab Shell", "qty": 20, "aliases": ["scarab shell"] },
+      { "name": "Brimstone Shell", "qty": 25, "aliases": [] },
+      { "name": "Frazzle Skin", "qty": 25, "aliases": [] }
+    ]
+  },
+  {
+    "id": "chop", "name": "Powerful Chop", "subtitle": "Machado", "group": "Skillboost",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Chop",
+    "items": [
+      { "name": "Orc Tooth", "qty": 20, "aliases": [] },
+      { "name": "Battle Stone", "qty": 25, "aliases": [] },
+      { "name": "Moohtant Horn", "qty": 20, "aliases": [] }
+    ]
+  },
+  {
+    "id": "epiphany", "name": "Powerful Epiphany", "subtitle": "Nível mágico", "group": "Skillboost",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Epiphany",
+    "items": [
+      { "name": "Elvish Talisman", "qty": 25, "aliases": [] },
+      { "name": "Broken Shamanic Staff", "qty": 15, "aliases": [] },
+      { "name": "Strand of Medusa Hair", "qty": 15, "aliases": ["medusa hair"] }
+    ]
+  },
+  {
+    "id": "precision", "name": "Powerful Precision", "subtitle": "Distância", "group": "Skillboost",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Precision",
+    "items": [
+      { "name": "Elven Scouting Glass", "qty": 25, "aliases": [] },
+      { "name": "Elven Hoof", "qty": 20, "aliases": [] },
+      { "name": "Metal Spike", "qty": 10, "aliases": [] }
+    ]
+  },
+  {
+    "id": "slash", "name": "Powerful Slash", "subtitle": "Espada", "group": "Skillboost",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Slash",
+    "items": [
+      { "name": "Lion's Mane", "qty": 25, "aliases": ["lions mane"] },
+      { "name": "Mooh'tah Shell", "qty": 25, "aliases": ["moohtah shell"] },
+      { "name": "War Crystal", "qty": 5, "aliases": [] }
+    ]
+  },
+  {
+    "id": "bash", "name": "Powerful Bash", "subtitle": "Clava", "group": "Skillboost",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Bash",
+    "items": [
+      { "name": "Cyclops Toe", "qty": 20, "aliases": [] },
+      { "name": "Ogre Nose Ring", "qty": 15, "aliases": [] },
+      { "name": "Warmaster's Wristguards", "qty": 10, "aliases": ["warmasters wristguards", "warmaster wristguard"] }
+    ]
+  },
+  {
+    "id": "punch", "name": "Powerful Punch", "subtitle": "Punhos", "group": "Skillboost",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Punch",
+    "items": [
+      { "name": "Tarantula Egg", "qty": 25, "aliases": [] },
+      { "name": "Mantassin Tail", "qty": 20, "aliases": [] },
+      { "name": "Gold-Brocaded Cloth", "qty": 15, "aliases": ["gold brocaded cloth"] }
+    ]
+  },
+
+  {
+    "id": "reap", "name": "Powerful Reap", "subtitle": "Morte", "group": "Dano",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Reap",
+    "items": [
+      { "name": "Pile of Grave Earth", "qty": 25, "aliases": ["grave earth"] },
+      { "name": "Demonic Skeletal Hand", "qty": 20, "aliases": [] },
+      { "name": "Petrified Scream", "qty": 5, "aliases": [] }
+    ]
+  },
+  {
+    "id": "electrify", "name": "Powerful Electrify", "subtitle": "Energia", "group": "Dano",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Electrify",
+    "items": [
+      { "name": "Rorc Feather", "qty": 25, "aliases": [] },
+      { "name": "Peacock Feather Fan", "qty": 5, "aliases": [] },
+      { "name": "Energy Vein", "qty": 1, "aliases": [] }
+    ]
+  },
+  {
+    "id": "venom", "name": "Powerful Venom", "subtitle": "Terra", "group": "Dano",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Venom",
+    "items": [
+      { "name": "Swamp Grass", "qty": 25, "aliases": [] },
+      { "name": "Poisonous Slime", "qty": 20, "aliases": [] },
+      { "name": "Slime Heart", "qty": 2, "aliases": [] }
+    ]
+  },
+  {
+    "id": "frost", "name": "Powerful Frost", "subtitle": "Gelo", "group": "Dano",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Frost",
+    "items": [
+      { "name": "Frosty Heart", "qty": 25, "aliases": [] },
+      { "name": "Seacrest Hair", "qty": 10, "aliases": [] },
+      { "name": "Polar Bear Paw", "qty": 5, "aliases": [] }
+    ]
+  },
+  {
+    "id": "scorch", "name": "Powerful Scorch", "subtitle": "Fogo", "group": "Dano",
+    "has_token": false, "tokens_full": 6, "tokens_partial": 4, "partial_buys_item": 2,
+    "scroll_item_name": "Powerful Scorch",
+    "items": [
+      { "name": "Fiery Heart", "qty": 25, "aliases": [] },
+      { "name": "Green Dragon Scale", "qty": 5, "aliases": [] },
+      { "name": "Demon Horn", "qty": 5, "aliases": [] }
+    ]
+  }
+]

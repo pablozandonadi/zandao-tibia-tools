@@ -1,0 +1,287 @@
+"""Testes do Hunt Analyser (Loot Split + Dano + histórico).  Rodar: python -m unittest
+
+Os números da party batem com a hunt 'norfectarus pt 4x' mostrada no hunt-analyser.com:
+lucro por membro 1,400,580, balance/h 2,012,809 e as três transferências do Druid Bravo.
+"""
+
+import json
+import os
+import tempfile
+import unittest
+
+import damage_core as dc
+import historico
+import hunt
+import monstros
+
+PARTY = """Session data: From 2026-10-05, 10:19:15 to 2026-10-05, 13:06:15
+Session: 02:47h
+Loot Type: Market
+Loot: 10,743,227
+Supplies: 5,140,907
+Balance: 5,602,320
+Knight Alfa
+\tLoot: 18,814
+\tSupplies: 885,395
+\tBalance: -866,581
+\tDamage: 12,846,796
+\tHealing: 3,120,299
+Druid Bravo (Leader)
+\tLoot: 7,953,045
+\tSupplies: 2,001,434
+\tBalance: 5,951,611
+\tDamage: 7,271,000
+\tHealing: 2,401,000
+Zandao
+\tLoot: 208,950
+\tSupplies: 939,992
+\tBalance: -731,042
+\tDamage: 11,706,807
+\tHealing: 2,180,574
+Paladin Charlie
+\tLoot: 2,562,418
+\tSupplies: 1,314,086
+\tBalance: 1,248,332
+\tDamage: 9,221,867
+\tHealing: 1,727,574
+"""
+
+SOLO = """Session data: From 2026-10-05, 10:19:15 to 2026-10-05, 13:06:15
+Session: 02:47h
+Raw XP Gain: 20,487,822
+XP Gain: 43,166,751
+Raw XP/h: 7,360,894
+XP/h: 15,509,012
+Loot: 208,950
+Supplies: 939,992
+Balance: -731,042
+Damage: 11,706,807
+Damage/h: 4,206,038
+Healing: 2,180,574
+Healing/h: 783,439
+Killed Monsters:
+  1262x norcferatu heartless
+  1069x norcferatu nightweaver
+  894x gloom maws
+Looted Items:
+  12x a vampire teeth
+"""
+
+DANO = """Received Damage
+Total: 1,000,000
+Max-DPS: 9,876
+Damage Types
+  Physical 500,000 (50.0%)
+  Death 300,000 (30.0%)
+  Fire 200,000 (20.0%)
+Damage Sources
+  Norcferatu Heartless 600,000 (60.0%)
+  Gloom Maw 400,000 (40.0%)
+"""
+
+
+class TestParty(unittest.TestCase):
+    def test_numeros_do_hunt_analyser(self):
+        a = hunt.montar({"party": PARTY, "solo": SOLO, "personagem": "Zandao"})
+        r = a["resumo"]
+        self.assertEqual(r["lucro"], 1_400_580)
+        self.assertEqual(r["balance"], 5_602_320)
+        self.assertEqual(r["balance_h"], 2_012_809)
+        self.assertEqual(r["xp"], 43_166_751)
+        self.assertEqual(r["xp_h"], 15_509_012)
+        self.assertEqual(r["top_dano_nome"], "Knight Alfa")
+        self.assertEqual(a["data"], "2026-10-05 10:19")
+        self.assertEqual(
+            [(t["pagador"], t["recebedor"], t["valor"]) for t in a["transferencias"]],
+            [("Druid Bravo", "Knight Alfa", 2_267_161), ("Druid Bravo", "Zandao", 2_131_622),
+             ("Druid Bravo", "Paladin Charlie", 152_248)],
+        )
+        self.assertEqual(a["transferencias"][0]["comando"], "transfer 2267161 to Knight Alfa")
+        self.assertEqual([m["nome"] for m in a["membros"]], ["Knight Alfa", "Zandao", "Paladin Charlie", "Druid Bravo"])
+        self.assertAlmostEqual(a["membros"][0]["dano_pct"], 31.3, places=1)
+        zandao = next(d for d in a["detalhes"] if d["nome"] == "Zandao")
+        self.assertTrue(zandao["hunt"])  # o Hunting Analyser colado fica ligado ao personagem escolhido
+        self.assertEqual(zandao["fica_com"], 1_400_580)
+        self.assertEqual(a["kills"][0], {"nome": "norcferatu heartless", "kills": 1262})
+
+    def test_despesa_extra_e_excluido(self):
+        a = hunt.montar({"party": PARTY, "despesas": [{"descricao": "boat", "valor": "400k", "pago_por": "Zandao"}]})
+        self.assertEqual(a["resumo"]["despesas"], 400_000)
+        self.assertEqual(a["resumo"]["lucro"], (5_602_320 - 400_000) // 4)
+        b = hunt.montar({"party": PARTY, "excluidos": ["Paladin Charlie"]})
+        self.assertEqual(b["resumo"]["membros"], 3)
+        self.assertTrue(next(m for m in b["membros"] if m["nome"] == "Paladin Charlie")["excluido"])
+
+    def test_detectar(self):
+        self.assertEqual(hunt.detectar(PARTY), "party")
+        self.assertEqual(hunt.detectar(SOLO), "solo")
+        self.assertEqual(hunt.detectar(DANO), "dano")
+        self.assertIsNone(hunt.detectar("bom dia"))
+
+    def test_so_solo_e_erro(self):
+        a = hunt.montar({"solo": SOLO})
+        self.assertFalse(a["tem"]["party"])
+        self.assertEqual(a["resumo"]["lucro"], -731_042)
+        b = hunt.montar({"party": "texto qualquer"})
+        self.assertTrue(b["vazio"])
+        self.assertIn("party", b["erros"])
+
+
+class TestDano(unittest.TestCase):
+    def test_parse(self):
+        d = dc.parse_damage_input(DANO)
+        self.assertEqual(d["total"], 1_000_000)
+        self.assertEqual(d["max_dps"], 9_876)
+        self.assertEqual(d["tipos"]["death"]["pct"], 30.0)
+        self.assertEqual([f["nome"] for f in d["fontes"]], ["Norcferatu Heartless", "Gloom Maw"])
+
+    def test_analise_usa_embuimentos_certos(self):
+        fichas = {
+            "Norcferatu Heartless": {"resist": {"physical": 90, "earth": 110, "death": 70, "holy": 105}, "ataques": [],
+                                     "fontes": {"wiki": True}},
+            "Gloom Maw": {"resist": {"physical": 100, "earth": 110, "death": 75, "holy": 105}, "ataques": [],
+                          "fontes": {"wiki": True}},
+        }
+        mons = [{"nome": n, "kills": k, "ficha": fichas[n]} for n, k in (("Norcferatu Heartless", 1262), ("Gloom Maw", 894))]
+        r = dc.analisar(mons, dc.parse_damage_input(DANO), monstros.singularizar)
+        self.assertEqual([e["elemento"] for e in r["elementos"]], ["physical", "death", "fire"])
+        self.assertEqual([p["imbuement"] for p in r["protecoes"]], ["lichshroud", "dragonhide"])
+        self.assertEqual(r["ofensivo"][0]["elemento"], "earth")
+        self.assertEqual(r["ofensivo"][-1]["elemento"], "death")
+        self.assertEqual(r["pesos"][0]["fonte"], "kills + log")
+        self.assertAlmostEqual(sum(p["peso"] for p in r["pesos"]), 1.0)
+
+    def test_damage_input_manda_mesmo_com_ataques_da_wiki(self):
+        # um só monstro com ataque na wiki (Life Drain) não pode inventar Life Drain se o log real não tem
+        ficha = {"resist": {}, "fontes": {"wiki": True},
+                 "ataques": [{"nome": "Life Drain", "elemento": "lifedrain", "min": 0, "max": 625}]}
+        mons = [{"nome": "Dworc Shadowstalker", "kills": 686, "ficha": ficha},
+                {"nome": "Gloom Maw", "kills": 894, "ficha": {"resist": {}, "ataques": [], "fontes": {"wiki": True}}}]
+        r = dc.analisar(mons, dc.parse_damage_input(DANO), monstros.singularizar)
+        self.assertEqual([e["elemento"] for e in r["elementos"]], ["physical", "death", "fire"])
+        sem_log = dc.analisar(mons, None, monstros.singularizar)
+        self.assertEqual([e["elemento"] for e in sem_log["elementos"]], ["lifedrain"])
+        self.assertTrue(any("1 de 2 monstros" in a for a in sem_log["avisos"]))
+
+    def test_previsao_pelos_ataques_da_wiki(self):
+        ficha = monstros.ficha_do_wikitext(WIKI_DRAGAO, "Dragon")
+        self.assertEqual(ficha["hp"], 1000)
+        self.assertEqual(ficha["resist"]["fire"], 0)
+        self.assertEqual([a["elemento"] for a in ficha["ataques"]], ["physical", "fire", "fire"])
+        self.assertEqual((ficha["ataques"][1]["min"], ficha["ataques"][1]["max"]), (100, 170))
+        partes = dc.parte_por_elemento(ficha)
+        self.assertAlmostEqual(sum(partes.values()), 1.0)
+        self.assertGreater(partes["fire"], partes["physical"])
+
+
+WIKI_DRAGAO = """{{Infobox Creature|List={{{1|}}}
+| name = Dragon
+| hp = 1000
+| exp = 700
+| abilities = {{Ability List|{{Melee|0-120}}|{{Ability|Invisibility|5|scene=}}|{{Ability|Fire Wave|100-170|fire|scene={{Scene|spell=5sqmwave}}}}|{{Ability|[[Great Fireball]]|60-140|fire}}}}
+| physicalDmgMod = 100%
+| fireDmgMod = 0%
+| iceDmgMod = 110%
+| earthDmgMod = 80%
+}}"""
+
+
+class TestNomes(unittest.TestCase):
+    def test_singular_e_casamento(self):
+        self.assertEqual(monstros.singularizar("Norcferatu Heartlesses"), "norcferatu heartless")
+        self.assertEqual(monstros.singularizar("gloom maws"), "gloom maw")
+        self.assertEqual(monstros.singularizar("furies"), "fury")
+        lista = [{"name": "Gloom Maws", "race": "gloommaw"}, {"name": "Varg", "race": "varg"}]
+        self.assertEqual(monstros.casar_criatura("gloom maw", lista)["race"], "gloommaw")
+        self.assertEqual(monstros.casar_criatura("vargs", lista)["race"], "varg")
+        self.assertIsNone(monstros.casar_criatura("Zandao", lista))
+        self.assertIsNone(monstros.casar_criatura("Zandao", [{"name": "Pandas", "race": "panda"}]))
+
+
+class TestHistorico(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.arq = os.path.join(self.tmp.name, "h.json")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _reg(self, party=PARTY, nome="pt 4x"):
+        e = {"party": party, "solo": "", "dano": ""}
+        return {"nome": nome, "assinatura": hunt.assinatura(e), "entrada": e, "membros": ["Zandao"],
+                "personagem": "Zandao", "resumo": {"lucro": 100, "minutos": 60, "xp": 10}}
+
+    def test_mesma_hunt_nao_duplica_e_mantem_pagos(self):
+        h1 = historico.salvar(self._reg(), self.arq)
+        historico.atualizar(h1["id"], self.arq, pagos=["Druid Bravo>Zandao"])
+        h2 = historico.salvar(self._reg(nome="renomeada"), self.arq)
+        self.assertEqual(h1["id"], h2["id"])
+        todas = historico.carregar(self.arq)
+        self.assertEqual(len(todas), 1)
+        self.assertEqual(todas[0]["nome"], "renomeada")
+        self.assertEqual(todas[0]["pagos"], ["Druid Bravo>Zandao"])
+
+    def test_exportar_importar(self):
+        historico.salvar(self._reg(), self.arq)
+        historico.salvar(self._reg(party=PARTY + "\nZ", nome="outra"), self.arq)
+        pacote = historico.exportar(caminho=self.arq)
+        self.assertEqual(len(pacote["hunts"]), 2)
+        json.dumps(pacote)  # precisa ser serializável
+        destino = os.path.join(self.tmp.name, "d.json")
+        self.assertEqual(historico.importar(pacote, caminho=destino), (2, 0))
+        self.assertEqual(historico.importar(pacote, caminho=destino), (0, 2))  # somar não duplica
+        self.assertEqual(historico.importar({"formato": historico.FORMATO, "hunts": pacote["hunts"][:1]},
+                                            substituir=True, caminho=destino), (1, 0))
+        self.assertEqual(len(historico.carregar(destino)), 1)
+        with self.assertRaises(ValueError):
+            historico.importar({"formato": "zandonadi-radar-export"}, caminho=destino)
+        self.assertEqual(historico.totais(historico.carregar(self.arq))["lucro_h"], 100)
+
+
+class TestApiHunt(unittest.TestCase):
+    """Fluxo da tela: analisar salva sozinho; limpar caixa não apaga o histórico; outra hunt vira outra entrada."""
+
+    def setUp(self):
+        import web_api
+        self.web_api = web_api
+        self.tmp = tempfile.TemporaryDirectory()
+        self.orig = (historico.HIST_PATH, web_api.RASCUNHO_PATH, web_api.API._trabalho_dano)
+        historico.HIST_PATH = os.path.join(self.tmp.name, "h.json")
+        web_api.RASCUNHO_PATH = os.path.join(self.tmp.name, "r.json")
+        web_api.API._trabalho_dano = lambda *a, **k: None  # sem internet nos testes
+        self.api = web_api.API()
+
+    def tearDown(self):
+        historico.HIST_PATH, self.web_api.RASCUNHO_PATH, self.web_api.API._trabalho_dano = self.orig
+        self.tmp.cleanup()
+
+    def test_fluxo(self):
+        api = self.api
+        r1 = api.hunt_analisar({"party": PARTY, "solo": SOLO, "dano": DANO, "personagem": "Zandao"})
+        self.assertTrue(r1["salvo"])
+        api.hunt_renomear(r1["id"], "norfectarus pt 4x")
+        self.assertEqual(api.hunt_carregar()["entrada"]["nome"], "norfectarus pt 4x")
+
+        # limpou a party e o dano: a tela mostra só o solo, mas o histórico continua completo
+        r2 = api.hunt_analisar({"solo": SOLO, "personagem": "Outro", "nome": "norfectarus pt 4x", "id": r1["id"]})
+        self.assertFalse(r2["salvo"])
+        h = historico.obter(r1["id"])
+        self.assertEqual(h["entrada"]["party"], PARTY)
+        self.assertEqual(h["personagem"], "Zandao")
+
+        # colou a party de volta: atualiza a mesma entrada
+        r3 = api.hunt_analisar({"party": PARTY, "solo": SOLO, "dano": DANO, "personagem": "Zandao",
+                                "nome": "norfectarus pt 4x", "id": r1["id"]})
+        self.assertEqual(r3["id"], r1["id"])
+        self.assertTrue(r3["salvo"])
+
+        # colou uma hunt de outro horário por cima, sem "Nova hunt": nova entrada
+        outra = SOLO.replace("10:19:15", "20:00:00")
+        r4 = api.hunt_analisar({"solo": outra, "personagem": "Zandao", "nome": "norfectarus pt 4x", "id": r1["id"]})
+        self.assertNotEqual(r4["id"], r1["id"])
+        nomes = sorted(x["nome"] for x in api.hunt_historico()["hunts"])
+        self.assertEqual(nomes, ["Hunt 2026-10-05 20:00", "norfectarus pt 4x"])
+
+
+if __name__ == "__main__":
+    unittest.main()
