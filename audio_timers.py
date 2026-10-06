@@ -12,6 +12,8 @@ Modos de um timer:
   "ignora"   - apertar enquanto conta não faz nada; ao acabar avisa e espera o próximo aperto;
   "loop"     - um aperto começa a repetir sozinho (avisa a cada volta); outro aperto para.
 "antes" (s): o som toca esse tanto antes de acabar (ex.: 3 s antes da poção).
+"alerta": também mostra um texto por cima do Tibia na hora do aviso; "barra": uma barra correndo por cima
+do Tibia enquanto conta (largura/espessura/posição em cfg["barra"]). Ver overlay.py.
 
 Arquivo audio_timers.json (ao lado do programa, cada pessoa tem o seu):
   {"ligado": true, "volume": 90, "so_tibia": true,
@@ -33,6 +35,8 @@ import time
 import uuid
 import wave
 
+import overlay
+
 if getattr(sys, "frozen", False):
     BASE_DIR = os.path.dirname(sys.executable)
 else:
@@ -47,7 +51,7 @@ PROCESSOS_TIBIA = ("client.exe", "tibia.exe")
 # ---------------------------------------------------------------------------
 # Configuração
 # ---------------------------------------------------------------------------
-PADRAO = {"ligado": True, "volume": 90, "so_tibia": True, "timers": []}
+PADRAO = {"ligado": True, "volume": 90, "so_tibia": True, "barra": dict(overlay.BARRA_PADRAO), "timers": []}
 
 
 def carregar(caminho=None):
@@ -58,6 +62,7 @@ def carregar(caminho=None):
         d = {}
     cfg = {**PADRAO, **{k: v for k, v in d.items() if k in PADRAO}}
     cfg["timers"] = [normalizar(t) for t in cfg.get("timers") or [] if isinstance(t, dict)]
+    cfg["barra"] = overlay.normalizar_barra(cfg.get("barra"))
     return cfg
 
 
@@ -92,6 +97,9 @@ def normalizar(t):
         "som": str(t.get("som") or "pronto:bipe"),
         "volume": max(0, min(100, int(t.get("volume") if t.get("volume") is not None else 100))),
         "ativo": bool(t.get("ativo", True)),
+        "alerta": bool(t.get("alerta", False)),   # texto na tela do Tibia na hora do aviso
+        "barra": bool(t.get("barra", False)),     # barra correndo na tela do Tibia enquanto conta
+        "cor": t.get("cor") if t.get("cor") in overlay.CORES else "amarelo",
     }
 
 
@@ -269,6 +277,11 @@ def gravar_tecla(espera=8.0):
     return None
 
 
+def fmt_tempo(seg):
+    seg = max(0, int(seg + .999))
+    return f"{seg // 60}:{seg % 60:02d}" if seg < 3600 else f"{seg // 3600}:{seg % 3600 // 60:02d}:{seg % 60:02d}"
+
+
 def texto_da_tecla(t):
     if not t or not t.get("vk"):
         return "—"
@@ -340,6 +353,11 @@ class Motor:
         self._ao_mudar = ao_mudar          # função chamada com o estado (para a tela)
         self._ultimo_envio = 0
         self.tocador = Tocador()
+        self.alerta = overlay.Overlay()
+        self.barras = overlay.Barras()
+        self._barras_ate = 0          # teste de posição: mostra barras de exemplo até esse instante
+        self._ultima_barra = 0
+        self._barras_visiveis = False
         garantir_sons_prontos()
         self._sincronizar()
         threading.Thread(target=self._rodar, daemon=True).start()
@@ -364,6 +382,22 @@ class Motor:
 
     def tocar(self, som_id, volume_timer=100):
         self.tocador.tocar(caminho_do_som(som_id), volume_timer * self.cfg["volume"] / 100)
+
+    def testar_alerta(self, cor="amarelo"):
+        return self.alerta.mostrar("Poção acaba em 3s", cor, 3, so_tibia=False)
+
+    def testar_barras(self, segundos=6):
+        """Mostra barras de exemplo (com a configuração atual) para ajustar a posição."""
+        self._barras_ate = time.monotonic() + segundos
+        self._ultima_barra = 0
+
+    def _itens_barras(self, agora):
+        if agora < self._barras_ate:
+            frac = (self._barras_ate - agora) / 6
+            return [("Exemplo: Poção", frac, fmt_tempo(frac * 120), "laranja"),
+                    ("Exemplo: Utito", frac * .5, fmt_tempo(frac * 10), "verde")]
+        return [(e.cfg["nome"], e.restante(agora) / e.cfg["duracao"], fmt_tempo(e.restante(agora)), e.cfg["cor"])
+                for e in self.estados.values() if e.rodando and e.cfg["barra"]]
 
     def parar_todos(self):
         with self._trava:
@@ -406,8 +440,22 @@ class Motor:
             for e in self.estados.values():
                 if e.tick(agora):
                     self.tocador.tocar(caminho_do_som(e.cfg["som"]), e.cfg["volume"] * self.cfg["volume"] / 100)
+                    if e.cfg["alerta"]:
+                        antes = min(e.cfg["antes"], e.cfg["duracao"])
+                        texto = f"{e.cfg['nome']} acaba em {antes:g}s" if antes else f"{e.cfg['nome']} acabou!"
+                        self.alerta.mostrar(texto, e.cfg["cor"], 3)
                     mudou = True
             rodando = any(e.rodando for e in self.estados.values())
+            itens = self._itens_barras(agora)
+            cfg_barra = self.cfg["barra"]
+        # barras por cima do Tibia: 10x por segundo enquanto há alguma (e some quando não há mais)
+        if itens and agora - self._ultima_barra > .1:
+            self._ultima_barra = agora
+            self._barras_visiveis = True
+            self.barras.atualizar(itens, cfg_barra, so_tibia=agora >= self._barras_ate)
+        elif not itens and self._barras_visiveis:
+            self._barras_visiveis = False
+            self.barras.atualizar([], cfg_barra)
         # manda o estado para a tela: na hora quando muda, e 4x por segundo enquanto algo conta
         if self._ao_mudar and (mudou or (rodando and agora - self._ultimo_envio > .25)):
             self._ultimo_envio = agora

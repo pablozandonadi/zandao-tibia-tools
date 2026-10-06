@@ -126,7 +126,10 @@ Ctrl/Shift/Alt), uma **duração**, um **som** (prontos, gerados pelo app, ou um
 - **Conta até o fim**: apertar enquanto conta não faz nada; acabou, avisa e espera o próximo aperto.
 - **Loop**: um aperto começa a repetir sozinho (avisa a cada volta); outro aperto para.
 
-"Avisar antes de acabar" toca o som alguns segundos antes. Funciona com o app minimizado. Por padrão só conta
+"Avisar antes de acabar" toca o som alguns segundos antes. Cada timer pode também mostrar, por cima do Tibia
+(sem dar para clicar: o clique passa para o jogo), um **📢 alerta** em texto na hora do aviso e/ou uma **▬ barra**
+correndo enquanto conta, na cor escolhida. Largura, espessura e posição da barra ficam no card "Barra no Tibia"
+(com "Testar posição"). Funciona com o Tibia em janela ou tela cheia sem bordas. Funciona com o app minimizado. Por padrão só conta
 com o Tibia (`client.exe`) em foco. O app só confere se as teclas cadastradas estão apertadas: não grava o que é
 digitado e não manda tecla nenhuma para o jogo. Configuração em `audio_timers.json`, sons seus em `sons_usuario/`.
 

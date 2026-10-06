@@ -500,6 +500,18 @@ class TestTimersAudio(unittest.TestCase):
         self.assertFalse(t.rodando)
         self.assertFalse(t.tick(40))
 
+    def test_alerta_e_barra(self):
+        import audio_timers as at
+        import overlay as ov
+        n = at.normalizar({"nome": "Poção", "alerta": 1, "barra": True, "cor": "roxo"})
+        self.assertEqual((n["alerta"], n["barra"], n["cor"]), (True, True, "amarelo"))  # cor inválida -> amarelo
+        b = ov.normalizar_barra({"largura": 5000, "espessura": 1, "x": 150})
+        self.assertEqual((b["largura"], b["espessura"], b["x"], b["y"]), (1200, 4, 100, 78))
+        # a barra nunca sai da janela do Tibia, mesmo com posição 100%
+        x, y, larg, alt, _ = ov.layout_barras(2, ov.normalizar_barra({"largura": 300, "x": 100, "y": 100}), (0, 0, 1000, 800))
+        self.assertTrue(0 <= x and x + larg <= 1000 and 0 <= y and y + alt <= 800)
+        self.assertEqual((at.fmt_tempo(74.2), at.fmt_tempo(3), at.fmt_tempo(3725)), ("1:15", "0:03", "1:02:05"))
+
     def test_normalizar(self):
         import audio_timers as at
         n = at.normalizar({"duracao": "0", "modo": "xx", "volume": 300, "tecla": None})

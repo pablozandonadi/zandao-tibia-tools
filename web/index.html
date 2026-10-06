@@ -618,6 +618,18 @@
         <p class="dica" style="margin:12px 0 0;line-height:1.5">Aperte a tecla do timer no Tibia e ele começa a contar; quando acaba, toca o som. Funciona com o app minimizado.
           O app só confere as teclas que você cadastrou aqui: não grava o que você digita e não manda tecla nenhuma para o jogo.</p>
       </div>
+      <div class="card calmo" style="margin-top:16px">
+        <div class="h-titulo" style="margin-bottom:8px"><h2 class="sub" style="margin:0">▬ Barra no Tibia</h2>
+          <button class="btn btn-sm" id="au-barra-testar">👁 Testar posição</button></div>
+        <div class="campos" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+          <div><label class="campo-label" for="aub-larg">Largura: <b id="aub-larg-v"></b></label><input type="range" id="aub-larg" min="80" max="1200" step="10"></div>
+          <div><label class="campo-label" for="aub-esp">Espessura: <b id="aub-esp-v"></b></label><input type="range" id="aub-esp" min="4" max="48" step="1"></div>
+          <div><label class="campo-label" for="aub-x">Posição horizontal: <b id="aub-x-v"></b></label><input type="range" id="aub-x" min="0" max="100" step="1"></div>
+          <div><label class="campo-label" for="aub-y">Posição vertical: <b id="aub-y-v"></b></label><input type="range" id="aub-y" min="0" max="100" step="1"></div>
+        </div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="aub-nome"> Mostrar nome e tempo em cima da barra</label>
+        <p class="dica" style="margin:8px 0 0">Vale para os timers com "Barra no Tibia" ligada. Mexa nos controles com o Tibia aberto: as barras de exemplo aparecem em cima dele para você ajustar. A posição é em % da janela do Tibia.</p>
+      </div>
       <div id="au-form"></div>
       <div id="au-lista" style="margin-top:16px"></div>
     </section>
@@ -1788,8 +1800,9 @@ function renderAudio() {
   $('au-ligado').textContent = c.ligado ? '● Ligado' : '■ Parado';
   $('au-vol').value = c.volume; $('au-vol-val').textContent = c.volume + '%';
   $('au-sotibia').checked = !!c.so_tibia;
+  mostrarCfgBarra();
   $('au-lista').innerHTML = c.timers.length ? c.timers.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
-      <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDur(t.duracao)}${t.antes ? ` · avisa ${t.antes}s antes` : ''} · 🔊 ${esc(nomeSom(t.som))} ${t.volume}%</div></div>
+      <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDur(t.duracao)}${t.antes ? ` · avisa ${t.antes}s antes` : ''} · 🔊 ${esc(nomeSom(t.som))} ${t.volume}%${t.alerta ? ' · 📢 alerta' : ''}${t.barra ? ' · ▬ barra' : ''}</div></div>
       <span class="au-tecla" title="Tecla que começa o timer">${esc(AU.teclas[t.id] || '—')}</span>
       <div class="au-tempo"><span class="barra-el"><i style="width:0%"></i></span><b>${fmtDur(t.duracao)}</b></div>
       <div class="au-acoes"><label class="check" title="Ativo"><input type="checkbox" data-au-ativo="${t.id}" ${t.ativo ? 'checked' : ''}></label>
@@ -1826,7 +1839,7 @@ window.audioEstado = (est) => { if (AU) { AU.estado = est; mostrarEstadoAudio(es
 
 function abrirFormAudio(id) {
   const base = id ? AU.cfg.timers.find((t) => t.id === id) : null;
-  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'pronto:bipe', volume: 100, ativo: true }));
+  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'pronto:bipe', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo' }));
   auEditando._teclaTexto = id ? AU.teclas[id] : '';
   desenharFormAudio();
   $('au-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1852,12 +1865,25 @@ function desenharFormAudio() {
       <div><label class="campo-label" for="auf-vol">Volume do timer: <b id="auf-vol-val">${t.volume}%</b></label><input type="range" id="auf-vol" min="0" max="100" step="5" value="${t.volume}"></div>
       <div><label class="campo-label" for="auf-antes">Avisar antes de acabar (seg)</label><input type="text" class="num" id="auf-antes" value="${t.antes || 0}"></div>
     </div>
+    <div class="campos" style="margin-top:12px">
+      <div><label class="check"><input type="checkbox" id="auf-alerta" ${t.alerta ? 'checked' : ''}> 📢 Alerta na tela do Tibia</label>
+        <div class="dica" style="margin-top:4px">Texto no meio do Tibia na hora do aviso (ex.: "${esc(t.nome || 'Poção')} acaba em 3s"). Não dá para clicar.</div></div>
+      <div><label class="check"><input type="checkbox" id="auf-barra" ${t.barra ? 'checked' : ''}> ▬ Barra no Tibia</label>
+        <div class="dica" style="margin-top:4px">Barra correndo por cima do Tibia enquanto o timer conta (ajuste em "Barra no Tibia").</div></div>
+      <div><label class="campo-label" for="auf-cor">Cor do alerta e da barra</label><div class="linha-pasta" style="margin:0">
+        <select id="auf-cor">${CORES_AU.map(([k, n2]) => `<option value="${k}" ${k === (t.cor || 'amarelo') ? 'selected' : ''}>${n2}</option>`).join('')}</select>
+        <button class="btn btn-sm" id="auf-testar-alerta" title="Mostra o alerta por 3 s">👁 Testar</button></div></div>
+    </div>
     <div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>
   </div>`;
   $('auf-nome').addEventListener('input', () => { t.nome = $('auf-nome').value; });
   $('auf-dur').addEventListener('input', () => { const d = lerDur($('auf-dur').value); if (d) t.duracao = d; });
   $('auf-antes').addEventListener('input', () => { t.antes = parseFloat($('auf-antes').value.replace(',', '.')) || 0; });
   $('auf-som').addEventListener('change', () => { t.som = $('auf-som').value; });
+  $('auf-alerta').addEventListener('change', () => { t.alerta = $('auf-alerta').checked; });
+  $('auf-barra').addEventListener('change', () => { t.barra = $('auf-barra').checked; });
+  $('auf-cor').addEventListener('change', () => { t.cor = $('auf-cor').value; });
+  $('auf-testar-alerta').addEventListener('click', () => api.audio_testar_alerta(t.cor || 'amarelo'));
   $('auf-vol').addEventListener('input', () => { t.volume = +$('auf-vol').value; $('auf-vol-val').textContent = t.volume + '%'; });
   $('auf-ouvir').addEventListener('click', () => api.audio_tocar(t.som, t.volume));
   document.querySelectorAll('[data-auf-modo]').forEach((m) => m.addEventListener('click', () => {
@@ -1890,6 +1916,27 @@ function desenharFormAudio() {
     toast('Timer salvo!');
   });
 }
+const CORES_AU = [['branco', 'Branco'], ['amarelo', 'Amarelo'], ['laranja', 'Laranja'], ['vermelho', 'Vermelho'], ['verde', 'Verde']];
+function mostrarCfgBarra() {
+  const b = AU.cfg.barra;
+  $('aub-larg').value = b.largura; $('aub-larg-v').textContent = b.largura + ' px';
+  $('aub-esp').value = b.espessura; $('aub-esp-v').textContent = b.espessura + ' px';
+  $('aub-x').value = b.x; $('aub-x-v').textContent = Math.round(b.x) + '%';
+  $('aub-y').value = b.y; $('aub-y-v').textContent = Math.round(b.y) + '%';
+  $('aub-nome').checked = !!b.nome;
+}
+let tBarra = null;
+function mudouBarra() {
+  const b = AU.cfg.barra;
+  b.largura = +$('aub-larg').value; b.espessura = +$('aub-esp').value;
+  b.x = +$('aub-x').value; b.y = +$('aub-y').value; b.nome = $('aub-nome').checked;
+  mostrarCfgBarra();
+  api.audio_testar_barras(b);               // mostra o exemplo na hora, em cima do Tibia
+  clearTimeout(tBarra); tBarra = setTimeout(salvarAudio, 600);
+}
+['aub-larg', 'aub-esp', 'aub-x', 'aub-y'].forEach((id) => $(id).addEventListener('input', mudouBarra));
+$('aub-nome').addEventListener('change', mudouBarra);
+$('au-barra-testar').addEventListener('click', () => { api.audio_testar_barras(AU.cfg.barra); toast('Barras de exemplo por 6 s (em cima do Tibia, se estiver aberto).'); });
 $('au-novo').addEventListener('click', () => abrirFormAudio(null));
 $('au-ligado').addEventListener('click', () => { AU.cfg.ligado = !AU.cfg.ligado; salvarAudio(); });
 $('au-sotibia').addEventListener('change', () => { AU.cfg.so_tibia = $('au-sotibia').checked; salvarAudio(); });

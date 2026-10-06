@@ -720,6 +720,7 @@ class API:
         cfg["timers"] = [audio_timers.normalizar(t) for t in cfg["timers"] or []]
         cfg["volume"] = max(0, min(100, int(cfg["volume"])))
         cfg["ligado"], cfg["so_tibia"] = bool(cfg["ligado"]), bool(cfg["so_tibia"])
+        cfg["barra"] = audio_timers.overlay.normalizar_barra(cfg.get("barra"))
         if self._audio:
             self._audio.atualizar_cfg(cfg)
         else:
@@ -734,6 +735,18 @@ class API:
     def audio_tocar(self, som, volume=100):
         if self._audio:
             self._audio.tocar(som, volume)
+        return True
+
+    def audio_testar_alerta(self, cor="amarelo"):
+        return bool(self._audio and self._audio.testar_alerta(cor))
+
+    def audio_testar_barras(self, barra=None):
+        """Mostra barras de exemplo por 6 s (com a configuração da tela, mesmo antes de salvar)."""
+        if not self._audio:
+            return False
+        if barra:
+            self._audio.cfg["barra"] = audio_timers.overlay.normalizar_barra(barra)
+        self._audio.testar_barras()
         return True
 
     def audio_parar_todos(self):
