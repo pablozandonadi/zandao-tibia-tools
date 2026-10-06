@@ -294,32 +294,73 @@ class TestApiHunt(unittest.TestCase):
         historico.HIST_PATH, self.web_api.RASCUNHO_PATH, self.web_api.API._trabalho_dano = self.orig
         self.tmp.cleanup()
 
-    def test_fluxo(self):
+    def test_so_salva_quando_clica_em_salvar(self):
         api = self.api
-        r1 = api.hunt_analisar({"party": PARTY, "solo": SOLO, "dano": DANO, "personagem": "Zandao"})
-        self.assertTrue(r1["salvo"])
-        api.hunt_renomear(r1["id"], "norfectarus pt 4x")
-        self.assertEqual(api.hunt_carregar()["entrada"]["nome"], "norfectarus pt 4x")
+        e = {"party": PARTY, "solo": SOLO, "dano": DANO, "personagem": "Zandao"}
+        r1 = api.hunt_analisar(e)
+        self.assertIsNone(r1["id"])
+        self.assertEqual(api.hunt_historico()["hunts"], [])  # analisar não grava nada
+        self.assertEqual(api.hunt_carregar()["entrada"], {"personagem": "Zandao"})  # só lembra o personagem
 
-        # limpou a party e o dano: a tela mostra só o solo, mas o histórico continua completo
-        r2 = api.hunt_analisar({"solo": SOLO, "personagem": "Outro", "nome": "norfectarus pt 4x", "id": r1["id"]})
-        self.assertFalse(r2["salvo"])
-        h = historico.obter(r1["id"])
-        self.assertEqual(h["entrada"]["party"], PARTY)
-        self.assertEqual(h["personagem"], "Zandao")
+        s1 = api.hunt_salvar({**e, "nome": "norfectarus pt 4x"}, ["Druid Bravo>Zandao"])
+        self.assertTrue(s1["ok"])
+        h = historico.obter(s1["id"])
+        self.assertEqual((h["nome"], h["pagos"]), ("norfectarus pt 4x", ["Druid Bravo>Zandao"]))
 
-        # colou a party de volta: atualiza a mesma entrada
-        r3 = api.hunt_analisar({"party": PARTY, "solo": SOLO, "dano": DANO, "personagem": "Zandao",
-                                "nome": "norfectarus pt 4x", "id": r1["id"]})
-        self.assertEqual(r3["id"], r1["id"])
-        self.assertTrue(r3["salvo"])
+        # editou (tirou um membro) e salvou de novo: atualiza a mesma entrada, não duplica
+        s2 = api.hunt_salvar({**e, "nome": "norfectarus pt 4x", "excluidos": ["Paladin Charlie"], "id": s1["id"]}, [])
+        self.assertEqual(s2["id"], s1["id"])
+        self.assertEqual(len(api.hunt_historico()["hunts"]), 1)
+        self.assertEqual(historico.obter(s1["id"])["pagos"], [])
 
-        # colou uma hunt de outro horário por cima, sem "Nova hunt": nova entrada
+        # colou uma hunt de outro horário por cima de uma salva: a análise já vem sem id e salvar cria outra
         outra = SOLO.replace("10:19:15", "20:00:00")
-        r4 = api.hunt_analisar({"solo": outra, "personagem": "Zandao", "nome": "norfectarus pt 4x", "id": r1["id"]})
-        self.assertNotEqual(r4["id"], r1["id"])
-        nomes = sorted(x["nome"] for x in api.hunt_historico()["hunts"])
-        self.assertEqual(nomes, ["Hunt 2026-10-05 20:00", "norfectarus pt 4x"])
+        r3 = api.hunt_analisar({"solo": outra, "personagem": "Zandao", "nome": "norfectarus pt 4x", "id": s1["id"]})
+        self.assertIsNone(r3["id"])
+        self.assertEqual(r3["nome"], "Hunt 2026-10-05 20:00")
+        s3 = api.hunt_salvar({"solo": outra, "personagem": "Zandao", "id": s1["id"]})
+        self.assertNotEqual(s3["id"], s1["id"])
+        self.assertEqual(len(api.hunt_historico()["hunts"]), 2)
+        self.assertFalse(api.hunt_salvar({"party": "nada"})["ok"])
+
+    def test_colar_preenche_os_tres(self):
+        import web_api
+        api = self.api
+        for texto in (PARTY, SOLO, "minha senha 123", DANO):  # o que não é do Tibia é ignorado
+            tipo = hunt.detectar(texto)
+            if tipo:
+                api._capturas[tipo] = {"texto": texto, "t": __import__("time").time()}
+        orig = web_api.ler_clipboard
+        web_api.ler_clipboard = lambda: "minha senha 123"
+        try:
+            r = api.hunt_colar()
+        finally:
+            web_api.ler_clipboard = orig
+        self.assertEqual(sorted(r["textos"]), ["dano", "party", "solo"])
+        self.assertEqual(r["textos"]["party"], PARTY)
+        self.assertEqual(api._capturas, {})  # depois de colar, esvazia
+
+
+class TestCompararJogadores(unittest.TestCase):
+    def test_dano_cura_e_por_jogador(self):
+        def reg(id_, party, nome):
+            e = {"party": party, "solo": "", "dano": ""}
+            a = hunt.montar(e)
+            return {"id": id_, "nome": nome, "entrada": e, "resumo": a["resumo"], "monstros": []}
+        menor = PARTY.replace("Session: 02:47h", "Session: 01:00h").replace("12,846,796", "6,000,000")
+        r = historico.comparar([reg("a", PARTY, "A"), reg("b", menor, "B")])
+        linha = {l["chave"]: l for l in r["linhas"]}
+        self.assertEqual(linha["dano_total"]["valores"][0], 12_846_796 + 7_271_000 + 11_706_807 + 9_221_867)
+        self.assertEqual(linha["top_dano"]["valores"][0], "Knight Alfa · 12,846,796 (31.3%)")
+        self.assertTrue(linha["top_cura"]["valores"][0].startswith("Knight Alfa · 3,120,299"))
+        self.assertTrue(linha["top_supplies"]["valores"][0].startswith("Druid Bravo · 2,001,434"))
+        self.assertIsNotNone(linha["cura_h"]["melhor"])
+        jog = {j["nome"]: j for j in r["jogadores"]}
+        self.assertEqual(jog["Knight Alfa"]["em"], 2)
+        self.assertEqual([v["dano"] for v in jog["Knight Alfa"]["valores"]], [12_846_796, 6_000_000])
+        self.assertEqual(jog["Knight Alfa"]["melhor"]["dano"], 0)       # mais dano no total: hunt A
+        self.assertEqual(jog["Knight Alfa"]["melhor"]["dano_h"], 1)     # mas por hora: hunt B (1h)
+        self.assertEqual(jog["Zandao"]["melhor"]["supplies_h"], 0)      # mesmo supplies em mais tempo = gastou menos/h
 
 
 if __name__ == "__main__":

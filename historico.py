@@ -186,7 +186,81 @@ LINHAS_COMPARACAO = [
     ("xp_raw_h", "Raw XP / hora", "max", "num"),
     ("xp", "XP (total)", "max", "num"),
     ("despesas", "Despesas extras", "min", "gp"),
+    ("dano_total", "Dano total da party", "max", "num"),
+    ("dano_h", "Dano da party / hora", "max", "num"),
+    ("dano_membro_h", "Dano por membro / hora", "max", "num"),
+    ("cura_total", "Cura total da party", "max", "num"),
+    ("cura_h", "Cura da party / hora", "max", "num"),
+    ("loot_total", "Loot da party (total)", "max", "gp"),
+    ("supplies_total", "Supplies da party (total)", "min", "gp"),
+    ("top_dano", "Quem bateu mais", None, "txt"),
+    ("top_cura", "Quem curou mais", None, "txt"),
+    ("top_supplies", "Quem gastou mais supplies", None, "txt"),
+    ("top_loot", "Quem lootou mais", None, "txt"),
+    ("top_balance", "Maior balance", None, "txt"),
 ]
+
+# por jogador: (chave, rótulo, o que é melhor)
+METRICAS_JOGADOR = [
+    ("dano", "Dano", "max"), ("dano_h", "Dano / hora", "max"),
+    ("cura", "Cura", "max"), ("cura_h", "Cura / hora", "max"),
+    ("supplies", "Supplies", "min"), ("supplies_h", "Supplies / hora", "min"),
+    ("loot", "Loot", "max"), ("balance", "Balance", "max"),
+]
+
+
+def _membros_da_hunt(h):
+    """Membros com dano/cura/supplies/loot/balance, recalculados dos textos guardados (vale para hunts antigas)."""
+    import hunt as _hunt
+    try:
+        a = _hunt.montar(h.get("entrada") or {})
+    except Exception:
+        return []
+    if a.get("vazio"):
+        return []
+    if a.get("membros"):
+        return [{"nome": m["nome"], "dano": m["dano"], "cura": m["cura"], "supplies": m["supplies"],
+                 "loot": m["loot"], "balance": m["balance"]} for m in a["membros"]]
+    s = a.get("solo")
+    if s:
+        return [{"nome": h.get("personagem") or "Você", "dano": s["dano"], "cura": s["cura"], "supplies": s["supplies"],
+                 "loot": s["loot"], "balance": s["balance"]}]
+    return []
+
+
+def _destaque(membros, chave, total=None):
+    if not membros:
+        return None
+    m = max(membros, key=lambda x: x[chave])
+    pct = f" ({m[chave] / total * 100:.1f}%)" if total else ""
+    return f"{m['nome']} · {m[chave]:,}{pct}"
+
+
+def _metricas_jogadores(membros, minutos):
+    tem = bool(membros)
+    tot_dano = sum(m["dano"] for m in membros)
+    tot_cura = sum(m["cura"] for m in membros)
+    extra = {
+        "dano_total": tot_dano if tem else None, "cura_total": tot_cura if tem else None,
+        "dano_h": _por_hora(tot_dano, minutos) if tem else None,
+        "cura_h": _por_hora(tot_cura, minutos) if tem else None,
+        "dano_membro_h": _por_hora(tot_dano // len(membros), minutos) if tem else None,
+        "loot_total": sum(m["loot"] for m in membros) if tem else None,
+        "supplies_total": sum(m["supplies"] for m in membros) if tem else None,
+        "top_dano": _destaque(membros, "dano", tot_dano), "top_cura": _destaque(membros, "cura", tot_cura),
+        "top_supplies": _destaque(membros, "supplies"), "top_loot": _destaque(membros, "loot"),
+        "top_balance": _destaque(membros, "balance"),
+    }
+    por_jogador = {}
+    for m in membros:
+        por_jogador[m["nome"].lower()] = {
+            "nome": m["nome"], "dano": m["dano"], "dano_pct": (m["dano"] / tot_dano * 100) if tot_dano else 0,
+            "dano_h": _por_hora(m["dano"], minutos), "cura": m["cura"],
+            "cura_pct": (m["cura"] / tot_cura * 100) if tot_cura else 0, "cura_h": _por_hora(m["cura"], minutos),
+            "supplies": m["supplies"], "supplies_h": _por_hora(m["supplies"], minutos),
+            "loot": m["loot"], "balance": m["balance"],
+        }
+    return extra, por_jogador
 
 
 def _por_hora(v, minutos):
@@ -223,6 +297,11 @@ def comparar(hunts):
     """Compara 2 ou mais hunts do histórico lado a lado. Devolve linhas com o melhor valor de cada uma,
     avisos de quando a comparação não é direta (party/duração/personagem/spawn diferentes) e um veredito."""
     ms = [metricas(h) for h in hunts]
+    por_jogador = []
+    for h, m in zip(hunts, ms):
+        extra, pj = _metricas_jogadores(_membros_da_hunt(h), m["minutos"])
+        m.update(extra)
+        por_jogador.append(pj)
     cab = [{"id": h["id"], "nome": h.get("nome") or "Hunt", "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
             "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"],
             "monstros": (h.get("monstros") or [])[:4],
@@ -260,7 +339,8 @@ def comparar(hunts):
                 avisos.append(f"\"{c['nome']}\" foi em outro spawn (monstros diferentes de \"{cab[0]['nome']}\").")
 
     veredito = []
-    for chave, rotulo in (("lucro_membro_h", "lucro por membro por hora"), ("xp_h", "XP por hora")):
+    for chave, rotulo in (("lucro_membro_h", "lucro por membro por hora"), ("xp_h", "XP por hora"),
+                          ("dano_h", "dano da party por hora")):
         vals = [(i, m[chave]) for i, m in enumerate(ms) if m[chave] is not None]
         if len(vals) < 2:
             continue
@@ -270,7 +350,23 @@ def comparar(hunts):
             continue
         dif = f"{(v1 - v2) / v2 * 100:.0f}% a mais" if v2 > 0 else "mais"
         veredito.append(f"\"{cab[i1]['nome']}\" rendeu {dif} de {rotulo} que \"{cab[i2]['nome']}\".")
-    return {"hunts": cab, "linhas": linhas, "avisos": avisos, "veredito": veredito}
+    # tabela por jogador: quem aparece em mais hunts primeiro; melhor valor de cada métrica entre as hunts
+    nomes = {}
+    for pj in por_jogador:
+        for k, v in pj.items():
+            nomes.setdefault(k, v["nome"])
+    jogadores = []
+    for k, nome in nomes.items():
+        vals = [pj.get(k) for pj in por_jogador]
+        melhor = {}
+        for chave, _, criterio in METRICAS_JOGADOR:
+            nums = [(i, v[chave]) for i, v in enumerate(vals) if v and v[chave] is not None]
+            if len(nums) >= 2 and len({x for _, x in nums}) > 1:
+                melhor[chave] = (max if criterio == "max" else min)(nums, key=lambda x: x[1])[0]
+        jogadores.append({"nome": nome, "em": sum(v is not None for v in vals), "valores": vals, "melhor": melhor})
+    jogadores.sort(key=lambda j: (-j["em"], -sum((v or {}).get("dano", 0) for v in j["valores"])))
+    return {"hunts": cab, "linhas": linhas, "avisos": avisos, "veredito": veredito, "jogadores": jogadores,
+            "metricas_jogador": [{"chave": c, "rotulo": r} for c, r, _ in METRICAS_JOGADOR]}
 
 
 def totais(hunts):

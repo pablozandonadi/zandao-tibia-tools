@@ -390,9 +390,10 @@
         <div class="hunt-topo">
           <div><label class="campo-label" for="h-nome">Nome da hunt</label><input type="text" id="h-nome" placeholder="ex.: norfectarus pt 4x"></div>
           <div><label class="campo-label" for="h-personagem">Seu personagem</label><input type="text" id="h-personagem" list="h-personagens" placeholder="ex.: Zandao"><datalist id="h-personagens"></datalist></div>
-          <div class="acoes"><button class="btn btn-primary" id="h-colar">📋 Colar do Tibia</button><button class="btn" id="h-nova">✚ Nova hunt</button></div>
+          <div class="acoes"><button class="btn btn-primary" id="h-colar" title="Cola o que você copiou no Tibia (botão Copy do analyser) direto na caixa certa">📋 Colar do Tibia</button><button class="btn" id="h-nova">✚ Nova hunt</button><button class="btn btn-primary" id="h-salvar" disabled>💾 Salvar</button></div>
         </div>
-        <p class="dica" style="margin:12px 0 0;line-height:1.5">No Tibia, clique em <b>Copy</b> no <b>Party Hunt Analyser</b>, no <b>Hunting Analyser</b> e no <b>Input Analyser</b> (Received Damage), um de cada vez, e clique em <b>Colar do Tibia</b>: o app reconhece qual é qual. Também dá para colar direto nas caixas. Toda análise fica salva no Histórico.</p>
+        <p class="dica" style="margin:12px 0 0;line-height:1.5">Com o programa aberto, clique em <b>Copy</b> no Tibia no <b>Party Hunt Analyser</b>, no <b>Hunting Analyser</b> e no <b>Input Analyser</b> (Received Damage), um depois do outro, e depois em <b>Colar do Tibia</b>: os 3 cards são preenchidos de uma vez (o app guarda cada cópia e reconhece qual é qual). Também dá para colar direto nas caixas (Ctrl+V). A hunt só vai para o Histórico quando você clicar em <b>💾 Salvar</b>.</p>
+        <div class="resumo-chips" id="h-capturas" style="margin-top:10px"></div>
         <div class="caixas">
           <div class="caixa" id="cx-party">
             <div class="caixa-cab"><label class="campo-label" for="h-party">Party Hunt Analyser</label><span class="chip chip-neutro" id="st-party">vazio</span></div>
@@ -795,14 +796,26 @@ function statusCaixas(a) {
 
 // ---------- entrada ----------
 $('h-colar').addEventListener('click', async () => {
-  const r = await api.hunt_ler_clipboard();
-  if (!r.texto.trim()) { toast('A área de transferência está vazia. Clique em Copy no Tibia primeiro.', true); return; }
-  if (!r.tipo) { toast('O que está copiado não parece um texto do Tibia (Party Hunt, Hunting ou Input Analyser).', true); return; }
-  H.entrada[r.tipo] = r.texto;
-  $('h-' + r.tipo).value = r.texto;
-  toast(`${NOME_TIPO[r.tipo]} colado!`);
+  const r = await api.hunt_colar();
+  const tipos = TIPOS.filter((t) => r.textos[t]);
+  if (!tipos.length) {
+    toast(r.vazio ? 'Nada copiado ainda. Clique em Copy nos analysers do Tibia primeiro.'
+      : 'O que está copiado não parece um texto do Tibia (Party Hunt, Hunting ou Input Analyser).', true);
+    return;
+  }
+  for (const t of tipos) { H.entrada[t] = r.textos[t]; $('h-' + t).value = r.textos[t]; }
+  mostrarCapturas([]);
+  toast('Colado: ' + tipos.map((t) => NOME_TIPO[t]).join(', '));
   analisarHunt();
 });
+// o que já foi copiado do Tibia e ainda não foi colado
+function mostrarCapturas(tipos) {
+  $('h-capturas').innerHTML = tipos.length
+    ? '<span class="dica" style="align-self:center">Copiados do Tibia, prontos para colar:</span>' +
+      TIPOS.map((t) => `<span class="chip ${tipos.includes(t) ? 'chip-good' : 'chip-neutro'}">${tipos.includes(t) ? '✔' : '·'} ${NOME_TIPO[t]}</span>`).join('')
+    : '';
+}
+window.huntCapturado = (d) => mostrarCapturas(d.tipos);
 
 TIPOS.forEach((t) => {
   const el = $('h-' + t);
@@ -824,20 +837,46 @@ document.querySelectorAll('[data-limpar]').forEach((b) => b.addEventListener('cl
   analisarHunt();
 }));
 
-let tNome = null;
 $('h-nome').addEventListener('input', () => {
   H.entrada.nome = $('h-nome').value;
   if ($('h-titulo-nome')) $('h-titulo-nome').textContent = H.entrada.nome || 'Hunt';
-  clearTimeout(tNome);
-  tNome = setTimeout(() => { if (H.id) api.hunt_renomear(H.id, H.entrada.nome); }, 500);
+  atualizarSalvar();
+});
+
+// ---------- salvar no Histórico (só quando o usuário clica) ----------
+// "retrato" = tudo o que vai para o Histórico; se mudou desde o último Salvar, há alterações não salvas
+const retrato = () => JSON.stringify([H.entrada.nome, H.entrada.party, H.entrada.solo, H.entrada.dano,
+  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort()]);
+const temAlteracao = () => !!H.a && (!H.id || retrato() !== H.salvoRetrato);
+function atualizarSalvar() {
+  const b = $('h-salvar');
+  const alterado = temAlteracao();
+  b.disabled = !alterado;
+  b.textContent = !H.a ? '💾 Salvar' : alterado ? (H.id ? '💾 Salvar alterações' : '💾 Salvar') : '✔ Salvo';
+  const st = $('h-status-salvo');
+  if (st) st.innerHTML = !H.id ? '<span style="color:var(--accent-2)">ainda não salva: clique em 💾 Salvar para guardar no Histórico</span>'
+    : alterado ? '<span style="color:var(--accent-2)">alterações não salvas</span>' : 'salva no Histórico';
+}
+$('h-salvar').addEventListener('click', async () => {
+  if (!H.a) return;
+  $('h-salvar').disabled = true;
+  const r = await api.hunt_salvar({ ...H.entrada, id: H.id }, H.pagos);
+  if (!r.ok) { toast(r.erro, true); atualizarSalvar(); return; }
+  const nova = !H.id;
+  H.id = r.id;
+  H.entrada.nome = r.nome; $('h-nome').value = r.nome;
+  H.salvoRetrato = retrato();
+  atualizarSalvar();
+  toast(nova ? 'Hunt salva no Histórico!' : 'Alterações salvas no Histórico!');
 });
 $('h-personagem').addEventListener('change', () => { H.entrada.personagem = $('h-personagem').value.trim(); analisarHunt(); });
 
 $('h-nova').addEventListener('click', () => {
-  if ((H.entrada.party || H.entrada.solo || H.entrada.dano) && !confirm('Começar uma hunt nova? A atual já está salva no Histórico.')) return;
+  if (temAlteracao() && !confirm(H.id ? 'As alterações desta hunt não foram salvas. Descartar e começar outra?'
+    : 'Esta hunt não foi salva no Histórico. Descartar e começar outra?')) return;
   const personagem = H.entrada.personagem;
   H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem };
-  H.id = null; H.a = null; H.dano = null; H.aba = null;
+  H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null;
   preencherHunt();
   analisarHunt();
 });
@@ -880,16 +919,18 @@ async function analisarHunt() {
   const a = r.analise;
   statusCaixas(a);
   if (a.vazio) {
-    H.a = null; H.dano = null; H.id = r.id || null;
+    H.a = null; H.dano = null;
     $('h-res').innerHTML = '';
+    atualizarSalvar();
     return;
   }
   const mudouHunt = H.assinatura !== r.assinatura;
+  const outraHunt = H.id && !r.id;  // colou uma hunt de outro horário por cima de uma salva: vira hunt nova
   if (r.id !== H.id) H.aba = null;
-  H.id = r.id; H.assinatura = r.assinatura; H.a = a; H.pagos = r.pagos || []; H.texto = r.texto; H.salvo = r.salvo;
+  if (outraHunt) { H.pagos = []; H.salvoRetrato = null; H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
+  H.id = r.id; H.assinatura = r.assinatura; H.a = a; H.texto = r.texto;
   if (mudouHunt) H.dano = null;
   if (!(H.entrada.nome || '').trim()) { H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
-  else if (H.entrada.nome !== r.nome && r.salvo !== false) api.hunt_renomear(H.id, H.entrada.nome);  // digitou o nome durante a análise
   $('h-personagens').innerHTML = (a.personagens || []).map((x) => `<option value="${esc(x)}">`).join('');
   montarDespesas();
   renderHunt();
@@ -908,7 +949,7 @@ function renderHunt() {
   const r = a.resumo;
   let h = `<div class="card" style="margin-top:18px">
     <div class="h-titulo"><div><h2 class="sub" style="font-size:1.3rem" id="h-titulo-nome">${esc(H.entrada.nome || 'Hunt')}</h2>
-      <div class="dica">${esc(a.data || '')}${H.entrada.personagem ? ' · por ' + esc(H.entrada.personagem) : ''}${r.loot_type ? ' · Loot Type: ' + esc(r.loot_type) : ''} · ${H.salvo === false ? '<span style="color:var(--accent-2)">caixa limpa: o Histórico mantém a versão salva até você colar o texto de novo</span>' : 'salva no Histórico'}</div></div>
+      <div class="dica">${esc(a.data || '')}${H.entrada.personagem ? ' · por ' + esc(H.entrada.personagem) : ''}${r.loot_type ? ' · Loot Type: ' + esc(r.loot_type) : ''} · <span id="h-status-salvo"></span></div></div>
       <button class="btn btn-sm btn-primary" id="h-copiar-resumo">📋 Copiar resumo</button></div>
     <h2 class="sub">Resumo da hunt</h2>
     <div class="stats">
@@ -1086,10 +1127,11 @@ function ligarHunt() {
   res.querySelectorAll('[data-pago]').forEach((c) => c.addEventListener('change', async () => {
     const chave = c.dataset.pago;
     H.pagos = H.pagos.filter((x) => x !== chave).concat(c.checked ? [chave] : []);
-    await api.hunt_pago(H.id, chave, c.checked);
+    atualizarSalvar();
   }));
   res.querySelectorAll('[data-aba]').forEach((p) => p.addEventListener('click', () => { H.aba = p.dataset.aba; renderHunt(); }));
   res.querySelectorAll('[data-imb]').forEach((b) => b.addEventListener('click', () => abrirEmbuimento(b.dataset.imb)));
+  atualizarSalvar();
 }
 
 // Abre sempre limpo: a hunt anterior já está salva no Histórico (de lá dá para reabrir).
@@ -1099,6 +1141,7 @@ async function huntIniciar() {
   H.entrada.personagem = (r.entrada && r.entrada.personagem) || '';
   H.id = null;
   preencherHunt();
+  mostrarCapturas(await api.hunt_monitor_iniciar());
 }
 
 // ================= HISTÓRICO =================
@@ -1113,7 +1156,7 @@ async function carregarHistorico() {
     <span class="chip ${t.lucro < 0 ? 'chip-bad' : 'chip-good'}">lucro ${n(t.lucro)}</span><span class="chip chip-neutro">lucro/h ${n(t.lucro_h)}</span>
     <span class="chip chip-neutro">XP ${n(t.xp)}</span><span class="chip chip-neutro">XP/h ${n(t.xp_h)}</span>`;
   if (!r.hunts.length) {
-    $('hi-lista').innerHTML = `<div class="card calmo"><div class="vazio">${$('hi-tamanho').value || filtro ? 'Nenhuma hunt com esse filtro.' : 'Nenhuma hunt ainda. Analise uma no Hunt Analyser e ela aparece aqui.'}</div></div>`;
+    $('hi-lista').innerHTML = `<div class="card calmo"><div class="vazio">${$('hi-tamanho').value || filtro ? 'Nenhuma hunt com esse filtro.' : 'Nenhuma hunt ainda. Analise uma no Hunt Analyser e clique em 💾 Salvar.'}</div></div>`;
     atualizarBarraComparar();
     return;
   }
@@ -1136,7 +1179,8 @@ async function carregarHistorico() {
     if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
     H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
       despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '' };
-    H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null;
+    H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || [];
+    H.salvoRetrato = retrato();
     preencherHunt();
     irPara('hunt');
     analisarHunt();
@@ -1198,9 +1242,36 @@ function renderComparacao(r) {
       : '<div class="dica" style="margin-bottom:12px">✔ Mesmo tamanho de party, duração parecida e mesmo spawn: dá para comparar direto.</div>'}
     <div class="tabela-wrap"><table class="tab comp"><tr><th></th>${cab}</tr>${linhas}${prot}</table></div>
     <p class="dica" style="margin:10px 0 0">★ = melhor valor da linha. As linhas "/ hora" e "por membro" corrigem durações e tamanhos de party diferentes.</p>
+    ${r.jogadores.length ? `<h2 class="sub" style="margin-top:20px">👥 Por jogador</h2>
+      <div class="abas" id="comp-abas">${r.metricas_jogador.map((m) => `<span class="pilula ${m.chave === compMetrica ? 'on' : ''}" data-met="${m.chave}">${esc(m.rotulo)}</span>`).join('')}</div>
+      <div class="tabela-wrap" id="comp-jogadores"></div>` : ''}
   </div>`;
+  compUltimo = r;
+  renderJogadores();
+  $('hi-comparar').querySelectorAll('[data-met]').forEach((p) => p.addEventListener('click', () => {
+    compMetrica = p.dataset.met;
+    $('hi-comparar').querySelectorAll('[data-met]').forEach((x) => x.classList.toggle('on', x === p));
+    renderJogadores();
+  }));
   $('hi-comp-fechar').addEventListener('click', () => { $('hi-comparar').innerHTML = ''; });
   $('hi-comparar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+let compUltimo = null, compMetrica = 'dano';
+function renderJogadores() {
+  const r = compUltimo, alvo = $('comp-jogadores');
+  if (!r || !alvo) return;
+  const ch = compMetrica;
+  const pct = ch === 'dano' ? 'dano_pct' : ch === 'cura' ? 'cura_pct' : null;
+  const cel = (v) => {
+    if (!v) return '<span class="dim">não foi</span>';
+    const x = v[ch];
+    const val = ch === 'balance' ? `<span class="${cls(x)}">${n(x)}</span>` : n(x);
+    return pct ? `${val} <span class="pct">(${v[pct].toFixed(1)}%)</span>` : val;
+  };
+  alvo.innerHTML = `<table class="tab comp"><tr><th>Jogador</th>${r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}</span></th>`).join('')}</tr>
+    ${r.jogadores.map((j) => `<tr><td><b>${esc(j.nome)}</b>${j.em > 1 ? ` <span class="pct">em ${j.em} hunts</span>` : ''}</td>
+      ${j.valores.map((v, i) => `<td class="r ${j.melhor[ch] === i ? 'melhor' : ''}">${cel(v)}</td>`).join('')}</tr>`).join('')}</table>
+    <p class="dica" style="margin:8px 0 0">★ = melhor hunt daquele jogador nessa métrica${ch.startsWith('supplies') ? ' (gastar menos é melhor)' : ''}. Use "/ hora" para comparar hunts de durações diferentes.</p>`;
 }
 $('hi-filtro').addEventListener('change', carregarHistorico);
 $('hi-tamanho').addEventListener('change', carregarHistorico);

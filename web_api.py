@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import webview
@@ -181,6 +182,12 @@ def ler_clipboard():
         u32.CloseClipboard()
 
 
+def seq_clipboard():
+    """Número que o Windows aumenta a cada cópia (barato: dá para checar várias vezes por segundo)."""
+    import ctypes
+    return ctypes.windll.user32.GetClipboardSequenceNumber()
+
+
 def _ficha_para_tela(k, kills):
     return {
         "nome": k["nome"], "imagem": k.get("imagem"), "hp": k.get("hp"), "xp": k.get("xp"),
@@ -197,6 +204,10 @@ class API:
         self._imbs = emb.carregar_imbuements(IMBUEMENTS_PATH)
         self._organizando = False
         self._atualizacao_info = None  # release lida em verificar_atualizacao, até instalar_atualizacao
+        self._dano_cache = {}  # assinatura da hunt -> monstros/dano já analisados (para o Salvar)
+        self._capturas = {}     # tipo ('party'/'solo'/'dano') -> {"texto", "t"}: últimos textos do Tibia copiados
+        self._trava_capturas = threading.Lock()
+        self._monitor = False
 
     def _emit(self, funcao_js, dados):
         if self._window:
@@ -378,6 +389,56 @@ class API:
         except OSError:
             pass
 
+    # Cada Copy do Tibia apaga o anterior na área de transferência. Para o "Colar do Tibia" preencher os
+    # 3 cards de uma vez, enquanto o programa está aberto ele guarda o último texto de cada tipo copiado.
+    # Só textos reconhecidos como do Tibia são guardados (em memória); qualquer outra cópia é ignorada.
+    VALIDADE_CAPTURA = 3 * 3600
+
+    def hunt_monitor_iniciar(self):
+        if not self._monitor:
+            self._monitor = True
+            threading.Thread(target=self._vigiar_clipboard, daemon=True).start()
+        return self._tipos_capturados()
+
+    def _tipos_capturados(self):
+        agora = time.time()
+        with self._trava_capturas:
+            for t in [t for t, c in self._capturas.items() if agora - c["t"] > self.VALIDADE_CAPTURA]:
+                del self._capturas[t]
+            return sorted(self._capturas)
+
+    def _vigiar_clipboard(self):
+        ultimo = None
+        while True:
+            try:
+                seq = seq_clipboard()
+                if seq != ultimo:
+                    ultimo = seq
+                    texto = ler_clipboard()
+                    tipo = hunt.detectar(texto)
+                    if tipo:
+                        with self._trava_capturas:
+                            self._capturas[tipo] = {"texto": texto, "t": time.time()}
+                        self._emit("huntCapturado", {"tipo": tipo, "tipos": self._tipos_capturados()})
+            except Exception:
+                pass
+            time.sleep(0.5)
+
+    def hunt_colar(self):
+        """Colar do Tibia: os textos do Tibia copiados (um de cada tipo) + o que está na área de transferência agora."""
+        try:
+            atual = ler_clipboard()
+        except Exception:
+            atual = ""
+        tipo_atual = hunt.detectar(atual)
+        self._tipos_capturados()  # descarta capturas velhas
+        with self._trava_capturas:
+            textos = {t: c["texto"] for t, c in self._capturas.items()}
+            self._capturas.clear()
+        if tipo_atual:
+            textos[tipo_atual] = atual
+        return {"textos": textos, "vazio": not atual.strip()}
+
     def hunt_ler_clipboard(self):
         """Lê o que foi copiado no Tibia e diz qual dos três textos é."""
         try:
@@ -389,45 +450,60 @@ class API:
     def hunt_detectar(self, texto):
         return hunt.detectar(texto)
 
+    def _entrada(self, entrada):
+        return {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id")}
+
+    def _mesma_hunt(self, id_, a):
+        """id_ continua valendo para esta análise? Se a hunt salva é de outro horário, é outra hunt."""
+        if not id_:
+            return None
+        antigo = historico.obter(id_)
+        if not antigo:
+            return None
+        if antigo.get("data_hunt") and a.get("data") and antigo["data_hunt"] != a["data"]:
+            return None
+        return id_
+
     def hunt_analisar(self, entrada):
-        """Análise na hora (split, resumo, kills) + salva no histórico. A parte de monstros/dano
-        (internet) roda em segundo plano e chega depois em window.huntDano()."""
-        entrada = {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id")}
+        """Só analisa (split, resumo, kills); NÃO grava no Histórico, isso é o botão Salvar (hunt_salvar).
+        A parte de monstros/dano (internet) roda em segundo plano e chega depois em window.huntDano()."""
+        entrada = self._entrada(entrada)
+        self._salvar_rascunho({"personagem": entrada.get("personagem") or ""}, None)  # só lembra o personagem
         a = hunt.montar(entrada)
         if a.get("vazio"):
-            self._salvar_rascunho(entrada, entrada.get("id"))
             return {"analise": a, "id": entrada.get("id")}
-
         ass = hunt.assinatura(entrada)
-        salvar = True
-        if entrada.get("id"):
-            antigo = historico.obter(entrada["id"])
-            if antigo and antigo.get("data_hunt") and a.get("data") and antigo["data_hunt"] != a["data"]:
-                # colou outra hunt (outro horário) sem clicar em "Nova hunt": vira outra entrada, não sobrescreve
-                entrada["id"] = None
-                entrada["nome"] = ""
-            elif antigo and any((antigo.get("entrada") or {}).get(k, "").strip() and not (entrada.get(k) or "").strip()
-                                for k in ("party", "solo", "dano")):
-                # limpou uma caixa de uma hunt já salva: não apaga nada do histórico até colar algo no lugar
-                salvar = False
+        id_ = self._mesma_hunt(entrada.get("id"), a)
+        # colou uma hunt de outro horário por cima de uma salva: o nome antigo não vale para ela
+        nome = "" if (entrada.get("id") and not id_) else (entrada.get("nome") or "").strip()
+        nome = nome or f"Hunt {a.get('data') or ''}".strip()
+        threading.Thread(target=self._trabalho_dano, args=(id_, ass, nome, a), daemon=True).start()
+        return {"analise": a, "id": id_, "assinatura": ass, "nome": nome, "texto": hunt.texto_discord(nome, a)}
+
+    def hunt_salvar(self, entrada, pagos=None):
+        """Botão Salvar: grava a hunt no Histórico (cria, ou atualiza a mesma se já foi salva)."""
+        entrada = self._entrada(entrada)
+        a = hunt.montar(entrada)
+        if a.get("vazio"):
+            return {"ok": False, "erro": "Cole pelo menos um texto do Tibia antes de salvar."}
+        ass = hunt.assinatura(entrada)
+        id_ = self._mesma_hunt(entrada.get("id"), a)
         nome = (entrada.get("nome") or "").strip() or f"Hunt {a.get('data') or ''}".strip()
-        if salvar:
-            registro = historico.salvar({
-                "id": entrada.get("id"), "assinatura": ass, "nome": nome, "data_hunt": a.get("data"),
-                "personagem": (entrada.get("personagem") or "").strip(),
-                "entrada": {k: entrada.get(k) or ("" if k in ("party", "solo", "dano") else [])
-                            for k in ("party", "solo", "dano", "despesas", "excluidos")},
-                "resumo": a["resumo"], "membros": a.get("personagens", []), "monstros": a.get("kills", [])[:20],
-            })
-        else:
-            registro = antigo
-        self._salvar_rascunho(entrada, registro["id"])
+        registro = {
+            "id": id_, "assinatura": ass, "nome": nome, "data_hunt": a.get("data"),
+            "personagem": (entrada.get("personagem") or "").strip(),
+            "entrada": {k: entrada.get(k) or ("" if k in ("party", "solo", "dano") else [])
+                        for k in ("party", "solo", "dano", "despesas", "excluidos")},
+            "resumo": a["resumo"], "membros": a.get("personagens", []), "monstros": a.get("kills", [])[:20],
+            "pagos": list(pagos or []),
+        }
+        extra = self._dano_cache.get(ass)  # análise de dano já pronta (monstros com imagem, proteções)
+        if extra:
+            registro.update(extra)
+        salvo = historico.salvar(registro)
+        return {"ok": True, "id": salvo["id"], "nome": salvo["nome"]}
 
-        threading.Thread(target=self._trabalho_dano, args=(registro["id"], ass, nome, a, salvar), daemon=True).start()
-        return {"analise": a, "id": registro["id"], "assinatura": ass, "nome": nome, "salvo": salvar,
-                "pagos": registro.get("pagos", []), "texto": hunt.texto_discord(nome, a)}
-
-    def _trabalho_dano(self, id_, ass, nome, a, salvar=True):
+    def _trabalho_dano(self, id_, ass, nome, a):
         """Busca as fichas dos monstros (wiki/TibiaData, com cache) e monta a análise de dano."""
         try:
             jogadores = {n.lower() for n in a.get("personagens", [])}
@@ -472,11 +548,15 @@ class API:
             for k in a.get("kills", []):
                 canon, img = imagem_por_nome.get(monstros.singularizar(k["nome"]), (monstros.canonico(k["nome"]), None))
                 kills.append({"nome": canon, "kills": k["kills"], "imagem": img})
-            if analise and salvar:
-                historico.atualizar(id_, monstros=kills[:20], dano={
+            if analise:
+                extra = {"monstros": kills[:20], "dano": {
                     "elementos": analise["elementos"], "protecoes": analise["protecoes"],
                     "ofensivo": [o for o in analise["ofensivo"] if not o["sem_dados"]][:3],
-                })
+                }}
+                self._dano_cache[ass] = extra  # entra no Histórico quando o usuário clicar em Salvar
+                salvo = historico.obter(id_) if id_ else None
+                if salvo and salvo.get("assinatura") == ass:  # já estava salva com estes textos: completa
+                    historico.atualizar(id_, **extra)
             self._emit("huntDano", {"id": id_, "assinatura": ass, "analise": analise, "fichas": fichas_tela,
                                     "kills": kills, "texto": hunt.texto_discord(nome, a, analise)})
         except Exception as e:
@@ -489,14 +569,6 @@ class API:
         pagos = [p for p in h.get("pagos", []) if p != chave] + ([chave] if pago else [])
         historico.atualizar(id_, pagos=pagos)
         return True
-
-    def hunt_renomear(self, id_, nome):
-        nome = (nome or "").strip() or "Hunt"
-        r = self.hunt_carregar()
-        if r["id"] == id_:  # senão, ao reabrir o app, a reanálise voltaria o nome antigo
-            r["entrada"]["nome"] = nome
-            self._salvar_rascunho(r["entrada"], id_)
-        return bool(historico.atualizar(id_, nome=nome))
 
     def hunt_historico(self, personagem="", tamanho=""):
         todas = historico.ordenar(historico.carregar())
@@ -528,7 +600,7 @@ class API:
         if not h:
             return None
         e = dict(h.get("entrada") or {})
-        e.update({"nome": h.get("nome"), "personagem": h.get("personagem"), "id": h["id"]})
+        e.update({"nome": h.get("nome"), "personagem": h.get("personagem"), "id": h["id"], "pagos": h.get("pagos", [])})
         return e
 
     def hunt_apagar(self, id_):

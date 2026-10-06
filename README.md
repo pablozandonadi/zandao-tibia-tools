@@ -15,9 +15,11 @@ funcionando separados. Esta pasta tem as suas próprias cópias.
 
 ## Hunt Analyser
 
-1. No Tibia, clique em **Copy** no **Party Hunt Analyser** e depois em **📋 Colar do Tibia**. Faça o mesmo com o
-   **Hunting Analyser** (a sua hunt: XP, monstros e itens) e com o **Input Analyser** (Received Damage). O app
-   reconhece qual texto é qual. Dá também para colar direto nas caixas, e o que cair na caixa errada vai para a certa.
+1. Com o programa aberto, clique em **Copy** no Tibia no **Party Hunt Analyser**, no **Hunting Analyser** (a sua
+   hunt: XP, monstros e itens) e no **Input Analyser** (Received Damage), um depois do outro. Depois clique em
+   **📋 Colar do Tibia**: os 3 cards são preenchidos de uma vez. O Windows só guarda a última cópia, então o
+   programa guarda cada texto do Tibia copiado enquanto está aberto (só textos do Tibia; qualquer outra cópia é
+   ignorada e nunca é salva). Também dá para colar direto nas caixas (Ctrl+V).
 2. Em **Seu personagem**, escolha quem é você: o Hunting Analyser fica ligado a esse membro da party.
 3. A análise sai sozinha:
    - **Resumo da hunt**: duração, XP e Raw XP (e por hora), balance, lucro por membro, balance/h, top dano, despesas.
@@ -39,10 +41,16 @@ As fichas dos monstros vêm da internet (TibiaWiki + TibiaData) só na primeira 
 
 ## Histórico
 
-Cada análise é salva automaticamente em `historico_hunts.json`, só neste computador, igual ao Zandonadi Radar:
-cada pessoa tem o seu. Analisar a mesma hunt de novo atualiza a entrada (não duplica). Colar uma hunt de outro
-horário cria uma entrada nova. Limpar uma caixa nunca apaga o que já está salvo.
+Uma hunt só vai para o Histórico quando você clica em **💾 Salvar** (ao lado de **Nova hunt**). Fica em
+`historico_hunts.json`, só neste computador, igual ao Zandonadi Radar: cada pessoa tem o seu. Depois de salvar,
+qualquer mudança (nome, despesas, quem saiu da divisão, "pago") aparece como "alterações não salvas" até você
+clicar em **💾 Salvar alterações**. O Hunt Analyser abre sempre limpo; só o "Seu personagem" é lembrado.
 
+- **Tamanho da party**: filtra Solo, PT 2, PT 3, PT 4 ou PT 5+.
+- **Comparar**: marque 2 a 4 hunts e clique em **⚖️ Comparar**. A tabela mostra tudo normalizado por hora e por
+  membro (lucro, balance, loot, supplies, XP, dano e cura), quem bateu, curou, gastou e lootou mais em cada hunt,
+  e a seção **Por jogador** mostra cada um nas hunts comparadas. ★ marca o melhor valor; o veredito diz qual hunt
+  rendeu mais, e os avisos dizem quando a party, a duração, o personagem ou o spawn são diferentes.
 - **Abrir** recarrega a hunt no Hunt Analyser (com as transferências já marcadas como pagas).
 - **Exportar** gera um `.json` com todas as hunts (ou só as do personagem filtrado).
 - **Importar (somar)** traz as hunts de um arquivo exportado, seu ou de um amigo, sem repetir as que você já tem.
