@@ -145,7 +145,9 @@ class TestDano(unittest.TestCase):
         mons = [{"nome": n, "kills": k, "ficha": fichas[n]} for n, k in (("Norcferatu Heartless", 1262), ("Gloom Maw", 894))]
         r = dc.analisar(mons, dc.parse_damage_input(DANO), monstros.singularizar)
         self.assertEqual([e["elemento"] for e in r["elementos"]], ["physical", "death", "fire"])
-        self.assertEqual([p["imbuement"] for p in r["protecoes"]], ["lichshroud", "dragonhide"])
+        # mesma ordem da distribuição; Físico entra sem embuimento (a proteção é pelos itens)
+        self.assertEqual([(p["elemento"], p["imbuement"]) for p in r["protecoes"]],
+                         [("physical", None), ("death", "lichshroud"), ("fire", "dragonhide")])
         self.assertEqual(r["ofensivo"][0]["elemento"], "earth")
         self.assertEqual(r["ofensivo"][-1]["elemento"], "death")
         self.assertEqual(r["pesos"][0]["fonte"], "kills + log")

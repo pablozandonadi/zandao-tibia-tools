@@ -1318,15 +1318,17 @@ function renderDano(a) {
   h += `<div class="grid3">
     <div class="card calmo"><div class="h-titulo"><b>Distribuição</b><span class="dica">${real ? 'dano real (Damage Input)' : 'estimada pelos ataques da wiki'}</span></div>
       ${an.elementos.length ? an.elementos.map((e) => `<div class="linha-el"><span class="rot">${EL[e.elemento][1]} ${EL[e.elemento][0]}</span>
-        <span class="barra-el"><i style="width:${(e.parte * 100).toFixed(1)}%;background:${EL[e.elemento][2]}"></i></span><span class="val">${(e.parte * 100).toFixed(1)}%</span></div>`).join('')
+        <span class="barra-el"><i style="width:${(e.parte * 100).toFixed(1)}%;background:${EL[e.elemento][2]}"></i></span><span class="val">${(e.parte * 100).toFixed(1)}%</span></div>
+        ${e.top ? `<div class="dica" style="margin:-3px 0 6px 101px;font-size:.7rem">↳ mais desse dano: <b>${esc(e.top.nome)}</b>${e.top.parte < 0.995 ? ` (${(e.top.parte * 100).toFixed(0)}%)` : ''}</div>` : ''}`).join('')
         : '<div class="dica">Sem dados de ataque. Cole o Damage Input.</div>'}
     </div>
     <div class="card calmo"><b>Proteções recomendadas</b><div style="margin-top:10px">
       ${an.protecoes.length ? an.protecoes.map((p, i) => `<div class="prot"><div class="prot-cab"><span>#${i + 1} ${EL[p.elemento][1]} ${esc(p.rotulo)}</span>
-        <span class="chip chip-good" title="redução no dano total recebido">-${(p.ganho * 100).toFixed(1)}%</span></div>
-        <div class="motivo">${esc(nomeImb(p.imbuement))} · ${esc(p.motivo)}</div>
-        <button class="btn btn-sm" style="margin-top:7px" data-imb="${esc(p.imbuement)}">💎 Abrir em Embuimentos</button></div>`).join('')
-        : '<div class="dica">Nenhum elemento com embuimento de proteção.</div>'}
+        <span class="chip chip-neutro" title="parte do dano recebido">${(p.parte * 100).toFixed(1)}% do dano</span></div>
+        <div class="motivo">${p.imbuement ? `💎 ${esc(nomeImb(p.imbuement))}: reduz ${(p.ganho * 100).toFixed(1)}% do dano total` : 'Sem embuimento de proteção para esse elemento: a proteção é pelo equipamento.'}</div>
+        <div class="acoes" style="margin-top:7px">${p.imbuement ? `<button class="btn btn-sm" data-imb="${esc(p.imbuement)}">💎 Abrir em Embuimentos</button>` : ''}
+          <button class="btn btn-sm" data-ver-itens="${p.elemento}">🧥 Ver itens</button></div></div>`).join('')
+        : '<div class="dica">Sem dados de dano para recomendar proteções.</div>'}
     </div></div>
     <div class="card calmo"><div class="h-titulo"><b>Melhor elemento para atacar</b><span class="dica">maior % = melhor</span></div>
       <div class="ofens">${an.ofensivo.map((o) => `<span class="chip ${o.sem_dados ? 'chip-neutro' : o.imunes || o.delta < -0.5 ? 'chip-bad' : o.delta > 0.5 ? 'chip-good' : 'chip-neutro'}" title="${esc(o.motivo)}">${EL[o.elemento][1]} ${esc(o.rotulo)} ${o.sem_dados ? '?' : o.media.toFixed(0) + '%'}</span>`).join('')}</div>
@@ -1396,6 +1398,11 @@ function ligarHunt() {
   }));
   res.querySelectorAll('[data-aba]').forEach((p) => p.addEventListener('click', () => { H.aba = p.dataset.aba; renderHunt(); }));
   res.querySelectorAll('[data-imb]').forEach((b) => b.addEventListener('click', () => abrirEmbuimento(b.dataset.imb)));
+  res.querySelectorAll('[data-ver-itens]').forEach((b) => b.addEventListener('click', () => {
+    estadoEquip().aba = b.dataset.verItens;  // abre o card de itens já no elemento escolhido
+    redesenharEquip();
+    if ($('equip-card')) $('equip-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
   ligarEquip();
   const bs = $('h-shared');
   if (bs) bs.addEventListener('click', async () => {

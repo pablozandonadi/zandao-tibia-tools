@@ -218,13 +218,17 @@ def analisar(monstros, dano, singular=lambda s: s.lower()):
         t = sum(x["parte"] for x in lst) or 1
         detalhe[el] = sorted(({"nome": x["nome"], "parte": x["parte"] / t} for x in lst), key=lambda x: -x["parte"])
 
-    # 4. proteções recomendadas
+    # quem mais dá cada elemento (pelos ataques da wiki: o Damage Input não separa monstro x elemento)
+    for e in elementos:
+        top = (detalhe.get(e["elemento"]) or [None])[0]
+        e["top"] = {"nome": top["nome"], "parte": top["parte"]} if top else None
+
+    # 4. proteções recomendadas: na MESMA ordem da distribuição (o elemento que mais bate vem primeiro).
+    #    Elementos sem embuimento de proteção (Físico, Life Drain...) entram também: a proteção é pelos itens.
     protecoes = []
     for e in elementos:
         el = e["elemento"]
-        if el not in PROTECAO:
-            continue
-        imb, red = PROTECAO[el]
+        imb, red = PROTECAO.get(el, (None, 0))
         top = (detalhe.get(el) or [None])[0]
         motivo = f"{e['parte'] * 100:.1f}% do dano recebido é {ROTULO[el]}"
         if top:
@@ -232,11 +236,6 @@ def analisar(monstros, dano, singular=lambda s: s.lower()):
         motivo += " · confirmado pelo Damage Input" if e["real"] else " · estimado pelos ataques da wiki"
         protecoes.append({"elemento": el, "rotulo": ROTULO[el], "parte": e["parte"], "imbuement": imb,
                           "ganho": e["parte"] * red, "motivo": motivo})
-    protecoes = sorted(protecoes, key=lambda p: -p["ganho"])[:5]
-    fisico = next((e for e in elementos if e["elemento"] == "physical"), None)
-    if fisico and fisico["parte"] >= 0.2:
-        avisos.append(f"{fisico['parte'] * 100:.0f}% do dano é Físico, que não tem embuimento de proteção: "
-                      "vale priorizar equipamento com proteção física.")
 
     return {
         "elementos": elementos,
