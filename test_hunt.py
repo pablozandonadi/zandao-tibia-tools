@@ -399,6 +399,40 @@ class TestBackup(unittest.TestCase):
             organizer.organizar({**organizer.DEFAULTS, "destination": "x"}, print)
 
 
+GNOME_HELMET = """{{Infobox Object|List={{{1|}}}|GetValue={{{GetValue|}}}
+| name          = Gnome Helmet
+| slot          = Head
+| levelrequired = 200
+| vocrequired   = sorcerers and druids
+| attrib        = magic level +2
+| armor         = 8
+| resist        = physical +3%, energy +8%, ice -2%
+}}"""
+
+
+class TestEquipamentos(unittest.TestCase):
+    def test_parse_e_recomendacao(self):
+        import equipamentos as eq
+        self.assertEqual(eq.parse_resist("physical +3%, energy +8%, ice -2%"), {"physical": 3, "energy": 8, "ice": -2})
+        self.assertEqual(eq.parse_resist("Life Drain +4%, mana drain 2%"), {"lifedrain": 4, "manadrain": 2})
+        gnome = eq.item_do_wikitext("Gnome Helmet", GNOME_HELMET, "cabeca")
+        self.assertEqual((gnome["level"], gnome["vocs"], gnome["temporario"]), (200, ["sorcerer", "druid"], False))
+        self.assertIsNone(eq.item_do_wikitext("X", "{{Infobox Object\n| name = X\n| armor = 5\n}}", "cabeca"))  # sem proteção
+        itens = [gnome, gnome,  # a wiki às vezes repete: tem que aparecer uma vez só
+                 {"nome": "Stag Helmet", "slot": "cabeca", "level": 350, "vocs": ["sorcerer"], "resist": {"physical": 2, "energy": 8}},
+                 {"nome": "Tiara of Power", "slot": "cabeca", "level": 100, "vocs": ["sorcerer", "druid"], "resist": {"energy": 8}},
+                 {"nome": "Knight Thing", "slot": "cabeca", "level": 50, "vocs": ["knight"], "resist": {"energy": 20}},
+                 {"nome": "Fire Hat", "slot": "cabeca", "level": 10, "vocs": eq.VOCACOES, "resist": {"fire": 5}}]
+        ms400 = eq.recomendar(itens, "Master Sorcerer", 400, {}, elemento="energy")["cabeca"]
+        self.assertEqual([i["nome"] for i in ms400], ["Stag Helmet", "Gnome Helmet", "Tiara of Power"])  # todos, maior primeiro
+        self.assertEqual([i["nome"] for i in eq.recomendar(itens, "Elder Druid", 250, {}, "energy")["cabeca"]],
+                         ["Gnome Helmet", "Tiara of Power"])  # Stag é só sorcerer e pede 350
+        self.assertEqual([i["nome"] for i in eq.recomendar(itens, "Elite Knight", 500, {}, "energy")["cabeca"]], ["Knight Thing"])
+        # "esta hunt": 70% energy, 30% ice -> Gnome (8*.7 - 2*.3 = 5.0) fica atrás do Tiara (5.6)
+        mix = eq.recomendar(itens, "Master Sorcerer", 400, {"energy": .7, "ice": .3})["cabeca"]
+        self.assertEqual([(i["nome"], i["nota"]) for i in mix], [("Stag Helmet", 5.6), ("Tiara of Power", 5.6), ("Gnome Helmet", 5.0)])
+
+
 class TestApiHunt(unittest.TestCase):
     """Fluxo da tela: analisar salva sozinho; limpar caixa não apaga o histórico; outra hunt vira outra entrada."""
 

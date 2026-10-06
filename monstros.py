@@ -237,8 +237,8 @@ def _extrair_template(texto, inicio):
     return None
 
 
-def _campos_infobox(wikitext):
-    idx = wikitext.find("{{Infobox Creature")
+def _campos_infobox(wikitext, template="Infobox Creature"):
+    idx = wikitext.find("{{" + template)
     if idx < 0:
         return {}
     corpo = _extrair_template(wikitext, idx)

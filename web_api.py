@@ -15,6 +15,7 @@ import atualizacoes
 import backup
 import damage_core
 import embuimentos as emb
+import equipamentos
 import historico
 import hunt
 import monstros
@@ -388,6 +389,28 @@ class API:
             personagens.atualizar_levels()
         return personagens.carregar()
 
+    def equip_recomendar(self, nome, distribuicao, elemento=None, vocacao=None, level=None):
+        """Itens do set que protegem do dano da hunt, para uma vocação e level (os do personagem, ou os escolhidos).
+        distribuicao: {elemento: parte do dano}; elemento: ordenar só por ele (None = pela hunt toda)."""
+        nome = (nome or "").strip()
+        info = None
+        if nome:
+            info = next((p for p in personagens.carregar()["lista"] if p["nome"].lower() == nome.lower()), None)                 or tibia_info.personagem(nome)
+        voc = vocacao or (info or {}).get("vocacao")
+        try:
+            lvl = int(level) if str(level or "").strip() else (info or {}).get("level")
+        except ValueError:
+            lvl = None
+        if not equipamentos.vocacao_base(voc) or not lvl:
+            return {"erro": "Escolha o seu personagem (⚙) ou a vocação e o level para ver os itens."}
+        itens = equipamentos.carregar_itens()
+        if not itens:
+            return {"erro": "Não consegui baixar a lista de itens da TibiaWiki (sem internet?)."}
+        rec = equipamentos.recomendar(itens, voc, lvl, distribuicao or {}, elemento or None)
+        return {"personagem": info and {"nome": info["nome"], "level": info.get("level"), "vocacao": info.get("vocacao")},
+                "vocacao": equipamentos.vocacao_base(voc), "level": lvl, "elemento": elemento,
+                "slots": [{"slot": s, "rotulo": r, "itens": rec.get(s, [])} for s, r in equipamentos.SLOTS]}
+
     def personagem_adicionar(self, nome):
         d, erro = personagens.adicionar(nome)
         return {"erro": erro} if erro else d
@@ -423,6 +446,8 @@ class API:
         if not self._monitor:
             self._monitor = True
             threading.Thread(target=self._vigiar_clipboard, daemon=True).start()
+            # baixa a lista de itens da TibiaWiki em segundo plano (cache de 30 dias), para os itens recomendados
+            threading.Thread(target=equipamentos.carregar_itens, daemon=True).start()
         return self._tipos_capturados()
 
     def _tipos_capturados(self):

@@ -16,3 +16,4 @@ dist/
 __pycache__/
 cache_tibia.json
 meus_personagens.json
+cache_itens.json

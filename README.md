@@ -34,6 +34,11 @@ funcionando separados. Esta pasta tem as suas próprias cópias.
    - **Dano recebido**: distribuição por elemento (o Damage Input é o dano real; sem ele, estima pelos ataques
      da TibiaWiki), **proteções recomendadas** (botão leva direto para a aba Embuimentos) e **melhor elemento
      para atacar** (pelas resistências da TibiaWiki), com a ficha de cada monstro.
+   - **🧥 Itens recomendados**: todos os equipamentos do set (capacete, armadura, calça, botas, escudo/spellbook/
+     quiver, amuleto e anel) que protegem do dano da hunt, filtrados pela vocação e pelo level do seu personagem
+     (dá para trocar a vocação e o level ali mesmo). Aba **Esta hunt** ordena por quanto cada item reduz do dano
+     total (pesando cada elemento pela parte do dano); as outras abas ordenam por um elemento só. Dados da
+     TibiaWiki, baixados na primeira vez e guardados em `cache_itens.json`.
 4. **Despesas extras** (boat, hireling...): quem pagou é reembolsado na divisão. **Copiar resumo** gera o texto para o Discord.
 
 As contas do Loot Split são as mesmas do `divisor de loot` (TibiaLootSplit). A parte de dano é o Tibia Damage

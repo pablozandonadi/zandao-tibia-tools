@@ -382,6 +382,23 @@
   .pers-item .info { flex: 1; min-width: 0; }
   .pers-item .info b { font-size: .9rem; }
 
+  /* ---- itens recomendados ---- */
+  .equip-topo { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; justify-content: space-between; margin-bottom: 10px; }
+  .equip-filtros { display: flex; gap: 8px; align-items: end; }
+  .equip-filtros select { width: auto; }
+  .equip-filtros input { width: 90px; }
+  .equip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; margin-top: 10px; }
+  .equip-slot { border: 2px solid var(--ink-dim); border-radius: 10px; padding: 8px 10px; background: var(--surface-2); }
+  .equip-cab { display: flex; justify-content: space-between; align-items: center; font-size: .86rem; margin-bottom: 4px; }
+  .equip-lista { max-height: 270px; overflow-y: auto; padding-right: 4px; }
+  .equip-item { display: flex; gap: 8px; align-items: center; padding: 5px 0; border-top: 1px solid rgba(243,239,230,.08); }
+  .equip-item:first-child { border-top: none; }
+  .equip-item img { width: 32px; height: 32px; object-fit: contain; flex: none; }
+  .equip-item .nm { flex: 1; min-width: 0; font-size: .8rem; }
+  .equip-item .nm b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .equip-item .resists { margin: 0; justify-content: flex-end; max-width: 55%; }
+  .rz.alvo { border-color: var(--accent-2); color: var(--accent-2); }
+
   /* ---- atualização ---- */
   .modal-fundo { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
   .modal-caixa { background: var(--surface); border: 2.5px solid var(--ink); border-radius: 12px; box-shadow: 6px 6px 0 var(--accent);
@@ -1020,6 +1037,7 @@ $('h-salvar').addEventListener('click', async () => {
 });
 $('h-personagem').addEventListener('change', async () => {
   H.entrada.personagem = $('h-personagem').value;
+  H.equip = null;
   if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) MEUS = await api.personagem_usar(H.entrada.personagem);
   montarSeletorPersonagem();
   analisarHunt();
@@ -1174,7 +1192,7 @@ async function analisarHunt() {
   if (r.id !== H.id) H.aba = null;
   if (outraHunt) { H.pagos = []; H.salvoRetrato = null; H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
   H.id = r.id; H.assinatura = r.assinatura; H.a = a; H.texto = r.texto;
-  if (mudouHunt) { H.dano = null; H.shared = null; }
+  if (mudouHunt) { H.dano = null; H.shared = null; if (H.equip) H.equip.cache = {}; }
   if (!(H.entrada.nome || '').trim()) { H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
   montarDespesas();
   renderHunt();
@@ -1317,6 +1335,7 @@ function renderDano(a) {
       <div class="dica">peso de cada monstro nessa média (kills${an.fontes.length ? ' + dano de cada um no Damage Input' : ''})</div></div>
     </div>
   </div>`;
+  if (an.elementos.length) h += `<div class="card calmo" id="equip-card" style="margin-top:18px">${equipHtml(an)}</div>`;
   if (d.fichas && d.fichas.length) {
     h += `<h2 class="sub" style="margin-top:18px">Ficha dos monstros</h2><div class="fichas">${d.fichas.map(fichaHtml).join('')}</div>`;
   }
@@ -1377,6 +1396,7 @@ function ligarHunt() {
   }));
   res.querySelectorAll('[data-aba]').forEach((p) => p.addEventListener('click', () => { H.aba = p.dataset.aba; renderHunt(); }));
   res.querySelectorAll('[data-imb]').forEach((b) => b.addEventListener('click', () => abrirEmbuimento(b.dataset.imb)));
+  ligarEquip();
   const bs = $('h-shared');
   if (bs) bs.addEventListener('click', async () => {
     bs.disabled = true; bs.textContent = 'Consultando tibia.com...';
@@ -1683,6 +1703,75 @@ async function importarHunts(substituir) {
 }
 $('hi-importar').addEventListener('click', () => importarHunts(false));
 $('hi-substituir').addEventListener('click', () => importarHunts(true));
+
+// ================= itens recomendados (dentro da análise de dano) =================
+const VOCS = [['knight', 'Knight'], ['paladin', 'Paladin'], ['sorcerer', 'Sorcerer'], ['druid', 'Druid'], ['monk', 'Monk']];
+const vocBase = (v) => { const t = (v || '').toLowerCase(); const a = VOCS.find(([k]) => t.includes(k)); return a ? a[0] : ''; };
+function estadoEquip() {
+  if (!H.equip) {
+    const meu = acharMeu(H.entrada.personagem);
+    H.equip = { aba: 'hunt', voc: meu ? vocBase(meu.vocacao) : '', lvl: meu ? String(meu.level) : '', cache: {} };
+  }
+  return H.equip;
+}
+const chaveEquip = (e) => `${e.aba}|${e.voc}|${e.lvl}`;
+function equipHtml(an) {
+  const e = estadoEquip();
+  const abas = [['hunt', '🎯 Esta hunt (todos os elementos)'], ...an.elementos.map((x) => [x.elemento, `${EL[x.elemento][1]} ${EL[x.elemento][0]}`])];
+  if (!abas.some(([k]) => k === e.aba)) e.aba = 'hunt';
+  const r = e.cache[chaveEquip(e)];
+  let corpo;
+  if (!e.voc || !e.lvl) corpo = '<p class="dica">Escolha o seu personagem (⚙ ao lado de "Seu personagem") ou a vocação e o level acima.</p>';
+  else if (!r) corpo = '<div class="carregando">Buscando os itens na TibiaWiki (só na primeira vez demora uns segundos)...</div>';
+  else if (r.erro) corpo = `<div class="falta">${esc(r.erro)}</div>`;
+  else {
+    const alvo = e.aba === 'hunt' ? null : e.aba;
+    const daHunt = new Set(an.elementos.map((x) => x.elemento));
+    const total = r.slots.reduce((t, sl) => t + sl.itens.length, 0);
+    corpo = `<p class="dica" style="margin:0">${total} itens para <b>${esc(VOCS.find(([k]) => k === r.vocacao)[1])} level ${r.level}</b>,
+      ordenados ${alvo ? `pela proteção contra <b>${EL[alvo][0]}</b>` : 'por quanto reduzem do dano total desta hunt (pesando cada elemento pela parte do dano)'}. Dados da TibiaWiki.</p>
+      <div class="equip-grid">${r.slots.map((sl) => `<div class="equip-slot"><div class="equip-cab"><b>${esc(sl.rotulo)}</b><span class="pct">${sl.itens.length} ${sl.itens.length === 1 ? 'item' : 'itens'}</span></div>
+        <div class="equip-lista">${sl.itens.length ? sl.itens.map((it) => `<div class="equip-item" title="${esc(it.nome)}${it.attrib ? ' · ' + esc(it.attrib) : ''}">
+          <img src="${esc(it.imagem)}" alt="" loading="lazy"><div class="nm"><b>${esc(it.nome)}</b><span class="pct">lvl ${it.level || '—'}${it.temporario ? ' · <span class="tag tag-lider" style="margin:0">temporário</span>' : ''}</span></div>
+          <div class="resists">${Object.entries(it.resist).sort((a, b) => b[1] - a[1]).map(([el, v]) => `<span class="rz ${v < 0 ? 'forte' : (alvo ? el === alvo : daHunt.has(el)) ? 'alvo' : ''}">${EL[el] ? EL[el][1] : el}${v > 0 ? '+' : ''}${v}%</span>`).join('')}</div></div>`).join('')
+          : '<div class="dica">Nenhum item com essa proteção no level/vocação.</div>'}</div></div>`).join('')}</div>
+      <p class="dica" style="margin:8px 0 0">Amarelo = elemento ${alvo ? 'escolhido' : 'que aparece nesta hunt'}; vermelho = o item tira proteção. "Temporário" = some depois de um tempo ou tem cargas. Os embuimentos de proteção somam com os itens.</p>`;
+  }
+  return `<div class="equip-topo"><h2 class="sub" style="margin:0">🧥 Itens recomendados</h2>
+    <div class="equip-filtros"><div><label class="campo-label" for="eq-voc">Vocação</label><select id="eq-voc"><option value="">—</option>${VOCS.map(([k, n]) => `<option value="${k}" ${k === e.voc ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
+      <div><label class="campo-label" for="eq-lvl">Level</label><input type="text" class="num" id="eq-lvl" value="${esc(e.lvl)}"></div></div></div>
+    <div class="abas" style="margin:0">${abas.map(([k, rot]) => `<span class="pilula ${k === e.aba ? 'on' : ''}" data-eq-aba="${k}">${esc(rot)}</span>`).join('')}</div>
+    ${corpo}`;
+}
+async function carregarEquip() {
+  const e = estadoEquip(), chave = chaveEquip(e);
+  if (!H.dano || !H.dano.analise || !e.voc || !e.lvl || e.cache[chave] || e.buscando === chave) return;
+  e.buscando = chave;
+  const dist = Object.fromEntries(H.dano.analise.elementos.map((x) => [x.elemento, x.parte]));
+  const nomeVoc = VOCS.find(([k]) => k === e.voc)[1];
+  e.cache[chave] = await api.equip_recomendar(H.entrada.personagem, dist, e.aba === 'hunt' ? null : e.aba, nomeVoc, e.lvl);
+  e.buscando = null;
+  redesenharEquip();
+}
+function redesenharEquip() {
+  const card = $('equip-card');
+  if (!card || !H.dano || !H.dano.analise) return;
+  card.innerHTML = equipHtml(H.dano.analise);
+  ligarEquip();
+}
+let tEquipLvl = null;
+function ligarEquip() {
+  const card = $('equip-card');
+  if (!card) return;
+  const e = estadoEquip();
+  card.querySelectorAll('[data-eq-aba]').forEach((p) => p.addEventListener('click', () => { e.aba = p.dataset.eqAba; redesenharEquip(); }));
+  $('eq-voc').addEventListener('change', () => { e.voc = $('eq-voc').value; redesenharEquip(); });
+  $('eq-lvl').addEventListener('input', () => {
+    clearTimeout(tEquipLvl);
+    tEquipLvl = setTimeout(() => { e.lvl = $('eq-lvl').value.replace(/\D/g, ''); redesenharEquip(); $('eq-lvl').focus(); }, 600);
+  });
+  carregarEquip();
+}
 
 // ================= hoje no Tibia (menu lateral + Ferramentas) =================
 let DIA = null;
