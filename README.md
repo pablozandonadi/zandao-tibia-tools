@@ -120,17 +120,26 @@ As mesmas opções do Tibia Screenshot Organizer, salvas no `settings.json`. Que
 ## Timers de áudio
 
 Igual ao TibiaAudio do TibiaVision. Cada timer tem uma **tecla** (clique em "Gravar tecla" e aperte; aceita
-Ctrl/Shift/Alt), uma **duração**, um **som** (prontos, gerados pelo app, ou um .mp3/.wav seu) e um **modo**:
+Ctrl/Shift/Alt), uma **duração** (minutos, segundos e milissegundos), um **som** (os sons padrão que vêm com o app,
+bipes gerados pelo app ou um .mp3/.wav seu) e um **modo**:
 
 - **Reinicia a cada aperto**: apertou de novo antes de acabar, volta do começo.
 - **Conta até o fim**: apertar enquanto conta não faz nada; acabou, avisa e espera o próximo aperto.
 - **Loop**: um aperto começa a repetir sozinho (avisa a cada volta); outro aperto para.
 
-"Avisar antes de acabar" toca o som alguns segundos antes. Cada timer pode também mostrar, por cima do Tibia
-(sem dar para clicar: o clique passa para o jogo), um **📢 alerta** em texto na hora do aviso e/ou uma **▬ barra**
-correndo enquanto conta, na cor escolhida. Largura, espessura e posição da barra ficam no card "Barra no Tibia"
-(com "Testar posição"). Funciona com o Tibia em janela ou tela cheia sem bordas. Funciona com o app minimizado. Por padrão só conta
-com o Tibia (`client.exe`) em foco. O app só confere se as teclas cadastradas estão apertadas: não grava o que é
+"Avisar antes de acabar" (também em min/seg/ms) toca o som antes do fim. No card **📍 Barra e alerta no Tibia**
+(abaixo do timer que você está editando), cada timer pode mostrar por cima do Tibia (sem dar para clicar: o clique
+passa para o jogo):
+
+- um **📢 alerta** em texto: mensagem própria, cor livre, tamanho da letra, **piscar** (fade) nos últimos 1, 2, 3 ou
+  5 segundos e a opção de ficar na tela até apertar a tecla de novo;
+- uma **▬ barra** correndo enquanto conta, na cor do timer.
+
+Largura, espessura e posição da barra e posição do alerta ficam no mesmo card. **👁 Testar alerta** liga um teste
+ao vivo (clique de novo para parar): a mensagem e a barra ficam na tela e mudam junto com o que você ajusta. Cada
+opção também tem o próprio botão de teste. **⇩ Importar do TibiaVision** traz os timers e sons dos perfis do
+TibiaVision instalado no PC. Funciona com o Tibia em janela ou tela cheia sem bordas e com o app minimizado. Por
+padrão só conta com o Tibia (`client.exe`) em foco. O app só confere se as teclas cadastradas estão apertadas: não grava o que é
 digitado e não manda tecla nenhuma para o jogo. Configuração em `audio_timers.json`, sons seus em `sons_usuario/`.
 
 ## Configurações
