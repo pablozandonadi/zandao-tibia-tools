@@ -1,6 +1,6 @@
 # Zandao Tibia Tools
 
-Um programa só para quem joga Tibia, com seis abas:
+Um programa só para quem joga Tibia, com sete abas:
 
 | Aba | O que faz |
 | --- | --- |
@@ -8,6 +8,7 @@ Um programa só para quem joga Tibia, com seis abas:
 | **Hunt Analyser** | Loot Split + Tibia Damage juntos: cola os textos do Tibia e sai a análise no estilo do hunt-analyser.com. |
 | **Histórico** | Toda hunt analisada fica salva neste PC. Dá para filtrar por personagem, exportar e importar. |
 | **Ferramentas** | Boss e criatura do dia, Rashid, server save, calculadora de Shared XP e "Quando eu upo?". |
+| **Timers** | Timers de áudio: uma tecla apertada no Tibia começa a contagem e o app toca um som no fim (funciona minimizado). |
 | **Prints** | Organiza as screenshots do Tibia em `Personagem / Tipo (/ Mês)`. |
 | **Configurações** | Meus personagens, backup de tudo (exportar/restaurar) e versão/atualização. |
 
@@ -115,6 +116,19 @@ Tudo o que você digita fica salvo em `dados_embuimentos.json`. Para adicionar o
 ## Prints
 
 As mesmas opções do Tibia Screenshot Organizer, salvas no `settings.json`. Quem instala começa com as duas pastas em branco; **Usar pasta padrão do Tibia** preenche a pasta de screenshots num clique.
+
+## Timers de áudio
+
+Igual ao TibiaAudio do TibiaVision. Cada timer tem uma **tecla** (clique em "Gravar tecla" e aperte; aceita
+Ctrl/Shift/Alt), uma **duração**, um **som** (prontos, gerados pelo app, ou um .mp3/.wav seu) e um **modo**:
+
+- **Reinicia a cada aperto**: apertou de novo antes de acabar, volta do começo.
+- **Conta até o fim**: apertar enquanto conta não faz nada; acabou, avisa e espera o próximo aperto.
+- **Loop**: um aperto começa a repetir sozinho (avisa a cada volta); outro aperto para.
+
+"Avisar antes de acabar" toca o som alguns segundos antes. Funciona com o app minimizado. Por padrão só conta
+com o Tibia (`client.exe`) em foco. O app só confere se as teclas cadastradas estão apertadas: não grava o que é
+digitado e não manda tecla nenhuma para o jogo. Configuração em `audio_timers.json`, sons seus em `sons_usuario/`.
 
 ## Configurações
 

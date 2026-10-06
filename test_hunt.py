@@ -464,6 +464,50 @@ class TestEquipamentos(unittest.TestCase):
         self.assertEqual([(i["nome"], i["nota"]) for i in mix], [("Stag Helmet", 5.6), ("Tiara of Power", 5.6), ("Gnome Helmet", 5.0)])
 
 
+class TestTimersAudio(unittest.TestCase):
+    def _timer(self, modo, duracao=10, antes=0):
+        import audio_timers as at
+        return at.EstadoTimer(at.normalizar({"nome": "T", "tecla": {"vk": 75}, "duracao": duracao, "modo": modo, "antes": antes}))
+
+    def test_reinicia_a_cada_aperto(self):
+        t = self._timer("reinicia")
+        t.apertou(0)
+        self.assertFalse(t.tick(5))
+        t.apertou(5)                      # apertou no meio: volta do começo (acaba em 15)
+        self.assertFalse(t.tick(14))
+        self.assertTrue(t.tick(15))
+        self.assertFalse(t.rodando)
+
+    def test_conta_ate_o_fim(self):
+        t = self._timer("ignora")
+        t.apertou(0)
+        t.apertou(5)                      # ignorado: continua acabando em 10
+        self.assertTrue(t.tick(10))
+        self.assertFalse(t.rodando)
+        t.apertou(12)                     # só recomeça com um novo aperto
+        self.assertEqual(t.restante(12), 10)
+
+    def test_loop_e_aviso_antes(self):
+        t = self._timer("loop", antes=2)
+        t.apertou(0)
+        self.assertFalse(t.tick(7))
+        self.assertTrue(t.tick(8))        # 2 s antes do fim da 1ª volta
+        self.assertFalse(t.tick(9))       # não toca de novo na mesma volta
+        self.assertFalse(t.tick(10))      # virou a volta: segue contando
+        self.assertTrue(t.rodando)
+        self.assertTrue(t.tick(18))       # 2 s antes do fim da 2ª volta
+        t.apertou(19)                     # segundo aperto para o loop
+        self.assertFalse(t.rodando)
+        self.assertFalse(t.tick(40))
+
+    def test_normalizar(self):
+        import audio_timers as at
+        n = at.normalizar({"duracao": "0", "modo": "xx", "volume": 300, "tecla": None})
+        self.assertEqual((n["duracao"], n["modo"], n["volume"], n["tecla"]["vk"]), (60.0, "reinicia", 100, 0))
+        self.assertEqual(at.texto_da_tecla({"vk": 75, "nome": "K", "ctrl": True, "shift": False, "alt": True}), "Ctrl+Alt+K")
+        self.assertTrue(at.caminho_do_som("usuario:../../windows/x.mp3").endswith("bipe.wav"))  # não sai da pasta
+
+
 class TestApiHunt(unittest.TestCase):
     """Fluxo da tela: analisar salva sozinho; limpar caixa não apaga o histórico; outra hunt vira outra entrada."""
 

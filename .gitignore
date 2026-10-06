@@ -16,3 +16,6 @@ __pycache__/
 cache_tibia.json
 meus_personagens.json
 cache_itens.json
+audio_timers.json
+sons/
+sons_usuario/

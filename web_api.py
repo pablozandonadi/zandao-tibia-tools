@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 import webview
 
 import atualizacoes
+import audio_timers
 import backup
 import damage_core
 import embuimentos as emb
@@ -171,6 +172,7 @@ class API:
         self._organizando = False
         self._atualizacao_info = None  # release lida em verificar_atualizacao, até instalar_atualizacao
         self._dano_cache = {}  # assinatura da hunt -> monstros/dano já analisados (para o Salvar)
+        self._audio = None      # motor dos timers de áudio (liga em audio_iniciar)
         self._capturas = {}     # tipo ('party'/'solo'/'dano') -> {"texto", "t"}: últimos textos do Tibia copiados
         self._trava_capturas = threading.Lock()
         self._monitor = False
@@ -699,10 +701,61 @@ class API:
                       "duracao_media_min": round(dur_media) if dur_media else None})
         return r
 
+    # ================= timers de áudio (ver audio_timers.py) =================
+    def audio_iniciar(self):
+        """Liga o motor (lê as teclas cadastradas e toca os sons), também com o app minimizado."""
+        if self._audio is None:
+            self._audio = audio_timers.Motor(ao_mudar=lambda est: self._emit("audioEstado", est))
+        return self.audio_carregar()
+
+    def audio_carregar(self):
+        m = self._audio
+        cfg = m.cfg if m else audio_timers.carregar()
+        return {"cfg": cfg, "sons": audio_timers.lista_sons(),
+                "estado": m.estado() if m else {"ligado": cfg["ligado"], "timers": {}},
+                "teclas": {t["id"]: audio_timers.texto_da_tecla(t["tecla"]) for t in cfg["timers"]}}
+
+    def audio_salvar(self, cfg):
+        cfg = {**audio_timers.PADRAO, **{k: cfg.get(k) for k in audio_timers.PADRAO if k in cfg}}
+        cfg["timers"] = [audio_timers.normalizar(t) for t in cfg["timers"] or []]
+        cfg["volume"] = max(0, min(100, int(cfg["volume"])))
+        cfg["ligado"], cfg["so_tibia"] = bool(cfg["ligado"]), bool(cfg["so_tibia"])
+        if self._audio:
+            self._audio.atualizar_cfg(cfg)
+        else:
+            audio_timers.salvar(cfg)
+        return self.audio_carregar()
+
+    def audio_gravar_tecla(self):
+        """Espera a próxima tecla apertada (até 8 s)."""
+        t = audio_timers.gravar_tecla()
+        return {**t, "texto": audio_timers.texto_da_tecla(t)} if t else None
+
+    def audio_tocar(self, som, volume=100):
+        if self._audio:
+            self._audio.tocar(som, volume)
+        return True
+
+    def audio_parar_todos(self):
+        if self._audio:
+            self._audio.parar_todos()
+        return True
+
+    def audio_importar_som(self):
+        tipo = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
+        r = self._window.create_file_dialog(tipo, file_types=("Sons (*.mp3;*.wav)",))
+        if not r:
+            return {"ok": False, "cancelado": True}
+        try:
+            som = audio_timers.importar_som(r[0])
+        except (OSError, ValueError) as e:
+            return {"ok": False, "erro": str(e)}
+        return {"ok": True, "som": som, "sons": audio_timers.lista_sons()}
+
     # ================= configurações: backup de tudo =================
     def _caminhos_backup(self):
         return {"historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
-                "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH}
+                "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO}
 
     def config_exportar(self):
         pacote = backup.exportar(self._caminhos_backup(), VERSAO_APP)

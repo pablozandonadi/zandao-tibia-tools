@@ -389,6 +389,34 @@
   .equip-item .resists { margin: 0; justify-content: flex-end; max-width: 55%; }
   .rz.alvo { border-color: var(--accent-2); color: var(--accent-2); }
 
+  /* ---- timers de áudio ---- */
+  .au-controles { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
+  .au-controles .vol { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: .84rem; }
+  .au-controles .vol input { width: 140px; }
+  .au-ligado { font-family: var(--font-body); font-weight: 800; font-size: .84rem; border: 2.5px solid var(--ink); border-radius: 9px;
+    padding: 8px 14px; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
+  .au-ligado.on { background: var(--good); color: #062b19; }
+  .au-ligado.off { background: var(--bad); color: #2a0e0e; }
+  .au-item { display: grid; grid-template-columns: minmax(140px, 1.2fr) auto minmax(150px, 1.5fr) auto; gap: 8px 16px; align-items: center; }
+  .au-item + .au-item { margin-top: 10px; }
+  .au-item.inativo { opacity: .5; }
+  .au-item.rodando { border-color: var(--accent-2); box-shadow: 4px 4px 0 var(--accent-2); }
+  .au-nome { font-weight: 800; font-size: .95rem; }
+  .au-info { font-size: .74rem; color: var(--ink-dim); margin-top: 3px; }
+  .au-tecla { font-family: var(--font-mono); font-weight: 700; font-size: .9rem; background: var(--surface-2); border: 2px solid var(--ink);
+    border-bottom-width: 4px; border-radius: 7px; padding: 3px 10px; white-space: nowrap; }
+  .au-tempo { display: flex; align-items: center; gap: 10px; }
+  .au-tempo .barra-el { height: 14px; }
+  .au-tempo .barra-el i { background: var(--accent-2); transition: width .25s linear; }
+  .au-tempo b { font-family: var(--font-mono); font-size: .95rem; width: 62px; text-align: right; }
+  .au-acoes { display: flex; gap: 6px; align-items: center; }
+  .au-form .campos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .au-modos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
+  .au-modo { border: 2px solid var(--ink-dim); border-radius: 9px; padding: 8px 10px; cursor: pointer; font-size: .76rem; color: var(--ink-dim); line-height: 1.4; }
+  .au-modo b { display: block; color: var(--ink); font-size: .84rem; margin-bottom: 2px; }
+  .au-modo.on { border-color: var(--accent-2); box-shadow: 2px 2px 0 var(--accent-2); }
+  @media (max-width: 1100px) { .au-item { grid-template-columns: 1fr auto; } .au-modos, .au-form .campos { grid-template-columns: 1fr; } }
+
   /* ---- atualização ---- */
   .modal-fundo { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
   .modal-caixa { background: var(--surface); border: 2.5px solid var(--ink); border-radius: 12px; box-shadow: 6px 6px 0 var(--accent);
@@ -418,6 +446,7 @@
     <div class="nav-item" data-pagina="hunt" title="Hunt Analyser (Loot Split + Dano)">🪓<span class="txt"> Hunt Analyser</span></div>
     <div class="nav-item" data-pagina="hist" title="Histórico de hunts">📜<span class="txt"> Histórico</span></div>
     <div class="nav-item" data-pagina="ferr" title="Ferramentas">🧰<span class="txt"> Ferramentas</span></div>
+    <div class="nav-item" data-pagina="audio" title="Timers de áudio">🔔<span class="txt"> Timers</span></div>
     <div class="nav-item" data-pagina="prints" title="Prints">📸<span class="txt"> Prints</span></div>
     <div class="nav-item" data-pagina="config" title="Configurações">⚙️<span class="txt"> Configurações</span></div>
     <div class="sobrepor">
@@ -575,6 +604,24 @@
       </div>
     </section>
 
+    <!-- ================= TIMERS DE ÁUDIO ================= -->
+    <section class="page" id="page-audio">
+      <h1 class="titulo">Timers de áudio</h1>
+      <div class="card calmo">
+        <div class="au-controles">
+          <button class="au-ligado on" id="au-ligado" title="Liga/desliga todos os timers">● Ligado</button>
+          <label class="vol" for="au-vol">Volume <input type="range" id="au-vol" min="0" max="100" step="5"><b id="au-vol-val">90%</b></label>
+          <label class="check"><input type="checkbox" id="au-sotibia"> Só contar com o Tibia em foco</label>
+          <span style="margin-left:auto" class="acoes"><button class="btn btn-sm" id="au-parar">■ Parar contagens</button>
+            <button class="btn btn-primary" id="au-novo">+ Novo timer</button></span>
+        </div>
+        <p class="dica" style="margin:12px 0 0;line-height:1.5">Aperte a tecla do timer no Tibia e ele começa a contar; quando acaba, toca o som. Funciona com o app minimizado.
+          O app só confere as teclas que você cadastrou aqui: não grava o que você digita e não manda tecla nenhuma para o jogo.</p>
+      </div>
+      <div id="au-form"></div>
+      <div id="au-lista" style="margin-top:16px"></div>
+    </section>
+
     <!-- ================= CONFIGURAÇÕES ================= -->
     <section class="page" id="page-config">
       <h1 class="titulo">Configurações</h1>
@@ -597,6 +644,7 @@
             <li><b>Embuimentos</b>: preços, o que você já tem e os escolhidos</li>
             <li><b>Prints</b>: pastas e opções</li>
             <li><b>Janela</b>: fixar por cima e transparência</li>
+            <li><b>Timers de áudio</b> (os arquivos de som importados não entram)</li>
           </ul>
           <div class="acoes"><button class="btn btn-primary" id="cfg-exportar">📤 Exportar tudo</button><button class="btn" id="cfg-importar">📥 Restaurar um backup</button></div>
           <div id="cfg-backup-res"></div>
@@ -1714,6 +1762,144 @@ function ligarEquip() {
   carregarEquip();
 }
 
+// ================= timers de áudio =================
+let AU = null, auEditando = null;
+const MODOS_AU = [
+  ['reinicia', 'Reinicia a cada aperto', 'Apertou de novo antes de acabar? Volta do começo.'],
+  ['ignora', 'Conta até o fim', 'Apertar enquanto conta não faz nada. Acabou, avisa e espera o próximo aperto.'],
+  ['loop', 'Loop', 'Um aperto começa a repetir sozinho (avisa a cada volta). Outro aperto para.'],
+];
+function fmtDur(seg) {
+  seg = Math.max(0, Math.ceil(seg));
+  const h = Math.floor(seg / 3600), m = Math.floor(seg % 3600 / 60), s2 = seg % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(s2).padStart(2, '0')}` : `${m}:${String(s2).padStart(2, '0')}`;
+}
+function lerDur(txt) {  // "90", "1:30" ou "1:02:00" -> segundos
+  const p = String(txt || '').trim().split(':').map((x) => parseFloat(x.replace(',', '.')));
+  if (p.some((x) => isNaN(x))) return null;
+  return p.reduce((t, x) => t * 60 + x, 0);
+}
+const nomeSom = (id) => ((AU.sons.find((x) => x.id === id) || {}).nome || 'Bipe');
+async function salvarAudio() { AU = await api.audio_salvar(AU.cfg); renderAudio(); }
+function renderAudio() {
+  if (!AU) return;
+  const c = AU.cfg;
+  $('au-ligado').className = 'au-ligado ' + (c.ligado ? 'on' : 'off');
+  $('au-ligado').textContent = c.ligado ? '● Ligado' : '■ Parado';
+  $('au-vol').value = c.volume; $('au-vol-val').textContent = c.volume + '%';
+  $('au-sotibia').checked = !!c.so_tibia;
+  $('au-lista').innerHTML = c.timers.length ? c.timers.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
+      <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDur(t.duracao)}${t.antes ? ` · avisa ${t.antes}s antes` : ''} · 🔊 ${esc(nomeSom(t.som))} ${t.volume}%</div></div>
+      <span class="au-tecla" title="Tecla que começa o timer">${esc(AU.teclas[t.id] || '—')}</span>
+      <div class="au-tempo"><span class="barra-el"><i style="width:0%"></i></span><b>${fmtDur(t.duracao)}</b></div>
+      <div class="au-acoes"><label class="check" title="Ativo"><input type="checkbox" data-au-ativo="${t.id}" ${t.ativo ? 'checked' : ''}></label>
+        <button class="btn btn-sm" data-au-ouvir="${t.id}" title="Ouvir o som">▶</button>
+        <button class="btn btn-sm" data-au-editar="${t.id}">✎ Editar</button>
+        <button class="btn btn-sm btn-danger" data-au-apagar="${t.id}" title="Apagar">✕</button></div></div>`).join('')
+    : '<div class="card calmo"><div class="vazio">Nenhum timer ainda. Clique em <b>+ Novo timer</b>.</div></div>';
+  $('au-lista').querySelectorAll('[data-au-ativo]').forEach((c2) => c2.addEventListener('change', () => {
+    AU.cfg.timers.find((t) => t.id === c2.dataset.auAtivo).ativo = c2.checked; salvarAudio();
+  }));
+  $('au-lista').querySelectorAll('[data-au-ouvir]').forEach((b) => b.addEventListener('click', () => {
+    const t = AU.cfg.timers.find((x) => x.id === b.dataset.auOuvir); api.audio_tocar(t.som, t.volume);
+  }));
+  $('au-lista').querySelectorAll('[data-au-editar]').forEach((b) => b.addEventListener('click', () => abrirFormAudio(b.dataset.auEditar)));
+  $('au-lista').querySelectorAll('[data-au-apagar]').forEach((b) => b.addEventListener('click', () => {
+    const t = AU.cfg.timers.find((x) => x.id === b.dataset.auApagar);
+    if (!confirm(`Apagar o timer "${t.nome}"?`)) return;
+    AU.cfg.timers = AU.cfg.timers.filter((x) => x.id !== t.id); salvarAudio();
+  }));
+  mostrarEstadoAudio(AU.estado);
+}
+function mostrarEstadoAudio(est) {
+  if (!est || !AU) return;
+  for (const [id, e] of Object.entries(est.timers || {})) {
+    const card = document.querySelector(`[data-au="${id}"]`);
+    if (!card) continue;
+    const rodando = e.restante !== null && e.restante !== undefined;
+    card.classList.toggle('rodando', rodando);
+    card.querySelector('.au-tempo i').style.width = rodando ? `${(e.restante / e.duracao * 100).toFixed(1)}%` : '0%';
+    card.querySelector('.au-tempo b').textContent = fmtDur(rodando ? e.restante : e.duracao);
+  }
+}
+window.audioEstado = (est) => { if (AU) { AU.estado = est; mostrarEstadoAudio(est); } };
+
+function abrirFormAudio(id) {
+  const base = id ? AU.cfg.timers.find((t) => t.id === id) : null;
+  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'pronto:bipe', volume: 100, ativo: true }));
+  auEditando._teclaTexto = id ? AU.teclas[id] : '';
+  desenharFormAudio();
+  $('au-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function desenharFormAudio() {
+  const t = auEditando;
+  if (!t) { $('au-form').innerHTML = ''; return; }
+  $('au-form').innerHTML = `<div class="card au-form" style="margin-top:16px">
+    <h2 class="sub">${t.id ? 'Editar timer' : 'Novo timer'}</h2>
+    <div class="campos">
+      <div><label class="campo-label" for="auf-nome">Nome</label><input type="text" id="auf-nome" value="${esc(t.nome)}" placeholder="ex.: Poção, Utito, Food"></div>
+      <div><label class="campo-label">Tecla</label><div class="linha-pasta" style="margin:0">
+        <span class="au-tecla" id="auf-tecla">${esc(t._teclaTexto || '—')}</span><button class="btn btn-sm" id="auf-gravar">⌨ Gravar tecla</button></div></div>
+      <div><label class="campo-label" for="auf-dur">Duração (seg ou m:ss)</label><input type="text" class="num" id="auf-dur" value="${fmtDur(t.duracao)}"></div>
+    </div>
+    <label class="campo-label" style="margin-top:12px">Modo</label>
+    <div class="au-modos">${MODOS_AU.map(([k, nm, d]) => `<div class="au-modo ${t.modo === k ? 'on' : ''}" data-auf-modo="${k}"><b>${nm}</b>${d}</div>`).join('')}</div>
+    <div class="campos" style="margin-top:12px">
+      <div><label class="campo-label" for="auf-som">Som</label><div class="linha-pasta" style="margin:0">
+        <select id="auf-som">${AU.sons.map((x) => `<option value="${esc(x.id)}" ${x.id === t.som ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select>
+        <button class="btn btn-sm" id="auf-ouvir" title="Ouvir">▶</button></div>
+        <button class="btn btn-sm" id="auf-importar" style="margin-top:6px">🎵 Usar um som meu (.mp3/.wav)</button></div>
+      <div><label class="campo-label" for="auf-vol">Volume do timer: <b id="auf-vol-val">${t.volume}%</b></label><input type="range" id="auf-vol" min="0" max="100" step="5" value="${t.volume}"></div>
+      <div><label class="campo-label" for="auf-antes">Avisar antes de acabar (seg)</label><input type="text" class="num" id="auf-antes" value="${t.antes || 0}"></div>
+    </div>
+    <div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>
+  </div>`;
+  $('auf-nome').addEventListener('input', () => { t.nome = $('auf-nome').value; });
+  $('auf-dur').addEventListener('input', () => { const d = lerDur($('auf-dur').value); if (d) t.duracao = d; });
+  $('auf-antes').addEventListener('input', () => { t.antes = parseFloat($('auf-antes').value.replace(',', '.')) || 0; });
+  $('auf-som').addEventListener('change', () => { t.som = $('auf-som').value; });
+  $('auf-vol').addEventListener('input', () => { t.volume = +$('auf-vol').value; $('auf-vol-val').textContent = t.volume + '%'; });
+  $('auf-ouvir').addEventListener('click', () => api.audio_tocar(t.som, t.volume));
+  document.querySelectorAll('[data-auf-modo]').forEach((m) => m.addEventListener('click', () => {
+    t.modo = m.dataset.aufModo;
+    document.querySelectorAll('[data-auf-modo]').forEach((x) => x.classList.toggle('on', x === m));
+  }));
+  $('auf-gravar').addEventListener('click', async () => {
+    $('auf-gravar').disabled = true; $('auf-tecla').textContent = 'aperte a tecla...';
+    const k = await api.audio_gravar_tecla();
+    $('auf-gravar').disabled = false;
+    if (!k) { $('auf-tecla').textContent = t._teclaTexto || '—'; toast('Nenhuma tecla apertada. Tente de novo.', true); return; }
+    t.tecla = { vk: k.vk, nome: k.nome, ctrl: k.ctrl, shift: k.shift, alt: k.alt }; t._teclaTexto = k.texto;
+    $('auf-tecla').textContent = k.texto;
+  });
+  $('auf-importar').addEventListener('click', async () => {
+    const r = await api.audio_importar_som();
+    if (r.cancelado) return;
+    if (!r.ok) { toast(r.erro, true); return; }
+    AU.sons = r.sons; t.som = r.som; desenharFormAudio(); toast('Som adicionado!');
+  });
+  $('auf-cancelar').addEventListener('click', () => { auEditando = null; desenharFormAudio(); });
+  $('auf-salvar').addEventListener('click', async () => {
+    if (!t.tecla || !t.tecla.vk) { toast('Grave a tecla do timer.', true); return; }
+    if (!lerDur($('auf-dur').value)) { toast('Duração inválida (ex.: 90 ou 1:30).', true); return; }
+    const limpo = { ...t }; delete limpo._teclaTexto;
+    const i = AU.cfg.timers.findIndex((x) => x.id && x.id === t.id);
+    if (i >= 0) AU.cfg.timers[i] = limpo; else AU.cfg.timers.push(limpo);
+    auEditando = null; desenharFormAudio();
+    await salvarAudio();
+    toast('Timer salvo!');
+  });
+}
+$('au-novo').addEventListener('click', () => abrirFormAudio(null));
+$('au-ligado').addEventListener('click', () => { AU.cfg.ligado = !AU.cfg.ligado; salvarAudio(); });
+$('au-sotibia').addEventListener('change', () => { AU.cfg.so_tibia = $('au-sotibia').checked; salvarAudio(); });
+let tAuVol = null;
+$('au-vol').addEventListener('input', () => {
+  AU.cfg.volume = +$('au-vol').value; $('au-vol-val').textContent = AU.cfg.volume + '%';
+  clearTimeout(tAuVol); tAuVol = setTimeout(salvarAudio, 400);
+});
+$('au-parar').addEventListener('click', () => { api.audio_parar_todos(); toast('Contagens paradas.'); });
+
 // ================= hoje no Tibia (menu lateral + Ferramentas) =================
 let DIA = null;
 const boostHtml = (rot, b) => b ? `<img src="${esc(b.imagem)}" alt=""><span class="txt"><small>${rot}</small><b>${esc(b.nome)}</b></span>` : '';
@@ -1893,6 +2079,7 @@ async function iniciar() {
   huntIniciar();
   api.versao_app().then((v) => { $('versao-app').textContent = 'v' + v; $('cfg-versao').textContent = 'v' + v; });
   carregarDia();
+  api.audio_iniciar().then((r) => { AU = r; renderAudio(); });
   setTimeout(checarAtualizacao, 2500);
 }
 if (window.pywebview && window.pywebview.api) iniciar();

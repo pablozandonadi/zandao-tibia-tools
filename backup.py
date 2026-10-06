@@ -1,7 +1,7 @@
 """Backup de tudo do usuário num arquivo só (Configurações > Backup).
 
 Leva: histórico de hunts, meus personagens, preços dos embuimentos, pastas dos prints,
-e "fixar por cima"/transparência. Caches (fichas de monstros,
+"fixar por cima"/transparência e os timers de áudio (os arquivos de som importados não entram). Caches (fichas de monstros,
 boss do dia) não entram: o app baixa de novo sozinho.
 
 Formato do arquivo:
@@ -31,6 +31,7 @@ ITENS = {
     "embuimentos": "Preços e escolhas dos embuimentos",
     "prints": "Pastas e opções dos prints",
     "janela": "Fixar por cima e transparência",
+    "audio": "Timers de áudio",
 }
 
 
