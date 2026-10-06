@@ -9,9 +9,11 @@ sem bordas; no modo tela cheia exclusivo nenhum programa consegue desenhar por c
 """
 
 import ctypes
+import math
 import os
 import sys
 import threading
+import time
 from ctypes import wintypes
 
 PROCESSOS_TIBIA = ("client.exe", "tibia.exe")
@@ -84,6 +86,8 @@ WM_PAINT, WM_TIMER, WM_APP = 0x000F, 0x0113, 0x8000
 SW_HIDE = 0
 SWP_NOACTIVATE, SWP_SHOWWINDOW = 0x10, 0x40
 LWA_COLORKEY = 0x1
+LWA_ALPHA = 0x2
+PISCA_PERIODO = 0.8   # segundos de um ciclo some/aparece do alerta piscando
 DT_CENTER, DT_VCENTER, DT_SINGLELINE, DT_NOPREFIX = 0x1, 0x4, 0x20, 0x800
 NONANTIALIASED_QUALITY = 3  # sem suavização: a borda não "mistura" com a cor-chave
 FW_BOLD = 700
@@ -274,8 +278,9 @@ class Overlay:
         if self.hwnd:
             _u32.PostMessageW(self.hwnd, WM_APP + 2, 0, 0)
 
-    def mostrar(self, texto, cor="amarelo", segundos=3.0, so_tibia=True, tamanho=34, pos=None):
-        """Mostra o alerta. segundos=0: fica até esconder(). Devolve False se o Tibia não está aberto (e so_tibia)."""
+    def mostrar(self, texto, cor="amarelo", segundos=3.0, so_tibia=True, tamanho=34, pos=None, piscar=False):
+        """Mostra o alerta. segundos=0: fica até esconder(). piscar: aparece e some suave (fade).
+        Devolve False se o Tibia não está aberto (e so_tibia)."""
         alvo = janela_do_tibia() if sys.platform == "win32" else None
         if alvo is None:
             if so_tibia:
@@ -283,14 +288,18 @@ class Overlay:
             alvo = (0, 0, _u32.GetSystemMetrics(0), _u32.GetSystemMetrics(1))
         with self._trava:
             self._pedido = (str(texto), cor_rgb(cor), float(segundos), alvo,
-                            max(14, min(96, int(tamanho))), normalizar_alerta(pos))
+                            max(14, min(96, int(tamanho))), normalizar_alerta(pos), bool(piscar))
         if self.hwnd:
             _u32.PostMessageW(self.hwnd, WM_APP + 1, 0, 0)
         return True
 
     # ---------------- thread da janela ----------------
+    def _alfa(self, a):
+        _u32.SetLayeredWindowAttributes(self.hwnd, _rgb(CHAVE), max(0, min(255, a)), LWA_COLORKEY | LWA_ALPHA)
+
     def _rodar(self):
         self._proc = WNDPROC(self._wndproc)  # guardar a referência: senão o Python apaga e a janela trava
+        self._pisca_ini = 0.0
         hinst = _k32.GetModuleHandleW(None)
         wc = _WNDCLASS()
         wc.lpfnWndProc = self._proc
@@ -317,7 +326,12 @@ class Overlay:
             with self._trava:
                 pedido, self._pedido = self._pedido, None
             if pedido:
-                self._texto, self._cor, segundos, (esq, topo, dir_, base), self._tamanho, pos = pedido
+                self._texto, self._cor, segundos, (esq, topo, dir_, base), self._tamanho, pos, piscar = pedido
+                _u32.KillTimer(hwnd, 2)
+                self._alfa(255)
+                if piscar:
+                    self._pisca_ini = time.monotonic()
+                    _u32.SetTimer(hwnd, 2, 30, None)
                 alt = int(self._tamanho * 2.2)
                 larg = min(max(self.LARGURA, int(len(self._texto) * self._tamanho * .75)), dir_ - esq)
                 cx = esq + (dir_ - esq) * pos["x"] / 100
@@ -330,13 +344,15 @@ class Overlay:
                 if segundos > 0:
                     _u32.SetTimer(hwnd, 1, int(segundos * 1000), None)
             return 0
-        if msg == WM_APP + 2:
-            _u32.KillTimer(hwnd, 1)
-            _u32.ShowWindow(hwnd, SW_HIDE)
+        if msg == WM_TIMER and wparam == 2:   # piscando: some e aparece suave
+            fase = ((time.monotonic() - self._pisca_ini) % PISCA_PERIODO) / PISCA_PERIODO
+            self._alfa(int(25 + 230 * (0.5 + 0.5 * math.cos(2 * math.pi * fase))))
             return 0
-        if msg == WM_TIMER:
+        if msg == WM_APP + 2 or msg == WM_TIMER:
             _u32.KillTimer(hwnd, 1)
+            _u32.KillTimer(hwnd, 2)
             _u32.ShowWindow(hwnd, SW_HIDE)
+            self._alfa(255)
             return 0
         if msg == WM_PAINT:
             ps = _PAINTSTRUCT()

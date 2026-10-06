@@ -531,7 +531,31 @@ class TestTimersAudio(unittest.TestCase):
         self.assertEqual(at.texto_alerta(at.normalizar({"nome": "X", "mensagem": "  BEBA!  "})), "BEBA!")
         self.assertEqual(at.normalizar({"cor": "#zzzzzz"})["cor"], "amarelo")
 
-    def test_importa_perfil_do_tibiavision(self):
+    def test_alerta_pisca_nos_ultimos_segundos(self):
+        import audio_timers as at
+
+        class AlertaFalso:
+            def __init__(self):
+                self.chamadas = []
+
+            def mostrar(self, texto, cor, segundos, **kw):
+                self.chamadas.append((texto, round(segundos, 2), kw.get("piscar", False)))
+
+            def esconder(self):
+                self.chamadas.append("esconder")
+
+        m = at.Motor.__new__(at.Motor)
+        m.alerta, m.cfg = AlertaFalso(), {"alerta": {"x": 50, "y": 30}}
+        m._piscou, m._pisca_dono, m._alerta_fixo = {}, None, None
+        e = at.EstadoTimer(at.normalizar({"id": "p", "nome": "Poção", "duracao": 10, "alerta": True, "piscar": 3}))
+        e.apertou(0)
+        self.assertFalse(m._talvez_piscar(e, 6.9))           # ainda faltam 3,1 s
+        self.assertTrue(m._talvez_piscar(e, 7.0))            # últimos 3 s: começa a piscar até o fim
+        self.assertTrue(m._talvez_piscar(e, 8.0))            # mesma volta: não chama de novo
+        self.assertEqual(m.alerta.chamadas, [("Poção acabando!", 3.0, True)])
+        self.assertEqual(at.normalizar({"piscar": 4})["piscar"], 0)   # só 1, 2, 3 ou 5
+
+
         import audio_timers as at
         with tempfile.TemporaryDirectory() as d:
             arq = os.path.join(d, "EK.audio.json")

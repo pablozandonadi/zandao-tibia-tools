@@ -108,7 +108,26 @@ def normalizar(t):
         "mensagem": str(t.get("mensagem") or "").strip()[:60],   # texto do alerta (vazio = automático)
         "fonte": max(14, min(96, int(t.get("fonte") or 34))),    # tamanho da letra do alerta
         "fixo": bool(t.get("fixo", False)),                      # alerta fica na tela até apertar a tecla de novo
+        "piscar": _piscar(t.get("piscar")),                       # alerta pisca nos últimos N segundos (0 = não)
     }
+
+
+PISCAR_OPCOES = (0, 1, 2, 3, 5)
+
+
+def _piscar(v):
+    try:
+        v = int(v or 0)
+    except (TypeError, ValueError):
+        return 0
+    return v if v in PISCAR_OPCOES else 0
+
+
+def texto_piscando(t):
+    """Texto do alerta piscando no fim (com aviso 0, o texto automático seria "acabou!" antes da hora)."""
+    if t["mensagem"]:
+        return t["mensagem"]
+    return texto_alerta(t) if min(t["antes"], t["duracao"]) else f"{t['nome']} acabando!"
 
 
 def _cor(c):
@@ -397,6 +416,8 @@ class Motor:
         self._ultima_barra = 0
         self._barras_visiveis = False
         self._alerta_fixo = None      # id do timer cujo alerta está parado na tela esperando a tecla
+        self._piscou = {}             # id -> fim da volta em que o alerta já começou a piscar
+        self._pisca_dono = None       # id do timer cujo alerta está piscando agora
         garantir_sons_prontos()
         self._sincronizar()
         threading.Thread(target=self._rodar, daemon=True).start()
@@ -422,9 +443,28 @@ class Motor:
     def tocar(self, som_id, volume_timer=100):
         self.tocador.tocar(caminho_do_som(som_id), volume_timer * self.cfg["volume"] / 100)
 
-    def testar_alerta(self, cor="amarelo", texto="Poção acaba em 3s", fonte=34, segundos=4):
+    def testar_alerta(self, cor="amarelo", texto="Poção acaba em 3s", fonte=34, segundos=4, piscar=False):
         """segundos=0: o alerta fica na tela até parar_teste() (teste ao vivo)."""
-        return self.alerta.mostrar(texto or "Poção acaba em 3s", cor, segundos, so_tibia=False, tamanho=fonte, pos=self.cfg["alerta"])
+        return self.alerta.mostrar(texto or "Poção acaba em 3s", cor, segundos, so_tibia=False, tamanho=fonte,
+                                   pos=self.cfg["alerta"], piscar=piscar)
+
+    def _talvez_piscar(self, e, agora):
+        """Nos últimos N s da volta o alerta pisca até acabar. Devolve True se está piscando nesta volta."""
+        c = e.cfg
+        if not (c["alerta"] and c["piscar"] and e.rodando):
+            return False
+        if self._piscou.get(c["id"]) == e.fim:
+            return True
+        resta = e.fim - agora
+        if resta > c["piscar"]:
+            return False
+        self._piscou[c["id"]] = e.fim
+        self._pisca_dono = c["id"]
+        if c["fixo"]:
+            self._alerta_fixo = c["id"]
+        self.alerta.mostrar(texto_piscando(c), c["cor"], 0 if c["fixo"] else resta,
+                            tamanho=c["fonte"], pos=self.cfg["alerta"], piscar=True)
+        return True
 
     def parar_teste(self):
         """Some com o alerta e as barras de exemplo."""
@@ -488,15 +528,20 @@ class Motor:
                         t = e.cfg["tecla"]
                         if t["vk"] in novas and (t["ctrl"], t["shift"], t["alt"]) == (ctrl, shift, alt):
                             e.apertou(agora)
-                            if self._alerta_fixo == e.cfg["id"]:   # alerta "fica até apertar": some agora
-                                self._alerta_fixo = None
+                            if self._alerta_fixo == e.cfg["id"] or self._pisca_dono == e.cfg["id"]:
+                                self._alerta_fixo = self._pisca_dono = None   # recomeçou: tira o alerta da tela
                                 self.alerta.esconder()
                             mudou = True
             for e in self.estados.values():
+                fim_volta = e.fim
+                piscando = self._talvez_piscar(e, agora)
                 if e.tick(agora):
                     self.tocador.tocar(caminho_do_som(e.cfg["som"]), e.cfg["volume"] * self.cfg["volume"] / 100)
-                    if e.cfg["alerta"]:
+                    # o aviso caiu dentro do trecho piscando: o alerta já está na tela (piscando)
+                    if e.cfg["alerta"] and not (piscando and e.fim == fim_volta):
                         fixo = e.cfg["fixo"]
+                        if self._pisca_dono == e.cfg["id"]:
+                            self._pisca_dono = None
                         self.alerta.mostrar(texto_alerta(e.cfg), e.cfg["cor"], 0 if fixo else 3,
                                             tamanho=e.cfg["fonte"], pos=self.cfg["alerta"])
                         self._alerta_fixo = e.cfg["id"] if fixo else None

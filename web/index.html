@@ -1865,7 +1865,7 @@ window.audioEstado = (est) => { if (AU) { AU.estado = est; mostrarEstadoAudio(es
 
 function abrirFormAudio(id) {
   const base = id ? AU.cfg.timers.find((t) => t.id === id) : null;
-  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'padrao:Potion.mp3', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo', mensagem: '', fonte: 34, fixo: false }));
+  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'padrao:Potion.mp3', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo', mensagem: '', fonte: 34, fixo: false, piscar: 0 }));
   auEditando._teclaTexto = id ? AU.teclas[id] : '';
   desenharFormAudio();
   $('au-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1908,7 +1908,10 @@ function desenharFormAudio() {
     <div class="campos" style="margin-top:12px">
       <div><label class="campo-label" for="auf-msg">Mensagem do alerta</label><input type="text" id="auf-msg" maxlength="60" value="${esc(t.mensagem || '')}" placeholder="automática: &quot;${esc(t.nome || 'Poção')} acaba em 3s&quot;"></div>
       <div><label class="campo-label" for="auf-fonte">Tamanho da letra: <b id="auf-fonte-v">${t.fonte || 34}</b></label><input type="range" id="auf-fonte" min="14" max="96" step="2" value="${t.fonte || 34}"></div>
-      <div><label class="check" style="margin-top:18px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Alerta fica na tela até apertar a tecla de novo</label></div>
+      <div><label class="campo-label" for="auf-piscar">Piscar nos últimos segundos</label>
+        <select id="auf-piscar">${[[0, 'Não pisca'], [1, 'Último 1 segundo'], [2, 'Últimos 2 segundos'], [3, 'Últimos 3 segundos'], [5, 'Últimos 5 segundos']]
+          .map(([v, n2]) => `<option value="${v}" ${(t.piscar || 0) === v ? 'selected' : ''}>${n2}</option>`).join('')}</select>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Alerta fica na tela até apertar a tecla de novo</label></div>
     </div>
   </div>`;
   $('au-form-acoes').innerHTML = `<div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>`;
@@ -1925,6 +1928,7 @@ function desenharFormAudio() {
   $('auf-msg').addEventListener('input', () => { t.mensagem = $('auf-msg').value; });
   $('auf-fonte').addEventListener('input', () => { t.fonte = +$('auf-fonte').value; $('auf-fonte-v').textContent = t.fonte; });
   $('auf-fixo').addEventListener('change', () => { t.fixo = $('auf-fixo').checked; });
+  $('auf-piscar').addEventListener('change', () => { t.piscar = +$('auf-piscar').value; });
   $('auf-testar-msg').addEventListener('click', () => testarMsg(t));
   $('auf-testar-barra').addEventListener('click', () => testarBarra(t));
   $('auf-vol').addEventListener('input', () => { t.volume = +$('auf-vol').value; $('auf-vol-val').textContent = t.volume + '%'; });
@@ -1986,7 +1990,7 @@ function mudouAlertaPos() {
 function testarMsg(t, vivo) {
   const antes = Math.min(t.antes || 0, t.duracao || 60);
   const auto = antes ? `${t.nome || 'Poção'} acaba em ${antes}s` : `${t.nome || 'Poção'} acabou!`;
-  api.audio_testar_alerta(t.cor || 'amarelo', (t.mensagem || '').trim() || auto, t.fonte || 34, AU.cfg.alerta, vivo ? 0 : 4);
+  api.audio_testar_alerta(t.cor || 'amarelo', (t.mensagem || '').trim() || auto, t.fonte || 34, AU.cfg.alerta, vivo ? 0 : 4, !!t.piscar);
 }
 function testarBarra(t, vivo) { api.audio_testar_barras(AU.cfg.barra, t.nome || 'Timer', t.cor || 'amarelo', !!vivo); }
 
