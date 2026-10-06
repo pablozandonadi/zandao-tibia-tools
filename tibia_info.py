@@ -101,6 +101,11 @@ def boostados(forcar=False):
         c = _get_json(f"{TIBIADATA}/creatures")["creatures"]["boosted"]
         novo = {"dia": hoje, "boss": {"nome": b["name"], "imagem": b.get("image_url")},
                 "criatura": {"nome": c["name"], "imagem": c.get("image_url")}}
+        if (cache.get("dia") and cache["dia"] != hoje and cache.get("boss") and cache.get("criatura")
+                and cache["boss"]["nome"] == novo["boss"]["nome"] and cache["criatura"]["nome"] == novo["criatura"]["nome"]):
+            # logo depois do server save o TibiaData às vezes ainda mostra os de ontem: não grava como de hoje,
+            # e a tela tenta de novo daqui a pouco
+            return {**novo, "aguardando": True, "velho": False}
         with _trava:
             try:
                 with open(CACHE_PATH, "w", encoding="utf-8") as f:

@@ -408,7 +408,7 @@
 <div class="app">
   <aside class="sidebar">
     <div class="brand">⚔️ Zandao<br><span>Tibia Tools</span></div>
-    <div class="dia-tibia" id="dia-tibia" title="Hoje no Tibia (muda no server save)">
+    <div class="dia-tibia" id="dia-tibia" style="cursor:pointer" title="Hoje no Tibia (atualiza sozinho depois do server save; clique para atualizar agora)">
       <div class="boost" id="boost-boss"></div>
       <div class="boost" id="boost-criatura"></div>
       <div class="dia-linha txt">🐪 Rashid: <b id="dia-rashid">—</b></div>
@@ -523,14 +523,6 @@
     <section class="page" id="page-ferr">
       <h1 class="titulo">Ferramentas</h1>
       <div class="grid-ferr">
-        <div class="card">
-          <div class="h-titulo"><h2 class="sub" style="margin:0">Hoje no Tibia</h2><button class="btn btn-sm" id="f-atualizar">↻ Atualizar</button></div>
-          <div class="hoje-grande"><div class="boost" id="f-boss"></div><div class="boost" id="f-criatura"></div></div>
-          <p class="texto" style="margin:0 0 6px">🐪 <b>Rashid</b> hoje está em <b id="f-rashid">—</b>. <span class="dica">Ele muda de cidade todo server save (seg Svargrond, ter Liberty Bay, qua Port Hope, qui Ankrahmun, sex Darashia, sáb Edron, dom Carlin).</span></p>
-          <p class="texto" style="margin:0">⏱ <b>Server save</b> às <b id="f-ss-hora">—</b> (horário do seu PC), daqui a <b id="f-ss">—</b>.</p>
-          <p class="dica" id="f-dia-aviso" style="margin:8px 0 0"></p>
-        </div>
-
         <div class="card calmo">
           <h2 class="sub">🤝 Shared XP</h2>
           <label class="campo-label" for="f-levels">Levels da party (separados por vírgula)</label>
@@ -1730,9 +1722,16 @@ function faltaTexto(ms) {
   const min = Math.floor(ms / 60000), h = Math.floor(min / 60);
   return h ? `${h}h${String(min % 60).padStart(2, '0')}` : `${min} min`;
 }
+let tDia = null, tentativasDia = 0;
 async function carregarDia(forcar = false) {
   try { DIA = await api.tibia_dia(forcar); } catch (e) { return; }
   mostrarDia();
+  // logo depois do server save o tibia.com pode ainda não ter trocado (ou está sem internet): tenta de novo a cada 10 min, até 2h
+  clearTimeout(tDia);
+  if ((DIA.aguardando || DIA.velho) && tentativasDia < 12) {
+    tentativasDia++;
+    tDia = setTimeout(() => carregarDia(true), 10 * 60000);
+  } else if (!DIA.aguardando && !DIA.velho) tentativasDia = 0;
 }
 function mostrarDia() {
   if (!DIA) return;
@@ -1742,22 +1741,20 @@ function mostrarDia() {
   $('boost-criatura').title = DIA.criatura ? `Criatura boostada de hoje: ${DIA.criatura.nome}` : '';
   $('dia-tibia').classList.toggle('velho', !!DIA.velho);
   $('dia-rashid').textContent = DIA.rashid;
-  $('f-boss').innerHTML = boostHtml('Boss boostado', DIA.boss) || '<span class="dica">Sem internet para buscar o boss do dia.</span>';
-  $('f-criatura').innerHTML = boostHtml('Criatura boostada', DIA.criatura);
-  $('f-rashid').textContent = DIA.rashid;
-  $('f-ss-hora').textContent = new Date(DIA.server_save_ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  $('f-dia-aviso').textContent = DIA.velho ? 'Sem internet agora: boss e criatura podem ser de um dia anterior.' : '';
+  const hora = new Date(DIA.server_save_ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  $('dia-tibia').title = (DIA.velho ? 'Sem internet: boss e criatura podem ser de um dia anterior. '
+    : DIA.aguardando ? 'O tibia.com ainda não trocou o boss do dia; o app tenta de novo sozinho. ' : '')
+    + `Server save às ${hora} (horário do seu PC). Atualiza sozinho depois do server save; clique para atualizar agora.`;
   contarSS();
 }
 function contarSS() {
   if (!DIA) return;
   const falta = DIA.server_save_ms - Date.now();
   $('dia-ss').textContent = faltaTexto(falta);
-  $('f-ss').textContent = faltaTexto(falta);
   if (falta < -120000) { DIA = null; carregarDia(true); }  // passou o server save: busca o boss/criatura novos
 }
 setInterval(contarSS, 30000);
-$('f-atualizar').addEventListener('click', () => carregarDia(true));
+$('dia-tibia').addEventListener('click', () => { tentativasDia = 0; carregarDia(true); toast('Atualizando boss e criatura do dia...'); });
 
 // ---------- ferramentas ----------
 async function abrirFerramentas() {

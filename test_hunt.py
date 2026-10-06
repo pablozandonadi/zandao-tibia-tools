@@ -325,6 +325,33 @@ class TestTibiaInfo(unittest.TestCase):
         self.assertEqual(t.rashid(quando("2026-10-06T05:30")), "Liberty Bay")
         self.assertEqual(t.rashid(quando("2026-10-11T12:00")), "Carlin")    # domingo
 
+    def test_boss_do_dia_espera_o_tibiadata_trocar(self):
+        import tibia_info as t
+        hoje = t.dia_tibia().isoformat()
+        respostas = {"boss": "Boss Ontem", "cri": "Criatura Ontem"}
+        falso = lambda url, timeout=12: ({"boostable_bosses": {"boosted": {"name": respostas["boss"], "image_url": "b"}}}
+                                         if "boostablebosses" in url else
+                                         {"creatures": {"boosted": {"name": respostas["cri"], "image_url": "c"}}})
+        with tempfile.TemporaryDirectory() as tmp:
+            orig = (t.CACHE_PATH, t._get_json)
+            t.CACHE_PATH, t._get_json = os.path.join(tmp, "c.json"), falso
+            try:
+                with open(t.CACHE_PATH, "w", encoding="utf-8") as f:
+                    json.dump({"dia": "2000-01-01", "boss": {"nome": "Boss Ontem"}, "criatura": {"nome": "Criatura Ontem"}}, f)
+                r = t.boostados()
+                self.assertTrue(r.get("aguardando"))                       # ainda os de ontem: não grava
+                with open(t.CACHE_PATH, encoding="utf-8") as f:
+                    self.assertEqual(json.load(f)["dia"], "2000-01-01")
+                respostas.update(boss="Boss Novo", cri="Criatura Nova")      # o TibiaData trocou
+                r = t.boostados()
+                self.assertFalse(r.get("aguardando"))
+                with open(t.CACHE_PATH, encoding="utf-8") as f:
+                    self.assertEqual((r["boss"]["nome"], json.load(f)["dia"]), ("Boss Novo", hoje))
+                respostas.update(boss="X", cri="Y")                          # mesmo dia: usa o cache, não consulta
+                self.assertEqual(t.boostados()["boss"]["nome"], "Boss Novo")
+            finally:
+                t.CACHE_PATH, t._get_json = orig
+
     def test_shared_e_xp(self):
         import tibia_info as t
         self.assertEqual(t.faixa_shared(300), (200, 450))
