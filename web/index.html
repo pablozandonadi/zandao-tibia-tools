@@ -34,6 +34,12 @@
   .nav-item:nth-child(4) { animation-delay: .08s; }
   .nav-item:nth-child(5) { animation-delay: .12s; }
   .nav-item:nth-child(6) { animation-delay: .16s; }
+  .nav-item:nth-child(7) { animation-delay: .2s; }
+  .nav-item:nth-child(8) { animation-delay: .24s; }
+  .nav-item:nth-child(9) { animation-delay: .28s; }
+  .nav-item:nth-child(10) { animation-delay: .32s; }
+  .lista-backup { margin: 6px 0 12px; padding-left: 20px; font-size: .84rem; color: var(--ink-dim); line-height: 1.6; }
+  .lista-backup b { color: var(--ink); }
   .assinatura { font-size: .7rem; color: var(--ink-dim); line-height: 1.4; padding: 0 6px; margin-top: 14px; }
 
   /* ---- fixar por cima + transparência ---- */
@@ -407,6 +413,7 @@
     <div class="nav-item" data-pagina="ferr" title="Ferramentas">🧰<span class="txt"> Ferramentas</span></div>
     <div class="nav-item" data-pagina="prints" title="Prints">📸<span class="txt"> Prints</span></div>
     <div class="nav-item" data-pagina="macro" title="Simulated Keys">⌨️<span class="txt"> Simulated Keys</span></div>
+    <div class="nav-item" data-pagina="config" title="Configurações">⚙️<span class="txt"> Configurações</span></div>
     <div class="sobrepor">
       <button class="pino" id="j-topo" title="Fixar por cima do Tibia (fica visível mesmo clicando no jogo)">📌<span class="txt"> Fixar por cima</span></button>
       <label class="campo-label" for="j-opac"><span class="txt">Transparência </span><b id="j-opac-val">100%</b></label>
@@ -550,7 +557,7 @@
       <p class="texto">Separa as screenshots do Tibia em <b>Personagem / Tipo</b> (e por mês, se quiser). Prints que já foram organizados não são copiados de novo.</p>
       <div class="card calmo">
         <label class="campo-label" for="p-origem">Pasta de screenshots do Tibia</label>
-        <div class="linha-pasta"><input type="text" id="p-origem"><button class="btn btn-sm" data-escolher="p-origem">Procurar...</button></div>
+        <div class="linha-pasta"><input type="text" id="p-origem" placeholder="escolha a pasta onde o Tibia salva os prints"><button class="btn btn-sm" data-escolher="p-origem">Procurar...</button><button class="btn btn-sm" id="p-padrao" style="display:none">Usar pasta padrão do Tibia</button></div>
         <label class="campo-label" for="p-destino">Pasta de destino</label>
         <div class="linha-pasta"><input type="text" id="p-destino"><button class="btn btn-sm" data-escolher="p-destino">Procurar...</button></div>
         <div class="opcoes">
@@ -592,19 +599,47 @@
         </div>
       </div>
     </section>
+
+    <!-- ================= CONFIGURAÇÕES ================= -->
+    <section class="page" id="page-config">
+      <h1 class="titulo">Configurações</h1>
+      <div class="grid-ferr">
+        <div class="card" id="cfg-personagens">
+          <h2 class="sub">👤 Meus personagens</h2>
+          <p class="dica" style="margin:0 0 10px">O app confere cada personagem no tibia.com (nome, level, vocação e mundo). O escolhido em <b>Usar</b> é o "Seu personagem" do Hunt Analyser.</p>
+          <div id="pers-lista"></div>
+          <div style="margin-top:12px"><label class="campo-label" for="pers-novo">Adicionar personagem</label>
+            <div class="linha-pasta" style="margin:0"><input type="text" id="pers-novo" placeholder="nome do personagem no Tibia"><button class="btn btn-sm btn-primary" id="pers-add">Conferir e adicionar</button></div></div>
+          <p class="dica" id="pers-msg" style="margin:8px 0 0"></p>
+        </div>
+
+        <div class="card calmo">
+          <h2 class="sub">💾 Backup de tudo</h2>
+          <p class="texto" style="margin:0">Guarda num arquivo só tudo o que é seu, para levar para outro PC ou não perder nada:</p>
+          <ul class="lista-backup">
+            <li><b>Histórico de hunts</b> (com as transferências pagas)</li>
+            <li><b>Meus personagens</b></li>
+            <li><b>Embuimentos</b>: preços, o que você já tem e os escolhidos</li>
+            <li><b>Prints</b>: pastas e opções</li>
+            <li><b>Simulated Keys</b>: suas teclas</li>
+            <li><b>Janela</b>: fixar por cima e transparência</li>
+          </ul>
+          <div class="acoes"><button class="btn btn-primary" id="cfg-exportar">📤 Exportar tudo</button><button class="btn" id="cfg-importar">📥 Restaurar um backup</button></div>
+          <div id="cfg-backup-res"></div>
+          <p class="dica" style="margin:10px 0 0">Para mandar só algumas hunts para um amigo, use Exportar/Importar na aba <b>Histórico</b>.</p>
+        </div>
+
+        <div class="card calmo">
+          <h2 class="sub">ℹ️ Programa</h2>
+          <p class="texto" style="margin:0 0 10px">Zandao Tibia Tools <b id="cfg-versao">v—</b>. O programa procura versão nova sozinho toda vez que abre.</p>
+          <div class="acoes"><button class="btn" id="cfg-atualizar">🔄 Procurar atualização agora</button><button class="btn" id="cfg-pasta">📂 Abrir pasta dos dados</button></div>
+          <p class="dica" style="margin:10px 0 0">Na pasta dos dados ficam os seus arquivos (histórico, personagens, preços...). Desinstalar o programa não apaga esses arquivos.</p>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 <div class="toast" id="toast"></div>
-<div class="modal-fundo" id="modal-pers" style="display:none;">
-  <div class="modal-caixa" style="width:520px">
-    <div class="h-titulo" style="margin:0"><h3>Meus personagens</h3><button class="btn btn-sm" id="pers-fechar">Fechar</button></div>
-    <p class="dica" style="margin:0">O app confere cada personagem no tibia.com (nome, level, vocação e mundo). O escolhido em <b>Usar</b> é o "Seu personagem" do Hunt Analyser.</p>
-    <div id="pers-lista"></div>
-    <div><label class="campo-label" for="pers-novo">Adicionar personagem</label>
-      <div class="linha-pasta" style="margin:0"><input type="text" id="pers-novo" placeholder="nome do personagem no Tibia"><button class="btn btn-sm btn-primary" id="pers-add">Conferir e adicionar</button></div></div>
-    <p class="dica" id="pers-msg" style="margin:0"></p>
-  </div>
-</div>
 <div class="modal-fundo" id="modal-atualizacao" style="display:none;">
   <div class="modal-caixa">
     <h3>Nova versão disponível!</h3>
@@ -643,6 +678,7 @@ function irPara(pagina) {
   if (pagina === 'macro') atualizarMacro();
   if (pagina === 'hist') carregarHistorico();
   if (pagina === 'ferr') abrirFerramentas();
+  if (pagina === 'config') abrirConfiguracoes();
 }
 document.querySelectorAll('.nav-item').forEach((n) => n.addEventListener('click', () => irPara(n.dataset.pagina)));
 
@@ -1021,16 +1057,47 @@ function montarListaPersonagens() {
     montarListaPersonagens(); montarSeletorPersonagem();
   }));
 }
-$('h-pers-gerenciar').addEventListener('click', async () => {
-  $('pers-msg').textContent = 'Atualizando os levels no tibia.com...';
+$('h-pers-gerenciar').addEventListener('click', () => { irPara('config'); $('pers-novo').focus(); });
+async function abrirConfiguracoes() {
   montarListaPersonagens();
-  $('modal-pers').style.display = 'flex';
-  $('pers-novo').focus();
+  $('pers-msg').textContent = 'Atualizando os levels no tibia.com...';
   MEUS = await api.meus_personagens(true);
   $('pers-msg').textContent = '';
   montarListaPersonagens(); montarSeletorPersonagem();
+}
+
+// ---------- backup de tudo ----------
+$('cfg-exportar').addEventListener('click', async () => {
+  const r = await api.config_exportar();
+  if (r.ok) {
+    $('cfg-backup-res').innerHTML = `<div class="resultado-ferr ok">✔ Backup salvo com: ${esc(r.itens.join(', '))}.</div>`;
+    toast('Backup salvo!');
+  } else if (!r.cancelado) toast(r.erro, true);
 });
-$('pers-fechar').addEventListener('click', () => { $('modal-pers').style.display = 'none'; });
+$('cfg-importar').addEventListener('click', async () => {
+  const r = await api.config_ler_backup();
+  if (r.cancelado) return;
+  if (!r.ok) { $('cfg-backup-res').innerHTML = `<div class="resultado-ferr nao">${esc(r.erro)}</div>`; return; }
+  $('cfg-backup-res').innerHTML = `<div class="resultado-ferr">
+    Backup de <b>${esc((r.exportado_em || '').replace('T', ' ').slice(0, 16))}</b>${r.versao_app ? ` (v${esc(r.versao_app)})` : ''} com:
+    <ul class="lista-backup" style="margin:4px 0 8px">${r.itens.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
+    <b>Restaurar substitui</b> esses itens pelos do backup (os atuais ficam guardados como cópia na pasta dos dados).
+    <div class="acoes" style="margin-top:10px"><button class="btn btn-danger" id="cfg-restaurar">Restaurar agora</button><button class="btn" id="cfg-cancelar">Cancelar</button></div></div>`;
+  $('cfg-cancelar').addEventListener('click', () => { $('cfg-backup-res').innerHTML = ''; });
+  $('cfg-restaurar').addEventListener('click', async () => {
+    const f = await api.config_restaurar();
+    if (!f.ok) { toast(f.erro, true); return; }
+    toast('Backup restaurado! Recarregando...');
+    setTimeout(() => location.reload(), 1200);  // recarrega a tela com os dados restaurados
+  });
+});
+$('cfg-atualizar').addEventListener('click', async () => {
+  $('cfg-atualizar').disabled = true;
+  const achou = await checarAtualizacao();
+  $('cfg-atualizar').disabled = false;
+  if (!achou) toast('Você já está na versão mais nova.');
+});
+$('cfg-pasta').addEventListener('click', () => api.config_abrir_pasta());
 async function adicionarPersonagem() {
   const nome = $('pers-novo').value.trim();
   if (!nome) return;
@@ -1722,8 +1789,8 @@ function sharedHtml(r) {
 // ================= atualização automática =================
 async function checarAtualizacao() {
   let info = null;
-  try { info = await api.verificar_atualizacao(); } catch (e) { return; }
-  if (!info) return;
+  try { info = await api.verificar_atualizacao(); } catch (e) { return false; }
+  if (!info) return false;
   $('atualizacao-texto').textContent = `Tem uma versão nova do Zandao Tibia Tools: ${info.versao} (você está na v${info.versao_atual}). ` +
     'Baixar e instalar agora? O programa fecha durante a instalação. Seu histórico, preços e teclas continuam salvos.';
   $('atualizacao-notas').textContent = info.notas || '';
@@ -1731,6 +1798,7 @@ async function checarAtualizacao() {
   $('atualizacao-progresso').style.display = 'none';
   $('atualizacao-instalar').disabled = false;
   $('modal-atualizacao').style.display = 'flex';
+  return true;
 }
 $('atualizacao-depois').addEventListener('click', () => { $('modal-atualizacao').style.display = 'none'; });
 $('atualizacao-instalar').addEventListener('click', async () => {
@@ -1778,12 +1846,17 @@ async function iniciar() {
   montarSeletor(); montarItens(); calcular();
 
   $('p-origem').value = d.prints['print-dir'] || '';
+  if (d.pasta_padrao_tibia) {
+    $('p-padrao').style.display = '';
+    $('p-padrao').title = d.pasta_padrao_tibia;
+    $('p-padrao').addEventListener('click', () => { $('p-origem').value = d.pasta_padrao_tibia; toast('Pasta padrão do Tibia escolhida.'); });
+  }
   $('p-destino').value = d.prints.destination || '';
   setModo(d.prints.copy !== false);
   $('p-mes').checked = !!d.prints['by-month'];
   $('p-abrir').checked = !!d.prints['open-when-done'];
   huntIniciar();
-  api.versao_app().then((v) => { $('versao-app').textContent = 'v' + v; });
+  api.versao_app().then((v) => { $('versao-app').textContent = 'v' + v; $('cfg-versao').textContent = 'v' + v; });
   carregarDia();
   setTimeout(checarAtualizacao, 2500);
 }

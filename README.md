@@ -1,6 +1,6 @@
 # Zandao Tibia Tools
 
-Um programa só para quem joga Tibia, com seis abas:
+Um programa só para quem joga Tibia, com sete abas:
 
 | Aba | O que faz |
 | --- | --- |
@@ -10,6 +10,7 @@ Um programa só para quem joga Tibia, com seis abas:
 | **Ferramentas** | Boss e criatura do dia, Rashid, server save, calculadora de Shared XP e "Quando eu upo?". |
 | **Prints** | Organiza as screenshots do Tibia em `Personagem / Tipo (/ Mês)`. |
 | **Simulated Keys** | Segurar uma tecla repete outra no Tibia (segurar F → F1 etc.). Liga, desliga e mostra se está rodando. |
+| **Configurações** | Meus personagens, backup de tudo (exportar/restaurar) e versão/atualização. |
 
 Os projetos antigos (`zandao embuimentos`, `tibia-screenshot-organizer-1.0.3`, `macro ek`, `divisor de loot`, `tibiadamage`) continuam
 funcionando separados. Esta pasta tem as suas próprias cópias.
@@ -110,7 +111,16 @@ Tudo o que você digita fica salvo em `dados_embuimentos.json`. Para adicionar o
 
 ## Prints
 
-As mesmas opções do Tibia Screenshot Organizer, salvas no `settings.json` desta pasta.
+As mesmas opções do Tibia Screenshot Organizer, salvas no `settings.json`. Quem instala começa com as duas pastas em branco; **Usar pasta padrão do Tibia** preenche a pasta de screenshots num clique.
+
+## Configurações
+
+- **Meus personagens**: adicionar (conferido no tibia.com), usar e remover. A ⚙ do Hunt Analyser abre aqui.
+- **Backup de tudo**: **Exportar tudo** gera um `.json` com histórico de hunts, meus personagens, embuimentos
+  (preços, o que já tem, escolhidos), pastas dos prints, teclas do Simulated Keys e fixar por cima/transparência.
+  **Restaurar um backup** mostra o que tem no arquivo e, ao confirmar, substitui esses itens (os atuais ficam
+  guardados como `<arquivo>.antes-do-backup` na pasta dos dados).
+- **Programa**: versão, procurar atualização agora e abrir a pasta dos dados.
 
 ## Simulated Keys
 

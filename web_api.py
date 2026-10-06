@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 import webview
 
 import atualizacoes
+import backup
 import damage_core
 import embuimentos as emb
 import historico
@@ -248,6 +249,7 @@ class API:
                 "inventario": dados.get("inventario", {}),
             },
             "prints": prints,
+            "pasta_padrao_tibia": organizer.PASTA_PADRAO_TIBIA if os.path.isdir(organizer.PASTA_PADRAO_TIBIA) else "",
         }
 
     # ================= embuimentos =================
@@ -733,6 +735,62 @@ class API:
             r.update({"horas": round(horas, 1), "hunts_equiv": round(horas * 60 / dur_media, 1) if dur_media else None,
                       "duracao_media_min": round(dur_media) if dur_media else None})
         return r
+
+    # ================= configurações: backup de tudo =================
+    def _caminhos_backup(self):
+        return {"historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
+                "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH,
+                "teclas": os.path.join(os.path.dirname(MACRO_PATH), "tibia_macro_config.ini")}
+
+    def config_exportar(self):
+        pacote = backup.exportar(self._caminhos_backup(), VERSAO_APP)
+        if not pacote["arquivos"]:
+            return {"ok": False, "erro": "Ainda não há nada para guardar no backup."}
+        tipo = getattr(getattr(webview, "FileDialog", None), "SAVE", None) or webview.SAVE_DIALOG
+        hoje = pacote["exportado_em"][:10]
+        r = self._window.create_file_dialog(tipo, save_filename=f"zandao-tibia-tools-backup-{hoje}.json",
+                                            file_types=("Backup do Zandao Tibia Tools (*.json)",))
+        if not r:
+            return {"ok": False, "cancelado": True}
+        caminho = r if isinstance(r, str) else r[0]
+        try:
+            with open(caminho, "w", encoding="utf-8") as f:
+                json.dump(pacote, f, ensure_ascii=False, indent=1)
+        except OSError as e:
+            return {"ok": False, "erro": str(e)}
+        return {"ok": True, "itens": backup.resumo(pacote), "caminho": caminho}
+
+    def config_ler_backup(self):
+        """Escolhe o arquivo e mostra o que tem nele (a restauração só acontece em config_restaurar)."""
+        tipo = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
+        r = self._window.create_file_dialog(tipo, file_types=("Backup do Zandao Tibia Tools (*.json)", "Todos os arquivos (*.*)"))
+        if not r:
+            return {"ok": False, "cancelado": True}
+        try:
+            with open(r[0], "r", encoding="utf-8") as f:
+                dados = json.load(f)
+        except (OSError, json.JSONDecodeError) as e:
+            return {"ok": False, "erro": f"Não consegui ler o arquivo: {e}"}
+        if not isinstance(dados, dict) or dados.get("formato") != backup.FORMATO:
+            return {"ok": False, "erro": "Esse arquivo não é um backup do Zandao Tibia Tools. "
+                                         "(Para importar só hunts, use Importar na aba Histórico.)"}
+        self._backup_pendente = dados
+        return {"ok": True, "itens": backup.resumo(dados), "exportado_em": dados.get("exportado_em", ""),
+                "versao_app": dados.get("versao_app", "")}
+
+    def config_restaurar(self):
+        dados = getattr(self, "_backup_pendente", None)
+        if not dados:
+            return {"ok": False, "erro": "Escolha o arquivo de backup de novo."}
+        try:
+            feitos = backup.importar(dados, self._caminhos_backup())
+        except (OSError, ValueError, KeyError) as e:
+            return {"ok": False, "erro": str(e)}
+        self._backup_pendente = None
+        return {"ok": True, "itens": feitos}
+
+    def config_abrir_pasta(self):
+        return self.abrir_pasta(BASE_DIR)
 
     # ================= atualização automática (GitHub Releases, ver atualizacoes.py) =================
     def versao_app(self):

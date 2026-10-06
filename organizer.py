@@ -20,10 +20,14 @@ else:
 
 SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
 
+# Onde o Tibia costuma salvar os prints neste PC. Só é usado quando a pessoa clica em
+# "Usar pasta padrão do Tibia": quem instala o app começa com as duas pastas em branco.
+PASTA_PADRAO_TIBIA = os.path.join(
+    os.environ.get("LOCALAPPDATA", ""), "Tibia", "packages", "Tibia", "screenshots"
+).replace("\\", "/")
+
 DEFAULTS = {
-    "print-dir": os.path.join(
-        os.environ.get("LOCALAPPDATA", ""), "Tibia", "packages", "Tibia", "screenshots"
-    ).replace("\\", "/"),
+    "print-dir": "",
     "destination": "",
     "copy": True,
     "by-month": False,
@@ -117,10 +121,12 @@ def organizar(cfg, log):
     origem = cfg["print-dir"]
     destino = cfg["destination"]
 
+    if not origem:
+        raise ValueError('Escolha a pasta de screenshots do Tibia (ou clique em "Usar pasta padrão do Tibia").')
     if not os.path.isdir(origem):
         raise ValueError(f"Pasta do Tibia não encontrada:\n{origem}")
     if not destino:
-        raise ValueError("Escolha a pasta de destino na aba Configurações.")
+        raise ValueError("Escolha a pasta de destino.")
 
     os.makedirs(destino, exist_ok=True)
     operacao = shutil.copy2 if cfg["copy"] else shutil.move

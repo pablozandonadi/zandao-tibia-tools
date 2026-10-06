@@ -364,6 +364,41 @@ class TestMeusPersonagens(unittest.TestCase):
             self.assertEqual(d["lista"][0]["level"], 490)
 
 
+class TestBackup(unittest.TestCase):
+    def test_exporta_e_restaura_tudo(self):
+        import backup
+        with tempfile.TemporaryDirectory() as tmp:
+            orig = {k: os.path.join(tmp, "a", n) for k, n in (("historico", "h.json"), ("personagens", "p.json"),
+                    ("prints", "s.json"), ("teclas", "t.ini"), ("janela", "j.json"))}
+            os.makedirs(os.path.join(tmp, "a"))
+            json.dump({"formato": historico.FORMATO, "hunts": [{"id": "x"}, {"id": "y"}]}, open(orig["historico"], "w", encoding="utf-8"))
+            json.dump({"lista": [{"nome": "Zandao"}], "atual": "Zandao"}, open(orig["personagens"], "w", encoding="utf-8"))
+            json.dump({"print-dir": "C:/x", "destination": "D:/y"}, open(orig["prints"], "w", encoding="utf-8"))
+            ini = "[Config]\r\nBind1_Tecla=f\r\n".encode("utf-16")      # o AutoHotkey grava em UTF-16
+            open(orig["teclas"], "wb").write(ini)
+            pacote = json.loads(json.dumps(backup.exportar(orig, "9.9.9")))  # passa por JSON, como no arquivo
+            self.assertEqual(sorted(pacote["arquivos"]), ["historico", "personagens", "prints", "teclas"])  # janela não existia
+            self.assertIn("Histórico de hunts (2 hunts)", backup.resumo(pacote))
+
+            dest = {k: c.replace(os.sep + "a" + os.sep, os.sep + "b" + os.sep) for k, c in orig.items()}
+            os.makedirs(os.path.join(tmp, "b"))
+            json.dump({"print-dir": "antigo"}, open(dest["prints"], "w", encoding="utf-8"))
+            feitos = backup.importar(pacote, dest)
+            self.assertEqual(len(feitos), 4)
+            self.assertEqual(open(dest["teclas"], "rb").read(), ini)          # bytes idênticos
+            self.assertEqual(json.load(open(dest["prints"], encoding="utf-8"))["destination"], "D:/y")
+            self.assertEqual(json.load(open(dest["prints"] + ".antes-do-backup", encoding="utf-8"))["print-dir"], "antigo")
+            with self.assertRaises(ValueError):
+                backup.importar({"formato": historico.FORMATO, "hunts": []}, dest)  # export só de hunts não é backup
+
+    def test_prints_comecam_em_branco(self):
+        import organizer
+        self.assertEqual((organizer.DEFAULTS["print-dir"], organizer.DEFAULTS["destination"]), ("", ""))
+        self.assertTrue(organizer.PASTA_PADRAO_TIBIA.endswith("Tibia/packages/Tibia/screenshots"))
+        with self.assertRaises(ValueError):
+            organizer.organizar({**organizer.DEFAULTS, "destination": "x"}, print)
+
+
 class TestApiHunt(unittest.TestCase):
     """Fluxo da tela: analisar salva sozinho; limpar caixa não apaga o histórico; outra hunt vira outra entrada."""
 
