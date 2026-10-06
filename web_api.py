@@ -18,6 +18,7 @@ import historico
 import hunt
 import monstros
 import organizer
+import personagens
 import tibia_info
 from versao import VERSAO_APP
 
@@ -374,6 +375,27 @@ class API:
         return self.abrir_pasta(os.path.dirname(MACRO_PATH))
 
     # ================= hunt analyser (loot split + dano) =================
+    # ================= meus personagens (conferidos no tibia.com) =================
+    def meus_personagens(self, atualizar=False):
+        d = personagens.carregar()
+        if not d["lista"]:
+            antigo = (self.hunt_carregar()["entrada"] or {}).get("personagem")
+            if antigo:
+                personagens.adicionar(antigo)  # migra o nome que o app já lembrava (se existir no tibia.com)
+        if atualizar:
+            personagens.atualizar_levels()
+        return personagens.carregar()
+
+    def personagem_adicionar(self, nome):
+        d, erro = personagens.adicionar(nome)
+        return {"erro": erro} if erro else d
+
+    def personagem_remover(self, nome):
+        return personagens.remover(nome)
+
+    def personagem_usar(self, nome):
+        return personagens.usar(nome)
+
     def hunt_carregar(self):
         """Rascunho da última hunt (textos colados) para reabrir o app sem perder nada."""
         try:

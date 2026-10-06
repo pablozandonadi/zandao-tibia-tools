@@ -338,6 +338,32 @@ class TestTibiaInfo(unittest.TestCase):
         self.assertEqual(t.level_da_xp(15_694_799), 99)
 
 
+class TestMeusPersonagens(unittest.TestCase):
+    def test_adicionar_trocar_remover(self):
+        import personagens as ps
+        fake = {"zandao": {"nome": "Zandao", "level": 483, "vocacao": "Master Sorcerer", "mundo": "Rasteibra"},
+                "knight alfa": {"nome": "Knight Alfa", "level": 600, "vocacao": "Elite Knight", "mundo": "Antica"}}
+        buscar = lambda n: fake.get(n.strip().lower())
+        with tempfile.TemporaryDirectory() as tmp:
+            arq = os.path.join(tmp, "p.json")
+            d, erro = ps.adicionar("zandao", arq, buscar)          # grafia certa vem do tibia.com
+            self.assertIsNone(erro)
+            self.assertEqual((d["atual"], d["lista"][0]["level"]), ("Zandao", 483))
+            d, erro = ps.adicionar("Nao Existe", arq, buscar)
+            self.assertIsNone(d)
+            self.assertIn("Não achei", erro)
+            ps.adicionar("Knight Alfa", arq, buscar)
+            self.assertEqual(ps.carregar(arq)["atual"], "Zandao")  # adicionar outro não troca o em uso
+            self.assertEqual(ps.usar("Knight Alfa", arq)["atual"], "Knight Alfa")
+            ps.adicionar("ZANDAO", arq, buscar)                     # de novo: atualiza, não duplica
+            self.assertEqual(len(ps.carregar(arq)["lista"]), 2)
+            d = ps.remover("Knight Alfa", arq)
+            self.assertEqual((d["atual"], [p["nome"] for p in d["lista"]]), ("Zandao", ["Zandao"]))
+            fake["zandao"] = {**fake["zandao"], "level": 490}         # upou: atualizar busca de novo
+            d = ps.atualizar_levels(arq, forcar=True, buscar_varios=lambda ns: {n: buscar(n) for n in ns})
+            self.assertEqual(d["lista"][0]["level"], 490)
+
+
 class TestApiHunt(unittest.TestCase):
     """Fluxo da tela: analisar salva sozinho; limpar caixa não apaga o histórico; outra hunt vira outra entrada."""
 

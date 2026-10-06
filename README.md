@@ -21,7 +21,9 @@ funcionando separados. Esta pasta tem as suas próprias cópias.
    **📋 Colar do Tibia**: os 3 cards são preenchidos de uma vez. O Windows só guarda a última cópia, então o
    programa guarda cada texto do Tibia copiado enquanto está aberto (só textos do Tibia; qualquer outra cópia é
    ignorada e nunca é salva). Também dá para colar direto nas caixas (Ctrl+V).
-2. Em **Seu personagem**, escolha quem é você: o Hunting Analyser fica ligado a esse membro da party.
+2. Em **Seu personagem**, escolha quem é você (o Hunting Analyser fica ligado a esse membro da party). Clique em
+   **⚙** para cadastrar seus personagens: o app confere no tibia.com e guarda nome, level, vocação e mundo (em
+   `meus_personagens.json`). Dá para ter vários e trocar a qualquer momento; o escolhido fica salvo.
 3. A análise sai sozinha:
    - **Resumo da hunt**: duração, XP e Raw XP (e por hora), balance, lucro por membro, balance/h, top dano, despesas.
    - **Membros da party**: dano e cura (com %), loot, supplies, balance e quanto cada um recebe ou paga.

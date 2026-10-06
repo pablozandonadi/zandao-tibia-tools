@@ -365,6 +365,15 @@
   .shared-linha.ok { border-color: var(--good); }
   .shared-linha.nao { border-color: var(--bad); }
 
+  /* ---- meus personagens ---- */
+  .linha-pers { display: flex; gap: 6px; }
+  .linha-pers select { flex: 1; min-width: 0; }
+  .pers-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 2px solid var(--ink-dim); border-radius: 9px; }
+  .pers-item + .pers-item { margin-top: 6px; }
+  .pers-item.atual { border-color: var(--accent); }
+  .pers-item .info { flex: 1; min-width: 0; }
+  .pers-item .info b { font-size: .9rem; }
+
   /* ---- atualização ---- */
   .modal-fundo { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
   .modal-caixa { background: var(--surface); border: 2.5px solid var(--ink); border-radius: 12px; box-shadow: 6px 6px 0 var(--accent);
@@ -438,7 +447,9 @@
       <div class="card calmo">
         <div class="hunt-topo">
           <div><label class="campo-label" for="h-nome">Nome da hunt</label><input type="text" id="h-nome" placeholder="ex.: norfectarus pt 4x"></div>
-          <div><label class="campo-label" for="h-personagem">Seu personagem</label><input type="text" id="h-personagem" list="h-personagens" placeholder="ex.: Zandao"><datalist id="h-personagens"></datalist></div>
+          <div><label class="campo-label" for="h-personagem">Seu personagem</label>
+            <div class="linha-pers"><select id="h-personagem"></select><button class="btn btn-sm" id="h-pers-gerenciar" title="Adicionar, trocar ou remover personagens">⚙</button></div>
+            <div class="dica" id="h-pers-info" style="margin-top:4px"></div></div>
           <div class="acoes"><button class="btn btn-primary" id="h-colar" title="Cola o que você copiou no Tibia (botão Copy do analyser) direto na caixa certa">📋 Colar do Tibia</button><button class="btn" id="h-nova">✚ Nova hunt</button><button class="btn btn-primary" id="h-salvar" disabled>💾 Salvar</button></div>
         </div>
         <p class="dica" style="margin:12px 0 0;line-height:1.5">Com o programa aberto, clique em <b>Copy</b> no Tibia no <b>Party Hunt Analyser</b>, no <b>Hunting Analyser</b> e no <b>Input Analyser</b> (Received Damage), um depois do outro, e depois em <b>Colar do Tibia</b>: os 3 cards são preenchidos de uma vez (o app guarda cada cópia e reconhece qual é qual). Também dá para colar direto nas caixas (Ctrl+V). A hunt só vai para o Histórico quando você clicar em <b>💾 Salvar</b>.</p>
@@ -580,6 +591,16 @@
   </main>
 </div>
 <div class="toast" id="toast"></div>
+<div class="modal-fundo" id="modal-pers" style="display:none;">
+  <div class="modal-caixa" style="width:520px">
+    <div class="h-titulo" style="margin:0"><h3>Meus personagens</h3><button class="btn btn-sm" id="pers-fechar">Fechar</button></div>
+    <p class="dica" style="margin:0">O app confere cada personagem no tibia.com (nome, level, vocação e mundo). O escolhido em <b>Usar</b> é o "Seu personagem" do Hunt Analyser.</p>
+    <div id="pers-lista"></div>
+    <div><label class="campo-label" for="pers-novo">Adicionar personagem</label>
+      <div class="linha-pasta" style="margin:0"><input type="text" id="pers-novo" placeholder="nome do personagem no Tibia"><button class="btn btn-sm btn-primary" id="pers-add">Conferir e adicionar</button></div></div>
+    <p class="dica" id="pers-msg" style="margin:0"></p>
+  </div>
+</div>
 <div class="modal-fundo" id="modal-atualizacao" style="display:none;">
   <div class="modal-caixa">
     <h3>Nova versão disponível!</h3>
@@ -859,7 +880,7 @@ function agendarAnalise(ms = 500) { clearTimeout(tAnalise); tAnalise = setTimeou
 
 function preencherHunt() {
   $('h-nome').value = H.entrada.nome || '';
-  $('h-personagem').value = H.entrada.personagem || '';
+  montarSeletorPersonagem();
   TIPOS.forEach((t) => { $('h-' + t).value = H.entrada[t] || ''; });
   montarDespesas();
 }
@@ -957,7 +978,72 @@ $('h-salvar').addEventListener('click', async () => {
   atualizarSalvar();
   toast(nova ? 'Hunt salva no Histórico!' : 'Alterações salvas no Histórico!');
 });
-$('h-personagem').addEventListener('change', () => { H.entrada.personagem = $('h-personagem').value.trim(); analisarHunt(); });
+$('h-personagem').addEventListener('change', async () => {
+  H.entrada.personagem = $('h-personagem').value;
+  if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) MEUS = await api.personagem_usar(H.entrada.personagem);
+  montarSeletorPersonagem();
+  analisarHunt();
+});
+
+// ---------- meus personagens ----------
+let MEUS = { lista: [], atual: '' };
+const acharMeu = (nome) => MEUS.lista.find((p) => p.nome.toLowerCase() === (nome || '').toLowerCase());
+function montarSeletorPersonagem() {
+  const atual = H.entrada.personagem || '';
+  const meu = acharMeu(atual);
+  const opts = ['<option value="">— nenhum —</option>', ...MEUS.lista.map((p) => `<option value="${esc(p.nome)}">${esc(p.nome)}</option>`)];
+  if (atual && !meu) opts.push(`<option value="${esc(atual)}">${esc(atual)} (não cadastrado)</option>`);
+  $('h-personagem').innerHTML = opts.join('');
+  $('h-personagem').value = meu ? meu.nome : atual;
+  $('h-pers-info').textContent = meu ? `Level ${meu.level} · ${meu.vocacao || '?'} · ${meu.mundo || '?'}`
+    : MEUS.lista.length ? (atual ? 'Não cadastrado: clique em ⚙ para conferir no tibia.com' : '') : 'Clique em ⚙ para cadastrar seus personagens';
+}
+function montarListaPersonagens() {
+  $('pers-lista').innerHTML = MEUS.lista.length ? MEUS.lista.map((p) => `<div class="pers-item ${p.nome === MEUS.atual ? 'atual' : ''}">
+      <div class="info"><b>${esc(p.nome)}</b><div class="dica">Level ${p.level} · ${esc(p.vocacao || '?')} · ${esc(p.mundo || '?')}</div></div>
+      ${p.nome === MEUS.atual ? '<span class="chip chip-good">em uso</span>' : `<button class="btn btn-sm" data-pers-usar="${esc(p.nome)}">Usar</button>`}
+      <button class="btn btn-sm btn-danger" data-pers-remover="${esc(p.nome)}" title="Remover da lista">✕</button></div>`).join('')
+    : '<div class="dica">Nenhum personagem ainda. Adicione o seu abaixo.</div>';
+  $('pers-lista').querySelectorAll('[data-pers-usar]').forEach((b) => b.addEventListener('click', async () => {
+    MEUS = await api.personagem_usar(b.dataset.persUsar);
+    H.entrada.personagem = MEUS.atual;
+    montarListaPersonagens(); montarSeletorPersonagem();
+    if (H.a) analisarHunt();
+  }));
+  $('pers-lista').querySelectorAll('[data-pers-remover]').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm(`Remover ${b.dataset.persRemover} da sua lista? (As hunts salvas não mudam.)`)) return;
+    MEUS = await api.personagem_remover(b.dataset.persRemover);
+    if (!acharMeu(H.entrada.personagem)) H.entrada.personagem = MEUS.atual;
+    montarListaPersonagens(); montarSeletorPersonagem();
+  }));
+}
+$('h-pers-gerenciar').addEventListener('click', async () => {
+  $('pers-msg').textContent = 'Atualizando os levels no tibia.com...';
+  montarListaPersonagens();
+  $('modal-pers').style.display = 'flex';
+  $('pers-novo').focus();
+  MEUS = await api.meus_personagens(true);
+  $('pers-msg').textContent = '';
+  montarListaPersonagens(); montarSeletorPersonagem();
+});
+$('pers-fechar').addEventListener('click', () => { $('modal-pers').style.display = 'none'; });
+async function adicionarPersonagem() {
+  const nome = $('pers-novo').value.trim();
+  if (!nome) return;
+  $('pers-add').disabled = true;
+  $('pers-msg').textContent = `Conferindo "${nome}" no tibia.com...`;
+  const r = await api.personagem_adicionar(nome);
+  $('pers-add').disabled = false;
+  if (r.erro) { $('pers-msg').textContent = r.erro; return; }
+  const novo = r.lista.find((p) => p.nome.toLowerCase() === nome.toLowerCase());
+  MEUS = r;
+  if (!H.entrada.personagem && MEUS.atual) H.entrada.personagem = MEUS.atual;
+  $('pers-novo').value = '';
+  $('pers-msg').textContent = novo ? `✔ ${novo.nome} adicionado: level ${novo.level}, ${novo.vocacao}, ${novo.mundo}.` : '';
+  montarListaPersonagens(); montarSeletorPersonagem();
+}
+$('pers-add').addEventListener('click', adicionarPersonagem);
+$('pers-novo').addEventListener('keydown', (e) => { if (e.key === 'Enter') adicionarPersonagem(); });
 
 $('h-nova').addEventListener('click', () => {
   if (temAlteracao() && !confirm(H.id ? 'As alterações desta hunt não foram salvas. Descartar e começar outra?'
@@ -1019,7 +1105,6 @@ async function analisarHunt() {
   H.id = r.id; H.assinatura = r.assinatura; H.a = a; H.texto = r.texto;
   if (mudouHunt) { H.dano = null; H.shared = null; }
   if (!(H.entrada.nome || '').trim()) { H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
-  $('h-personagens').innerHTML = (a.personagens || []).map((x) => `<option value="${esc(x)}">`).join('');
   montarDespesas();
   renderHunt();
 }
@@ -1234,9 +1319,11 @@ function ligarHunt() {
 // Só o "Seu personagem" é lembrado, para não ter que digitar toda vez.
 async function huntIniciar() {
   const r = await api.hunt_carregar();
-  H.entrada.personagem = (r.entrada && r.entrada.personagem) || '';
+  MEUS = await api.meus_personagens();
+  H.entrada.personagem = MEUS.atual || (r.entrada && r.entrada.personagem) || '';
   H.id = null;
   preencherHunt();
+  api.meus_personagens(true).then((d) => { MEUS = d; montarSeletorPersonagem(); });  // atualiza levels sem travar
   mostrarCapturas(await api.hunt_monitor_iniciar());
 }
 
@@ -1567,8 +1654,9 @@ $('f-atualizar').addEventListener('click', () => carregarDia(true));
 async function abrirFerramentas() {
   contarSS();
   const h = await api.hunt_historico('', '', '');
-  $('f-up-nomes').innerHTML = h.personagens.map((p) => `<option value="${esc(p)}">`).join('');
-  if (!$('f-up-nome').value && H.entrada.personagem) $('f-up-nome').value = H.entrada.personagem;
+  const nomes = [...new Set([...MEUS.lista.map((p) => p.nome), ...h.personagens])];
+  $('f-up-nomes').innerHTML = nomes.map((p) => `<option value="${esc(p)}">`).join('');
+  if (!$('f-up-nome').value && (MEUS.atual || H.entrada.personagem)) $('f-up-nome').value = MEUS.atual || H.entrada.personagem;
 }
 let tShared = null;
 $('f-levels').addEventListener('input', () => {
