@@ -46,8 +46,12 @@ Uma hunt só vai para o Histórico quando você clica em **💾 Salvar** (ao lad
 qualquer mudança (nome, despesas, quem saiu da divisão, "pago") aparece como "alterações não salvas" até você
 clicar em **💾 Salvar alterações**. O Hunt Analyser abre sempre limpo; só o "Seu personagem" é lembrado.
 
-- **Tamanho da party**: filtra Solo, PT 2, PT 3, PT 4 ou PT 5+.
-- **Comparar**: marque 2 a 4 hunts e clique em **⚖️ Comparar**. A tabela mostra tudo normalizado por hora e por
+- **Tamanho da party**: filtra Solo, PT 2, PT 3, PT 4 ou PT 5+. **Spawn (monstro)**: só as hunts com aquele monstro.
+- **📊 Comparar todas**: todas as hunts do filtro atual (30, 50, quantas forem) numa tabela, uma hunt por linha.
+  Clique no título de uma coluna para ordenar e ver a evolução dela no gráfico (com a linha da média). Verde = acima
+  da média, vermelho = abaixo; no rodapé, média, melhor e pior. Embaixo, o ranking por jogador somando todas as
+  hunts (clique numa coluna para ordenar, maior primeiro). Clique no nome de uma hunt para abri-la.
+- **⚖️ Comparar** (lado a lado): marque 2 a 4 hunts e clique em **⚖️ Comparar**. A tabela mostra tudo normalizado por hora e por
   membro (lucro, balance, loot, supplies, XP, dano e cura), quem bateu, curou, gastou e lootou mais em cada hunt,
   e a seção **Por jogador** mostra cada um nas hunts comparadas. ★ marca o melhor valor; o veredito diz qual hunt
   rendeu mais, e os avisos dizem quando a party, a duração, o personagem ou o spawn são diferentes.

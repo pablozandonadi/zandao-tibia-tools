@@ -570,13 +570,13 @@ class API:
         historico.atualizar(id_, pagos=pagos)
         return True
 
-    def hunt_historico(self, personagem="", tamanho=""):
+    def hunt_historico(self, personagem="", tamanho="", monstro=""):
         todas = historico.ordenar(historico.carregar())
         personagens = sorted({h.get("personagem") for h in todas if h.get("personagem")}, key=str.lower)
-        lista = [h for h in todas if (not personagem or historico.do_personagem(h, personagem))
-                 and historico.do_tamanho(h, tamanho)]
+        lista = historico.filtrar(todas, personagem, tamanho, monstro)
         return {
             "personagens": personagens,
+            "monstros": [{"nome": m, "hunts": q} for m, q in historico.opcoes_monstros(todas)],
             "totais": historico.totais(lista),
             "hunts": [{
                 "id": h["id"], "nome": h.get("nome"), "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
@@ -586,6 +586,13 @@ class API:
                 "importada": bool(h.get("importado_em")),
             } for h in lista],
         }
+
+    def hunt_panorama(self, personagem="", tamanho="", monstro=""):
+        """Comparar todas: as hunts do filtro atual numa tabela/ranking."""
+        lista = historico.filtrar(historico.carregar(), personagem, tamanho, monstro)
+        if len(lista) < 2:
+            return {"erro": "Precisa de pelo menos 2 hunts salvas (com esse filtro) para comparar."}
+        return historico.panorama(lista)
 
     def hunt_comparar(self, ids):
         """Compara de 2 a 4 hunts do histórico (na ordem em que foram escolhidas)."""

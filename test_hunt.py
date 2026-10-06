@@ -277,6 +277,38 @@ class TestComparar(unittest.TestCase):
         self.assertTrue(historico.do_tamanho({"resumo": {}}, "1"))
 
 
+class TestPanorama(unittest.TestCase):
+    def _reg(self, id_, inicio, duracao, k, mons):
+        party = (PARTY.replace("2026-10-05, 10:19:15", inicio).replace("Session: 02:47h", f"Session: {duracao}")
+                 .replace("12,846,796", f"{12846796 * k:,}"))
+        e = {"party": party, "solo": "", "dano": ""}
+        a = hunt.montar(e)
+        return {"id": id_, "nome": id_, "entrada": e, "resumo": a["resumo"], "data_hunt": a["data"],
+                "monstros": [{"nome": m, "kills": 10} for m in mons]}
+
+    def test_muitas_hunts(self):
+        hs = [self._reg(f"h{i}", f"2026-10-0{i}, 10:00:00", "01:00h" if i % 2 else "02:00h", i, ["gloom maws", "varg"])
+              for i in range(1, 8)]
+        hs.append(self._reg("dragoes", "2026-10-09, 10:00:00", "01:00h", 1, ["dragon lord"]))
+        r = historico.panorama(hs)
+        self.assertEqual(r["total"]["hunts"], 8)
+        self.assertEqual([l["id"] for l in r["linhas"]][0], "h1")  # em ordem de data (para o gráfico)
+        lucros = [l["lucro_membro_h"] for l in r["linhas"]]
+        st = r["stats"]["lucro_membro_h"]
+        self.assertEqual((st["melhor"], st["pior"], st["media"]), (max(lucros), min(lucros), sum(lucros) // 8))
+        self.assertEqual(r["stats"]["supplies_membro_h"]["melhor"], min(l["supplies_membro_h"] for l in r["linhas"]))
+        knight = next(j for j in r["jogadores"] if j["nome"] == "Knight Alfa")
+        self.assertEqual(knight["hunts"], 8)
+        self.assertEqual(knight["dano"], sum(12846796 * k for k in range(1, 8)) + 12846796)
+        self.assertEqual(r["jogadores"][0]["nome"], "Knight Alfa")  # maior dano/h primeiro
+
+        # filtro por spawn: nomes no plural do Hunting Analyser viram o nome do monstro
+        self.assertEqual(historico.opcoes_monstros(hs)[0], ("Gloom Maw", 7))
+        self.assertEqual(len(historico.filtrar(hs, monstro="Gloom Maw")), 7)
+        self.assertEqual([h["id"] for h in historico.filtrar(hs, monstro="Dragon Lord")], ["dragoes"])
+        self.assertEqual(len(historico.filtrar(hs, tamanho="4", monstro="Varg")), 7)
+
+
 class TestApiHunt(unittest.TestCase):
     """Fluxo da tela: analisar salva sozinho; limpar caixa não apaga o histórico; outra hunt vira outra entrada."""
 

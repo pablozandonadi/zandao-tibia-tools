@@ -369,6 +369,91 @@ def comparar(hunts):
             "metricas_jogador": [{"chave": c, "rotulo": r} for c, r, _ in METRICAS_JOGADOR]}
 
 
+# ---------------------------------------------------------------------------
+# Filtro por spawn e panorama ("Comparar todas": muitas hunts, uma por linha)
+# ---------------------------------------------------------------------------
+def monstros_da_hunt(h):
+    """Nomes dos monstros (Title Case, singular) de uma hunt salva."""
+    import monstros as mon
+    return {mon.canonico(m["nome"]) for m in h.get("monstros") or [] if m.get("nome")}
+
+
+def do_monstro(h, nome):
+    return not nome or nome in monstros_da_hunt(h)
+
+
+def opcoes_monstros(hunts):
+    """Monstros que aparecem nas hunts, os mais frequentes primeiro: [(nome, quantas hunts)]."""
+    cont = {}
+    for h in hunts:
+        for m in monstros_da_hunt(h):
+            cont[m] = cont.get(m, 0) + 1
+    return sorted(cont.items(), key=lambda x: (-x[1], x[0]))
+
+
+def filtrar(hunts, personagem="", tamanho="", monstro=""):
+    return [h for h in hunts if (not personagem or do_personagem(h, personagem))
+            and do_tamanho(h, tamanho) and do_monstro(h, monstro)]
+
+
+# (chave, rótulo curto, o que é melhor, tipo)
+COLUNAS_PANORAMA = [
+    ("lucro_membro_h", "Lucro/membro/h", "max", "gp"),
+    ("lucro_membro", "Lucro/membro", "max", "gp"),
+    ("balance_h", "Balance/h", "max", "gp"),
+    ("xp_h", "XP/h", "max", "num"),
+    ("dano_membro_h", "Dano/membro/h", "max", "num"),
+    ("cura_h", "Cura/h", "max", "num"),
+    ("loot_membro_h", "Loot/membro/h", "max", "gp"),
+    ("supplies_membro_h", "Supplies/membro/h", "min", "gp"),
+]
+
+
+def panorama(hunts):
+    """Todas as hunts (já filtradas) numa tabela: uma linha por hunt, colunas normalizadas por hora/membro,
+    média/melhor/pior de cada coluna e ranking somado por jogador."""
+    linhas, jogadores = [], {}
+    for h in hunts:
+        m = metricas(h)
+        extra, pj = _metricas_jogadores(_membros_da_hunt(h), m["minutos"])
+        m.update(extra)
+        linhas.append({
+            "id": h["id"], "nome": h.get("nome") or "Hunt",
+            "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
+            "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"],
+            "minutos": m["minutos"], "monstros": (h.get("monstros") or [])[:3],
+            **{c: m.get(c) for c, *_ in COLUNAS_PANORAMA},
+        })
+        for k, v in pj.items():
+            j = jogadores.setdefault(k, {"nome": v["nome"], "hunts": 0, "minutos": 0, "dano": 0, "cura": 0,
+                                         "supplies": 0, "loot": 0, "balance": 0})
+            j["hunts"] += 1
+            j["minutos"] += m["minutos"] or 0
+            for campo in ("dano", "cura", "supplies", "loot", "balance"):
+                j[campo] += v[campo] or 0
+
+    stats = {}
+    for chave, _, criterio, _ in COLUNAS_PANORAMA:
+        vals = [l[chave] for l in linhas if l[chave] is not None]
+        if not vals:
+            continue
+        stats[chave] = {"media": sum(vals) // len(vals),
+                        "melhor": max(vals) if criterio == "max" else min(vals),
+                        "pior": min(vals) if criterio == "max" else max(vals)}
+
+    ranking = []
+    for j in jogadores.values():
+        mn = j["minutos"]
+        ranking.append({**j, "dano_h": _por_hora(j["dano"], mn), "cura_h": _por_hora(j["cura"], mn),
+                        "supplies_h": _por_hora(j["supplies"], mn), "balance_media": j["balance"] // j["hunts"]})
+    ranking.sort(key=lambda j: -(j["dano_h"] or 0))
+
+    minutos = sum(l["minutos"] or 0 for l in linhas)
+    return {"colunas": [{"chave": c, "rotulo": r, "melhor": b, "tipo": t} for c, r, b, t in COLUNAS_PANORAMA],
+            "linhas": sorted(linhas, key=lambda l: l["data"]), "stats": stats, "jogadores": ranking,
+            "total": {"hunts": len(linhas), "minutos": minutos}}
+
+
 def totais(hunts):
     """Totais para o topo do histórico."""
     minutos = sum((h.get("resumo") or {}).get("minutos") or 0 for h in hunts)
