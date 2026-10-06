@@ -768,13 +768,13 @@ class API:
         r = self.audio_salvar(cfg)
         return {"ok": True, "timers": len(add), "repetidos": len(novos) - len(add), **r, "sons_novos": sons}
 
-    def audio_testar_barras(self, barra=None):
+    def audio_testar_barras(self, barra=None, nome=None, cor=None):
         """Mostra barras de exemplo por 6 s (com a configuração da tela, mesmo antes de salvar)."""
         if not self._audio:
             return False
         if barra:
             self._audio.cfg["barra"] = audio_timers.overlay.normalizar_barra(barra)
-        self._audio.testar_barras()
+        self._audio.testar_barras(nome=nome, cor=cor)
         return True
 
     def audio_parar_todos(self):
