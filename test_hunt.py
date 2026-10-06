@@ -309,6 +309,35 @@ class TestPanorama(unittest.TestCase):
         self.assertEqual(len(historico.filtrar(hs, tamanho="4", monstro="Varg")), 7)
 
 
+class TestTibiaInfo(unittest.TestCase):
+    def test_server_save_e_rashid(self):
+        import tibia_info as t
+        from datetime import datetime, timedelta, timezone
+        br = timezone(timedelta(hours=-3))
+        quando = lambda s: datetime.fromisoformat(s).replace(tzinfo=br).astimezone(timezone.utc)
+        hora_br = lambda s: t.proximo_server_save(quando(s)).astimezone(br).strftime("%Y-%m-%d %H:%M")
+        self.assertEqual(hora_br("2026-10-06T04:30"), "2026-10-06 05:00")   # CEST: 10h Berlim = 5h Brasil
+        self.assertEqual(hora_br("2026-10-06T05:30"), "2026-10-07 05:00")
+        self.assertEqual(hora_br("2026-11-02T05:30"), "2026-11-02 06:00")   # CET (sem horário de verão): 6h
+        self.assertEqual(t.rashid(quando("2026-10-06T04:30")), "Svargrond")  # terça antes do SS: ainda segunda
+        self.assertEqual(t.rashid(quando("2026-10-06T05:30")), "Liberty Bay")
+        self.assertEqual(t.rashid(quando("2026-10-11T12:00")), "Carlin")    # domingo
+
+    def test_shared_e_xp(self):
+        import tibia_info as t
+        self.assertEqual(t.faixa_shared(300), (200, 450))
+        self.assertEqual(t.faixa_shared(483), (322, 724))
+        self.assertTrue(t.verificar_shared({"A": 300, "B": 200, "C": 299})["ok"])   # 300 = 3/2 de 200: ainda divide
+        self.assertFalse(t.verificar_shared({"A": 300, "B": 200, "C": 450})["ok"])  # 450 passa de 3/2 de 200
+        r = t.verificar_shared({"A": 300, "B": 200, "C": 451})
+        self.assertFalse(r["ok"])
+        self.assertEqual((r["teto"], r["piso"], r["abaixo"]), (300, 301, ["B", "A"]))
+        self.assertEqual(t.xp_total(8), 4200)
+        self.assertEqual(t.xp_total(100), 15_694_800)
+        self.assertEqual(t.level_da_xp(15_694_800), 100)
+        self.assertEqual(t.level_da_xp(15_694_799), 99)
+
+
 class TestApiHunt(unittest.TestCase):
     """Fluxo da tela: analisar salva sozinho; limpar caixa não apaga o histórico; outra hunt vira outra entrada."""
 

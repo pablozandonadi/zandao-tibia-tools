@@ -336,6 +336,35 @@
     .hist-acoes { flex-direction: row; }
   }
 
+  /* ---- hoje no Tibia (menu lateral) ---- */
+  .dia-tibia { border: 2.5px solid rgba(243,239,230,.25); border-radius: 10px; padding: 8px 9px; margin: 0 2px 14px; display: flex; flex-direction: column; gap: 6px; }
+  .boost { display: flex; align-items: center; gap: 8px; font-size: .74rem; line-height: 1.2; }
+  .boost img { width: 32px; height: 32px; object-fit: contain; flex: none; }
+  .boost small { display: block; color: var(--ink-dim); font-size: .62rem; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+  .boost b { font-weight: 700; }
+  .dia-linha { font-size: .72rem; color: var(--ink-dim); }
+  .dia-linha b { color: var(--ink); }
+  .dia-tibia.velho { border-style: dashed; }
+  @media (max-width: 760px) {
+    .dia-tibia { padding: 4px 0; border: none; align-items: center; margin: 0 0 8px; }
+    .dia-tibia .txt { display: none; }
+  }
+  /* ---- ferramentas ---- */
+  .grid-ferr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+  .grid-ferr .card { margin: 0 !important; }
+  @media (max-width: 1100px) { .grid-ferr { grid-template-columns: 1fr; } }
+  .hoje-grande { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 12px; }
+  .hoje-grande .boost { font-size: .9rem; }
+  .hoje-grande .boost img { width: 64px; height: 64px; }
+  .campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+  .resultado-ferr { margin-top: 12px; padding: 10px 12px; border-radius: 10px; border: 2px solid var(--ink-dim); background: var(--surface-2); font-size: .84rem; line-height: 1.5; }
+  .resultado-ferr.ok { border-color: var(--good); }
+  .resultado-ferr.nao { border-color: var(--bad); }
+  .resultado-ferr .grande { font-family: var(--font-display); font-size: 1.3rem; }
+  .shared-linha { margin-top: 10px; font-size: .82rem; padding: 8px 10px; border-radius: 9px; border: 2px solid var(--ink-dim); }
+  .shared-linha.ok { border-color: var(--good); }
+  .shared-linha.nao { border-color: var(--bad); }
+
   /* ---- atualização ---- */
   .modal-fundo { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
   .modal-caixa { background: var(--surface); border: 2.5px solid var(--ink); border-radius: 12px; box-shadow: 6px 6px 0 var(--accent);
@@ -355,9 +384,16 @@
 <div class="app">
   <aside class="sidebar">
     <div class="brand">⚔️ Zandao<br><span>Tibia Tools</span></div>
+    <div class="dia-tibia" id="dia-tibia" title="Hoje no Tibia (muda no server save)">
+      <div class="boost" id="boost-boss"></div>
+      <div class="boost" id="boost-criatura"></div>
+      <div class="dia-linha txt">🐪 Rashid: <b id="dia-rashid">—</b></div>
+      <div class="dia-linha txt">⏱ Server save em <b id="dia-ss">—</b></div>
+    </div>
     <div class="nav-item active" data-pagina="emb" title="Embuimentos">💎<span class="txt"> Embuimentos</span></div>
     <div class="nav-item" data-pagina="hunt" title="Hunt Analyser (Loot Split + Dano)">🪓<span class="txt"> Hunt Analyser</span></div>
     <div class="nav-item" data-pagina="hist" title="Histórico de hunts">📜<span class="txt"> Histórico</span></div>
+    <div class="nav-item" data-pagina="ferr" title="Ferramentas">🧰<span class="txt"> Ferramentas</span></div>
     <div class="nav-item" data-pagina="prints" title="Prints">📸<span class="txt"> Prints</span></div>
     <div class="nav-item" data-pagina="macro" title="Simulated Keys">⌨️<span class="txt"> Simulated Keys</span></div>
     <div class="sobrepor">
@@ -457,6 +493,42 @@
       <div id="hi-lista" style="margin-top:16px"></div>
     </section>
 
+    <!-- ================= FERRAMENTAS ================= -->
+    <section class="page" id="page-ferr">
+      <h1 class="titulo">Ferramentas</h1>
+      <div class="grid-ferr">
+        <div class="card">
+          <div class="h-titulo"><h2 class="sub" style="margin:0">Hoje no Tibia</h2><button class="btn btn-sm" id="f-atualizar">↻ Atualizar</button></div>
+          <div class="hoje-grande"><div class="boost" id="f-boss"></div><div class="boost" id="f-criatura"></div></div>
+          <p class="texto" style="margin:0 0 6px">🐪 <b>Rashid</b> hoje está em <b id="f-rashid">—</b>. <span class="dica">Ele muda de cidade todo server save (seg Svargrond, ter Liberty Bay, qua Port Hope, qui Ankrahmun, sex Darashia, sáb Edron, dom Carlin).</span></p>
+          <p class="texto" style="margin:0">⏱ <b>Server save</b> às <b id="f-ss-hora">—</b> (horário do seu PC), daqui a <b id="f-ss">—</b>.</p>
+          <p class="dica" id="f-dia-aviso" style="margin:8px 0 0"></p>
+        </div>
+
+        <div class="card calmo">
+          <h2 class="sub">🤝 Shared XP</h2>
+          <label class="campo-label" for="f-levels">Levels da party (separados por vírgula)</label>
+          <input type="text" id="f-levels" placeholder="ex.: 483, 350, 420, 512">
+          <div id="f-shared-res" class="resultado-ferr">Digite um level para ver a faixa, ou os levels da party para saber se o shared funciona.</div>
+          <p class="dica" style="margin:10px 0 0">Regra do Tibia: o maior level pode ser no máximo 3/2 do menor. Além disso, todos precisam estar atacando ou curando e perto do líder.
+            No <b>Hunt Analyser</b>, o botão <b>🤝 Verificar shared</b> confere a party com os levels de agora no tibia.com.</p>
+        </div>
+
+        <div class="card calmo">
+          <h2 class="sub">📈 Quando eu upo?</h2>
+          <div class="campos">
+            <div><label class="campo-label" for="f-up-nome">Personagem</label><input type="text" id="f-up-nome" list="f-up-nomes" placeholder="ex.: Zandao"><datalist id="f-up-nomes"></datalist></div>
+            <div><label class="campo-label" for="f-up-alvo">Level alvo</label><input type="text" class="num" id="f-up-alvo" placeholder="próximo"></div>
+            <div><label class="campo-label" for="f-up-xp">XP atual (janela Skills)</label><input type="text" class="num" id="f-up-xp" placeholder="opcional"></div>
+            <div><label class="campo-label" for="f-up-xph">XP/h</label><input type="text" class="num" id="f-up-xph" placeholder="média do histórico"></div>
+          </div>
+          <div class="acoes" style="margin-top:12px"><button class="btn btn-primary" id="f-up-calc">Calcular</button></div>
+          <div id="f-up-res" class="resultado-ferr" style="display:none"></div>
+          <p class="dica" style="margin:10px 0 0">A XP/h vem da média das suas hunts salvas desse personagem (com o Hunting Analyser colado). Sem a XP atual, o app usa o level de agora no tibia.com (início do level).</p>
+        </div>
+      </div>
+    </section>
+
     <!-- ================= PRINTS ================= -->
     <section class="page" id="page-prints">
       <h1 class="titulo">Organizar prints</h1>
@@ -545,6 +617,7 @@ function irPara(pagina) {
   $('content').scrollTop = 0;
   if (pagina === 'macro') atualizarMacro();
   if (pagina === 'hist') carregarHistorico();
+  if (pagina === 'ferr') abrirFerramentas();
 }
 document.querySelectorAll('.nav-item').forEach((n) => n.addEventListener('click', () => irPara(n.dataset.pagina)));
 
@@ -891,7 +964,7 @@ $('h-nova').addEventListener('click', () => {
     : 'Esta hunt não foi salva no Histórico. Descartar e começar outra?')) return;
   const personagem = H.entrada.personagem;
   H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem };
-  H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null;
+  H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null; H.shared = null;
   preencherHunt();
   analisarHunt();
 });
@@ -944,7 +1017,7 @@ async function analisarHunt() {
   if (r.id !== H.id) H.aba = null;
   if (outraHunt) { H.pagos = []; H.salvoRetrato = null; H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
   H.id = r.id; H.assinatura = r.assinatura; H.a = a; H.texto = r.texto;
-  if (mudouHunt) H.dano = null;
+  if (mudouHunt) { H.dano = null; H.shared = null; }
   if (!(H.entrada.nome || '').trim()) { H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
   $('h-personagens').innerHTML = (a.personagens || []).map((x) => `<option value="${esc(x)}">`).join('');
   montarDespesas();
@@ -992,7 +1065,9 @@ function renderHunt() {
 
 function renderMembros(a) {
   return `<div class="card calmo" style="margin-top:18px"><div class="h-titulo"><h2 class="sub">Membros da party</h2>
-    <span class="dica">clique no nome para tirar/voltar alguém da divisão</span></div>
+    <span class="acoes"><span class="dica">clique no nome para tirar/voltar alguém da divisão</span>
+    <button class="btn btn-sm" id="h-shared">🤝 Verificar shared</button></span></div>
+    ${H.shared ? sharedHtml(H.shared) : ''}
     <div class="tabela-wrap"><table class="tab"><tr><th>#</th><th>Membro</th><th class="r">Dano</th><th class="r">Cura</th><th class="r">Loot</th><th class="r">Supplies</th><th class="r">Balance</th><th class="r">Ajuste</th></tr>
     ${a.membros.map((m, i) => `<tr class="${m.excluido ? 'fora' : ''}"><td class="dim">#${i + 1}</td>
       <td class="nome-membro" data-excluir="${esc(m.nome)}" title="${m.excluido ? 'Voltar para a divisão' : 'Tirar da divisão'}">${esc(m.nome)}${m.lider ? '<span class="tag tag-lider">líder</span>' : ''}${m.eu ? '<span class="tag tag-eu">você</span>' : ''}</td>
@@ -1146,6 +1221,12 @@ function ligarHunt() {
   }));
   res.querySelectorAll('[data-aba]').forEach((p) => p.addEventListener('click', () => { H.aba = p.dataset.aba; renderHunt(); }));
   res.querySelectorAll('[data-imb]').forEach((b) => b.addEventListener('click', () => abrirEmbuimento(b.dataset.imb)));
+  const bs = $('h-shared');
+  if (bs) bs.addEventListener('click', async () => {
+    bs.disabled = true; bs.textContent = 'Consultando tibia.com...';
+    H.shared = await api.hunt_shared(H.a.personagens || []);
+    renderHunt();
+  });
   atualizarSalvar();
 }
 
@@ -1219,7 +1300,7 @@ async function abrirHunt(id) {
     if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
     H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
       despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '' };
-    H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || [];
+    H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || []; H.shared = null;
     H.salvoRetrato = retrato();
     preencherHunt();
     irPara('hunt');
@@ -1445,6 +1526,89 @@ async function importarHunts(substituir) {
 $('hi-importar').addEventListener('click', () => importarHunts(false));
 $('hi-substituir').addEventListener('click', () => importarHunts(true));
 
+// ================= hoje no Tibia (menu lateral + Ferramentas) =================
+let DIA = null;
+const boostHtml = (rot, b) => b ? `<img src="${esc(b.imagem)}" alt=""><span class="txt"><small>${rot}</small><b>${esc(b.nome)}</b></span>` : '';
+function faltaTexto(ms) {
+  if (ms <= 0) return 'agora';
+  const min = Math.floor(ms / 60000), h = Math.floor(min / 60);
+  return h ? `${h}h${String(min % 60).padStart(2, '0')}` : `${min} min`;
+}
+async function carregarDia(forcar = false) {
+  try { DIA = await api.tibia_dia(forcar); } catch (e) { return; }
+  mostrarDia();
+}
+function mostrarDia() {
+  if (!DIA) return;
+  $('boost-boss').innerHTML = boostHtml('Boss do dia', DIA.boss);
+  $('boost-criatura').innerHTML = boostHtml('Criatura do dia', DIA.criatura);
+  $('boost-boss').title = DIA.boss ? `Boss boostado de hoje: ${DIA.boss.nome}` : '';
+  $('boost-criatura').title = DIA.criatura ? `Criatura boostada de hoje: ${DIA.criatura.nome}` : '';
+  $('dia-tibia').classList.toggle('velho', !!DIA.velho);
+  $('dia-rashid').textContent = DIA.rashid;
+  $('f-boss').innerHTML = boostHtml('Boss boostado', DIA.boss) || '<span class="dica">Sem internet para buscar o boss do dia.</span>';
+  $('f-criatura').innerHTML = boostHtml('Criatura boostada', DIA.criatura);
+  $('f-rashid').textContent = DIA.rashid;
+  $('f-ss-hora').textContent = new Date(DIA.server_save_ms).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  $('f-dia-aviso').textContent = DIA.velho ? 'Sem internet agora: boss e criatura podem ser de um dia anterior.' : '';
+  contarSS();
+}
+function contarSS() {
+  if (!DIA) return;
+  const falta = DIA.server_save_ms - Date.now();
+  $('dia-ss').textContent = faltaTexto(falta);
+  $('f-ss').textContent = faltaTexto(falta);
+  if (falta < -120000) { DIA = null; carregarDia(true); }  // passou o server save: busca o boss/criatura novos
+}
+setInterval(contarSS, 30000);
+$('f-atualizar').addEventListener('click', () => carregarDia(true));
+
+// ---------- ferramentas ----------
+async function abrirFerramentas() {
+  contarSS();
+  const h = await api.hunt_historico('', '', '');
+  $('f-up-nomes').innerHTML = h.personagens.map((p) => `<option value="${esc(p)}">`).join('');
+  if (!$('f-up-nome').value && H.entrada.personagem) $('f-up-nome').value = H.entrada.personagem;
+}
+let tShared = null;
+$('f-levels').addEventListener('input', () => {
+  clearTimeout(tShared);
+  tShared = setTimeout(async () => {
+    const levels = $('f-levels').value.split(/[^0-9]+/).filter(Boolean);
+    const box = $('f-shared-res');
+    if (!levels.length) { box.className = 'resultado-ferr'; box.textContent = 'Digite um level para ver a faixa, ou os levels da party para saber se o shared funciona.'; return; }
+    const r = await api.tibia_shared(levels);
+    box.className = 'resultado-ferr' + (r.ok === true ? ' ok' : r.ok === false ? ' nao' : '');
+    box.innerHTML = r.faixa_individual
+      ? `<div class="grande">${n(r.faixa_individual[0])} a ${n(r.faixa_individual[1])}</div>${esc(r.motivo)}`
+      : `<div class="grande">${r.ok ? '✔ Shared ativo' : r.ok === false ? '✖ Shared não funciona' : ''}</div>${esc(r.motivo)}`;
+  }, 250);
+});
+$('f-up-calc').addEventListener('click', async () => {
+  const r = await api.tibia_upar($('f-up-nome').value, $('f-up-xp').value, $('f-up-alvo').value, $('f-up-xph').value);
+  const box = $('f-up-res');
+  box.style.display = 'block';
+  if (r.erro) { box.className = 'resultado-ferr nao'; box.textContent = r.erro; return; }
+  box.className = 'resultado-ferr ok';
+  const lvl = `Level <b>${r.level}</b>${r.aproximado ? ' (do tibia.com, início do level)' : ` · ${r.progresso_pct}% do level`}`;
+  let h = `<div>${lvl}</div><div>Falta <b>${n(r.falta)}</b> de XP para o level <b>${r.alvo}</b>.</div>`;
+  if (r.xp_h) {
+    h += `<div class="grande" style="margin-top:6px">≈ ${String(r.horas).replace('.', ',')} h de hunt</div>
+      <div class="dica">com ${n(r.xp_h)} XP/h (${r.fonte === 'digitada' ? 'que você digitou' : `média de ${r.hunts_usadas} hunt(s) salvas`})${r.hunts_equiv ? ` · ≈ ${String(r.hunts_equiv).replace('.', ',')} hunts de ${Math.floor(r.duracao_media_min / 60)}h${String(r.duracao_media_min % 60).padStart(2, '0')}` : ''}</div>`;
+  } else {
+    h += '<div class="dica" style="margin-top:6px">Sem XP/h: salve hunts com o Hunting Analyser desse personagem, ou digite a XP/h.</div>';
+  }
+  box.innerHTML = h;
+  if (!$('f-up-xph').value && r.xp_h_hist) $('f-up-xph').placeholder = `média: ${n(r.xp_h_hist)}`;
+});
+
+// ---------- shared da party no Hunt Analyser ----------
+function sharedHtml(r) {
+  const lv = Object.entries(r.levels || {}).map(([nome, i]) => `${esc(nome)} <b>${i ? i.level : '?'}</b>`).join(' · ');
+  return `<div class="shared-linha ${r.ok ? 'ok' : r.ok === false ? 'nao' : ''}">${r.ok ? '✔' : r.ok === false ? '✖' : '•'} ${esc(r.motivo)}
+    <div class="dica" style="margin-top:4px">Levels de agora no tibia.com: ${lv}${r.nao_achados && r.nao_achados.length ? ` · não achei: ${esc(r.nao_achados.join(', '))}` : ''}</div></div>`;
+}
+
 // ================= atualização automática =================
 async function checarAtualizacao() {
   let info = null;
@@ -1510,6 +1674,7 @@ async function iniciar() {
   $('p-abrir').checked = !!d.prints['open-when-done'];
   huntIniciar();
   api.versao_app().then((v) => { $('versao-app').textContent = 'v' + v; });
+  carregarDia();
   setTimeout(checarAtualizacao, 2500);
 }
 if (window.pywebview && window.pywebview.api) iniciar();

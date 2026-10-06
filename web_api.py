@@ -18,6 +18,7 @@ import historico
 import hunt
 import monstros
 import organizer
+import tibia_info
 from versao import VERSAO_APP
 
 if getattr(sys, "frozen", False):
@@ -643,6 +644,71 @@ class API:
         except (OSError, json.JSONDecodeError, ValueError) as e:
             return {"ok": False, "erro": str(e)}
         return {"ok": True, "novas": novas, "repetidas": repetidas}
+
+    # ================= ferramentas: boss/criatura do dia, Rashid, server save, shared, "quando eu upo?" =================
+    def tibia_dia(self, forcar=False):
+        return {**tibia_info.resumo_do_dia(), **tibia_info.boostados(bool(forcar))}
+
+    def tibia_shared(self, levels):
+        """levels: lista de números (ou {nome: level}) digitados na calculadora."""
+        if isinstance(levels, list):
+            levels = {f"Level {l}": l for l in levels}
+        try:
+            levels = {n: int(str(l).strip()) for n, l in levels.items() if str(l).strip()}
+        except ValueError:
+            return {"ok": None, "motivo": "Digite só números (ex.: 300, 250, 420)."}
+        r = tibia_info.verificar_shared(levels)
+        if len(levels) == 1:
+            lo, hi = tibia_info.faixa_shared(next(iter(levels.values())))
+            r = {"ok": None, "faixa_individual": [lo, hi],
+                 "motivo": f"Level {next(iter(levels.values()))} divide XP com levels de {lo} a {hi}."}
+        return r
+
+    def hunt_shared(self, nomes):
+        """Shared da party do Hunt Analyser, com os levels de AGORA no tibia.com (via TibiaData)."""
+        info = tibia_info.personagens([n for n in nomes if n])
+        achados = {n: i["level"] for n, i in info.items() if i}
+        r = tibia_info.verificar_shared(achados) if len(achados) >= 2 else {
+            "ok": None, "motivo": f"Só achei {len(achados)} personagem(ns) no tibia.com; preciso de pelo menos 2 para conferir o shared."}
+        r["levels"] = {n: (i and {"level": i["level"], "vocacao": i["vocacao"]}) for n, i in info.items()}
+        r["nao_achados"] = [n for n, i in info.items() if not i]
+        return r
+
+    def tibia_upar(self, nome, xp_atual="", alvo="", xp_h_manual=""):
+        """Quanto falta para o level alvo e quantas horas/hunts, pela XP/h média das hunts salvas desse personagem."""
+        nome = (nome or "").strip()
+        xp = emb.parse_num(str(xp_atual)) if str(xp_atual).strip() else None
+        aproximado = False
+        if xp is None:
+            info = tibia_info.personagem(nome) if nome else None
+            if not info:
+                return {"erro": "Digite a XP atual (janela Skills do Tibia) ou um personagem que exista no tibia.com."}
+            xp, aproximado = tibia_info.xp_total(info["level"]), True
+        level = tibia_info.level_da_xp(xp)
+        try:
+            alvo = int(str(alvo).strip()) if str(alvo).strip() else level + 1
+        except ValueError:
+            return {"erro": "Level alvo inválido."}
+        if alvo <= level:
+            return {"erro": f"O level alvo precisa ser maior que o atual ({level})."}
+        falta = tibia_info.xp_total(alvo) - xp
+
+        hunts = [h for h in historico.carregar()
+                 if nome and (h.get("personagem") or "").lower() == nome.lower()
+                 and (h.get("resumo") or {}).get("xp") and (h.get("resumo") or {}).get("minutos")]
+        minutos = sum(h["resumo"]["minutos"] for h in hunts)
+        xp_h_hist = (sum(h["resumo"]["xp"] for h in hunts) * 60 // minutos) if minutos else None
+        xp_h = emb.parse_num(str(xp_h_manual)) if str(xp_h_manual).strip() else xp_h_hist
+        r = {"level": level, "xp": xp, "aproximado": aproximado, "alvo": alvo, "falta": falta,
+             "progresso_pct": round((xp - tibia_info.xp_total(level)) * 100 / (tibia_info.xp_total(level + 1) - tibia_info.xp_total(level)), 1),
+             "xp_h": xp_h, "xp_h_hist": xp_h_hist, "hunts_usadas": len(hunts),
+             "fonte": "digitada" if str(xp_h_manual).strip() else ("histórico" if xp_h_hist else None)}
+        if xp_h:
+            horas = falta / xp_h
+            dur_media = (minutos / len(hunts)) if hunts else None
+            r.update({"horas": round(horas, 1), "hunts_equiv": round(horas * 60 / dur_media, 1) if dur_media else None,
+                      "duracao_media_min": round(dur_media) if dur_media else None})
+        return r
 
     # ================= atualização automática (GitHub Releases, ver atualizacoes.py) =================
     def versao_app(self):

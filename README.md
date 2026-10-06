@@ -1,12 +1,13 @@
 # Zandao Tibia Tools
 
-Um programa só para quem joga Tibia, com cinco abas:
+Um programa só para quem joga Tibia, com seis abas:
 
 | Aba | O que faz |
 | --- | --- |
 | **Embuimentos** | Calculadora dos embuimentos Powerful (mesmas regras da planilha `calculadora_embuiment`). Você digita os preços, sem IA e sem ler prints. |
 | **Hunt Analyser** | Loot Split + Tibia Damage juntos: cola os textos do Tibia e sai a análise no estilo do hunt-analyser.com. |
 | **Histórico** | Toda hunt analisada fica salva neste PC. Dá para filtrar por personagem, exportar e importar. |
+| **Ferramentas** | Boss e criatura do dia, Rashid, server save, calculadora de Shared XP e "Quando eu upo?". |
 | **Prints** | Organiza as screenshots do Tibia em `Personagem / Tipo (/ Mês)`. |
 | **Simulated Keys** | Segurar uma tecla repete outra no Tibia (segurar F → F1 etc.). Liga, desliga e mostra se está rodando. |
 
@@ -59,6 +60,17 @@ clicar em **💾 Salvar alterações**. O Hunt Analyser abre sempre limpo; só o
 - **Exportar** gera um `.json` com todas as hunts (ou só as do personagem filtrado).
 - **Importar (somar)** traz as hunts de um arquivo exportado, seu ou de um amigo, sem repetir as que você já tem.
   **Importar substituindo tudo** apaga o seu histórico e fica só com o do arquivo.
+
+## Ferramentas
+
+- **Hoje no Tibia** (também no topo do menu lateral): boss boostado e criatura boostada do dia (TibiaData, atualiza
+  sozinho depois do server save), cidade do **Rashid** e quanto falta para o **server save** (10:00 de Berlim; o app
+  mostra no horário do seu PC).
+- **Shared XP**: digite um level para ver com quem ele divide XP, ou os levels da party para saber se o shared
+  funciona (o maior pode ser no máximo 3/2 do menor). No Hunt Analyser, **🤝 Verificar shared** confere a party com
+  os levels de agora no tibia.com.
+- **Quando eu upo?**: quanto falta para o level alvo e quantas horas/hunts, usando a XP/h média das suas hunts salvas
+  daquele personagem. Para ficar exato, digite a XP atual da janela Skills do Tibia.
 
 ## Instalar
 
