@@ -209,7 +209,7 @@
   .toast.erro { background: var(--bad); color: #2a0e0e; }
 
   /* ---- hunt analyser ---- */
-  .hunt-topo { display: grid; grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) auto; gap: 14px; align-items: end; }
+  .hunt-topo { display: grid; grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) auto; gap: 14px; align-items: start; }
   .caixas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
   .caixa-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
   .caixa-cab .campo-label { margin: 0; }
@@ -329,6 +329,7 @@
     .caixas, .grid3 { grid-template-columns: 1fr; }
     .stats, .det-grid { grid-template-columns: 1fr 1fr; }
     .hunt-topo { grid-template-columns: 1fr 1fr; }
+    .hunt-topo .espaco-rotulo { display: none; }
   }
   @media (max-width: 760px) {
     .hunt-topo, .linha-despesa { grid-template-columns: 1fr; }
@@ -366,8 +367,9 @@
   .shared-linha.nao { border-color: var(--bad); }
 
   /* ---- meus personagens ---- */
-  .linha-pers { display: flex; gap: 6px; }
-  .linha-pers select { flex: 1; min-width: 0; }
+  .linha-pers { display: flex; gap: 6px; align-items: stretch; }
+  .linha-pers select { flex: 1; min-width: 0; padding: 8px 11px; font-size: .85rem; }
+  .linha-pers .btn { box-shadow: none; padding: 0 12px; }
   .pers-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 2px solid var(--ink-dim); border-radius: 9px; }
   .pers-item + .pers-item { margin-top: 6px; }
   .pers-item.atual { border-color: var(--accent); }
@@ -450,7 +452,7 @@
           <div><label class="campo-label" for="h-personagem">Seu personagem</label>
             <div class="linha-pers"><select id="h-personagem"></select><button class="btn btn-sm" id="h-pers-gerenciar" title="Adicionar, trocar ou remover personagens">⚙</button></div>
             <div class="dica" id="h-pers-info" style="margin-top:4px"></div></div>
-          <div class="acoes"><button class="btn btn-primary" id="h-colar" title="Cola o que você copiou no Tibia (botão Copy do analyser) direto na caixa certa">📋 Colar do Tibia</button><button class="btn" id="h-nova">✚ Nova hunt</button><button class="btn btn-primary" id="h-salvar" disabled>💾 Salvar</button></div>
+          <div><label class="campo-label espaco-rotulo" aria-hidden="true">&nbsp;</label><div class="acoes"><button class="btn btn-primary" id="h-colar" title="Cola o que você copiou no Tibia (botão Copy do analyser) direto na caixa certa">📋 Colar do Tibia</button><button class="btn" id="h-nova">✚ Nova hunt</button><button class="btn btn-primary" id="h-salvar" disabled>💾 Salvar</button></div></div>
         </div>
         <p class="dica" style="margin:12px 0 0;line-height:1.5">Com o programa aberto, clique em <b>Copy</b> no Tibia no <b>Party Hunt Analyser</b>, no <b>Hunting Analyser</b> e no <b>Input Analyser</b> (Received Damage), um depois do outro, e depois em <b>Colar do Tibia</b>: os 3 cards são preenchidos de uma vez (o app guarda cada cópia e reconhece qual é qual). Também dá para colar direto nas caixas (Ctrl+V). A hunt só vai para o Histórico quando você clicar em <b>💾 Salvar</b>.</p>
         <div class="resumo-chips" id="h-capturas" style="margin-top:10px"></div>
