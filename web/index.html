@@ -619,10 +619,12 @@
         <p class="dica" style="margin:12px 0 0;line-height:1.5">Aperte a tecla do timer no Tibia e ele começa a contar; quando acaba, toca o som. Funciona com o app minimizado.
           O app só confere as teclas que você cadastrou aqui: não grava o que você digita e não manda tecla nenhuma para o jogo.</p>
       </div>
-      <div class="card calmo" style="margin-top:16px">
+      <div id="au-form"></div>
+      <div class="card calmo" style="margin-top:16px" id="au-visual">
         <div class="h-titulo" style="margin-bottom:8px"><h2 class="sub" style="margin:0">📍 Barra e alerta no Tibia</h2>
           <span class="acoes"><button class="btn btn-sm" id="au-alerta-testar">👁 Testar alerta</button>
           <button class="btn btn-sm" id="au-barra-testar">👁 Testar barras</button></span></div>
+        <div id="au-form-visual"></div>
         <div class="campos" style="grid-template-columns:repeat(4,minmax(0,1fr))">
           <div><label class="campo-label" for="aub-larg">Largura: <b id="aub-larg-v"></b></label><input type="range" id="aub-larg" min="80" max="1200" step="10"></div>
           <div><label class="campo-label" for="aub-esp">Espessura: <b id="aub-esp-v"></b></label><input type="range" id="aub-esp" min="4" max="48" step="1"></div>
@@ -635,8 +637,8 @@
           <div><label class="campo-label" for="aua-y">Alerta: posição vertical <b id="aua-y-v"></b></label><input type="range" id="aua-y" min="0" max="100" step="1"></div>
         </div>
         <p class="dica" style="margin:8px 0 0">Vale para os timers com "Barra no Tibia" ligada. Mexa nos controles com o Tibia aberto: as barras de exemplo aparecem em cima dele para você ajustar. A posição é em % da janela do Tibia.</p>
+        <div id="au-form-acoes"></div>
       </div>
-      <div id="au-form"></div>
       <div id="au-lista" style="margin-top:16px"></div>
     </section>
 
@@ -1852,7 +1854,7 @@ function abrirFormAudio(id) {
 }
 function desenharFormAudio() {
   const t = auEditando;
-  if (!t) { $('au-form').innerHTML = ''; return; }
+  if (!t) { $('au-form').innerHTML = ''; $('au-form-visual').innerHTML = ''; $('au-form-acoes').innerHTML = ''; return; }
   $('au-form').innerHTML = `<div class="card au-form" style="margin-top:16px">
     <h2 class="sub">${t.id ? 'Editar timer' : 'Novo timer'}</h2>
     <div class="campos">
@@ -1871,11 +1873,14 @@ function desenharFormAudio() {
       <div><label class="campo-label" for="auf-vol">Volume do timer: <b id="auf-vol-val">${t.volume}%</b></label><input type="range" id="auf-vol" min="0" max="100" step="5" value="${t.volume}"></div>
       <div><label class="campo-label" for="auf-antes">Avisar antes de acabar (seg)</label><input type="text" class="num" id="auf-antes" value="${t.antes || 0}"></div>
     </div>
+  </div>`;
+  $('au-form-visual').innerHTML = `<div class="au-form" style="border-bottom:2px dashed var(--line, #444);padding-bottom:14px;margin-bottom:14px">
+    <div class="dica" style="margin:0 0 4px">Deste timer (<b>${esc(t.nome || 'novo timer')}</b>):</div>
     <div class="campos" style="margin-top:12px">
       <div><label class="check"><input type="checkbox" id="auf-alerta" ${t.alerta ? 'checked' : ''}> 📢 Alerta na tela do Tibia</label>
         <div class="dica" style="margin-top:4px">Texto no meio do Tibia na hora do aviso (ex.: "${esc(t.nome || 'Poção')} acaba em 3s"). Não dá para clicar.</div></div>
       <div><label class="check"><input type="checkbox" id="auf-barra" ${t.barra ? 'checked' : ''}> ▬ Barra no Tibia</label>
-        <div class="dica" style="margin-top:4px">Barra correndo por cima do Tibia enquanto o timer conta (ajuste em "Barra no Tibia").</div></div>
+        <div class="dica" style="margin-top:4px">Barra correndo por cima do Tibia enquanto o timer conta (tamanho e posição logo abaixo).</div></div>
       <div><label class="campo-label" for="auf-cor">Cor do alerta e da barra</label><div class="linha-pasta" style="margin:0">
         <input type="color" id="auf-cor" value="${corHex(t.cor)}" style="width:52px;height:36px;padding:0;border:2.5px solid var(--ink);border-radius:8px;background:none;cursor:pointer">
         ${CORES_AU.map(([k, n2]) => `<span class="pilula" data-auf-cor="${k}" title="${n2}" style="padding:4px 9px;background:${corHex(k)};border-color:var(--ink)">&nbsp;</span>`).join('')}
@@ -1886,8 +1891,8 @@ function desenharFormAudio() {
       <div><label class="campo-label" for="auf-fonte">Tamanho da letra: <b id="auf-fonte-v">${t.fonte || 34}</b></label><input type="range" id="auf-fonte" min="14" max="96" step="2" value="${t.fonte || 34}"></div>
       <div><label class="check" style="margin-top:18px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Alerta fica na tela até apertar a tecla de novo</label></div>
     </div>
-    <div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>
   </div>`;
+  $('au-form-acoes').innerHTML = `<div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>`;
   $('auf-nome').addEventListener('input', () => { t.nome = $('auf-nome').value; });
   $('auf-dur').addEventListener('input', () => { const d = lerDur($('auf-dur').value); if (d) t.duracao = d; });
   $('auf-antes').addEventListener('input', () => { t.antes = parseFloat($('auf-antes').value.replace(',', '.')) || 0; });
@@ -1958,7 +1963,7 @@ $('au-alerta-testar').addEventListener('click', () => api.audio_testar_alerta('a
 $('au-tv').addEventListener('click', async () => {
   const r = await api.audio_tv_perfis();
   if (!r.instalado && !r.perfis.length) { toast('Não achei o TibiaVision neste PC.', true); return; }
-  auEditando = null;
+  auEditando = null; desenharFormAudio();
   $('au-form').innerHTML = `<div class="card" style="margin-top:16px"><div class="h-titulo"><h2 class="sub" style="margin:0">⇩ Importar do TibiaVision</h2><button class="btn btn-sm" id="au-tv-fechar">Fechar</button></div>
     <p class="dica" style="margin:0 0 10px">Copia os sons do TibiaVision deste PC para a sua lista de sons e soma os timers do perfil escolhido (os que já existem, mesmo nome e tecla, não repetem).</p>
     ${r.perfis.length ? r.perfis.map((pf) => `<div class="pers-item"><div class="info"><b>${esc(pf.nome)}</b><div class="dica">${pf.timers} timer(s)</div></div>
