@@ -6,7 +6,6 @@ dados_embuimentos.json
 settings.json
 preferencias.json
 cache_monstros.json
-macro/tibia_macro_config.ini
 
 # executáveis e build (o instalador vai como anexo da Release, não no código)
 *.exe

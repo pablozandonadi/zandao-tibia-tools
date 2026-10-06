@@ -1,6 +1,6 @@
 # Zandao Tibia Tools
 
-Um programa só para quem joga Tibia, com sete abas:
+Um programa só para quem joga Tibia, com seis abas:
 
 | Aba | O que faz |
 | --- | --- |
@@ -9,7 +9,6 @@ Um programa só para quem joga Tibia, com sete abas:
 | **Histórico** | Toda hunt analisada fica salva neste PC. Dá para filtrar por personagem, exportar e importar. |
 | **Ferramentas** | Boss e criatura do dia, Rashid, server save, calculadora de Shared XP e "Quando eu upo?". |
 | **Prints** | Organiza as screenshots do Tibia em `Personagem / Tipo (/ Mês)`. |
-| **Simulated Keys** | Segurar uma tecla repete outra no Tibia (segurar F → F1 etc.). Liga, desliga e mostra se está rodando. |
 | **Configurações** | Meus personagens, backup de tudo (exportar/restaurar) e versão/atualização. |
 
 Os projetos antigos (`zandao embuimentos`, `tibia-screenshot-organizer-1.0.3`, `macro ek`, `divisor de loot`, `tibiadamage`) continuam
@@ -84,14 +83,13 @@ clicar em **💾 Salvar alterações**. O Hunt Analyser abre sempre limpo; só o
 
 Baixe o **ZandaoTibiaToolsSetup.exe** na última Release do GitHub
 (https://github.com/pablozandonadi/zandao-tibia-tools/releases/latest) e rode. Não precisa de administrador,
-de Python nem de AutoHotkey. O programa fica em `%LOCALAPPDATA%\Programs\Zandao Tibia Tools`.
+nem de Python. O programa fica em `%LOCALAPPDATA%\Programs\Zandao Tibia Tools`.
 
-Cada pessoa começa do zero: o instalador não leva histórico, preços nem teclas de ninguém. Ao abrir, o programa
-avisa quando sai versão nova e se atualiza sozinho; histórico, preços, pastas e teclas continuam salvos.
+Cada pessoa começa do zero: o instalador não leva histórico, preços nem personagens de ninguém. Ao abrir, o programa
+avisa quando sai versão nova e se atualiza sozinho; histórico, preços, pastas e personagens continuam salvos.
 
 O Windows pode mostrar o aviso do SmartScreen ("O Windows protegeu o computador"), porque o instalador não
-tem assinatura digital: clique em **Mais informações → Executar assim mesmo**. Alguns antivírus também
-desconfiam do `SimulatedKeys.exe` (todo programa que simula teclado é suspeito para eles).
+tem assinatura digital: clique em **Mais informações → Executar assim mesmo**.
 
 ## Usar por cima do Tibia
 
@@ -122,22 +120,10 @@ As mesmas opções do Tibia Screenshot Organizer, salvas no `settings.json`. Que
 
 - **Meus personagens**: adicionar (conferido no tibia.com), usar e remover. A ⚙ do Hunt Analyser abre aqui.
 - **Backup de tudo**: **Exportar tudo** gera um `.json` com histórico de hunts, meus personagens, embuimentos
-  (preços, o que já tem, escolhidos), pastas dos prints, teclas do Simulated Keys e fixar por cima/transparência.
+  (preços, o que já tem, escolhidos), pastas dos prints e fixar por cima/transparência.
   **Restaurar um backup** mostra o que tem no arquivo e, ao confirmar, substitui esses itens (os atuais ficam
   guardados como `<arquivo>.antes-do-backup` na pasta dos dados).
 - **Programa**: versão, procurar atualização agora e abrir a pasta dos dados.
-
-## Simulated Keys
-
-É o macro EK (`macro/tibia_macro_f1.ahk`), compilado no instalador como `macro/SimulatedKeys.exe`: roda sem o
-AutoHotkey instalado. As teclas de cada pessoa ficam em `macro/tibia_macro_config.ini` (criado no primeiro uso,
-com F → F1). Rodando pelo código-fonte, sem o `.exe`, usa o AutoHotkey **v1.1** instalado.
-
-- Alt+Shift+M liga e desliga.
-- Alt+Shift+F10 abre a configuração das teclas.
-
-O atalho "Iniciar com o Windows" se chama `ZandaoSimulatedKeys.lnk`.
-Não deixe outro macro com as mesmas teclas rodando junto (ex.: o `macro ek` antigo).
 
 ## Para desenvolvedores
 
@@ -159,14 +145,13 @@ Mesmo esquema do Zandonadi Radar: Python + **pywebview**, com a interface em HTM
 ```
 python zandao_tibia_tools.py      # roda sem gerar o exe
 python -m unittest                # testes do cálculo
-build.bat                         # testes + gera um exe avulso nesta pasta (sem o Simulated Keys compilado)
+build.bat                         # testes + gera um exe avulso nesta pasta
 ```
 
 ### Lançar uma versão nova (atualização automática)
 
 1. Aumente `VERSAO_APP` em `versao.py` (ex.: `1.0.1`).
-2. `powershell -ExecutionPolicy Bypass -File instalador\gerar_instalador.ps1` (precisa de Inno Setup 6 e
-   AutoHotkey v1.1 com o compilador). Roda os testes, empacota, compila o Simulated Keys e gera
+2. `powershell -ExecutionPolicy Bypass -File instalador\gerar_instalador.ps1` (precisa de Inno Setup 6). Roda os testes, empacota e gera
    `%TEMP%\zandao_tibia_tools_build\output\ZandaoTibiaToolsSetup.exe`.
 3. Commit + push, e uma Release com a tag `v1.0.1` com o `ZandaoTibiaToolsSetup.exe` anexado.
    Quem já instalou recebe o aviso na próxima vez que abrir o programa.

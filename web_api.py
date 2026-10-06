@@ -2,7 +2,6 @@
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import threading
@@ -31,10 +30,6 @@ else:
 
 IMBUEMENTS_PATH = os.path.join(BASE_DIR, "data", "imbuements.json")
 DADOS_PATH = os.path.join(BASE_DIR, "dados_embuimentos.json")
-MACRO_PATH = os.path.join(BASE_DIR, "macro", "tibia_macro_f1.ahk")
-# Simulated Keys compilado (Ahk2Exe): roda sem o AutoHotkey instalado. É o que vai no instalador;
-# rodando pelo código-fonte, sem ele, usa o AutoHotkey v1.1 + o .ahk.
-SIMKEYS_EXE = os.path.join(BASE_DIR, "macro", "SimulatedKeys.exe")
 
 PREFS_PATH = os.path.join(BASE_DIR, "preferencias.json")
 RASCUNHO_PATH = os.path.join(BASE_DIR, "hunt_atual.json")  # textos colados da última hunt, para reabrir o app sem perder
@@ -99,39 +94,6 @@ def ler_prefs():
     except (OSError, json.JSONDecodeError):
         p = {}
     return {"por_cima": bool(p.get("por_cima", False)), "opacidade": int(p.get("opacidade", 100))}
-
-
-# ---------- macro ----------
-def achar_autohotkey():
-    """O macro é AutoHotkey v1.1."""
-    for pasta in (os.environ.get("ProgramFiles", r"C:\Program Files"), os.environ.get("ProgramFiles(x86)", "")):
-        for exe in ("AutoHotkeyU64.exe", "AutoHotkey.exe", "AutoHotkeyU32.exe"):
-            caminho = os.path.join(pasta, "AutoHotkey", exe)
-            if pasta and os.path.isfile(caminho):
-                return caminho
-    return shutil.which("AutoHotkey.exe")
-
-
-def pids_do_macro():
-    """PIDs do Simulated Keys desta pasta (o .exe compilado ou o AutoHotkey rodando o .ahk)."""
-    cmd = (
-        "Get-CimInstance Win32_Process -Filter \"Name like 'AutoHotkey%' or Name = 'SimulatedKeys.exe'\" | "
-        "ForEach-Object { \"$($_.ProcessId)|$($_.CommandLine)\" }"
-    )
-    try:
-        saida = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", cmd],
-            capture_output=True, text=True, timeout=15, creationflags=SEM_JANELA,
-        ).stdout
-    except (OSError, subprocess.TimeoutExpired):
-        return []
-    alvos = (os.path.normcase(MACRO_PATH), os.path.normcase(SIMKEYS_EXE))
-    pids = []
-    for linha in (saida or "").splitlines():
-        pid, _, cmdline = linha.partition("|")
-        if any(a in os.path.normcase(cmdline) for a in alvos) and pid.strip().isdigit():
-            pids.append(int(pid))
-    return pids
 
 
 # ---------- área de transferência (Win32, aceita acentos) ----------
@@ -352,30 +314,6 @@ class API:
             self._emit("erroPrints", str(e))
         finally:
             self._organizando = False
-
-    # ================= macro =================
-    def macro_status(self):
-        return {"ahk": os.path.isfile(SIMKEYS_EXE) or bool(achar_autohotkey()), "rodando": bool(pids_do_macro())}
-
-    def macro_ligar(self):
-        if os.path.isfile(SIMKEYS_EXE):
-            subprocess.Popen([SIMKEYS_EXE], cwd=os.path.dirname(SIMKEYS_EXE))
-            return {"ok": True}
-        ahk = achar_autohotkey()
-        if not ahk:
-            return {"ok": False, "erro": "Simulated Keys não encontrado. Reinstale o Zandao Tibia Tools."}
-        if not os.path.isfile(MACRO_PATH):
-            return {"ok": False, "erro": f"Script do Simulated Keys não encontrado: {MACRO_PATH}"}
-        subprocess.Popen([ahk, MACRO_PATH], cwd=os.path.dirname(MACRO_PATH))
-        return {"ok": True}
-
-    def macro_fechar(self):
-        for pid in pids_do_macro():
-            subprocess.run(["taskkill", "/PID", str(pid), "/F"], capture_output=True, creationflags=SEM_JANELA)
-        return {"ok": True}
-
-    def macro_abrir_pasta(self):
-        return self.abrir_pasta(os.path.dirname(MACRO_PATH))
 
     # ================= hunt analyser (loot split + dano) =================
     # ================= meus personagens (conferidos no tibia.com) =================
@@ -764,8 +702,7 @@ class API:
     # ================= configurações: backup de tudo =================
     def _caminhos_backup(self):
         return {"historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
-                "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH,
-                "teclas": os.path.join(os.path.dirname(MACRO_PATH), "tibia_macro_config.ini")}
+                "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH}
 
     def config_exportar(self):
         pacote = backup.exportar(self._caminhos_backup(), VERSAO_APP)

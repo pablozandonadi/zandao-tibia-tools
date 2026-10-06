@@ -371,7 +371,7 @@ class TestBackup(unittest.TestCase):
         import backup
         with tempfile.TemporaryDirectory() as tmp:
             orig = {k: os.path.join(tmp, "a", n) for k, n in (("historico", "h.json"), ("personagens", "p.json"),
-                    ("prints", "s.json"), ("teclas", "t.ini"), ("janela", "j.json"))}
+                    ("prints", "s.json"), ("teclas", "t.ini"), ("janela", "j.json"))}  # "teclas" saiu na v1.0.5
             os.makedirs(os.path.join(tmp, "a"))
             json.dump({"formato": historico.FORMATO, "hunts": [{"id": "x"}, {"id": "y"}]}, open(orig["historico"], "w", encoding="utf-8"))
             json.dump({"lista": [{"nome": "Zandao"}], "atual": "Zandao"}, open(orig["personagens"], "w", encoding="utf-8"))
@@ -379,17 +379,19 @@ class TestBackup(unittest.TestCase):
             ini = "[Config]\r\nBind1_Tecla=f\r\n".encode("utf-16")      # o AutoHotkey grava em UTF-16
             open(orig["teclas"], "wb").write(ini)
             pacote = json.loads(json.dumps(backup.exportar(orig, "9.9.9")))  # passa por JSON, como no arquivo
-            self.assertEqual(sorted(pacote["arquivos"]), ["historico", "personagens", "prints", "teclas"])  # janela não existia
+            self.assertEqual(sorted(pacote["arquivos"]), ["historico", "personagens", "prints"])  # janela não existia; teclas não entra mais
             self.assertIn("Histórico de hunts (2 hunts)", backup.resumo(pacote))
 
             dest = {k: c.replace(os.sep + "a" + os.sep, os.sep + "b" + os.sep) for k, c in orig.items()}
             os.makedirs(os.path.join(tmp, "b"))
             json.dump({"print-dir": "antigo"}, open(dest["prints"], "w", encoding="utf-8"))
             feitos = backup.importar(pacote, dest)
-            self.assertEqual(len(feitos), 4)
-            self.assertEqual(open(dest["teclas"], "rb").read(), ini)          # bytes idênticos
+            self.assertEqual(len(feitos), 3)
             self.assertEqual(json.load(open(dest["prints"], encoding="utf-8"))["destination"], "D:/y")
             self.assertEqual(json.load(open(dest["prints"] + ".antes-do-backup", encoding="utf-8"))["print-dir"], "antigo")
+            pacote_antigo = {**pacote, "arquivos": {**pacote["arquivos"], "teclas": {"base64": "AAAA"}}}
+            self.assertEqual(len(backup.importar(pacote_antigo, dest)), 3)    # backup antigo com teclas: ignora
+            self.assertFalse(os.path.exists(dest["teclas"]))
             with self.assertRaises(ValueError):
                 backup.importar({"formato": historico.FORMATO, "hunts": []}, dest)  # export só de hunts não é backup
 

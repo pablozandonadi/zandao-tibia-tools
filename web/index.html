@@ -195,16 +195,6 @@
   .barra i { display: block; height: 100%; width: 35%; background: var(--accent); animation: vaivem 1.1s ease-in-out infinite alternate; }
   @keyframes vaivem { from { margin-left: 0; } to { margin-left: 65%; } }
 
-  /* ---- macro ---- */
-  .macro-status { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-  .luz { width: 18px; height: 18px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--ink-dim); }
-  .luz.on { background: var(--good); box-shadow: 0 0 0 4px rgba(62,207,142,.25); animation: pulso 1.6s ease-in-out infinite; }
-  .luz.off { background: var(--bad); }
-  @keyframes pulso { 50% { box-shadow: 0 0 0 8px rgba(62,207,142,.08); } }
-  .status-texto { font-family: var(--font-display); font-size: 1.15rem; }
-  kbd { font-family: var(--font-mono); font-weight: 700; font-size: .76rem; background: var(--surface-2); border: 2px solid var(--ink); border-bottom-width: 4px; border-radius: 7px; padding: 3px 8px; }
-  .atalhos { display: grid; grid-template-columns: auto 1fr; gap: 12px 14px; align-items: center; margin: 4px 0; font-size: .86rem; }
-  .aviso { margin-top: 14px; color: var(--bad); font-weight: 600; font-size: .82rem; }
   p.texto { font-size: .88rem; line-height: 1.55; color: var(--ink-dim); max-width: 640px; margin: 0 0 14px; }
   p.texto b { color: var(--ink); }
 
@@ -429,7 +419,6 @@
     <div class="nav-item" data-pagina="hist" title="Histórico de hunts">📜<span class="txt"> Histórico</span></div>
     <div class="nav-item" data-pagina="ferr" title="Ferramentas">🧰<span class="txt"> Ferramentas</span></div>
     <div class="nav-item" data-pagina="prints" title="Prints">📸<span class="txt"> Prints</span></div>
-    <div class="nav-item" data-pagina="macro" title="Simulated Keys">⌨️<span class="txt"> Simulated Keys</span></div>
     <div class="nav-item" data-pagina="config" title="Configurações">⚙️<span class="txt"> Configurações</span></div>
     <div class="sobrepor">
       <button class="pino" id="j-topo" title="Fixar por cima do Tibia (fica visível mesmo clicando no jogo)">📌<span class="txt"> Fixar por cima</span></button>
@@ -594,29 +583,6 @@
       </div>
     </section>
 
-    <!-- ================= MACRO ================= -->
-    <section class="page" id="page-macro">
-      <h1 class="titulo">Simulated Keys</h1>
-      <div class="card">
-        <div class="macro-status"><div class="luz" id="m-luz"></div><div class="status-texto" id="m-status">verificando...</div></div>
-        <div class="acoes">
-          <button class="btn btn-primary" id="m-ligar" disabled>▶ Ligar Simulated Keys</button>
-          <button class="btn btn-danger" id="m-fechar" disabled>■ Desligar</button>
-          <button class="btn" id="m-atualizar">↻ Atualizar status</button>
-          <button class="btn" id="m-pasta">Abrir pasta</button>
-        </div>
-        <div class="aviso" id="m-aviso" style="display:none;"></div>
-      </div>
-      <div class="card calmo">
-        <h2 class="sub">Como funciona</h2>
-        <p class="texto">Segurar uma tecla configurada repete a tecla-alvo no intervalo escolhido (ex.: segurar <b>F</b> manda <b>F1</b>). Só age com o Tibia (<b>client.exe</b>) em foco. Continua rodando mesmo se você fechar o Tibia Tools (ícone perto do relógio). Não precisa instalar o AutoHotkey: ele já vem dentro do programa.</p>
-        <div class="atalhos">
-          <span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd></span><span>liga / desliga o Simulated Keys</span>
-          <span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>F10</kbd></span><span>abre a janela para configurar as teclas</span>
-        </div>
-      </div>
-    </section>
-
     <!-- ================= CONFIGURAÇÕES ================= -->
     <section class="page" id="page-config">
       <h1 class="titulo">Configurações</h1>
@@ -638,7 +604,6 @@
             <li><b>Meus personagens</b></li>
             <li><b>Embuimentos</b>: preços, o que você já tem e os escolhidos</li>
             <li><b>Prints</b>: pastas e opções</li>
-            <li><b>Simulated Keys</b>: suas teclas</li>
             <li><b>Janela</b>: fixar por cima e transparência</li>
           </ul>
           <div class="acoes"><button class="btn btn-primary" id="cfg-exportar">📤 Exportar tudo</button><button class="btn" id="cfg-importar">📥 Restaurar um backup</button></div>
@@ -692,7 +657,6 @@ function irPara(pagina) {
   document.querySelectorAll('.nav-item').forEach((x) => x.classList.toggle('active', x.dataset.pagina === pagina));
   document.querySelectorAll('.page').forEach((p) => p.classList.toggle('shown', p.id === 'page-' + pagina));
   $('content').scrollTop = 0;
-  if (pagina === 'macro') atualizarMacro();
   if (pagina === 'hist') carregarHistorico();
   if (pagina === 'ferr') abrirFerramentas();
   if (pagina === 'config') abrirConfiguracoes();
@@ -889,28 +853,6 @@ window.fimPrints = ({ resultado, porTipo }) => {
 };
 window.erroPrints = (msg) => { fimOrganizar(); logPrints('\nERRO: ' + msg); toast(msg, true); };
 window.logPrints = logPrints;
-
-// ================= MACRO =================
-async function atualizarMacro() {
-  $('m-status').textContent = 'verificando...';
-  $('m-luz').className = 'luz';
-  $('m-ligar').disabled = $('m-fechar').disabled = true;
-  const s = await api.macro_status();
-  $('m-luz').className = 'luz ' + (s.rodando ? 'on' : 'off');
-  $('m-status').textContent = s.rodando ? 'Simulated Keys ligado' : 'Simulated Keys desligado';
-  $('m-ligar').disabled = !s.ahk || s.rodando;
-  $('m-fechar').disabled = !s.rodando;
-  $('m-aviso').style.display = s.ahk ? 'none' : 'block';
-  $('m-aviso').textContent = 'Simulated Keys não encontrado. Reinstale o Zandao Tibia Tools (ou, rodando pelo código, instale o AutoHotkey v1.1).';
-}
-$('m-ligar').addEventListener('click', async () => {
-  const r = await api.macro_ligar();
-  if (!r.ok) { toast(r.erro, true); return; }
-  setTimeout(atualizarMacro, 1200);
-});
-$('m-fechar').addEventListener('click', async () => { await api.macro_fechar(); setTimeout(atualizarMacro, 400); });
-$('m-atualizar').addEventListener('click', atualizarMacro);
-$('m-pasta').addEventListener('click', () => api.macro_abrir_pasta());
 
 // ================= HUNT ANALYSER (loot split + dano) =================
 const EL = {
@@ -1888,7 +1830,7 @@ async function checarAtualizacao() {
   try { info = await api.verificar_atualizacao(); } catch (e) { return false; }
   if (!info) return false;
   $('atualizacao-texto').textContent = `Tem uma versão nova do Zandao Tibia Tools: ${info.versao} (você está na v${info.versao_atual}). ` +
-    'Baixar e instalar agora? O programa fecha durante a instalação. Seu histórico, preços e teclas continuam salvos.';
+    'Baixar e instalar agora? O programa fecha durante a instalação. Seu histórico, preços e personagens continuam salvos.';
   $('atualizacao-notas').textContent = info.notas || '';
   $('atualizacao-status').textContent = '';
   $('atualizacao-progresso').style.display = 'none';

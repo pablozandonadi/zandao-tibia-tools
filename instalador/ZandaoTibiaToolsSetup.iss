@@ -2,10 +2,10 @@
 ; Não compile na mão: use instalador\gerar_instalador.ps1, que faz o build e passa SourceDistDir/OutputDir.
 ;
 ; Instala por usuário (AppData\Local\Programs), sem pedir administrador: o programa grava ao lado do
-; .exe o histórico de hunts, os preços dos embuimentos, as teclas do Simulated Keys etc.
+; .exe o histórico de hunts, os preços dos embuimentos, os personagens etc.
 ;
 ; Instalador "limpo": nenhum dado pessoal vai junto (historico_hunts.json, dados_embuimentos.json,
-; settings.json, preferencias.json, tibia_macro_config.ini). Cada pessoa começa do zero, e numa
+; settings.json, preferencias.json, meus_personagens.json). Cada pessoa começa do zero, e numa
 ; atualização esses arquivos ficam intactos, porque o instalador nunca os cria nem apaga.
 
 #define MyAppName "Zandao Tibia Tools"
@@ -51,6 +51,9 @@ Name: "desktopicon"; Description: "Criar um ícone na área de trabalho"; GroupD
 ; bibliotecas da versão anterior: apaga antes de copiar as novas (os dados do usuário ficam na pasta principal)
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\_internal"
+; o Simulated Keys saiu do app na v1.0.5: apaga o .exe dele e o atalho de iniciar com o Windows
+Type: files; Name: "{app}\macro\SimulatedKeys.exe"
+Type: files; Name: "{userstartup}\ZandaoSimulatedKeys.lnk"
 
 [Files]
 Source: "{#SourceDistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -62,10 +65,6 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir o {#MyAppName} agora"; Flags: nowait postinstall skipifsilent
-
-[UninstallRun]
-; desliga o Simulated Keys antes de desinstalar
-Filename: "{sys}\taskkill.exe"; Parameters: "/IM SimulatedKeys.exe /F"; Flags: runhidden; RunOnceId: "FecharSimulatedKeys"
 
 [Code]
 // A interface é desenhada pelo WebView2 da Microsoft. Windows 11 e Windows 10 atualizado já trazem;
@@ -86,7 +85,7 @@ var
   CodigoSaida: Integer;
 begin
   Result := '';
-  // Simulated Keys rodando segura o .exe dele: fecha antes de copiar
+  // versões até a 1.0.4 tinham o Simulated Keys: fecha se estiver rodando, para o instalador poder apagá-lo
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM SimulatedKeys.exe /F', '', SW_HIDE, ewWaitUntilTerminated, CodigoSaida);
   if WebView2Instalado then
     Exit;
