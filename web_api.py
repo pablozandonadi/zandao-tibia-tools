@@ -703,6 +703,8 @@ class API:
         aproximado = False
         if xp is None:
             info = tibia_info.personagem(nome) if nome else None
+            if not info:  # sem internet: usa o level guardado em Meus personagens
+                info = next((p for p in personagens.carregar()["lista"] if p["nome"].lower() == nome.lower()), None)
             if not info:
                 return {"erro": "Digite a XP atual (janela Skills do Tibia) ou um personagem que exista no tibia.com."}
             xp, aproximado = tibia_info.xp_total(info["level"]), True

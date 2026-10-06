@@ -530,7 +530,9 @@
         <div class="card calmo">
           <h2 class="sub">📈 Quando eu upo?</h2>
           <div class="campos">
-            <div><label class="campo-label" for="f-up-nome">Personagem</label><input type="text" id="f-up-nome" list="f-up-nomes" placeholder="ex.: Zandao"><datalist id="f-up-nomes"></datalist></div>
+            <div><label class="campo-label" for="f-up-sel">Personagem</label><select id="f-up-sel"></select>
+              <input type="text" id="f-up-nome" placeholder="nome do personagem" style="display:none;margin-top:6px">
+              <div class="dica" id="f-up-info" style="margin-top:4px"></div></div>
             <div><label class="campo-label" for="f-up-alvo">Level alvo</label><input type="text" class="num" id="f-up-alvo" placeholder="próximo"></div>
             <div><label class="campo-label" for="f-up-xp">XP atual (janela Skills)</label><input type="text" class="num" id="f-up-xp" placeholder="opcional"></div>
             <div><label class="campo-label" for="f-up-xph">XP/h</label><input type="text" class="num" id="f-up-xph" placeholder="média do histórico"></div>
@@ -1656,10 +1658,28 @@ $('f-atualizar').addEventListener('click', () => carregarDia(true));
 async function abrirFerramentas() {
   contarSS();
   const h = await api.hunt_historico('', '', '');
-  const nomes = [...new Set([...MEUS.lista.map((p) => p.nome), ...h.personagens])];
-  $('f-up-nomes').innerHTML = nomes.map((p) => `<option value="${esc(p)}">`).join('');
-  if (!$('f-up-nome').value && (MEUS.atual || H.entrada.personagem)) $('f-up-nome').value = MEUS.atual || H.entrada.personagem;
+  const meus = MEUS.lista.map((p) => p.nome.toLowerCase());
+  const doHist = h.personagens.filter((n) => !meus.includes(n.toLowerCase()));
+  const antes = $('f-up-sel').value;
+  $('f-up-sel').innerHTML =
+    (MEUS.lista.length ? `<optgroup label="Meus personagens">${MEUS.lista.map((p) => `<option value="${esc(p.nome)}">${esc(p.nome)} · lvl ${p.level}</option>`).join('')}</optgroup>` : '') +
+    (doHist.length ? `<optgroup label="Do histórico">${doHist.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join('')}</optgroup>` : '') +
+    '<option value="__outro__">✏ Outro (digitar nome)</option>';
+  const opcoes = [...$('f-up-sel').options].map((o) => o.value);
+  $('f-up-sel').value = opcoes.includes(antes) ? antes : (acharMeu(MEUS.atual) ? acharMeu(MEUS.atual).nome : opcoes[0]);
+  escolherPersonagemUp();
 }
+function nomeUp() { return $('f-up-sel').value === '__outro__' ? $('f-up-nome').value.trim() : $('f-up-sel').value; }
+function escolherPersonagemUp() {
+  const outro = $('f-up-sel').value === '__outro__';
+  $('f-up-nome').style.display = outro ? '' : 'none';
+  if (outro) $('f-up-nome').focus();
+  const meu = !outro && acharMeu($('f-up-sel').value);
+  $('f-up-info').textContent = meu ? `Level ${meu.level} · ${meu.vocacao || '?'} · ${meu.mundo || '?'} (tibia.com)` : '';
+  $('f-up-xph').placeholder = 'média do histórico';
+  $('f-up-res').style.display = 'none';
+}
+$('f-up-sel').addEventListener('change', escolherPersonagemUp);
 let tShared = null;
 $('f-levels').addEventListener('input', () => {
   clearTimeout(tShared);
@@ -1675,7 +1695,7 @@ $('f-levels').addEventListener('input', () => {
   }, 250);
 });
 $('f-up-calc').addEventListener('click', async () => {
-  const r = await api.tibia_upar($('f-up-nome').value, $('f-up-xp').value, $('f-up-alvo').value, $('f-up-xph').value);
+  const r = await api.tibia_upar(nomeUp(), $('f-up-xp').value, $('f-up-alvo').value, $('f-up-xph').value);
   const box = $('f-up-res');
   box.style.display = 'block';
   if (r.erro) { box.className = 'resultado-ferr nao'; box.textContent = r.erro; return; }
