@@ -411,6 +411,10 @@
   .au-tempo b { font-family: var(--font-mono); font-size: .95rem; width: 62px; text-align: right; }
   .au-acoes { display: flex; gap: 6px; align-items: center; }
   .au-form .campos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .campo-ms { display: flex; gap: 6px; }
+  .campo-ms label { flex: 1; display: flex; align-items: center; gap: 4px; min-width: 0; }
+  .campo-ms input { width: 100%; min-width: 0; }
+  .campo-ms span { font-size: 11px; font-weight: 700; color: var(--muted, #9aa); text-transform: uppercase; }
   .au-modos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 4px; }
   .au-modo { border: 2px solid var(--ink-dim); border-radius: 9px; padding: 8px 10px; cursor: pointer; font-size: .76rem; color: var(--ink-dim); line-height: 1.4; }
   .au-modo b { display: block; color: var(--ink); font-size: .84rem; margin-bottom: 2px; }
@@ -1793,10 +1797,25 @@ function fmtDur(seg) {
   const h = Math.floor(seg / 3600), m = Math.floor(seg % 3600 / 60), s2 = seg % 60;
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(s2).padStart(2, '0')}` : `${m}:${String(s2).padStart(2, '0')}`;
 }
-function lerDur(txt) {  // "90", "1:30" ou "1:02:00" -> segundos
-  const p = String(txt || '').trim().split(':').map((x) => parseFloat(x.replace(',', '.')));
-  if (p.some((x) => isNaN(x))) return null;
-  return p.reduce((t, x) => t * 60 + x, 0);
+// minutos / segundos / milissegundos (duração e aviso)
+function partesMs(seg) {
+  const tot = Math.round((seg || 0) * 1000);
+  return { m: Math.floor(tot / 60000), s: Math.floor(tot % 60000 / 1000), ms: tot % 1000 };
+}
+function fmtDurMs(seg) {  // 1:30 ou 1:30.250
+  const p = partesMs(seg);
+  return `${p.m}:${String(p.s).padStart(2, '0')}${p.ms ? '.' + String(p.ms).padStart(3, '0') : ''}`;
+}
+function campoMs(id, rotulo, seg) {
+  const p = partesMs(seg);
+  return `<div><label class="campo-label" for="${id}-m">${rotulo}</label><div class="campo-ms">
+    <label><input type="number" class="num" id="${id}-m" min="0" max="1440" value="${p.m}"><span>min</span></label>
+    <label><input type="number" class="num" id="${id}-s" min="0" max="59" value="${p.s}"><span>seg</span></label>
+    <label><input type="number" class="num" id="${id}-ms" min="0" max="999" step="10" value="${p.ms}"><span>ms</span></label></div></div>`;
+}
+function lerMs(id) {
+  const v = (k) => Math.max(0, parseInt($(id + '-' + k).value, 10) || 0);
+  return Math.round((v('m') * 60 + v('s') + Math.min(999, v('ms')) / 1000) * 1000) / 1000;
 }
 const nomeSom = (id) => ((AU.sons.find((x) => x.id === id) || {}).nome || 'Bipe');
 async function salvarAudio() { AU = await api.audio_salvar(AU.cfg); renderAudio(); }
@@ -1809,7 +1828,7 @@ function renderAudio() {
   $('au-sotibia').checked = !!c.so_tibia;
   mostrarCfgBarra();
   $('au-lista').innerHTML = c.timers.length ? c.timers.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
-      <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDur(t.duracao)}${t.antes ? ` · avisa ${t.antes}s antes` : ''} · 🔊 ${esc(nomeSom(t.som))} ${t.volume}%${t.alerta ? ' · 📢 alerta' : ''}${t.barra ? ' · ▬ barra' : ''}</div></div>
+      <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDurMs(t.duracao)}${t.antes ? ` · avisa ${fmtDurMs(t.antes)} antes` : ''} · 🔊 ${esc(nomeSom(t.som))} ${t.volume}%${t.alerta ? ' · 📢 alerta' : ''}${t.barra ? ' · ▬ barra' : ''}</div></div>
       <span class="au-tecla" title="Tecla que começa o timer">${esc(AU.teclas[t.id] || '—')}</span>
       <div class="au-tempo"><span class="barra-el"><i style="width:0%"></i></span><b>${fmtDur(t.duracao)}</b></div>
       <div class="au-acoes"><label class="check" title="Ativo"><input type="checkbox" data-au-ativo="${t.id}" ${t.ativo ? 'checked' : ''}></label>
@@ -1860,7 +1879,7 @@ function desenharFormAudio() {
       <div><label class="campo-label" for="auf-nome">Nome</label><input type="text" id="auf-nome" value="${esc(t.nome)}" placeholder="ex.: Poção, Utito, Food"></div>
       <div><label class="campo-label">Tecla</label><div class="linha-pasta" style="margin:0">
         <span class="au-tecla" id="auf-tecla">${esc(t._teclaTexto || '—')}</span><button class="btn btn-sm" id="auf-gravar">⌨ Gravar tecla</button></div></div>
-      <div><label class="campo-label" for="auf-dur">Duração (seg ou m:ss)</label><input type="text" class="num" id="auf-dur" value="${fmtDur(t.duracao)}"></div>
+      ${campoMs('auf-dur', 'Duração', t.duracao)}
     </div>
     <label class="campo-label" style="margin-top:12px">Modo</label>
     <div class="au-modos">${MODOS_AU.map(([k, nm, d]) => `<div class="au-modo ${t.modo === k ? 'on' : ''}" data-auf-modo="${k}"><b>${nm}</b>${d}</div>`).join('')}</div>
@@ -1870,7 +1889,7 @@ function desenharFormAudio() {
         <button class="btn btn-sm" id="auf-ouvir" title="Ouvir">▶</button></div>
         <button class="btn btn-sm" id="auf-importar" style="margin-top:6px">🎵 Usar um som meu (.mp3/.wav)</button></div>
       <div><label class="campo-label" for="auf-vol">Volume do timer: <b id="auf-vol-val">${t.volume}%</b></label><input type="range" id="auf-vol" min="0" max="100" step="5" value="${t.volume}"></div>
-      <div><label class="campo-label" for="auf-antes">Avisar antes de acabar (seg)</label><input type="text" class="num" id="auf-antes" value="${t.antes || 0}"></div>
+      ${campoMs('auf-antes', 'Avisar antes de acabar', t.antes || 0)}
     </div>
   </div>`;
   $('au-form-visual').innerHTML = `<div class="au-form" style="border-bottom:2px dashed var(--line, #444);padding-bottom:14px;margin-bottom:14px">
@@ -1894,8 +1913,10 @@ function desenharFormAudio() {
   </div>`;
   $('au-form-acoes').innerHTML = `<div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>`;
   $('auf-nome').addEventListener('input', () => { t.nome = $('auf-nome').value; });
-  $('auf-dur').addEventListener('input', () => { const d = lerDur($('auf-dur').value); if (d) t.duracao = d; });
-  $('auf-antes').addEventListener('input', () => { t.antes = parseFloat($('auf-antes').value.replace(',', '.')) || 0; });
+  ['m', 's', 'ms'].forEach((k) => {
+    $('auf-dur-' + k).addEventListener('input', () => { const d = lerMs('auf-dur'); if (d > 0) t.duracao = d; });
+    $('auf-antes-' + k).addEventListener('input', () => { t.antes = lerMs('auf-antes'); });
+  });
   $('auf-som').addEventListener('change', () => { t.som = $('auf-som').value; });
   $('auf-alerta').addEventListener('change', () => { t.alerta = $('auf-alerta').checked; });
   $('auf-barra').addEventListener('change', () => { t.barra = $('auf-barra').checked; });
@@ -1929,7 +1950,8 @@ function desenharFormAudio() {
   $('auf-cancelar').addEventListener('click', () => { auEditando = null; desenharFormAudio(); });
   $('auf-salvar').addEventListener('click', async () => {
     if (!t.tecla || !t.tecla.vk) { toast('Grave a tecla do timer.', true); return; }
-    if (!lerDur($('auf-dur').value)) { toast('Duração inválida (ex.: 90 ou 1:30).', true); return; }
+    if (!(lerMs('auf-dur') >= 0.1)) { toast('Coloque a duração do timer (mínimo 100 ms).', true); return; }
+    if (t.antes >= t.duracao) { toast('O aviso tem que ser antes do fim: menor que a duração.', true); return; }
     const limpo = { ...t }; delete limpo._teclaTexto;
     const i = AU.cfg.timers.findIndex((x) => x.id && x.id === t.id);
     if (i >= 0) AU.cfg.timers[i] = limpo; else AU.cfg.timers.push(limpo);

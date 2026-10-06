@@ -80,12 +80,12 @@ def salvar(cfg, caminho=None):
 
 
 def _duracao(v):
-    """Segundos entre 1 s e 24 h; vazio, zero ou inválido vira o padrão (60 s)."""
+    """Segundos (com milissegundos) entre 0,1 s e 24 h; vazio, zero ou inválido vira o padrão (60 s)."""
     try:
         d = float(v or 0)
     except (TypeError, ValueError):
         d = 0
-    return 60.0 if d <= 0 else max(1.0, min(24 * 3600.0, d))
+    return 60.0 if d <= 0 else round(max(0.1, min(24 * 3600.0, d)), 3)
 
 
 def normalizar(t):
@@ -98,7 +98,7 @@ def normalizar(t):
                   "ctrl": bool(tecla.get("ctrl")), "shift": bool(tecla.get("shift")), "alt": bool(tecla.get("alt"))},
         "duracao": _duracao(t.get("duracao")),
         "modo": t.get("modo") if t.get("modo") in MODOS else "reinicia",
-        "antes": max(0.0, float(t.get("antes") or 0)),
+        "antes": round(max(0.0, min(24 * 3600.0, float(t.get("antes") or 0))), 3),
         "som": str(t.get("som") or SOM_PADRAO),
         "volume": max(0, min(100, int(t.get("volume") if t.get("volume") is not None else 100))),
         "ativo": bool(t.get("ativo", True)),
