@@ -613,14 +613,16 @@
           <label class="vol" for="au-vol">Volume <input type="range" id="au-vol" min="0" max="100" step="5"><b id="au-vol-val">90%</b></label>
           <label class="check"><input type="checkbox" id="au-sotibia"> Só contar com o Tibia em foco</label>
           <span style="margin-left:auto" class="acoes"><button class="btn btn-sm" id="au-parar">■ Parar contagens</button>
+            <button class="btn btn-sm" id="au-tv">⇩ Importar do TibiaVision</button>
             <button class="btn btn-primary" id="au-novo">+ Novo timer</button></span>
         </div>
         <p class="dica" style="margin:12px 0 0;line-height:1.5">Aperte a tecla do timer no Tibia e ele começa a contar; quando acaba, toca o som. Funciona com o app minimizado.
           O app só confere as teclas que você cadastrou aqui: não grava o que você digita e não manda tecla nenhuma para o jogo.</p>
       </div>
       <div class="card calmo" style="margin-top:16px">
-        <div class="h-titulo" style="margin-bottom:8px"><h2 class="sub" style="margin:0">▬ Barra no Tibia</h2>
-          <button class="btn btn-sm" id="au-barra-testar">👁 Testar posição</button></div>
+        <div class="h-titulo" style="margin-bottom:8px"><h2 class="sub" style="margin:0">📍 Barra e alerta no Tibia</h2>
+          <span class="acoes"><button class="btn btn-sm" id="au-alerta-testar">👁 Testar alerta</button>
+          <button class="btn btn-sm" id="au-barra-testar">👁 Testar barras</button></span></div>
         <div class="campos" style="grid-template-columns:repeat(4,minmax(0,1fr))">
           <div><label class="campo-label" for="aub-larg">Largura: <b id="aub-larg-v"></b></label><input type="range" id="aub-larg" min="80" max="1200" step="10"></div>
           <div><label class="campo-label" for="aub-esp">Espessura: <b id="aub-esp-v"></b></label><input type="range" id="aub-esp" min="4" max="48" step="1"></div>
@@ -628,6 +630,10 @@
           <div><label class="campo-label" for="aub-y">Posição vertical: <b id="aub-y-v"></b></label><input type="range" id="aub-y" min="0" max="100" step="1"></div>
         </div>
         <label class="check" style="margin-top:8px"><input type="checkbox" id="aub-nome"> Mostrar nome e tempo em cima da barra</label>
+        <div class="campos" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:12px">
+          <div><label class="campo-label" for="aua-x">Alerta: posição horizontal <b id="aua-x-v"></b></label><input type="range" id="aua-x" min="0" max="100" step="1"></div>
+          <div><label class="campo-label" for="aua-y">Alerta: posição vertical <b id="aua-y-v"></b></label><input type="range" id="aua-y" min="0" max="100" step="1"></div>
+        </div>
         <p class="dica" style="margin:8px 0 0">Vale para os timers com "Barra no Tibia" ligada. Mexa nos controles com o Tibia aberto: as barras de exemplo aparecem em cima dele para você ajustar. A posição é em % da janela do Tibia.</p>
       </div>
       <div id="au-form"></div>
@@ -1839,7 +1845,7 @@ window.audioEstado = (est) => { if (AU) { AU.estado = est; mostrarEstadoAudio(es
 
 function abrirFormAudio(id) {
   const base = id ? AU.cfg.timers.find((t) => t.id === id) : null;
-  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'pronto:bipe', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo' }));
+  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'padrao:Potion.mp3', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo', mensagem: '', fonte: 34, fixo: false }));
   auEditando._teclaTexto = id ? AU.teclas[id] : '';
   desenharFormAudio();
   $('au-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1871,8 +1877,14 @@ function desenharFormAudio() {
       <div><label class="check"><input type="checkbox" id="auf-barra" ${t.barra ? 'checked' : ''}> ▬ Barra no Tibia</label>
         <div class="dica" style="margin-top:4px">Barra correndo por cima do Tibia enquanto o timer conta (ajuste em "Barra no Tibia").</div></div>
       <div><label class="campo-label" for="auf-cor">Cor do alerta e da barra</label><div class="linha-pasta" style="margin:0">
-        <select id="auf-cor">${CORES_AU.map(([k, n2]) => `<option value="${k}" ${k === (t.cor || 'amarelo') ? 'selected' : ''}>${n2}</option>`).join('')}</select>
-        <button class="btn btn-sm" id="auf-testar-alerta" title="Mostra o alerta por 3 s">👁 Testar</button></div></div>
+        <input type="color" id="auf-cor" value="${corHex(t.cor)}" style="width:52px;height:36px;padding:0;border:2.5px solid var(--ink);border-radius:8px;background:none;cursor:pointer">
+        ${CORES_AU.map(([k, n2]) => `<span class="pilula" data-auf-cor="${k}" title="${n2}" style="padding:4px 9px;background:${corHex(k)};border-color:var(--ink)">&nbsp;</span>`).join('')}
+        <button class="btn btn-sm" id="auf-testar-alerta" title="Mostra o alerta por 4 s">👁 Testar</button></div></div>
+    </div>
+    <div class="campos" style="margin-top:12px">
+      <div><label class="campo-label" for="auf-msg">Mensagem do alerta</label><input type="text" id="auf-msg" maxlength="60" value="${esc(t.mensagem || '')}" placeholder="automática: &quot;${esc(t.nome || 'Poção')} acaba em 3s&quot;"></div>
+      <div><label class="campo-label" for="auf-fonte">Tamanho da letra: <b id="auf-fonte-v">${t.fonte || 34}</b></label><input type="range" id="auf-fonte" min="14" max="96" step="2" value="${t.fonte || 34}"></div>
+      <div><label class="check" style="margin-top:18px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Alerta fica na tela até apertar a tecla de novo</label></div>
     </div>
     <div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>
   </div>`;
@@ -1882,8 +1894,12 @@ function desenharFormAudio() {
   $('auf-som').addEventListener('change', () => { t.som = $('auf-som').value; });
   $('auf-alerta').addEventListener('change', () => { t.alerta = $('auf-alerta').checked; });
   $('auf-barra').addEventListener('change', () => { t.barra = $('auf-barra').checked; });
-  $('auf-cor').addEventListener('change', () => { t.cor = $('auf-cor').value; });
-  $('auf-testar-alerta').addEventListener('click', () => api.audio_testar_alerta(t.cor || 'amarelo'));
+  $('auf-cor').addEventListener('input', () => { t.cor = $('auf-cor').value.toUpperCase(); });
+  document.querySelectorAll('[data-auf-cor]').forEach((b) => b.addEventListener('click', () => { t.cor = b.dataset.aufCor; $('auf-cor').value = corHex(t.cor); }));
+  $('auf-msg').addEventListener('input', () => { t.mensagem = $('auf-msg').value; });
+  $('auf-fonte').addEventListener('input', () => { t.fonte = +$('auf-fonte').value; $('auf-fonte-v').textContent = t.fonte; });
+  $('auf-fixo').addEventListener('change', () => { t.fixo = $('auf-fixo').checked; });
+  $('auf-testar-alerta').addEventListener('click', () => api.audio_testar_alerta(t.cor || 'amarelo', t.mensagem || `${t.nome || 'Poção'} acaba em ${t.antes || 3}s`, t.fonte || 34, AU.cfg.alerta));
   $('auf-vol').addEventListener('input', () => { t.volume = +$('auf-vol').value; $('auf-vol-val').textContent = t.volume + '%'; });
   $('auf-ouvir').addEventListener('click', () => api.audio_tocar(t.som, t.volume));
   document.querySelectorAll('[data-auf-modo]').forEach((m) => m.addEventListener('click', () => {
@@ -1917,6 +1933,8 @@ function desenharFormAudio() {
   });
 }
 const CORES_AU = [['branco', 'Branco'], ['amarelo', 'Amarelo'], ['laranja', 'Laranja'], ['vermelho', 'Vermelho'], ['verde', 'Verde']];
+const HEX_AU = { branco: '#FFFFFF', amarelo: '#FFE63C', laranja: '#FF961E', vermelho: '#FF463C', verde: '#5AE66E' };
+const corHex = (c) => HEX_AU[c] || (/^#[0-9a-f]{6}$/i.test(c || '') ? c : '#FFE63C');
 function mostrarCfgBarra() {
   const b = AU.cfg.barra;
   $('aub-larg').value = b.largura; $('aub-larg-v').textContent = b.largura + ' px';
@@ -1924,7 +1942,40 @@ function mostrarCfgBarra() {
   $('aub-x').value = b.x; $('aub-x-v').textContent = Math.round(b.x) + '%';
   $('aub-y').value = b.y; $('aub-y-v').textContent = Math.round(b.y) + '%';
   $('aub-nome').checked = !!b.nome;
+  const a = AU.cfg.alerta;
+  $('aua-x').value = a.x; $('aua-x-v').textContent = Math.round(a.x) + '%';
+  $('aua-y').value = a.y; $('aua-y-v').textContent = Math.round(a.y) + '%';
 }
+let tAlertaPos = null;
+function mudouAlertaPos() {
+  AU.cfg.alerta = { x: +$('aua-x').value, y: +$('aua-y').value };
+  mostrarCfgBarra();
+  api.audio_testar_alerta('amarelo', 'Poção acaba em 3s', 34, AU.cfg.alerta);   // mostra onde vai ficar
+  clearTimeout(tAlertaPos); tAlertaPos = setTimeout(salvarAudio, 600);
+}
+['aua-x', 'aua-y'].forEach((id) => $(id).addEventListener('input', mudouAlertaPos));
+$('au-alerta-testar').addEventListener('click', () => api.audio_testar_alerta('amarelo', 'Poção acaba em 3s', 34, AU.cfg.alerta));
+$('au-tv').addEventListener('click', async () => {
+  const r = await api.audio_tv_perfis();
+  if (!r.instalado && !r.perfis.length) { toast('Não achei o TibiaVision neste PC.', true); return; }
+  auEditando = null;
+  $('au-form').innerHTML = `<div class="card" style="margin-top:16px"><div class="h-titulo"><h2 class="sub" style="margin:0">⇩ Importar do TibiaVision</h2><button class="btn btn-sm" id="au-tv-fechar">Fechar</button></div>
+    <p class="dica" style="margin:0 0 10px">Copia os sons do TibiaVision deste PC para a sua lista de sons e soma os timers do perfil escolhido (os que já existem, mesmo nome e tecla, não repetem).</p>
+    ${r.perfis.length ? r.perfis.map((pf) => `<div class="pers-item"><div class="info"><b>${esc(pf.nome)}</b><div class="dica">${pf.timers} timer(s)</div></div>
+      <button class="btn btn-sm btn-primary" data-tv="${esc(pf.arquivo)}">Importar</button></div>`).join('') : '<div class="dica">Nenhum perfil com timers.</div>'}
+    ${r.instalado ? '<div class="acoes" style="margin-top:10px"><button class="btn btn-sm" id="au-tv-sons">🎵 Importar só os sons</button></div>' : ''}</div>`;
+  $('au-tv-fechar').addEventListener('click', () => { $('au-form').innerHTML = ''; });
+  document.querySelectorAll('[data-tv]').forEach((b) => b.addEventListener('click', async () => {
+    const x = await api.audio_tv_importar(b.dataset.tv);
+    if (!x.ok) { toast(x.erro, true); return; }
+    AU = x; renderAudio(); $('au-form').innerHTML = '';
+    toast(`${x.timers} timer(s) importado(s)${x.repetidos ? `, ${x.repetidos} já existiam` : ''}; ${x.sons_novos} som(ns) novo(s).`);
+  }));
+  if ($('au-tv-sons')) $('au-tv-sons').addEventListener('click', async () => {
+    const x = await api.audio_tv_sons();
+    AU.sons = x.lista; toast(`${x.sons} som(ns) novo(s) na sua lista.`);
+  });
+});
 let tBarra = null;
 function mudouBarra() {
   const b = AU.cfg.barra;

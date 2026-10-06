@@ -721,6 +721,7 @@ class API:
         cfg["volume"] = max(0, min(100, int(cfg["volume"])))
         cfg["ligado"], cfg["so_tibia"] = bool(cfg["ligado"]), bool(cfg["so_tibia"])
         cfg["barra"] = audio_timers.overlay.normalizar_barra(cfg.get("barra"))
+        cfg["alerta"] = audio_timers.overlay.normalizar_alerta(cfg.get("alerta"))
         if self._audio:
             self._audio.atualizar_cfg(cfg)
         else:
@@ -737,8 +738,35 @@ class API:
             self._audio.tocar(som, volume)
         return True
 
-    def audio_testar_alerta(self, cor="amarelo"):
-        return bool(self._audio and self._audio.testar_alerta(cor))
+    def audio_testar_alerta(self, cor="amarelo", texto="", fonte=34, alerta=None):
+        """Mostra o alerta por 4 s (com a posição da tela, mesmo antes de salvar)."""
+        if not self._audio:
+            return False
+        if alerta:
+            self._audio.cfg["alerta"] = audio_timers.overlay.normalizar_alerta(alerta)
+        return bool(self._audio.testar_alerta(cor, texto, fonte))
+
+    def audio_tv_perfis(self):
+        """Perfis de timers do TibiaVision instalado neste PC (para importar)."""
+        return {"perfis": [p for p in audio_timers.perfis_tibiavision() if p["timers"]],
+                "instalado": bool(audio_timers.pastas_tibiavision())}
+
+    def audio_tv_sons(self):
+        return {"sons": audio_timers.importar_sons_tibiavision(), "lista": audio_timers.lista_sons()}
+
+    def audio_tv_importar(self, arquivo):
+        """Copia os sons do TibiaVision deste PC e soma os timers do perfil escolhido (sem repetir)."""
+        validos = {p["arquivo"] for p in audio_timers.perfis_tibiavision()}
+        if arquivo not in validos:
+            return {"ok": False, "erro": "Perfil do TibiaVision não encontrado."}
+        sons = audio_timers.importar_sons_tibiavision()
+        novos = audio_timers.timers_do_tibiavision(arquivo)
+        cfg = self._audio.cfg if self._audio else audio_timers.carregar()
+        ja = {(t["nome"].lower(), t["tecla"]["vk"]) for t in cfg["timers"]}
+        add = [t for t in novos if (t["nome"].lower(), t["tecla"]["vk"]) not in ja]
+        cfg = {**cfg, "timers": cfg["timers"] + add}
+        r = self.audio_salvar(cfg)
+        return {"ok": True, "timers": len(add), "repetidos": len(novos) - len(add), **r, "sons_novos": sons}
 
     def audio_testar_barras(self, barra=None):
         """Mostra barras de exemplo por 6 s (com a configuração da tela, mesmo antes de salvar)."""

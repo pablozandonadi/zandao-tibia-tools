@@ -23,6 +23,23 @@ CORES = {  # nome -> (rótulo, RGB)
     "verde": ("Verde", (90, 230, 110)),
 }
 CHAVE = (255, 0, 255)  # cor-chave: tudo nessa cor fica transparente
+ALERTA_PADRAO = {"x": 50, "y": 30}  # posição do alerta em % da janela do Tibia (centro do texto)
+
+
+def cor_rgb(cor):
+    """'amarelo' ou '#RRGGBB' -> (r, g, b). A cor-chave exata é desviada em 1 para não sumir."""
+    if isinstance(cor, str) and cor.startswith("#") and len(cor) == 7:
+        try:
+            rgb = tuple(int(cor[i:i + 2], 16) for i in (1, 3, 5))
+            return (254, 0, 255) if rgb == CHAVE else rgb
+        except ValueError:
+            pass
+    return CORES.get(cor, CORES["amarelo"])[1]
+
+
+def normalizar_alerta(a):
+    a = {**ALERTA_PADRAO, **(a or {})}
+    return {"x": max(0, min(100, float(a["x"]))), "y": max(0, min(100, float(a["y"])))}
 
 if sys.platform == "win32":
     _u32, _g32, _k32 = ctypes.windll.user32, ctypes.windll.gdi32, ctypes.windll.kernel32
@@ -223,7 +240,7 @@ class Barras:
             _g32.SetBkMode(hdc, 1)
             linha = cfg["espessura"] + (18 if cfg["nome"] else 0) + 6
             for i, (nome, frac, tempo, cor) in enumerate(itens):
-                rgb = CORES.get(cor, CORES["amarelo"])[1]
+                rgb = cor_rgb(cor)
                 y0 = 2 + i * linha
                 if cfg["nome"]:
                     self._texto(hdc, nome, 4, y0, 4 + cfg["largura"], y0 + 17, (255, 255, 255), 0x0)      # DT_LEFT
@@ -253,15 +270,20 @@ class Overlay:
         threading.Thread(target=self._rodar, daemon=True).start()
         self._pronto.wait(3)
 
-    def mostrar(self, texto, cor="amarelo", segundos=3.0, so_tibia=True):
-        """Mostra o alerta. Devolve False se o Tibia não está aberto (e so_tibia)."""
+    def esconder(self):
+        if self.hwnd:
+            _u32.PostMessageW(self.hwnd, WM_APP + 2, 0, 0)
+
+    def mostrar(self, texto, cor="amarelo", segundos=3.0, so_tibia=True, tamanho=34, pos=None):
+        """Mostra o alerta. segundos=0: fica até esconder(). Devolve False se o Tibia não está aberto (e so_tibia)."""
         alvo = janela_do_tibia() if sys.platform == "win32" else None
         if alvo is None:
             if so_tibia:
                 return False
             alvo = (0, 0, _u32.GetSystemMetrics(0), _u32.GetSystemMetrics(1))
         with self._trava:
-            self._pedido = (str(texto), CORES.get(cor, CORES["amarelo"])[1], float(segundos), alvo)
+            self._pedido = (str(texto), cor_rgb(cor), float(segundos), alvo,
+                            max(14, min(96, int(tamanho))), normalizar_alerta(pos))
         if self.hwnd:
             _u32.PostMessageW(self.hwnd, WM_APP + 1, 0, 0)
         return True
@@ -281,7 +303,8 @@ class Overlay:
             wc.lpszClassName, "Zandao Tibia Tools - alerta", WS_POPUP, 0, 0, self.LARGURA, self.ALTURA,
             None, None, hinst, None)
         _u32.SetLayeredWindowAttributes(self.hwnd, _rgb(CHAVE), 0, LWA_COLORKEY)
-        self._fonte = _g32.CreateFontW(-34, 0, 0, 0, FW_BOLD, 0, 0, 0, 0, 0, 0, NONANTIALIASED_QUALITY, 0, "Verdana")
+        self._fontes = {}
+        self._tamanho = 34
         self._texto, self._cor = "", (255, 230, 60)
         self._pronto.set()
         msg = wintypes.MSG()
@@ -294,13 +317,22 @@ class Overlay:
             with self._trava:
                 pedido, self._pedido = self._pedido, None
             if pedido:
-                self._texto, self._cor, segundos, (esq, topo, dir_, base) = pedido
-                larg = min(self.LARGURA, dir_ - esq)
-                x = esq + (dir_ - esq - larg) // 2
-                y = topo + int((base - topo) * .30)        # um pouco acima do meio, como as mensagens do Tibia
-                _u32.SetWindowPos(hwnd, ctypes.c_void_p(-1), x, y, larg, self.ALTURA, SWP_NOACTIVATE | SWP_SHOWWINDOW)
+                self._texto, self._cor, segundos, (esq, topo, dir_, base), self._tamanho, pos = pedido
+                alt = int(self._tamanho * 2.2)
+                larg = min(max(self.LARGURA, int(len(self._texto) * self._tamanho * .75)), dir_ - esq)
+                cx = esq + (dir_ - esq) * pos["x"] / 100
+                cy = topo + (base - topo) * pos["y"] / 100
+                x = int(min(max(cx - larg / 2, esq), dir_ - larg))
+                y = int(min(max(cy - alt / 2, topo), base - alt))
+                _u32.SetWindowPos(hwnd, ctypes.c_void_p(-1), x, y, larg, alt, SWP_NOACTIVATE | SWP_SHOWWINDOW)
                 _u32.InvalidateRect(hwnd, None, True)
-                _u32.SetTimer(hwnd, 1, int(segundos * 1000), None)
+                _u32.KillTimer(hwnd, 1)
+                if segundos > 0:
+                    _u32.SetTimer(hwnd, 1, int(segundos * 1000), None)
+            return 0
+        if msg == WM_APP + 2:
+            _u32.KillTimer(hwnd, 1)
+            _u32.ShowWindow(hwnd, SW_HIDE)
             return 0
         if msg == WM_TIMER:
             _u32.KillTimer(hwnd, 1)
@@ -311,7 +343,11 @@ class Overlay:
             hdc = _u32.BeginPaint(hwnd, ctypes.byref(ps))
             r = wintypes.RECT()
             _u32.GetClientRect(hwnd, ctypes.byref(r))
-            _g32.SelectObject(hdc, self._fonte)
+            fonte = self._fontes.get(self._tamanho)
+            if not fonte:
+                fonte = self._fontes[self._tamanho] = _g32.CreateFontW(-self._tamanho, 0, 0, 0, FW_BOLD, 0, 0, 0, 0, 0, 0,
+                                                                      NONANTIALIASED_QUALITY, 0, "Verdana")
+            _g32.SelectObject(hdc, fonte)
             _g32.SetBkMode(hdc, 1)  # TRANSPARENT
             flags = DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX
             # contorno preto (desenha o texto deslocado em volta) e depois o texto colorido por cima

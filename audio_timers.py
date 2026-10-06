@@ -18,7 +18,7 @@ do Tibia enquanto conta (largura/espessura/posição em cfg["barra"]). Ver overl
 Arquivo audio_timers.json (ao lado do programa, cada pessoa tem o seu):
   {"ligado": true, "volume": 90, "so_tibia": true,
    "timers": [{"id": "a1b2", "nome": "Poção", "tecla": {"vk": 75, "nome": "K", "ctrl": false, "shift": false,
-               "alt": false}, "duracao": 120, "modo": "reinicia", "antes": 0, "som": "pronto:bipe",
+               "alt": false}, "duracao": 120, "modo": "reinicia", "antes": 0, "som": "padrao:Potion.mp3",
                "volume": 100, "ativo": true}]}
 """
 
@@ -45,13 +45,17 @@ else:
 ARQUIVO = os.path.join(BASE_DIR, "audio_timers.json")
 PASTA_SONS = os.path.join(BASE_DIR, "sons")
 PASTA_SONS_USUARIO = os.path.join(BASE_DIR, "sons_usuario")
+# sons que vêm com o app (no .exe ficam dentro do pacote, sys._MEIPASS)
+PASTA_SONS_PADRAO = os.path.join(getattr(sys, "_MEIPASS", BASE_DIR), "sons_padrao")
+SOM_PADRAO = "padrao:Potion.mp3"
 MODOS = ("reinicia", "ignora", "loop")
 PROCESSOS_TIBIA = ("client.exe", "tibia.exe")
 
 # ---------------------------------------------------------------------------
 # Configuração
 # ---------------------------------------------------------------------------
-PADRAO = {"ligado": True, "volume": 90, "so_tibia": True, "barra": dict(overlay.BARRA_PADRAO), "timers": []}
+PADRAO = {"ligado": True, "volume": 90, "so_tibia": True, "barra": dict(overlay.BARRA_PADRAO),
+          "alerta": dict(overlay.ALERTA_PADRAO), "timers": []}
 
 
 def carregar(caminho=None):
@@ -63,6 +67,7 @@ def carregar(caminho=None):
     cfg = {**PADRAO, **{k: v for k, v in d.items() if k in PADRAO}}
     cfg["timers"] = [normalizar(t) for t in cfg.get("timers") or [] if isinstance(t, dict)]
     cfg["barra"] = overlay.normalizar_barra(cfg.get("barra"))
+    cfg["alerta"] = overlay.normalizar_alerta(cfg.get("alerta"))
     return cfg
 
 
@@ -94,13 +99,35 @@ def normalizar(t):
         "duracao": _duracao(t.get("duracao")),
         "modo": t.get("modo") if t.get("modo") in MODOS else "reinicia",
         "antes": max(0.0, float(t.get("antes") or 0)),
-        "som": str(t.get("som") or "pronto:bipe"),
+        "som": str(t.get("som") or SOM_PADRAO),
         "volume": max(0, min(100, int(t.get("volume") if t.get("volume") is not None else 100))),
         "ativo": bool(t.get("ativo", True)),
         "alerta": bool(t.get("alerta", False)),   # texto na tela do Tibia na hora do aviso
         "barra": bool(t.get("barra", False)),     # barra correndo na tela do Tibia enquanto conta
-        "cor": t.get("cor") if t.get("cor") in overlay.CORES else "amarelo",
+        "cor": _cor(t.get("cor")),
+        "mensagem": str(t.get("mensagem") or "").strip()[:60],   # texto do alerta (vazio = automático)
+        "fonte": max(14, min(96, int(t.get("fonte") or 34))),    # tamanho da letra do alerta
+        "fixo": bool(t.get("fixo", False)),                      # alerta fica na tela até apertar a tecla de novo
     }
+
+
+def _cor(c):
+    if c in overlay.CORES:
+        return c
+    if isinstance(c, str) and len(c) == 7 and c.startswith("#"):
+        try:
+            int(c[1:], 16)
+            return c.upper()
+        except ValueError:
+            pass
+    return "amarelo"
+
+
+def texto_alerta(t):
+    if t["mensagem"]:
+        return t["mensagem"]
+    antes = min(t["antes"], t["duracao"])
+    return f"{t['nome']} acaba em {antes:g}s" if antes else f"{t['nome']} acabou!"
 
 
 # ---------------------------------------------------------------------------
@@ -198,8 +225,9 @@ def garantir_sons_prontos():
 
 
 def lista_sons():
-    """[{id, nome}]: prontos + os importados pelo usuário."""
-    sons = [{"id": "pronto:" + k, "nome": nome} for k, (nome, _) in SONS_PRONTOS.items()]
+    """[{id, nome}]: os que vêm com o app + bipes gerados + os importados pelo usuário."""
+    sons = [{"id": "padrao:" + a, "nome": os.path.splitext(a)[0]} for a in sons_padrao()]
+    sons += [{"id": "pronto:" + k, "nome": nome} for k, (nome, _) in SONS_PRONTOS.items()]
     if os.path.isdir(PASTA_SONS_USUARIO):
         for arq in sorted(os.listdir(PASTA_SONS_USUARIO), key=str.lower):
             if arq.lower().endswith((".wav", ".mp3")):
@@ -207,8 +235,18 @@ def lista_sons():
     return sons
 
 
+def sons_padrao():
+    if not os.path.isdir(PASTA_SONS_PADRAO):
+        return []
+    return sorted((a for a in os.listdir(PASTA_SONS_PADRAO) if a.lower().endswith((".wav", ".mp3"))), key=str.lower)
+
+
 def caminho_do_som(som_id):
     tipo, _, nome = (som_id or "").partition(":")
+    if tipo == "padrao" and nome and os.path.basename(nome) == nome:
+        caminho = os.path.join(PASTA_SONS_PADRAO, nome)
+        if os.path.isfile(caminho):
+            return caminho
     if tipo == "pronto" and nome in SONS_PRONTOS:
         return os.path.join(PASTA_SONS, nome + ".wav")
     if tipo == "usuario" and nome and os.path.basename(nome) == nome:
@@ -358,6 +396,7 @@ class Motor:
         self._barras_ate = 0          # teste de posição: mostra barras de exemplo até esse instante
         self._ultima_barra = 0
         self._barras_visiveis = False
+        self._alerta_fixo = None      # id do timer cujo alerta está parado na tela esperando a tecla
         garantir_sons_prontos()
         self._sincronizar()
         threading.Thread(target=self._rodar, daemon=True).start()
@@ -383,8 +422,8 @@ class Motor:
     def tocar(self, som_id, volume_timer=100):
         self.tocador.tocar(caminho_do_som(som_id), volume_timer * self.cfg["volume"] / 100)
 
-    def testar_alerta(self, cor="amarelo"):
-        return self.alerta.mostrar("Poção acaba em 3s", cor, 3, so_tibia=False)
+    def testar_alerta(self, cor="amarelo", texto="Poção acaba em 3s", fonte=34):
+        return self.alerta.mostrar(texto or "Poção acaba em 3s", cor, 4, so_tibia=False, tamanho=fonte, pos=self.cfg["alerta"])
 
     def testar_barras(self, segundos=6):
         """Mostra barras de exemplo (com a configuração atual) para ajustar a posição."""
@@ -436,14 +475,18 @@ class Motor:
                         t = e.cfg["tecla"]
                         if t["vk"] in novas and (t["ctrl"], t["shift"], t["alt"]) == (ctrl, shift, alt):
                             e.apertou(agora)
+                            if self._alerta_fixo == e.cfg["id"]:   # alerta "fica até apertar": some agora
+                                self._alerta_fixo = None
+                                self.alerta.esconder()
                             mudou = True
             for e in self.estados.values():
                 if e.tick(agora):
                     self.tocador.tocar(caminho_do_som(e.cfg["som"]), e.cfg["volume"] * self.cfg["volume"] / 100)
                     if e.cfg["alerta"]:
-                        antes = min(e.cfg["antes"], e.cfg["duracao"])
-                        texto = f"{e.cfg['nome']} acaba em {antes:g}s" if antes else f"{e.cfg['nome']} acabou!"
-                        self.alerta.mostrar(texto, e.cfg["cor"], 3)
+                        fixo = e.cfg["fixo"]
+                        self.alerta.mostrar(texto_alerta(e.cfg), e.cfg["cor"], 0 if fixo else 3,
+                                            tamanho=e.cfg["fonte"], pos=self.cfg["alerta"])
+                        self._alerta_fixo = e.cfg["id"] if fixo else None
                     mudou = True
             rodando = any(e.rodando for e in self.estados.values())
             itens = self._itens_barras(agora)
@@ -460,3 +503,111 @@ class Motor:
         if self._ao_mudar and (mudou or (rodando and agora - self._ultimo_envio > .25)):
             self._ultimo_envio = agora
             self._ao_mudar(self.estado())
+
+
+# ---------------------------------------------------------------------------
+# Importar do TibiaVision instalado neste PC (sons e timers da própria pessoa)
+# ---------------------------------------------------------------------------
+TV_DADOS = os.path.join(os.environ.get("APPDATA", ""), "TibiaVision")
+# ModifierKeys do WPF (o TibiaVision é .NET): Alt=1, Control=2, Shift=4
+_TV_ALT, _TV_CTRL, _TV_SHIFT = 1, 2, 4
+
+
+def pastas_tibiavision():
+    """Onde o TibiaVision pode estar instalado (registro do Windows + lugares comuns)."""
+    achadas = []
+    try:
+        import winreg
+        for raiz in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
+            for base in (r"Software\Microsoft\Windows\CurrentVersion\Uninstall",
+                         r"Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"):
+                try:
+                    chave = winreg.OpenKey(raiz, base)
+                except OSError:
+                    continue
+                for i in range(winreg.QueryInfoKey(chave)[0]):
+                    try:
+                        sub = winreg.OpenKey(chave, winreg.EnumKey(chave, i))
+                        if "tibiavision" in str(winreg.QueryValueEx(sub, "DisplayName")[0]).lower():
+                            achadas.append(winreg.QueryValueEx(sub, "InstallLocation")[0])
+                    except OSError:
+                        pass
+    except ImportError:
+        pass
+    achadas += [os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "TibiaVision"),
+                os.path.join(os.environ.get("ProgramFiles", ""), "TibiaVision"), r"Y:\TibiaVision"]
+    vistos, out = set(), []
+    for p in achadas:
+        p = os.path.normpath(p) if p else ""
+        if p and p.lower() not in vistos and os.path.isdir(os.path.join(p, "Resources", "Sounds")):
+            vistos.add(p.lower())
+            out.append(p)
+    return out
+
+
+def perfis_tibiavision():
+    """[{nome, arquivo, timers}] dos perfis de áudio do TibiaVision deste PC."""
+    perfis = []
+    pasta = os.path.join(TV_DADOS, "Profiles")
+    candidatos = [(os.path.join(TV_DADOS, "tibia_audio_settings.json"), "Atual")]
+    if os.path.isdir(pasta):
+        candidatos += [(os.path.join(pasta, a), a[:-len(".audio.json")]) for a in sorted(os.listdir(pasta))
+                       if a.endswith(".audio.json")]
+    for arq, nome in candidatos:
+        try:
+            with open(arq, "r", encoding="utf-8-sig") as f:
+                n = len(json.load(f).get("Timers") or [])
+        except (OSError, json.JSONDecodeError, AttributeError):
+            continue
+        perfis.append({"nome": nome, "arquivo": arq, "timers": n})
+    return perfis
+
+
+def importar_sons_tibiavision():
+    """Copia os sons do TibiaVision instalado para sons_usuario/. Devolve quantos copiou."""
+    n = 0
+    os.makedirs(PASTA_SONS_USUARIO, exist_ok=True)
+    for pasta in pastas_tibiavision():
+        origem = os.path.join(pasta, "Resources", "Sounds")
+        for arq in os.listdir(origem):
+            if (arq.lower().endswith((".mp3", ".wav")) and not os.path.isfile(os.path.join(PASTA_SONS_USUARIO, arq))
+                    and not os.path.isfile(os.path.join(PASTA_SONS_PADRAO, arq))):
+                shutil.copy2(os.path.join(origem, arq), os.path.join(PASTA_SONS_USUARIO, arq))
+                n += 1
+    return n
+
+
+def _som_tibiavision(t):
+    custom = t.get("CustomSoundPath")
+    if custom and os.path.isfile(custom) and custom.lower().endswith((".mp3", ".wav")):
+        try:
+            return importar_som(custom)
+        except (OSError, ValueError):
+            pass
+    nome = str(t.get("SoundName") or "")
+    for ext in (".mp3", ".wav"):
+        if nome and os.path.isfile(os.path.join(PASTA_SONS_PADRAO, nome + ext)):
+            return "padrao:" + nome + ext
+        if nome and os.path.isfile(os.path.join(PASTA_SONS_USUARIO, nome + ext)):
+            return "usuario:" + nome + ext
+    return SOM_PADRAO
+
+
+def timers_do_tibiavision(arquivo):
+    """Converte os timers de um perfil do TibiaVision para o formato do app (chame importar_sons_tibiavision antes)."""
+    with open(arquivo, "r", encoding="utf-8-sig") as f:
+        dados = json.load(f)
+    out = []
+    for t in dados.get("Timers") or []:
+        mods = int(t.get("HotkeyModifiers") or 0)
+        vk = int(t.get("HotkeyCode") or 0)
+        out.append(normalizar({
+            "nome": t.get("Name"), "duracao": t.get("Duration"), "volume": t.get("Volume"),
+            "tecla": {"vk": vk, "nome": nome_da_tecla(vk) if vk and _u32 else "", "ctrl": bool(mods & _TV_CTRL),
+                      "shift": bool(mods & _TV_SHIFT), "alt": bool(mods & _TV_ALT)},
+            "modo": "reinicia" if t.get("RetriggerEnabled", True) else "ignora",
+            "alerta": t.get("ShowVisualAlert", False), "mensagem": t.get("AlertMessage") or "",
+            "cor": t.get("AlertColor") or "branco", "fonte": t.get("AlertFontSize") or 34,
+            "fixo": t.get("AlertStayUntilHotkey", False), "som": _som_tibiavision(t),
+        }))
+    return out

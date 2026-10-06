@@ -36,7 +36,7 @@ Write-Host "2/3  PyInstaller..."
 $spec = Join-Path $PastaBuild "spec"
 python -m PyInstaller --noconfirm --clean --windowed --name "ZandaoTibiaTools" `
     --icon (Join-Path $raiz "icon.ico") `
-    --add-data "$(Join-Path $raiz 'web');web" --add-data "$(Join-Path $raiz 'icon.ico');." `
+    --add-data "$(Join-Path $raiz 'web');web" --add-data "$(Join-Path $raiz 'sons_padrao');sons_padrao" --add-data "$(Join-Path $raiz 'icon.ico');." `
     --distpath (Join-Path $PastaBuild "dist") --workpath (Join-Path $PastaBuild "work") --specpath $spec `
     (Join-Path $raiz "zandao_tibia_tools.py")
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller falhou" }

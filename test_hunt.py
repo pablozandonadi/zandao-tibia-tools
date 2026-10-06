@@ -518,6 +518,35 @@ class TestTimersAudio(unittest.TestCase):
         self.assertEqual((n["duracao"], n["modo"], n["volume"], n["tecla"]["vk"]), (60.0, "reinicia", 100, 0))
         self.assertEqual(at.texto_da_tecla({"vk": 75, "nome": "K", "ctrl": True, "shift": False, "alt": True}), "Ctrl+Alt+K")
         self.assertTrue(at.caminho_do_som("usuario:../../windows/x.mp3").endswith("bipe.wav"))  # não sai da pasta
+        self.assertTrue(at.caminho_do_som("padrao:../x.mp3").endswith("bipe.wav"))
+        self.assertEqual(n["som"], at.SOM_PADRAO)
+        self.assertTrue(os.path.isfile(at.caminho_do_som(at.SOM_PADRAO)))  # o som padrão vem com o app
+        self.assertIn(at.SOM_PADRAO, [s["id"] for s in at.lista_sons()])
+
+    def test_alerta_personalizado(self):
+        import audio_timers as at
+        n = at.normalizar({"nome": "Poção", "antes": 3, "duracao": 10, "cor": "#ff00aa", "fonte": 500, "fixo": 1})
+        self.assertEqual((n["cor"], n["fonte"], n["fixo"], n["mensagem"]), ("#FF00AA", 96, True, ""))
+        self.assertEqual(at.texto_alerta(n), "Poção acaba em 3s")
+        self.assertEqual(at.texto_alerta(at.normalizar({"nome": "X", "mensagem": "  BEBA!  "})), "BEBA!")
+        self.assertEqual(at.normalizar({"cor": "#zzzzzz"})["cor"], "amarelo")
+
+    def test_importa_perfil_do_tibiavision(self):
+        import audio_timers as at
+        with tempfile.TemporaryDirectory() as d:
+            arq = os.path.join(d, "EK.audio.json")
+            with open(arq, "w", encoding="utf-8-sig") as f:
+                json.dump({"Timers": [
+                    {"Name": "Utito", "Duration": 10, "HotkeyCode": 0x71, "HotkeyModifiers": 6, "RetriggerEnabled": False,
+                     "SoundName": "Potion", "ShowVisualAlert": True, "AlertMessage": "Utito!", "AlertColor": "#00FF00",
+                     "AlertFontSize": 40, "AlertStayUntilHotkey": True, "Volume": 70},
+                    {"Name": "Food", "Duration": 600, "HotkeyCode": 0x72, "SoundName": "naoexiste"}]}, f)
+            t1, t2 = at.timers_do_tibiavision(arq)
+        self.assertEqual((t1["nome"], t1["duracao"], t1["modo"], t1["volume"]), ("Utito", 10.0, "ignora", 70))
+        self.assertEqual((t1["tecla"]["vk"], t1["tecla"]["ctrl"], t1["tecla"]["shift"], t1["tecla"]["alt"]), (0x71, True, True, False))
+        self.assertEqual((t1["alerta"], t1["mensagem"], t1["cor"], t1["fonte"], t1["fixo"]), (True, "Utito!", "#00FF00", 40, True))
+        self.assertEqual(t1["som"], "padrao:Potion.mp3")
+        self.assertEqual((t2["modo"], t2["som"]), ("reinicia", at.SOM_PADRAO))
 
 
 class TestApiHunt(unittest.TestCase):
