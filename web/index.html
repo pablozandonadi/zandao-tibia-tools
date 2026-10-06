@@ -1956,27 +1956,57 @@ let tAlertaPos = null;
 function mudouAlertaPos() {
   AU.cfg.alerta = { x: +$('aua-x').value, y: +$('aua-y').value };
   mostrarCfgBarra();
-  api.audio_testar_alerta('amarelo', 'Poção acaba em 3s', 34, AU.cfg.alerta);   // mostra onde vai ficar
+  if (!auVivo) api.audio_testar_alerta('amarelo', 'Poção acaba em 3s', 34, AU.cfg.alerta);   // mostra onde vai ficar
   clearTimeout(tAlertaPos); tAlertaPos = setTimeout(salvarAudio, 600);
 }
 ['aua-x', 'aua-y'].forEach((id) => $(id).addEventListener('input', mudouAlertaPos));
 // testes: mostram do jeito que está na tela agora (mesmo antes de salvar)
-function testarMsg(t) {
+function testarMsg(t, vivo) {
   const antes = Math.min(t.antes || 0, t.duracao || 60);
   const auto = antes ? `${t.nome || 'Poção'} acaba em ${antes}s` : `${t.nome || 'Poção'} acabou!`;
-  api.audio_testar_alerta(t.cor || 'amarelo', (t.mensagem || '').trim() || auto, t.fonte || 34, AU.cfg.alerta);
+  api.audio_testar_alerta(t.cor || 'amarelo', (t.mensagem || '').trim() || auto, t.fonte || 34, AU.cfg.alerta, vivo ? 0 : 4);
 }
-function testarBarra(t) { api.audio_testar_barras(AU.cfg.barra, t.nome || 'Timer', t.cor || 'amarelo'); }
-$('au-alerta-testar').addEventListener('click', () => {
+function testarBarra(t, vivo) { api.audio_testar_barras(AU.cfg.barra, t.nome || 'Timer', t.cor || 'amarelo', !!vivo); }
+
+// "Testar alerta" liga/desliga: enquanto ligado, mensagem e barra ficam na tela e mudam junto com a configuração
+let auVivo = false, tVivo = null;
+function atualizarTesteVivo() {
+  if (!auVivo) return;
   const t = auEditando;
-  if (!t) {   // sem timer aberto: exemplo de tudo
-    api.audio_testar_alerta('amarelo', 'Poção acaba em 3s', 34, AU.cfg.alerta);
-    api.audio_testar_barras(AU.cfg.barra);
+  if (!t) {   // sem timer aberto: exemplo de tudo, para ajustar a posição
+    api.audio_testar_alerta('amarelo', 'Poção acaba em 3s', 34, AU.cfg.alerta, 0);
+    api.audio_testar_barras(AU.cfg.barra, null, null, true);
     return;
   }
-  if (!t.alerta && !t.barra) { toast('Ligue "Alerta na tela" ou "Barra no Tibia" para testar.', true); return; }
-  if (t.alerta) testarMsg(t);
-  if (t.barra) testarBarra(t);
+  api.audio_parar_teste().then(() => {
+    if (!auVivo) return;
+    if (t.alerta) testarMsg(t, true);
+    if (t.barra) testarBarra(t, true);
+  });
+}
+function agendarTesteVivo() { if (auVivo) { clearTimeout(tVivo); tVivo = setTimeout(atualizarTesteVivo, 40); } }
+function pararTesteVivo() {
+  if (!auVivo) return;
+  auVivo = false; clearTimeout(tVivo); api.audio_parar_teste();
+  const b = $('au-alerta-testar'); b.classList.remove('btn-primary'); b.textContent = '👁 Testar alerta';
+}
+$('au-alerta-testar').addEventListener('click', () => {
+  if (auVivo) { pararTesteVivo(); return; }
+  const t = auEditando;
+  if (t && !t.alerta && !t.barra) { toast('Ligue "Alerta na tela" ou "Barra no Tibia" para testar.', true); return; }
+  auVivo = true;
+  const b = $('au-alerta-testar'); b.classList.add('btn-primary'); b.textContent = '■ Parar teste';
+  atualizarTesteVivo();
+  toast('Teste ligado: mexa nas opções e veja no Tibia. Clique em "Parar teste" para tirar da tela.');
+});
+// qualquer mudança no timer ou no card atualiza o teste (os campos já se atualizaram antes de o evento chegar aqui)
+['au-form', 'au-visual'].forEach((id) => ['input', 'change', 'click'].forEach((ev) => $(id).addEventListener(ev, (e) => {
+  if (e.target.id !== 'au-alerta-testar') agendarTesteVivo();
+})));
+// saiu da aba Timers: para o teste
+document.addEventListener('click', (e) => {
+  const n = e.target.closest('.nav-item[data-pagina]');
+  if (auVivo && n && n.dataset.pagina !== 'audio') pararTesteVivo();
 });
 $('au-tv').addEventListener('click', async () => {
   const r = await api.audio_tv_perfis();
@@ -2005,7 +2035,7 @@ function mudouBarra() {
   b.largura = +$('aub-larg').value; b.espessura = +$('aub-esp').value;
   b.x = +$('aub-x').value; b.y = +$('aub-y').value; b.nome = $('aub-nome').checked;
   mostrarCfgBarra();
-  api.audio_testar_barras(b);               // mostra o exemplo na hora, em cima do Tibia
+  if (!auVivo) api.audio_testar_barras(b);   // mostra o exemplo na hora, em cima do Tibia (no teste ligado, ele mesmo atualiza)
   clearTimeout(tBarra); tBarra = setTimeout(salvarAudio, 600);
 }
 ['aub-larg', 'aub-esp', 'aub-x', 'aub-y'].forEach((id) => $(id).addEventListener('input', mudouBarra));

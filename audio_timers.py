@@ -422,19 +422,27 @@ class Motor:
     def tocar(self, som_id, volume_timer=100):
         self.tocador.tocar(caminho_do_som(som_id), volume_timer * self.cfg["volume"] / 100)
 
-    def testar_alerta(self, cor="amarelo", texto="Poção acaba em 3s", fonte=34):
-        return self.alerta.mostrar(texto or "Poção acaba em 3s", cor, 4, so_tibia=False, tamanho=fonte, pos=self.cfg["alerta"])
+    def testar_alerta(self, cor="amarelo", texto="Poção acaba em 3s", fonte=34, segundos=4):
+        """segundos=0: o alerta fica na tela até parar_teste() (teste ao vivo)."""
+        return self.alerta.mostrar(texto or "Poção acaba em 3s", cor, segundos, so_tibia=False, tamanho=fonte, pos=self.cfg["alerta"])
 
-    def testar_barras(self, segundos=6, nome=None, cor=None):
+    def parar_teste(self):
+        """Some com o alerta e as barras de exemplo."""
+        self._barras_ate = 0
+        self._ultima_barra = 0
+        self.alerta.esconder()
+
+    def testar_barras(self, segundos=6, nome=None, cor=None, loop=False):
         """Mostra barras de exemplo (com a configuração atual) para ajustar a posição.
         Com nome/cor, mostra só a barra daquele timer, do jeito que vai aparecer."""
         self._barras_exemplo = (nome or "Timer", _cor(cor)) if (nome or cor) else None
-        self._barras_ate = time.monotonic() + segundos
+        self._barras_ini = time.monotonic()
+        self._barras_ate = self._barras_ini + (10 ** 9 if loop else segundos)   # loop: até parar_teste()
         self._ultima_barra = 0
 
     def _itens_barras(self, agora):
         if agora < self._barras_ate:
-            frac = (self._barras_ate - agora) / 6
+            frac = 1 - ((agora - getattr(self, "_barras_ini", agora)) % 6) / 6   # esvazia em 6 s e recomeça
             if getattr(self, "_barras_exemplo", None):
                 nome, cor = self._barras_exemplo
                 return [(nome, frac, fmt_tempo(frac * 60), cor)]
