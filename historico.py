@@ -347,7 +347,9 @@ def _aviso_prey(hunts, cab):
     preys = [normalizar_prey(h["prey"]) or [] for h in hunts]
     if len({frozenset((p["tipo"], p["estrelas"]) for p in pr) for pr in preys}) < 2:
         return None
-    tipos = {"dano" if p["tipo"] in ("ataque", "defesa") else p["tipo"] for pr in preys for p in pr}
+    # só os tipos que mudam entre as hunts (XP ★7 nas duas não atrapalha comparar a XP/h)
+    diferentes = [t for t in TIPOS_PREY if len({frozenset(p["estrelas"] for p in pr if p["tipo"] == t) for pr in preys}) > 1]
+    tipos = {"dano" if t in ("ataque", "defesa") else t for t in diferentes}
     partes = [txt for t, txt in _EFEITO_PREY if t in tipos]
     partes[0] = partes[0][0].upper() + partes[0][1:]
     efeito = partes[0] if len(partes) == 1 else ", ".join(partes[:-1]) + " e " + partes[-1]

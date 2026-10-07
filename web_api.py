@@ -602,7 +602,7 @@ class API:
                 "monstros": (h.get("monstros") or [])[:4],
                 "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]],
                 "importada": bool(h.get("importado_em")),
-                "prey": historico.rotulo_prey(h.get("prey")), "prey_informada": "prey" in h,
+                "prey": historico.rotulo_prey(historico.normalizar_prey(h.get("prey"))), "prey_informada": "prey" in h,
             } for h in lista],
         }
 
@@ -633,7 +633,8 @@ class API:
     def hunt_ultima_prey(self, personagem=""):
         """Prey da hunt salva mais recente desse personagem (valor inicial de uma hunt NOVA). None se não houver."""
         for h in historico.ordenar(historico.carregar()):
-            if "prey" in h and (not personagem or historico.do_personagem(h, personagem)):
+            # só hunts em que ele é o "Seu personagem": numa hunt de amigo ele é só membro e a prey é do amigo
+            if "prey" in h and (not personagem or (h.get("personagem") or "").lower() == personagem.lower()):
                 return h["prey"]
         return None
 

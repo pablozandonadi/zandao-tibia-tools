@@ -353,6 +353,11 @@ class TestPrey(unittest.TestCase):
         b["prey"] = [{"tipo": "loot", "estrelas": 2}]
         self.assertIn('Prey diferente: "A" com Prey XP ★7, "B" com Prey Loot ★2. A XP/h e o loot não são comparáveis diretamente.',
                       historico.comparar([a, b])["avisos"])
+        a["prey"] = [{"tipo": "xp", "estrelas": 7}, {"tipo": "loot", "estrelas": 4}]  # mesma XP, loot diferente
+        b["prey"] = [{"tipo": "xp", "estrelas": 7}, {"tipo": "loot", "estrelas": 5}]
+        aviso = next(x for x in historico.comparar([a, b])["avisos"] if x.startswith("Prey diferente"))
+        self.assertTrue(aviso.endswith("O loot não é comparável diretamente."), aviso)  # a XP/h continua comparável
+        a["prey"] = [{"tipo": "xp", "estrelas": 7}]
         b["prey"] = [{"tipo": "xp", "estrelas": 7}]
         self.assertFalse(any("Prey" in x for x in historico.comparar([a, b])["avisos"]))
         del b["prey"]  # não informada: sem aviso
@@ -384,6 +389,22 @@ class TestApiPrey(unittest.TestCase):
         self.assertEqual(self.api.hunt_ultima_prey("Zandao"), [{"tipo": "xp", "estrelas": 7}])
         lista = self.api.hunt_historico()["hunts"]
         self.assertEqual((lista[0]["prey"], lista[0]["prey_informada"]), ("Prey XP ★7", True))
+
+    def test_ultima_prey_so_das_hunts_do_proprio_personagem(self):
+        # hunt de um amigo (importada) em que o Zandao só aparece como membro: a prey é do amigo
+        historico.salvar({"nome": "do amigo", "assinatura": "x", "entrada": {"party": PARTY}, "personagem": "Druid Bravo",
+                          "membros": ["Zandao", "Druid Bravo"], "data_hunt": "2026-10-06 10:00", "resumo": {},
+                          "prey": [{"tipo": "defesa", "estrelas": 9}]})
+        self.assertIsNone(self.api.hunt_ultima_prey("Zandao"))
+        self.assertEqual(self.api.hunt_ultima_prey("druid bravo"), [{"tipo": "defesa", "estrelas": 9}])
+
+    def test_prey_estragada_no_arquivo_nao_derruba_o_historico(self):
+        historico.salvar({"nome": "editada à mão", "assinatura": "y", "entrada": {"party": PARTY}, "personagem": "Zandao",
+                          "resumo": {}}, historico.HIST_PATH)
+        hs = historico.carregar()
+        hs[0]["prey"] = [{"tipo": "magia", "estrelas": 3}, "lixo"]
+        historico._gravar(hs)
+        self.assertEqual(self.api.hunt_historico()["hunts"][0]["prey"], "Sem prey")
 
     def test_hunt_antiga_salva_sem_mexer_continua_igual(self):
         r = self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "prey": [{"tipo": "loot", "estrelas": 2}]})
