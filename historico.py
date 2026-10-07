@@ -342,12 +342,13 @@ def _com_prey_normalizada(registro):
     return registro
 
 
-def rotulo_prey(prey):
+def rotulo_prey(prey, com_criatura=False):
+    """"Prey Ataque ★10 + Prey XP ★7". A criatura só entra quando pedida (no aviso do comparativo); no chip fica só tipo e estrelas."""
     if prey is None:
         return "Prey não informada"
     if not prey:
         return "Sem prey"
-    return " + ".join(f"Prey {TIPOS_PREY[p['tipo']]} ★{p['estrelas']}" + (f" · {p['criatura']}" if p.get("criatura") else "")
+    return " + ".join(f"Prey {TIPOS_PREY[p['tipo']]} ★{p['estrelas']}" + (f" · {p['criatura']}" if com_criatura and p.get("criatura") else "")
                       for p in prey)
 
 
@@ -366,7 +367,7 @@ def _aviso_prey(hunts, cab):
     partes[0] = partes[0][0].upper() + partes[0][1:]
     efeito = partes[0] if len(partes) == 1 else ", ".join(partes[:-1]) + " e " + partes[-1]
     verbo = "não é comparável" if len(partes) == 1 else "não são comparáveis"
-    quem = ", ".join(f"\"{c['nome']}\" " + ("sem prey" if not pr else "com " + rotulo_prey(pr)) for c, pr in zip(cab, preys))
+    quem = ", ".join(f"\"{c['nome']}\" " + ("sem prey" if not pr else "com " + rotulo_prey(pr, True)) for c, pr in zip(cab, preys))
     return f"Prey diferente: {quem}. {efeito} {verbo} diretamente."
 
 

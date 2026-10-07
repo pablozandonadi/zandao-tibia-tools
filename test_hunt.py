@@ -341,7 +341,9 @@ class TestPrey(unittest.TestCase):
     def test_prey_com_criatura(self):
         self.assertEqual(historico.normalizar_prey([{"tipo": "xp", "estrelas": 7, "criatura": " Gloom Maw "}]),
                          [{"tipo": "xp", "estrelas": 7, "criatura": "Gloom Maw"}])
-        self.assertEqual(historico.rotulo_prey([{"tipo": "xp", "estrelas": 7, "criatura": "Gloom Maw"}]), "Prey XP ★7 · Gloom Maw")
+        prey = [{"tipo": "xp", "estrelas": 7, "criatura": "Gloom Maw"}, {"tipo": "ataque", "estrelas": 10, "criatura": "Varg"}]
+        self.assertEqual(historico.rotulo_prey(prey), "Prey XP ★7 + Prey Ataque ★10")  # chip do histórico: só tipo e estrelas
+        self.assertEqual(historico.rotulo_prey(prey, com_criatura=True), "Prey XP ★7 · Gloom Maw + Prey Ataque ★10 · Varg")
         a, b = TestComparar._h(self, "a", "A", 4, 60, 1, 4), TestComparar._h(self, "b", "B", 4, 60, 1, 4)
         a["prey"] = [{"tipo": "xp", "estrelas": 7, "criatura": "Gloom Maw"}]
         b["prey"] = [{"tipo": "xp", "estrelas": 7, "criatura": "Varg"}]  # mesma prey em outra criatura

@@ -1133,7 +1133,7 @@ function resumoPerso() {
   const p = H.entrada.prey, c = H.entrada.charms;
   const curto = (t) => ((TAB && TAB.prey.find((x) => x.tipo === t)) || {}).curto || t;
   const tp = p == null ? 'prey não informada' : !p.length ? 'sem prey'
-    : p.map((x) => `Prey ${curto(x.tipo)} ★${x.estrelas}${x.criatura ? ' · ' + x.criatura : ''}`).join(' + ');
+    : p.map((x) => `Prey ${curto(x.tipo)} ★${x.estrelas}`).join(' + ');
   const tc = c == null ? 'charms não informados' : !c.length ? 'sem charms' : `${c.length} charm${c.length > 1 ? 's' : ''}`;
   return `${tp} · ${tc}`;
 }
