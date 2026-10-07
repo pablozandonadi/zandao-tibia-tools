@@ -205,6 +205,10 @@
   .toast.erro { background: var(--bad); color: #2a0e0e; }
 
   /* ---- hunt analyser ---- */
+  .linha-prey { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .linha-prey .campo-label { margin: 0; }
+  .prey-slot { display: flex; gap: 4px; }
+  .prey-slot select { width: auto; }
   .hunt-topo { display: grid; grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) auto; gap: 14px; align-items: start; }
   .caixas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
   .caixa-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -509,6 +513,7 @@
             <div class="dica" id="h-pers-info" style="margin-top:4px"></div></div>
           <div><label class="campo-label espaco-rotulo" aria-hidden="true">&nbsp;</label><div class="acoes"><button class="btn btn-primary" id="h-colar" title="Cola o que você copiou no Tibia (botão Copy do analyser) direto na caixa certa">📋 Colar do Tibia</button><button class="btn" id="h-nova">✚ Nova hunt</button><button class="btn btn-primary" id="h-salvar" disabled>💾 Salvar</button></div></div>
         </div>
+        <div class="linha-prey" id="h-prey"></div>
         <p class="dica" style="margin:12px 0 0;line-height:1.5">Com o programa aberto, clique em <b>Copy</b> no Tibia no <b>Party Hunt Analyser</b>, no <b>Hunting Analyser</b> e no <b>Input Analyser</b> (Received Damage), um depois do outro, e depois em <b>Colar do Tibia</b>: os 3 cards são preenchidos de uma vez (o app guarda cada cópia e reconhece qual é qual). Também dá para colar direto nas caixas (Ctrl+V). A hunt só vai para o Histórico quando você clicar em <b>💾 Salvar</b>.</p>
         <div class="resumo-chips" id="h-capturas" style="margin-top:10px"></div>
         <div class="caixas">
@@ -1013,7 +1018,7 @@ const ouro = (v) => `<span class="${cls(v)}">${n(v)}</span>`;
 const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
 
 const H = {
-  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '' },
+  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [] },
   id: null, assinatura: null, a: null, pagos: [], texto: '', dano: null, aba: null, seq: 0,
 };
 
@@ -1025,7 +1030,35 @@ function preencherHunt() {
   montarSeletorPersonagem();
   TIPOS.forEach((t) => { $('h-' + t).value = H.entrada[t] || ''; });
   montarDespesas();
+  montarPrey();
 }
+
+// ---------- prey (só marca qual estava ativa; os números colados já vêm com o efeito dela) ----------
+// H.entrada.prey: lista = escolhida ([] = sem prey); null = hunt antiga com prey não informada (não é enviada ao salvar)
+const PREY_TIPOS = [['', 'Nenhuma'], ['xp', 'XP'], ['loot', 'Loot'], ['ataque', 'Ataque'], ['defesa', 'Defesa']];
+function montarPrey() {
+  const p = H.entrada.prey;
+  const slots = [0, 1, 2].map((i) => (p || [])[i] || { tipo: '', estrelas: 5 });
+  $('h-prey').innerHTML = '<span class="campo-label">Prey</span>' + slots.map((sl, i) => `<span class="prey-slot">
+    <select data-prey-tipo="${i}" title="Tipo da prey ${i + 1}">${PREY_TIPOS.map(([v, r]) => `<option value="${v}" ${sl.tipo === v ? 'selected' : ''}>${r}</option>`).join('')}</select>
+    <select data-prey-est="${i}" title="Estrelas" ${sl.tipo ? '' : 'style="display:none"'}>${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((k) => `<option value="${k}" ${sl.estrelas === k ? 'selected' : ''}>★${k}</option>`).join('')}</select></span>`).join('')
+    + (p === null || p === undefined ? '<span class="dica">prey não informada nesta hunt: escolha para marcar</span><button class="btn btn-sm" id="h-sem-prey">Marcar sem prey</button>'
+      : '<span class="dica">só para comparar hunts depois; não muda nenhum número</span>');
+}
+$('h-prey').addEventListener('change', () => {
+  const q = (sel) => $('h-prey').querySelector(sel);
+  H.entrada.prey = [0, 1, 2].map((i) => ({ tipo: q(`[data-prey-tipo="${i}"]`).value, estrelas: +q(`[data-prey-est="${i}"]`).value }))
+    .filter((sl) => sl.tipo);
+  montarPrey();
+  atualizarSalvar();
+});
+$('h-prey').addEventListener('click', (e) => {
+  if (e.target.id !== 'h-sem-prey') return;
+  H.entrada.prey = [];  // hunt antiga: "Nenhuma" já está escolhida, então o select não dispara change
+  montarPrey();
+  atualizarSalvar();
+});
+const preyInicial = async (personagem) => (await api.hunt_ultima_prey(personagem || '')) || [];
 
 function statusCaixas(a) {
   for (const t of TIPOS) {
@@ -1097,7 +1130,7 @@ $('h-nome').addEventListener('input', () => {
 // ---------- salvar no Histórico (só quando o usuário clica) ----------
 // "retrato" = tudo o que vai para o Histórico; se mudou desde o último Salvar, há alterações não salvas
 const retrato = () => JSON.stringify([H.entrada.nome, H.entrada.party, H.entrada.solo, H.entrada.dano,
-  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort()]);
+  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort(), H.entrada.prey ?? null]);
 const temAlteracao = () => !!H.a && (!H.id || retrato() !== H.salvoRetrato);
 function atualizarSalvar() {
   const b = $('h-salvar');
@@ -1123,6 +1156,7 @@ $('h-salvar').addEventListener('click', async () => {
 $('h-personagem').addEventListener('change', async () => {
   H.entrada.personagem = $('h-personagem').value;
   H.equip = null;
+  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); montarPrey(); }
   if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) MEUS = await api.personagem_usar(H.entrada.personagem);
   montarSeletorPersonagem();
   analisarHunt();
@@ -1219,11 +1253,11 @@ async function adicionarPersonagem() {
 $('pers-add').addEventListener('click', adicionarPersonagem);
 $('pers-novo').addEventListener('keydown', (e) => { if (e.key === 'Enter') adicionarPersonagem(); });
 
-$('h-nova').addEventListener('click', () => {
+$('h-nova').addEventListener('click', async () => {
   if (temAlteracao() && !confirm(H.id ? 'As alterações desta hunt não foram salvas. Descartar e começar outra?'
     : 'Esta hunt não foi salva no Histórico. Descartar e começar outra?')) return;
   const personagem = H.entrada.personagem;
-  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem };
+  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem) };
   H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null; H.shared = null;
   preencherHunt();
   analisarHunt();
@@ -1507,6 +1541,7 @@ async function huntIniciar() {
   const r = await api.hunt_carregar();
   MEUS = await api.meus_personagens();
   H.entrada.personagem = MEUS.atual || (r.entrada && r.entrada.personagem) || '';
+  H.entrada.prey = await preyInicial(H.entrada.personagem);
   H.id = null;
   preencherHunt();
   api.meus_personagens(true).then((d) => { MEUS = d; montarSeletorPersonagem(); });  // atualiza levels sem travar
@@ -1538,7 +1573,7 @@ async function carregarHistorico() {
     const s = h.resumo || {};
     const tam = s.membros || 1;
     return `<div class="card calmo hist-card ${compSel.includes(h.id) ? 'sel' : ''}" data-card="${h.id}"><div>
-      <div class="hist-nome">${esc(h.nome || 'Hunt')} <span class="tag tag-pt">${tam > 1 ? 'PT ' + tam : 'Solo'}</span>${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''}</div>
+      <div class="hist-nome">${esc(h.nome || 'Hunt')} <span class="tag tag-pt">${tam > 1 ? 'PT ' + tam : 'Solo'}</span>${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''} <span class="chip chip-neutro ${h.prey_informada ? '' : 'dim'}" style="font-size:.64rem">${esc(h.prey)}</span></div>
       <div class="hist-meta">${esc(h.data || '')}${h.personagem ? ' · ' + esc(h.personagem) : ''}${h.membros.length ? ' · ' + h.membros.length + ' membros: ' + esc(h.membros.join(', ')) : ''}</div>
       <div class="hist-nums"><span>Duração <b>${esc(s.duracao || '—')}</b></span><span>Balance <b class="${cls(s.balance)}">${n(s.balance)}</b></span>
         <span>Lucro${h.membros.length ? '/membro' : ''} <b class="${cls(s.lucro)}">${n(s.lucro)}</b></span>${s.xp_h ? `<span>XP/h <b>${n(s.xp_h)}</b></span>` : ''}
@@ -1572,7 +1607,7 @@ async function abrirHunt(id) {
     const e = await api.hunt_abrir(id);
     if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
     H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
-      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '' };
+      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null };
     H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || []; H.shared = null;
     H.salvoRetrato = retrato();
     preencherHunt();
@@ -1744,6 +1779,7 @@ function renderComparacao(r, rolar = true) {
   const fmtv = (v, tipo) => v === null || v === undefined ? '—' : tipo === 'txt' ? esc(v) : tipo === 'gp' ? `<span class="${cls(v)}">${n(v)}</span>` : n(v);
   const cab = r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${esc(h.data || '')}</span>
     <span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}${h.duracao ? ' · ' + esc(durCurta(h.duracao)) : ''}${h.personagem ? ' · ' + esc(h.personagem) : ''}</span>
+    ${h.prey ? `<span>${esc(h.prey)}</span>` : ''}
     <span>${h.monstros.map((m) => m.imagem ? `<img src="${esc(m.imagem)}" alt="" title="${esc(m.kills + 'x ' + m.nome)}">` : '').join('')}</span></th>`).join('');
   const linhas = r.linhas.map((l) => `<tr class="${l.chave === 'lucro_membro_h' || l.chave === 'xp_h' ? 'destaque' : ''}"><td>${esc(l.rotulo)}</td>
     ${l.valores.map((v, i) => `<td class="r ${l.melhor === i ? 'melhor' : ''}">${fmtv(v, l.tipo)}</td>`).join('')}</tr>`).join('');

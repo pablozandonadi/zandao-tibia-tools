@@ -361,6 +361,40 @@ class TestPrey(unittest.TestCase):
         self.assertEqual(r["hunts"][1]["prey"], "Prey não informada")
 
 
+class TestApiPrey(unittest.TestCase):
+    def setUp(self):
+        from unittest import mock
+        import web_api
+        self.tmp = tempfile.TemporaryDirectory()
+        self.trocar = mock.patch.object(historico, "HIST_PATH", os.path.join(self.tmp.name, "h.json"))
+        self.trocar.start()
+        self.api = object.__new__(web_api.API)
+        self.api._dano_cache = {}
+
+    def tearDown(self):
+        self.trocar.stop()
+        self.tmp.cleanup()
+
+    def test_salvar_abrir_e_ultima_prey(self):
+        self.assertIsNone(self.api.hunt_ultima_prey("Zandao"))
+        e = {"party": PARTY, "personagem": "Zandao", "prey": [{"tipo": "xp", "estrelas": 7}]}
+        r = self.api.hunt_salvar(e)
+        self.assertTrue(r["ok"])
+        self.assertEqual(self.api.hunt_abrir(r["id"])["prey"], [{"tipo": "xp", "estrelas": 7}])
+        self.assertEqual(self.api.hunt_ultima_prey("Zandao"), [{"tipo": "xp", "estrelas": 7}])
+        lista = self.api.hunt_historico()["hunts"]
+        self.assertEqual((lista[0]["prey"], lista[0]["prey_informada"]), ("Prey XP ★7", True))
+
+    def test_hunt_antiga_salva_sem_mexer_continua_igual(self):
+        r = self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "prey": [{"tipo": "loot", "estrelas": 2}]})
+        self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "id": r["id"], "prey": None})
+        self.assertEqual(historico.obter(r["id"])["prey"], [{"tipo": "loot", "estrelas": 2}])
+        outra = self.api.hunt_salvar({"party": PARTY + "\nZ", "personagem": "Zandao"})
+        self.assertIsNone(self.api.hunt_abrir(outra["id"])["prey"])
+        h = next(x for x in self.api.hunt_historico()["hunts"] if x["id"] == outra["id"])
+        self.assertEqual((h["prey"], h["prey_informada"]), ("Prey não informada", False))
+
+
 def _reg_party(id_, inicio, duracao, k, mons):
     """Hunt salva a partir do PARTY de exemplo, com outro início/duração e o dano do Knight Alfa multiplicado por k."""
     party = (PARTY.replace("2026-10-05, 10:19:15", inicio).replace("Session: 02:47h", f"Session: {duracao}")

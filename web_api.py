@@ -467,7 +467,7 @@ class API:
         return hunt.detectar(texto)
 
     def _entrada(self, entrada):
-        return {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id")}
+        return {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id", "prey")}
 
     def _mesma_hunt(self, id_, a):
         """id_ continua valendo para esta análise? Se a hunt salva é de outro horário, é outra hunt."""
@@ -513,6 +513,8 @@ class API:
             "resumo": a["resumo"], "membros": a.get("personagens", []), "monstros": a.get("kills", [])[:20],
             "pagos": list(pagos or []),
         }
+        if entrada.get("prey") is not None:  # None = o usuário não mexeu na prey: o historico mantém a gravada
+            registro["prey"] = entrada["prey"]
         extra = self._dano_cache.get(ass)  # análise de dano já pronta (monstros com imagem, proteções)
         if extra:
             registro.update(extra)
@@ -600,6 +602,7 @@ class API:
                 "monstros": (h.get("monstros") or [])[:4],
                 "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]],
                 "importada": bool(h.get("importado_em")),
+                "prey": historico.rotulo_prey(h.get("prey")), "prey_informada": "prey" in h,
             } for h in lista],
         }
 
@@ -623,8 +626,16 @@ class API:
         if not h:
             return None
         e = dict(h.get("entrada") or {})
-        e.update({"nome": h.get("nome"), "personagem": h.get("personagem"), "id": h["id"], "pagos": h.get("pagos", [])})
+        e.update({"nome": h.get("nome"), "personagem": h.get("personagem"), "id": h["id"], "pagos": h.get("pagos", []),
+                  "prey": h.get("prey")})
         return e
+
+    def hunt_ultima_prey(self, personagem=""):
+        """Prey da hunt salva mais recente desse personagem (valor inicial de uma hunt NOVA). None se não houver."""
+        for h in historico.ordenar(historico.carregar()):
+            if "prey" in h and (not personagem or historico.do_personagem(h, personagem)):
+                return h["prey"]
+        return None
 
     def hunt_apagar(self, id_):
         return historico.apagar(id_)
