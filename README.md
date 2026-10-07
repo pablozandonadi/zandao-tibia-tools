@@ -41,10 +41,13 @@ funcionando separados. Esta pasta tem as suas próprias cópias.
      total (pesando cada elemento pela parte do dano); as outras abas ordenam por um elemento só. Dados da
      TibiaWiki, baixados na primeira vez e guardados em `cache_itens.json`.
 4. **Despesas extras** (boat, hireling...): quem pagou é reembolsado na divisão. **Copiar resumo** gera o texto para o Discord.
-5. **Prey**: marque até 3 preys (XP, Loot, Ataque ou Defesa, com as estrelas) que estavam ativas. Não muda nenhum
-   número (o que você cola do Tibia já vem com a prey); serve para lembrar, ao comparar hunts, por que uma rendeu
-   mais. Uma hunt nova começa com a prey da sua última hunt. Hunts antigas ficam como "prey não informada" (diferente
-   de "sem prey") até você marcar.
+5. **Seu personagem nesta hunt** (seção que abre e fecha): marque as **preys** (até 3: tipo, estrelas com o bônus
+   calculado e a criatura) e os **charms** (majors e minors, nível 1, 2 ou 3 e a criatura). Não muda nenhum número
+   (o que você cola do Tibia já vem com prey e charms); serve para lembrar, ao comparar hunts, por que uma rendeu
+   mais. Uma hunt nova começa com as preys e charms da sua última hunt. Hunts antigas ficam como "não informado"
+   (diferente de "sem prey") até você marcar.
+6. **Dano recebido, proteções e elemento para atacar** e **Itens recomendados** ficam em seções que abrem e fecham
+   (fechadas por padrão, para a tela não ficar enorme).
 
 As contas do Loot Split são as mesmas do `divisor de loot` (TibiaLootSplit). A parte de dano é o Tibia Damage
 portado para Python, com duas correções: os embuimentos de proteção certos (Dragon Hide = fogo,
@@ -72,7 +75,7 @@ clicar em **💾 Salvar alterações**. O Hunt Analyser abre sempre limpo; só o
   dano e cura) e o **Detalhe por hunt** (cada jogador em cada hunt, abrindo em "Dano / hora"). ★ marca o melhor valor;
   o veredito diz qual hunt rendeu mais, e os avisos dizem quando a party, a duração, o personagem, o spawn ou a
   prey são diferentes.
-- Cada hunt mostra a **prey** marcada (ou "prey não informada").
+- Cada hunt mostra a **prey** e os **charms** marcados (ou "não informado").
 - **Abrir** recarrega a hunt no Hunt Analyser (com as transferências já marcadas como pagas).
 - **Exportar** gera um `.json` com todas as hunts (ou só as do personagem filtrado).
 - **Importar (somar)** traz as hunts de um arquivo exportado, seu ou de um amigo, sem repetir as que você já tem.
@@ -84,8 +87,7 @@ clicar em **💾 Salvar alterações**. O Hunt Analyser abre sempre limpo; só o
   sozinho depois do server save), cidade do **Rashid** e quanto falta para o **server save** (10:00 de Berlim; o app
   mostra no horário do seu PC).
 - **Shared XP**: digite um level para ver com quem ele divide XP, ou os levels da party para saber se o shared
-  funciona (o maior pode ser no máximo 3/2 do menor). No Hunt Analyser, **🤝 Verificar shared** confere a party com
-  os levels de agora no tibia.com.
+  funciona (o maior pode ser no máximo 3/2 do menor).
 - **Quando eu upo?**: quanto falta para o level alvo e quantas horas/hunts, usando a XP/h média das suas hunts salvas
   daquele personagem. Para ficar exato, digite a XP atual da janela Skills do Tibia.
 
