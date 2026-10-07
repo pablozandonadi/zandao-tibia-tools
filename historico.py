@@ -25,6 +25,8 @@ import os
 import sys
 import threading
 import uuid
+
+import preys_charms
 from datetime import datetime
 
 if getattr(sys, "frozen", False):
@@ -79,8 +81,9 @@ def salvar(registro, caminho=None):
                 preservar["dano"] = atual["dano"]
             if "pagos" in registro:
                 preservar["pagos"] = registro["pagos"]
-            if "prey" not in registro and "prey" in atual:
-                preservar["prey"] = atual["prey"]
+            for campo in ("prey", "charms"):  # sem o campo no registro = o usuário não mexeu: mantém o gravado
+                if campo not in registro and campo in atual:
+                    preservar[campo] = atual[campo]
             atual.clear()
             atual.update(registro)
             atual.update(preservar)
@@ -298,7 +301,7 @@ def _monstros(h):
 # Prey: só marca qual estava ativa (os números colados já vêm com o efeito dela).
 # "prey": [] = sem prey; sem o campo = não informada (hunts antigas). Nunca confundir os dois.
 # ---------------------------------------------------------------------------
-TIPOS_PREY = {"xp": "XP", "loot": "Loot", "ataque": "Ataque", "defesa": "Defesa"}
+TIPOS_PREY = {t: p["curto"] for t, p in preys_charms.PREY.items()}
 _EFEITO_PREY = [("xp", "a XP/h"), ("loot", "o loot"), ("dano", "o dano")]  # ataque e defesa mexem no dano
 
 
@@ -316,19 +319,25 @@ def normalizar_prey(valor):
             estrelas = int(p.get("estrelas"))
         except (TypeError, ValueError):
             continue
-        saida.append({"tipo": p["tipo"], "estrelas": max(1, min(10, estrelas))})
+        item = {"tipo": p["tipo"], "estrelas": max(1, min(10, estrelas))}
+        criatura = p.get("criatura").strip()[:60] if isinstance(p.get("criatura"), str) else ""
+        if criatura:
+            item["criatura"] = criatura
+        saida.append(item)
     return saida[:3]
 
 
 def _com_prey_normalizada(registro):
-    if "prey" not in registro:
-        return registro
-    registro = dict(registro)
-    prey = normalizar_prey(registro["prey"])
-    if prey is None:
-        registro.pop("prey")
-    else:
-        registro["prey"] = prey
+    """Normaliza "prey" e "charms" do registro; um None vira "sem o campo" (não informado)."""
+    for campo, normalizar in (("prey", normalizar_prey), ("charms", preys_charms.normalizar_charms)):
+        if campo not in registro:
+            continue
+        registro = dict(registro)
+        valor = normalizar(registro[campo])
+        if valor is None:
+            registro.pop(campo)
+        else:
+            registro[campo] = valor
     return registro
 
 
@@ -337,7 +346,8 @@ def rotulo_prey(prey):
         return "Prey não informada"
     if not prey:
         return "Sem prey"
-    return " + ".join(f"Prey {TIPOS_PREY[p['tipo']]} ★{p['estrelas']}" for p in prey)
+    return " + ".join(f"Prey {TIPOS_PREY[p['tipo']]} ★{p['estrelas']}" + (f" · {p['criatura']}" if p.get("criatura") else "")
+                      for p in prey)
 
 
 def _aviso_prey(hunts, cab):
@@ -345,10 +355,11 @@ def _aviso_prey(hunts, cab):
     if not all("prey" in h for h in hunts):
         return None
     preys = [normalizar_prey(h["prey"]) or [] for h in hunts]
-    if len({frozenset((p["tipo"], p["estrelas"]) for p in pr) for pr in preys}) < 2:
+    chave = lambda p: (p["estrelas"], (p.get("criatura") or "").lower())  # mesma prey em outra criatura também muda
+    if len({frozenset((p["tipo"],) + chave(p) for p in pr) for pr in preys}) < 2:
         return None
     # só os tipos que mudam entre as hunts (XP ★7 nas duas não atrapalha comparar a XP/h)
-    diferentes = [t for t in TIPOS_PREY if len({frozenset(p["estrelas"] for p in pr if p["tipo"] == t) for pr in preys}) > 1]
+    diferentes = [t for t in TIPOS_PREY if len({frozenset(chave(p) for p in pr if p["tipo"] == t) for pr in preys}) > 1]
     tipos = {"dano" if t in ("ataque", "defesa") else t for t in diferentes}
     partes = [txt for t, txt in _EFEITO_PREY if t in tipos]
     partes[0] = partes[0][0].upper() + partes[0][1:]
@@ -374,6 +385,7 @@ def comparar(hunts):
     cab = [{"id": h["id"], "nome": h.get("nome") or "Hunt", "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
             "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"],
             "monstros": (h.get("monstros") or [])[:4], "prey": rotulo_prey(normalizar_prey(h.get("prey"))),
+            "charms": preys_charms.rotulo_charms(preys_charms.normalizar_charms(h.get("charms"))),
             "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]]}
            for h, m in zip(hunts, ms)]
 

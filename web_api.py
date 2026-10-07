@@ -23,6 +23,7 @@ import monstros
 import organizer
 import personagens
 import precos
+import preys_charms
 import tibia_info
 from versao import VERSAO_APP
 
@@ -467,7 +468,7 @@ class API:
         return hunt.detectar(texto)
 
     def _entrada(self, entrada):
-        return {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id", "prey")}
+        return {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id", "prey", "charms")}
 
     def _mesma_hunt(self, id_, a):
         """id_ continua valendo para esta análise? Se a hunt salva é de outro horário, é outra hunt."""
@@ -513,8 +514,9 @@ class API:
             "resumo": a["resumo"], "membros": a.get("personagens", []), "monstros": a.get("kills", [])[:20],
             "pagos": list(pagos or []),
         }
-        if entrada.get("prey") is not None:  # None = o usuário não mexeu na prey: o historico mantém a gravada
-            registro["prey"] = entrada["prey"]
+        for campo in ("prey", "charms"):  # None = o usuário não mexeu: o historico mantém o gravado
+            if entrada.get(campo) is not None:
+                registro[campo] = entrada[campo]
         extra = self._dano_cache.get(ass)  # análise de dano já pronta (monstros com imagem, proteções)
         if extra:
             registro.update(extra)
@@ -603,6 +605,8 @@ class API:
                 "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]],
                 "importada": bool(h.get("importado_em")),
                 "prey": historico.rotulo_prey(historico.normalizar_prey(h.get("prey"))), "prey_informada": "prey" in h,
+                "charms": preys_charms.rotulo_charms(preys_charms.normalizar_charms(h.get("charms"))),
+                "charms_informados": "charms" in h,
             } for h in lista],
         }
 
@@ -627,16 +631,26 @@ class API:
             return None
         e = dict(h.get("entrada") or {})
         e.update({"nome": h.get("nome"), "personagem": h.get("personagem"), "id": h["id"], "pagos": h.get("pagos", []),
-                  "prey": h.get("prey")})
+                  "prey": h.get("prey"), "charms": h.get("charms")})
         return e
 
-    def hunt_ultima_prey(self, personagem=""):
-        """Prey da hunt salva mais recente desse personagem (valor inicial de uma hunt NOVA). None se não houver."""
+    def _ultimo_campo(self, campo, personagem):
+        """Valor do campo na hunt salva mais recente desse personagem que o tenha (valor inicial de uma hunt NOVA)."""
         for h in historico.ordenar(historico.carregar()):
             # só hunts em que ele é o "Seu personagem": numa hunt de amigo ele é só membro e a prey é do amigo
-            if "prey" in h and (not personagem or (h.get("personagem") or "").lower() == personagem.lower()):
-                return h["prey"]
+            if campo in h and (not personagem or (h.get("personagem") or "").lower() == personagem.lower()):
+                return h[campo]
         return None
+
+    def hunt_ultima_prey(self, personagem=""):
+        return self._ultimo_campo("prey", personagem)
+
+    def hunt_ultimos_charms(self, personagem=""):
+        return self._ultimo_campo("charms", personagem)
+
+    def hunt_tabelas(self):
+        """Tabelas de Prey (bônus por estrela) e Charms (% por nível) para a tela."""
+        return preys_charms.tabelas()
 
     def hunt_apagar(self, id_):
         return historico.apagar(id_)

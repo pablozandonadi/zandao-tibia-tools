@@ -338,6 +338,25 @@ class TestPrey(unittest.TestCase):
         antiga = historico.salvar(TestHistorico._reg(self, party=PARTY + "\nY", nome="antiga"), self.arq)
         self.assertNotIn("prey", historico.obter(antiga["id"], self.arq))  # nunca inventa prey
 
+    def test_prey_com_criatura(self):
+        self.assertEqual(historico.normalizar_prey([{"tipo": "xp", "estrelas": 7, "criatura": " Gloom Maw "}]),
+                         [{"tipo": "xp", "estrelas": 7, "criatura": "Gloom Maw"}])
+        self.assertEqual(historico.rotulo_prey([{"tipo": "xp", "estrelas": 7, "criatura": "Gloom Maw"}]), "Prey XP ★7 · Gloom Maw")
+        a, b = TestComparar._h(self, "a", "A", 4, 60, 1, 4), TestComparar._h(self, "b", "B", 4, 60, 1, 4)
+        a["prey"] = [{"tipo": "xp", "estrelas": 7, "criatura": "Gloom Maw"}]
+        b["prey"] = [{"tipo": "xp", "estrelas": 7, "criatura": "Varg"}]  # mesma prey em outra criatura
+        self.assertTrue(any(x.startswith("Prey diferente") and x.endswith("A XP/h não é comparável diretamente.")
+                            for x in historico.comparar([a, b])["avisos"]))
+
+    def test_charms_salvos_e_preservados(self):
+        reg = TestHistorico._reg(self)
+        h = historico.salvar({**reg, "charms": [{"nome": "Carnage", "criatura": "Varg", "nivel": "3"}, {"nome": "X", "nivel": 1}]}, self.arq)
+        self.assertEqual(historico.obter(h["id"], self.arq)["charms"], [{"nome": "Carnage", "criatura": "Varg", "nivel": 3}])
+        historico.salvar({**reg, "id": h["id"]}, self.arq)  # re-salvar sem charms mantém os gravados
+        self.assertEqual(historico.obter(h["id"], self.arq)["charms"], [{"nome": "Carnage", "criatura": "Varg", "nivel": 3}])
+        self.assertEqual(historico.comparar([historico.obter(h["id"], self.arq), TestComparar._h(self, "b", "B", 4, 60, 1, 4)])
+                         ["hunts"][0]["charms"], "1 charm")
+
     def test_exportar_importar_mantem_prey(self):
         historico.salvar({**TestHistorico._reg(self), "prey": [{"tipo": "loot", "estrelas": 3}]}, self.arq)
         destino = os.path.join(self.tmp.name, "d.json")
@@ -389,6 +408,18 @@ class TestApiPrey(unittest.TestCase):
         self.assertEqual(self.api.hunt_ultima_prey("Zandao"), [{"tipo": "xp", "estrelas": 7}])
         lista = self.api.hunt_historico()["hunts"]
         self.assertEqual((lista[0]["prey"], lista[0]["prey_informada"]), ("Prey XP ★7", True))
+
+    def test_charms_pela_api(self):
+        self.assertIsNone(self.api.hunt_ultimos_charms("Zandao"))
+        c = [{"nome": "Low Blow", "criatura": "Gloom Maw", "nivel": 2}]
+        r = self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "charms": c})
+        self.assertEqual(self.api.hunt_abrir(r["id"])["charms"], c)
+        self.assertEqual(self.api.hunt_ultimos_charms("Zandao"), c)
+        h = self.api.hunt_historico()["hunts"][0]
+        self.assertEqual((h["charms"], h["charms_informados"]), ("1 charm", True))
+        self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "id": r["id"], "charms": None})
+        self.assertEqual(historico.obter(r["id"])["charms"], c)
+        self.assertEqual(self.api.hunt_tabelas()["prey"][0]["tipo"], "xp")
 
     def test_ultima_prey_so_das_hunts_do_proprio_personagem(self):
         # hunt de um amigo (importada) em que o Zandao só aparece como membro: a prey é do amigo
