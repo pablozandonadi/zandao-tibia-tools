@@ -104,6 +104,19 @@ class TestParty(unittest.TestCase):
         self.assertEqual(zandao["fica_com"], 1_400_580)
         self.assertEqual(a["kills"][0], {"nome": "norcferatu heartless", "kills": 1262})
 
+    def test_por_hora_dos_membros(self):
+        a = hunt.montar({"party": PARTY})
+        knight = next(m for m in a["membros"] if m["nome"] == "Knight Alfa")
+        self.assertEqual(knight["dano_h"], 12_846_796 * 60 // 167)  # Session 02:47h = 167 min
+        self.assertEqual(knight["cura_h"], 3_120_299 * 60 // 167)
+        self.assertEqual(knight["balance_h"], -866_581 * 60 // 167)
+        self.assertEqual(a["resumo"]["lucro_h"], 1_400_580 * 60 // 167)
+
+    def test_por_hora_sem_duracao(self):
+        a = hunt.montar({"party": PARTY.replace("Session: 02:47h", "Session: 00:00h")})
+        self.assertTrue(all(m["dano_h"] is None and m["cura_h"] is None and m["balance_h"] is None for m in a["membros"]))
+        self.assertIsNone(a["resumo"]["lucro_h"])
+
     def test_despesa_extra_e_excluido(self):
         a = hunt.montar({"party": PARTY, "despesas": [{"descricao": "boat", "valor": "400k", "pago_por": "Zandao"}]})
         self.assertEqual(a["resumo"]["despesas"], 400_000)

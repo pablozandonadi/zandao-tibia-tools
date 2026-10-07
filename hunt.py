@@ -122,6 +122,8 @@ def montar(entrada):
                 "dano": p.damage, "dano_pct": (p.damage / tot_dano * 100) if tot_dano and not r.excluded else 0,
                 "cura": p.healing, "cura_pct": (p.healing / tot_cura * 100) if tot_cura and not r.excluded else 0,
                 "loot": p.loot, "supplies": p.supplies, "balance": p.balance,
+                "dano_h": _por_hora(p.damage, minutos), "cura_h": _por_hora(p.healing, minutos),
+                "balance_h": _por_hora(p.balance, minutos),  # "Profit/h" na tela: o de cada um, antes da divisão
                 "ajuste": r.adjustment, "eu": p.name.lower() == personagem.lower(),
             })
         membros.sort(key=lambda m: (m["excluido"], -m["dano"]))
@@ -131,7 +133,7 @@ def montar(entrada):
         top = max(ativos, key=lambda p: p.damage) if ativos else None
         resumo.update({
             "balance": party.balance, "loot": party.loot, "supplies": party.supplies,
-            "lucro": split.fair_share_per_player,
+            "lucro": split.fair_share_per_player, "lucro_h": _por_hora(split.fair_share_per_player, minutos),
             "balance_h": _por_hora(party.balance, minutos), "loot_h": _por_hora(party.loot, minutos),
             "top_dano_nome": top.name if top else None, "top_dano": top.damage if top else None,
             "despesas": sum(d.amount for d in despesas), "membros": len(ativos),
