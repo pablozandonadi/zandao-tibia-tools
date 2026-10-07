@@ -1305,6 +1305,7 @@ function renderHunt() {
       ${stat('Raw XP Gain', n(r.xp_raw))}
       ${stat('Balance', ouro(r.balance))}
       ${stat(a.tem.party ? 'Lucro final (por membro)' : 'Lucro', ouro(r.lucro))}
+      ${a.tem.party ? stat('Lucro/h (por membro)', ouro(r.lucro_h)) : ''}
       ${stat('XP/h', n(r.xp_h))}
       ${stat('Raw XP/h', n(r.xp_raw_h))}
       ${stat('Balance/h', ouro(r.balance_h))}
@@ -1327,12 +1328,12 @@ function renderMembros(a) {
     <span class="acoes"><span class="dica">clique no nome para tirar/voltar alguém da divisão</span>
     <button class="btn btn-sm" id="h-shared">🤝 Verificar shared</button></span></div>
     ${H.shared ? sharedHtml(H.shared) : ''}
-    <div class="tabela-wrap"><table class="tab"><tr><th>#</th><th>Membro</th><th class="r">Dano</th><th class="r">Cura</th><th class="r">Loot</th><th class="r">Supplies</th><th class="r">Balance</th><th class="r">Ajuste</th></tr>
+    <div class="tabela-wrap"><table class="tab"><tr><th>#</th><th>Membro</th><th class="r">Dano</th><th class="r">Dano/h</th><th class="r">Cura</th><th class="r">Cura/h</th><th class="r">Loot</th><th class="r">Supplies</th><th class="r">Balance</th><th class="r" title="Balance de cada um por hora, antes da divisão">Profit/h</th><th class="r">Ajuste</th></tr>
     ${a.membros.map((m, i) => `<tr class="${m.excluido ? 'fora' : ''}"><td class="dim">#${i + 1}</td>
       <td class="nome-membro" data-excluir="${esc(m.nome)}" title="${m.excluido ? 'Voltar para a divisão' : 'Tirar da divisão'}">${esc(m.nome)}${m.lider ? '<span class="tag tag-lider">líder</span>' : ''}${m.eu ? '<span class="tag tag-eu">você</span>' : ''}</td>
-      <td class="r">${n(m.dano)} <span class="pct">(${m.dano_pct.toFixed(1)}%)</span></td>
-      <td class="r">${n(m.cura)} <span class="pct">(${m.cura_pct.toFixed(1)}%)</span></td>
-      <td class="r">${n(m.loot)}</td><td class="r neg">-${n(m.supplies)}</td><td class="r">${ouro(m.balance)}</td>
+      <td class="r">${n(m.dano)} <span class="pct">(${m.dano_pct.toFixed(1)}%)</span></td><td class="r dim">${n(m.dano_h)}</td>
+      <td class="r">${n(m.cura)} <span class="pct">(${m.cura_pct.toFixed(1)}%)</span></td><td class="r dim">${n(m.cura_h)}</td>
+      <td class="r">${n(m.loot)}</td><td class="r neg">-${n(m.supplies)}</td><td class="r">${ouro(m.balance)}</td><td class="r">${ouro(m.balance_h)}</td>
       <td class="r">${m.excluido ? '—' : (m.ajuste > 0 ? `<span class="pos">recebe ${n(m.ajuste)}</span>` : m.ajuste < 0 ? `<span class="neg">paga ${n(-m.ajuste)}</span>` : '0')}</td></tr>`).join('')}
     </table></div></div>`;
 }
@@ -1352,10 +1353,12 @@ function renderDetalhes(a) {
   const ds = a.detalhes;
   if (!H.aba || !ds.some((d) => d.nome === H.aba)) H.aba = (ds.find((d) => d.eu) || ds[0]).nome;
   const d = ds.find((x) => x.nome === H.aba);
+  const mb = (a.membros || []).find((m) => m.nome === d.nome) || {};
   const s = a.solo;
   let corpo = `<div class="det-grid">
     ${stat('Loot', n(d.loot))}${stat('Supplies', `<span class="neg">-${n(d.supplies)}</span>`)}${stat('Balance', ouro(d.balance))}${stat('Fica com', ouro(d.excluido ? d.balance : d.fica_com))}
     ${stat('Dano', `${n(d.dano)} <span class="pct">${d.dano_pct.toFixed(1)}%</span>`)}${stat('Cura', `${n(d.cura)} <span class="pct">${d.cura_pct.toFixed(1)}%</span>`)}
+    ${stat('Dano/h', n(mb.dano_h))}${stat('Cura/h', n(mb.cura_h))}
     ${stat('Paga', d.paga.length ? d.paga.map((t) => `${n(t.valor)} → ${esc(t.recebedor)}`).join('<br>') : '—')}
     ${stat('Recebe', d.recebe.length ? d.recebe.map((t) => `${n(t.valor)} ← ${esc(t.pagador)}`).join('<br>') : '—')}
   </div>`;
@@ -1580,6 +1583,16 @@ async function abrirHunt(id) {
 
 // ---------- comparar todas (panorama) ----------
 let panUltimo = null, panCol = 'lucro_membro_h', panDesc = true, rankCol = 'dano_h';
+// tabela "Ranking por jogador" (Comparar todas e comparativo lado a lado): cabeçalhos clicáveis com data-<attr>
+function htmlRanking(jogadores, col, attr) {
+  return `<div class="tabela-wrap"><table class="tab pan"><tr><th>#</th><th>Jogador</th>${COLS_RANK.map(([k, rot]) => `<th class="r ord ${k === col ? 'ativa' : ''}" data-${attr}="${k}">${rot}${k === col ? ' ▼' : ''}</th>`).join('')}</tr>
+    ${[...jogadores].sort((a, b) => (b[col] || 0) - (a[col] || 0)).map((j, i) => `<tr><td class="dim">${i + 1}</td><td><b>${esc(j.nome)}</b></td><td class="r">${j.hunts}</td>
+      <td class="r">${Math.floor(j.minutos / 60)}h${String(j.minutos % 60).padStart(2, '0')}</td><td class="r">${n(j.dano_h)}</td><td class="r">${n(j.cura_h)}</td>
+      <td class="r">${n(j.supplies_h)}</td><td class="r">${n(j.dano)}</td><td class="r">${n(j.cura)}</td><td class="r"><span class="${cls(j.balance_media)}">${n(j.balance_media)}</span></td></tr>`).join('')}
+    </table></div>`;
+}
+// "02:47h" -> "2h47"
+const durCurta = (d) => { const m = /^(\d+):(\d+)/.exec(d || ''); return m ? `${+m[1]}h${m[2]}` : (d || ''); };
 const COLS_RANK = [['hunts', 'Hunts'], ['minutos', 'Tempo'], ['dano_h', 'Dano/h'], ['cura_h', 'Cura/h'], ['supplies_h', 'Supplies/h'],
   ['dano', 'Dano total'], ['cura', 'Cura total'], ['balance_media', 'Balance médio']];
 const curto = (v) => {
@@ -1629,11 +1642,7 @@ function renderPanorama() {
     <tfoot>${['media', 'melhor', 'pior'].map((k) => `<tr><td></td><td>${{ media: 'Média', melhor: 'Melhor', pior: 'Pior' }[k]}</td><td></td>
       ${r.colunas.map((c) => `<td class="r">${r.stats[c.chave] ? n(r.stats[c.chave][k]) : '—'}</td>`).join('')}</tr>`).join('')}</tfoot></table></div>`;
   const jog = r.jogadores.length ? `<h2 class="sub" style="margin-top:20px">👥 Ranking por jogador (somando estas hunts)</h2>
-    <div class="tabela-wrap"><table class="tab pan"><tr><th>#</th><th>Jogador</th>${COLS_RANK.map(([k, rot]) => `<th class="r ord ${k === rankCol ? 'ativa' : ''}" data-rk="${k}">${rot}${k === rankCol ? ' ▼' : ''}</th>`).join('')}</tr>
-    ${[...r.jogadores].sort((a, b) => (b[rankCol] || 0) - (a[rankCol] || 0)).map((j, i) => `<tr><td class="dim">${i + 1}</td><td><b>${esc(j.nome)}</b></td><td class="r">${j.hunts}</td>
-      <td class="r">${Math.floor(j.minutos / 60)}h${String(j.minutos % 60).padStart(2, '0')}</td><td class="r">${n(j.dano_h)}</td><td class="r">${n(j.cura_h)}</td>
-      <td class="r">${n(j.supplies_h)}</td><td class="r">${n(j.dano)}</td><td class="r">${n(j.cura)}</td><td class="r"><span class="${cls(j.balance_media)}">${n(j.balance_media)}</span></td></tr>`).join('')}
-    </table></div><p class="dica" style="margin:8px 0 0">Clique numa coluna para ordenar (maior primeiro). "Por hora" usa só o tempo das hunts em que o jogador estava.</p>` : '';
+    ${htmlRanking(r.jogadores, rankCol, 'rk')}<p class="dica" style="margin:8px 0 0">Clique numa coluna para ordenar (maior primeiro). "Por hora" usa só o tempo das hunts em que o jogador estava.</p>` : '';
   $('hi-comparar').innerHTML = `<div class="card" style="margin-top:16px">
     <div class="h-titulo"><div><h2 class="sub" style="margin:0">📊 Comparar todas: ${r.total.hunts} hunts</h2>
       <div class="dica">${esc(descricaoFiltro())} · ${horas} caçando · clique no título de uma coluna para ordenar e ver no gráfico</div></div>
@@ -1731,10 +1740,10 @@ $('hi-comp-ir').addEventListener('click', async () => {
   renderComparacao(r);
 });
 
-function renderComparacao(r) {
+function renderComparacao(r, rolar = true) {
   const fmtv = (v, tipo) => v === null || v === undefined ? '—' : tipo === 'txt' ? esc(v) : tipo === 'gp' ? `<span class="${cls(v)}">${n(v)}</span>` : n(v);
   const cab = r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${esc(h.data || '')}</span>
-    <span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}${h.personagem ? ' · ' + esc(h.personagem) : ''}</span>
+    <span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}${h.duracao ? ' · ' + esc(durCurta(h.duracao)) : ''}${h.personagem ? ' · ' + esc(h.personagem) : ''}</span>
     <span>${h.monstros.map((m) => m.imagem ? `<img src="${esc(m.imagem)}" alt="" title="${esc(m.kills + 'x ' + m.nome)}">` : '').join('')}</span></th>`).join('');
   const linhas = r.linhas.map((l) => `<tr class="${l.chave === 'lucro_membro_h' || l.chave === 'xp_h' ? 'destaque' : ''}"><td>${esc(l.rotulo)}</td>
     ${l.valores.map((v, i) => `<td class="r ${l.melhor === i ? 'melhor' : ''}">${fmtv(v, l.tipo)}</td>`).join('')}</tr>`).join('');
@@ -1745,9 +1754,12 @@ function renderComparacao(r) {
     ${r.veredito.length ? `<div class="veredito">${r.veredito.map((v) => `<div>🏆 ${esc(v)}</div>`).join('')}</div>` : ''}
     ${r.avisos.length ? `<div class="avisos">${r.avisos.map((a) => `<div>⚠ ${esc(a)}</div>`).join('')}</div>`
       : '<div class="dica" style="margin-bottom:12px">✔ Mesmo tamanho de party, duração parecida e mesmo spawn: dá para comparar direto.</div>'}
+    ${r.ranking && r.ranking.length ? `<h2 class="sub" style="margin-top:4px">👥 Ranking por jogador (somando estas hunts)</h2>
+      ${htmlRanking(r.ranking, rankColComp, 'rkc')}
+      <p class="dica" style="margin:8px 0 18px">/h = projeção para 1 hora: uma hunt de 1h17 é dividida por 1,28 (puxa para baixo), uma de 40 min é multiplicada por 1,5 (puxa para cima). Cada jogador conta só o tempo das hunts em que estava. Clique numa coluna para ordenar.</p>` : ''}
     <div class="tabela-wrap"><table class="tab comp"><tr><th></th>${cab}</tr>${linhas}${prot}</table></div>
     <p class="dica" style="margin:10px 0 0">★ = melhor valor da linha. As linhas "/ hora" e "por membro" corrigem durações e tamanhos de party diferentes.</p>
-    ${r.jogadores.length ? `<h2 class="sub" style="margin-top:20px">👥 Por jogador</h2>
+    ${r.jogadores.length ? `<h2 class="sub" style="margin-top:20px">🔎 Detalhe por hunt</h2>
       <div class="abas" id="comp-abas">${r.metricas_jogador.map((m) => `<span class="pilula ${m.chave === compMetrica ? 'on' : ''}" data-met="${m.chave}">${esc(m.rotulo)}</span>`).join('')}</div>
       <div class="tabela-wrap" id="comp-jogadores"></div>` : ''}
   </div>`;
@@ -1758,10 +1770,11 @@ function renderComparacao(r) {
     $('hi-comparar').querySelectorAll('[data-met]').forEach((x) => x.classList.toggle('on', x === p));
     renderJogadores();
   }));
+  $('hi-comparar').querySelectorAll('[data-rkc]').forEach((th) => th.addEventListener('click', () => { rankColComp = th.dataset.rkc; renderComparacao(compUltimo, false); }));
   $('hi-comp-fechar').addEventListener('click', () => { $('hi-comparar').innerHTML = ''; });
-  $('hi-comparar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (rolar) $('hi-comparar').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-let compUltimo = null, compMetrica = 'dano';
+let compUltimo = null, compMetrica = 'dano_h', rankColComp = 'dano_h';
 function renderJogadores() {
   const r = compUltimo, alvo = $('comp-jogadores');
   if (!r || !alvo) return;
@@ -1775,7 +1788,7 @@ function renderJogadores() {
     const val = ch === 'balance' ? `<span class="${cls(x)}">${n(x)}</span>` : n(x);
     return pct ? `${val} <span class="pct">(${v[pct].toFixed(1)}%)</span>` : val;
   };
-  alvo.innerHTML = `<table class="tab comp"><tr><th>Jogador</th>${r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}</span></th>`).join('')}</tr>
+  alvo.innerHTML = `<table class="tab comp"><tr><th>Jogador</th>${r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}${h.duracao ? ' · ' + esc(durCurta(h.duracao)) : ''}</span></th>`).join('')}</tr>
     ${[...r.jogadores].sort((a, b) => soma(b) - soma(a) || b.em - a.em).map((j) => `<tr><td><b>${esc(j.nome)}</b>${j.em > 1 ? ` <span class="pct">em ${j.em} hunts</span>` : ''}</td>
       ${j.valores.map((v, i) => `<td class="r ${j.melhor[ch] === i ? 'melhor' : ''}">${cel(v)}</td>`).join('')}</tr>`).join('')}</table>
     <p class="dica" style="margin:8px 0 0">★ = melhor hunt daquele jogador nessa métrica${ch.startsWith('supplies') ? ' (gastar menos é melhor)' : ''}. Use "/ hora" para comparar hunts de durações diferentes.</p>`;
