@@ -7,6 +7,7 @@ import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date
 
 import webview
 
@@ -21,6 +22,7 @@ import hunt
 import monstros
 import organizer
 import personagens
+import precos
 import tibia_info
 from versao import VERSAO_APP
 
@@ -275,6 +277,30 @@ class API:
             },
             "texto": emb.texto_resultado(resultados, pl, estado["fazer_scroll"]),
         }
+
+    # ----- histórico de preços (botão "Registrar preços de hoje", aviso ▲/▼ e gráfico) -----
+    _precos_path = precos.PRECOS_PATH
+
+    def _hoje(self):
+        return date.today().isoformat()
+
+    def precos_registrar(self, precos_texto):
+        valores = {k: emb.parse_num(str(v or "")) for k, v in (precos_texto or {}).items()}
+        try:
+            return {"gravados": precos.registrar(valores, self._hoje(), self._precos_path)}
+        except OSError:
+            return {"erro": "Não consegui salvar o histórico de preços"}
+
+    def precos_variacoes(self, precos_texto):
+        hist, hoje = precos.carregar(self._precos_path), self._hoje()
+        return {k: precos.variacao(emb.parse_num(str(v or "")), k, hoje, hist) for k, v in (precos_texto or {}).items()}
+
+    def precos_serie(self, chave):
+        return precos.serie(precos.carregar(self._precos_path), chave)
+
+    def precos_apagar(self, chave, data):
+        precos.apagar(chave, data, self._precos_path)
+        return self.precos_serie(chave)
 
     def copiar(self, texto):
         try:
@@ -801,7 +827,8 @@ class API:
     # ================= configurações: backup de tudo =================
     def _caminhos_backup(self):
         return {"historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
-                "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO}
+                "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO,
+                "precos": precos.PRECOS_PATH}
 
     def config_exportar(self):
         pacote = backup.exportar(self._caminhos_backup(), VERSAO_APP)

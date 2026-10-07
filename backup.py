@@ -32,6 +32,7 @@ ITENS = {
     "prints": "Pastas e opções dos prints",
     "janela": "Fixar por cima e transparência",
     "audio": "Timers de áudio",
+    "precos": "Histórico de preços dos embuimentos",
 }
 
 

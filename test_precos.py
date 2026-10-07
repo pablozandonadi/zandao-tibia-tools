@@ -59,5 +59,46 @@ class TestPrecos(unittest.TestCase):
         self.assertEqual(precos.carregar(self.arq), {})
 
 
+class TestApiPrecos(unittest.TestCase):
+    def setUp(self):
+        import web_api
+        self.tmp = tempfile.TemporaryDirectory()
+        self.api = object.__new__(web_api.API)
+        self.api._precos_path = os.path.join(self.tmp.name, "p.json")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_registrar_aceita_formatos_do_tibia(self):
+        import embuimentos as emb
+        self.api._hoje = lambda: "2026-10-07"
+        self.assertEqual(self.api.precos_registrar({"item:rope belt": "4.5k", "scroll:void": "1,2kk", "token": "55554", "blank": ""}),
+                         {"gravados": 3})
+        h = precos.carregar(self.api._precos_path)
+        self.assertEqual(h["item:rope belt"][0]["preco"], emb.parse_num("4.5k"))
+        self.assertEqual(h["scroll:void"][0]["preco"], emb.parse_num("1,2kk"))
+
+    def test_variacoes_serie_apagar(self):
+        self.api._hoje = lambda: "2026-10-03"
+        self.api.precos_registrar({"token": "50000"})
+        self.api._hoje = lambda: "2026-10-07"
+        v = self.api.precos_variacoes({"token": "55000", "blank": "25000"})
+        self.assertEqual(v["token"]["sentido"], "subiu")
+        self.assertIsNone(v["blank"])
+        self.assertEqual(self.api.precos_serie("token")["max"], 50000)
+        self.assertEqual(self.api.precos_apagar("token", "2026-10-03")["pontos"], [])
+
+    def test_backup_inclui_precos(self):
+        import backup
+        self.assertIn("precos", backup.ITENS)
+        self.assertEqual(self.api._caminhos_backup()["precos"], precos.PRECOS_PATH)
+        orig = {"precos": os.path.join(self.tmp.name, "orig.json")}
+        precos.registrar({"token": 55554}, "2026-10-07", orig["precos"])
+        pacote = backup.exportar(orig, "9.9.9")
+        dest = {"precos": os.path.join(self.tmp.name, "dest.json")}
+        backup.importar(pacote, dest)
+        self.assertEqual(precos.carregar(dest["precos"]), {"token": [{"data": "2026-10-07", "preco": 55554}]})
+
+
 if __name__ == "__main__":
     unittest.main()
