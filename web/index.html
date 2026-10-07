@@ -205,10 +205,42 @@
   .toast.erro { background: var(--bad); color: #2a0e0e; }
 
   /* ---- hunt analyser ---- */
-  .linha-prey { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-  .linha-prey .campo-label { margin: 0; }
-  .prey-slot { display: flex; gap: 4px; }
-  .prey-slot select { width: auto; }
+  /* preys e charms (seção "Seu personagem nesta hunt") */
+  .sub3 { font-family: var(--font-display); font-size: .95rem; margin: 0 0 8px; }
+  .prey-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .prey-card { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 2px solid var(--ink-dim);
+    border-radius: 10px; background: var(--surface-2); min-height: 92px; }
+  .prey-card.vazio { align-items: center; border-style: dashed; }
+  .prey-mais { width: 44px; height: 64px; border: 2px dashed var(--ink-dim); border-radius: 8px; background: none; color: var(--ink); font-size: 1.4rem; cursor: pointer; }
+  .prey-banner { width: 34px; min-height: 72px; border: 0; border-radius: 6px; font-weight: 700; font-size: .66rem; cursor: pointer; color: #fff;
+    writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: .05em; }
+  .tipo-xp .prey-banner { background: #7b3fa0; }
+  .tipo-ataque .prey-banner { background: #b8322a; }
+  .tipo-defesa .prey-banner { background: #2f6db5; }
+  .tipo-loot .prey-banner { background: #2f8f4e; }
+  .prey-x { position: absolute; top: 4px; right: 6px; background: none; border: 0; color: var(--ink-dim); cursor: pointer; }
+  .prey-info { min-width: 0; font-size: .84rem; }
+  .estrelas { display: flex; flex-wrap: wrap; margin: 4px 0; }
+  .estrela { background: none; border: 0; padding: 0 1px; font-size: 1rem; line-height: 1; color: var(--ink-dim); cursor: pointer; opacity: .45; }
+  .estrela.on { color: #f5b301; opacity: 1; }
+  .prey-bonus { font-size: .72rem; color: var(--ink-dim); margin-bottom: 6px; }
+  .prey-bonus b { color: var(--good); font-family: var(--font-mono); }
+  .criatura-sel { display: inline-flex; gap: 6px; align-items: center; font-size: .76rem; font-weight: 700; padding: 2px 8px;
+    border: 2px solid var(--ink-dim); border-radius: 8px; cursor: pointer; max-width: 100%; }
+  .mini-x { background: none; border: 0; color: var(--ink-dim); cursor: pointer; padding: 0; }
+  .charm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .charm-card { padding: 8px 10px; border: 2px solid var(--ink-dim); border-radius: 10px; background: var(--surface-2);
+    display: flex; flex-direction: column; gap: 6px; font-size: .8rem; align-items: flex-start; }
+  .charm-card.on { border-color: var(--accent); }
+  .charm-niveis { display: flex; gap: 4px; }
+  .charm-niveis .pilula, button.pilula { font-family: inherit; padding: 2px 7px; font-size: .68rem; cursor: pointer; }
+  .escolha-lista { display: grid; gap: 8px; max-height: 60vh; overflow-y: auto; }
+  .escolha-item { display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px; border: 2px solid var(--ink-dim);
+    border-radius: 9px; background: var(--surface-2); color: var(--ink); cursor: pointer; flex-wrap: wrap; font: inherit; }
+  .escolha-item:hover { border-color: var(--accent); }
+  .escolha-item img { width: 32px; height: 32px; object-fit: contain; }
+  .escolha-item .dica { flex-basis: 100%; }
+  @media (max-width: 1100px) { .prey-grid { grid-template-columns: 1fr; } }
   .hunt-topo { display: grid; grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) auto; gap: 14px; align-items: start; }
   .caixas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
   .caixa-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -519,7 +551,6 @@
             <div class="dica" id="h-pers-info" style="margin-top:4px"></div></div>
           <div><label class="campo-label espaco-rotulo" aria-hidden="true">&nbsp;</label><div class="acoes"><button class="btn btn-primary" id="h-colar" title="Cola o que você copiou no Tibia (botão Copy do analyser) direto na caixa certa">📋 Colar do Tibia</button><button class="btn" id="h-nova">✚ Nova hunt</button><button class="btn btn-primary" id="h-salvar" disabled>💾 Salvar</button></div></div>
         </div>
-        <div class="linha-prey" id="h-prey"></div>
         <p class="dica" style="margin:12px 0 0;line-height:1.5">Com o programa aberto, clique em <b>Copy</b> no Tibia no <b>Party Hunt Analyser</b>, no <b>Hunting Analyser</b> e no <b>Input Analyser</b> (Received Damage), um depois do outro, e depois em <b>Colar do Tibia</b>: os 3 cards são preenchidos de uma vez (o app guarda cada cópia e reconhece qual é qual). Também dá para colar direto nas caixas (Ctrl+V). A hunt só vai para o Histórico quando você clicar em <b>💾 Salvar</b>.</p>
         <div class="resumo-chips" id="h-capturas" style="margin-top:10px"></div>
         <div class="caixas">
@@ -708,6 +739,12 @@
   <div class="modal-caixa modal-larga">
     <div class="h-titulo"><h3 id="mp-titulo"></h3><button class="btn btn-sm" id="mp-fechar">✕ Fechar</button></div>
     <div id="mp-corpo"></div>
+  </div>
+</div>
+<div class="modal-fundo" id="modal-escolha" style="display:none;">
+  <div class="modal-caixa">
+    <div class="h-titulo"><h3 id="me-titulo"></h3><button class="btn btn-sm" id="me-fechar">Cancelar</button></div>
+    <div id="me-lista" class="escolha-lista"></div>
   </div>
 </div>
 <div class="modal-fundo" id="modal-atualizacao" style="display:none;">
@@ -1023,7 +1060,7 @@ const ouro = (v) => `<span class="${cls(v)}">${n(v)}</span>`;
 const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
 
 const H = {
-  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [] },
+  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [], charms: [] },
   id: null, assinatura: null, a: null, pagos: [], texto: '', dano: null, aba: null, seq: 0,
 };
 
@@ -1035,35 +1072,140 @@ function preencherHunt() {
   montarSeletorPersonagem();
   TIPOS.forEach((t) => { $('h-' + t).value = H.entrada[t] || ''; });
   montarDespesas();
-  montarPrey();
 }
 
-// ---------- prey (só marca qual estava ativa; os números colados já vêm com o efeito dela) ----------
-// H.entrada.prey: lista = escolhida ([] = sem prey); null = hunt antiga com prey não informada (não é enviada ao salvar)
-const PREY_TIPOS = [['', 'Nenhuma'], ['xp', 'XP'], ['loot', 'Loot'], ['ataque', 'Ataque'], ['defesa', 'Defesa']];
-function montarPrey() {
-  const p = H.entrada.prey;
-  const slots = [0, 1, 2].map((i) => (p || [])[i] || { tipo: '', estrelas: 5 });
-  $('h-prey').innerHTML = '<span class="campo-label">Prey</span>' + slots.map((sl, i) => `<span class="prey-slot">
-    <select data-prey-tipo="${i}" title="Tipo da prey ${i + 1}">${PREY_TIPOS.map(([v, r]) => `<option value="${v}" ${sl.tipo === v ? 'selected' : ''}>${r}</option>`).join('')}</select>
-    <select data-prey-est="${i}" title="Estrelas" ${sl.tipo ? '' : 'style="display:none"'}>${[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((k) => `<option value="${k}" ${sl.estrelas === k ? 'selected' : ''}>★${k}</option>`).join('')}</select></span>`).join('')
-    + (p === null || p === undefined ? '<span class="dica">prey não informada nesta hunt: escolha para marcar</span><button class="btn btn-sm" id="h-sem-prey">Marcar sem prey</button>'
-      : '<span class="dica">só para comparar hunts depois; não muda nenhum número</span>');
-}
-$('h-prey').addEventListener('change', () => {
-  const q = (sel) => $('h-prey').querySelector(sel);
-  H.entrada.prey = [0, 1, 2].map((i) => ({ tipo: q(`[data-prey-tipo="${i}"]`).value, estrelas: +q(`[data-prey-est="${i}"]`).value }))
-    .filter((sl) => sl.tipo);
-  montarPrey();
-  atualizarSalvar();
-});
-$('h-prey').addEventListener('click', (e) => {
-  if (e.target.id !== 'h-sem-prey') return;
-  H.entrada.prey = [];  // hunt antiga: "Nenhuma" já está escolhida, então o select não dispara change
-  montarPrey();
-  atualizarSalvar();
-});
+// ---------- seu personagem nesta hunt: preys e charms ----------
+// Só marcam o que estava ativo (os números colados do Tibia já vêm com o efeito deles).
+// H.entrada.prey / H.entrada.charms: lista = escolhida ([] = nenhum); null = hunt antiga não informada (não é enviada ao salvar)
+let TAB = null;            // tabelas de prey (bônus por estrela) e charms (% por nível), vindas do Python
+let persoAba = 'major';
 const preyInicial = async (personagem) => (await api.hunt_ultima_prey(personagem || '')) || [];
+const charmsInicial = async (personagem) => (await api.hunt_ultimos_charms(personagem || '')) || [];
+const tituloCase = (s) => (s || '').replace(/\b\w/g, (c) => c.toUpperCase());
+
+// criaturas da hunt (com imagem quando a análise de dano já chegou)
+function criaturasDaHunt() {
+  if (H.dano && H.dano.kills && H.dano.kills.length) return H.dano.kills.map((k) => ({ nome: k.nome, imagem: k.imagem }));
+  return ((H.a && H.a.kills) || []).map((k) => ({ nome: tituloCase(k.nome), imagem: null }));
+}
+
+function resumoPerso() {
+  const p = H.entrada.prey, c = H.entrada.charms;
+  const curto = (t) => ((TAB && TAB.prey.find((x) => x.tipo === t)) || {}).curto || t;
+  const tp = p == null ? 'prey não informada' : !p.length ? 'sem prey'
+    : p.map((x) => `Prey ${curto(x.tipo)} ★${x.estrelas}${x.criatura ? ' · ' + x.criatura : ''}`).join(' + ');
+  const tc = c == null ? 'charms não informados' : !c.length ? 'sem charms' : `${c.length} charm${c.length > 1 ? 's' : ''}`;
+  return `${tp} · ${tc}`;
+}
+
+function htmlPerso() {
+  const p = H.entrada.prey, c = H.entrada.charms;
+  const btnCriatura = (alvo, nome) => nome
+    ? `<span class="criatura-sel" data-criatura="${esc(alvo)}" title="Trocar a criatura">${esc(nome)} <button class="mini-x" data-criatura-tirar="${esc(alvo)}" title="Tirar a criatura">✕</button></span>`
+    : `<button class="btn btn-sm" data-criatura="${esc(alvo)}">+ criatura</button>`;
+  const estrelas = (i, qtd) => [...Array(10)].map((_, k) => `<button class="estrela ${k < qtd ? 'on' : ''}" data-estrela="${i}:${k + 1}" title="${k + 1} estrela${k ? 's' : ''}">★</button>`).join('');
+  const preyCard = (s, i) => {
+    if (!s) return `<div class="prey-card vazio"><button class="prey-mais" data-prey-tipo="${i}" title="Escolher o tipo da prey">+</button>
+      <div><b>Escolher prey</b><div class="dica">tipo, estrelas e criatura</div></div></div>`;
+    const t = TAB.prey.find((x) => x.tipo === s.tipo);
+    return `<div class="prey-card tipo-${s.tipo}"><button class="prey-x" data-prey-tirar="${i}" title="Tirar esta prey">✕</button>
+      <button class="prey-banner" data-prey-tipo="${i}" title="Trocar o tipo">${esc(t.curto)}</button>
+      <div class="prey-info"><b>${esc(t.rotulo)}</b><div class="estrelas">${estrelas(i, s.estrelas)}</div>
+        <div class="prey-bonus">bônus <b>+${t.bonus[s.estrelas - 1]}%</b></div>${btnCriatura(`prey:${i}`, s.criatura)}</div></div>`;
+  };
+  const usados = new Map((c || []).map((x) => [x.nome, x]));
+  const charmCard = (ch) => {
+    const u = usados.get(ch.nome);
+    return `<div class="charm-card ${u ? 'on' : ''}"><b>${esc(ch.nome)}</b>${btnCriatura(`charm:${ch.nome}`, u && u.criatura)}
+      <div class="charm-niveis">${ch.pct.map((v, k) => `<button class="pilula ${u && u.nivel === k + 1 ? 'on' : ''}" data-charm-nivel="${esc(ch.nome)}:${k + 1}" title="Nível ${k + 1}">${String(v).replace('.', ',')}%</button>`).join('')}</div></div>`;
+  };
+  const naoInf = (campo, txt) => `<div class="dica" style="margin:0 0 8px">${txt} nesta hunt: escolha para marcar, ou
+    <button class="btn btn-sm" data-marcar-vazio="${campo}">Marcar sem ${campo === 'prey' ? 'prey' : 'charms'}</button></div>`;
+  return `<h3 class="sub3">Preys</h3>${p == null ? naoInf('prey', 'Prey não informada') : ''}
+    <div class="prey-grid">${[0, 1, 2].map((i) => preyCard((p || [])[i], i)).join('')}</div>
+    <div class="h-titulo" style="margin:16px 0 8px"><h3 class="sub3" style="margin:0">Charms</h3>
+      <div class="abas" style="margin:0">${[['major', 'Majors'], ['minor', 'Minors']].map(([k, r]) => `<span class="pilula ${k === persoAba ? 'on' : ''}" data-charm-aba="${k}">${r}</span>`).join('')}</div></div>
+    ${c == null ? naoInf('charms', 'Charms não informados') : ''}
+    <div class="charm-grid">${TAB.charms[persoAba].map(charmCard).join('')}</div>
+    <p class="dica" style="margin:10px 0 0">Só para comparar hunts depois: não muda nenhum número (o que você cola do Tibia já vem com prey e charms).
+      Uma hunt nova começa com as preys e charms da sua última hunt.</p>`;
+}
+
+function renderPerso() {
+  if (!TAB) return '';
+  return sanfona('perso', `<span>🧙 Seu personagem nesta hunt</span><span class="dica" id="h-perso-resumo" style="margin-left:auto">${esc(resumoPerso())}</span>`,
+    `<div id="h-perso">${htmlPerso()}</div>`);
+}
+function redesenharPerso(mudou = true) {
+  if (!$('h-perso')) return;
+  $('h-perso').innerHTML = htmlPerso();
+  $('h-perso-resumo').textContent = resumoPerso();
+  if (mudou) atualizarSalvar();
+}
+
+// alvo "prey:1" ou "charm:Carnage" -> o objeto que guarda a criatura (charm novo começa no nível 1)
+function alvoCriatura(alvo) {
+  const [tipo, chave] = [alvo.slice(0, alvo.indexOf(':')), alvo.slice(alvo.indexOf(':') + 1)];
+  if (tipo === 'prey') return (H.entrada.prey || [])[+chave];
+  H.entrada.charms = H.entrada.charms || [];
+  let ch = H.entrada.charms.find((x) => x.nome === chave);
+  if (!ch) { ch = { nome: chave, criatura: '', nivel: 1 }; H.entrada.charms.push(ch); }
+  return ch;
+}
+
+async function persoClique(e) {
+  const b = e.target.closest('[data-prey-tipo],[data-prey-tirar],[data-estrela],[data-criatura-tirar],[data-criatura],[data-charm-nivel],[data-charm-aba],[data-marcar-vazio]');
+  if (!b || !b.closest('#h-perso')) return;
+  e.preventDefault();
+  const d = b.dataset;
+  if (d.charmAba) { persoAba = d.charmAba; return redesenharPerso(false); }
+  if (d.marcarVazio) { H.entrada[d.marcarVazio] = []; return redesenharPerso(); }
+  if (d.preyTirar !== undefined) { (H.entrada.prey || []).splice(+d.preyTirar, 1); return redesenharPerso(); }
+  if (d.preyTipo !== undefined) {
+    const tipo = await escolher('Escolha o tipo da prey', TAB.prey.map((t) => ({ valor: t.tipo,
+      html: `<b>${esc(t.rotulo)}</b><span class="dica">${esc(t.descricao)}</span>` })));
+    if (!tipo) return;
+    H.entrada.prey = H.entrada.prey || [];
+    const s = H.entrada.prey[+d.preyTipo];
+    if (s) s.tipo = tipo; else H.entrada.prey.push({ tipo, estrelas: 10 });
+    return redesenharPerso();
+  }
+  if (d.estrela) { const [i, k] = d.estrela.split(':').map(Number); H.entrada.prey[i].estrelas = k; return redesenharPerso(); }
+  if (d.criaturaTirar) { alvoCriatura(d.criaturaTirar).criatura = ''; return redesenharPerso(); }
+  if (d.criatura) {
+    const nome = await escolher('Escolha a criatura', criaturasDaHunt().map((c) => ({ valor: c.nome,
+      html: `${c.imagem ? `<img src="${esc(c.imagem)}" alt="">` : ''}<b>${esc(c.nome)}</b>` })));
+    if (!nome) return;
+    alvoCriatura(d.criatura).criatura = nome;
+    return redesenharPerso();
+  }
+  if (d.charmNivel) {
+    const i = d.charmNivel.lastIndexOf(':'), nome = d.charmNivel.slice(0, i), nivel = +d.charmNivel.slice(i + 1);
+    H.entrada.charms = H.entrada.charms || [];
+    const ch = H.entrada.charms.find((x) => x.nome === nome);
+    if (ch && ch.nivel === nivel) H.entrada.charms = H.entrada.charms.filter((x) => x !== ch);  // clicar no nível marcado desmarca o charm
+    else if (ch) ch.nivel = nivel;
+    else H.entrada.charms.push({ nome, criatura: '', nivel });
+    return redesenharPerso();
+  }
+}
+$('h-res').addEventListener('click', persoClique);
+
+// janela de escolha (tipo de prey, criatura): devolve o valor escolhido ou null
+let meResolver = null;
+function escolher(titulo, opcoes) {
+  $('me-titulo').textContent = titulo;
+  $('me-lista').innerHTML = opcoes.length ? opcoes.map((o, i) => `<button class="escolha-item" data-me="${i}">${o.html}</button>`).join('')
+    : '<p class="dica">Nenhuma criatura nesta hunt ainda: cole o Hunting Analyser.</p>';
+  $('modal-escolha').style.display = 'flex';
+  return new Promise((res) => {
+    meResolver = (i) => { $('modal-escolha').style.display = 'none'; meResolver = null; res(i === null ? null : opcoes[i].valor); };
+  });
+}
+$('me-lista').addEventListener('click', (e) => { const b = e.target.closest('[data-me]'); if (b && meResolver) meResolver(+b.dataset.me); });
+$('me-fechar').addEventListener('click', () => meResolver && meResolver(null));
+$('modal-escolha').addEventListener('click', (e) => { if (e.target === $('modal-escolha') && meResolver) meResolver(null); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && meResolver) meResolver(null); });
 
 function statusCaixas(a) {
   for (const t of TIPOS) {
@@ -1135,7 +1277,7 @@ $('h-nome').addEventListener('input', () => {
 // ---------- salvar no Histórico (só quando o usuário clica) ----------
 // "retrato" = tudo o que vai para o Histórico; se mudou desde o último Salvar, há alterações não salvas
 const retrato = () => JSON.stringify([H.entrada.nome, H.entrada.party, H.entrada.solo, H.entrada.dano,
-  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort(), H.entrada.prey ?? null]);
+  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort(), H.entrada.prey ?? null, H.entrada.charms ?? null]);
 const temAlteracao = () => !!H.a && (!H.id || retrato() !== H.salvoRetrato);
 function atualizarSalvar() {
   const b = $('h-salvar');
@@ -1161,7 +1303,7 @@ $('h-salvar').addEventListener('click', async () => {
 $('h-personagem').addEventListener('change', async () => {
   H.entrada.personagem = $('h-personagem').value;
   H.equip = null;
-  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); montarPrey(); }
+  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); H.entrada.charms = await charmsInicial(H.entrada.personagem); }
   if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) MEUS = await api.personagem_usar(H.entrada.personagem);
   montarSeletorPersonagem();
   analisarHunt();
@@ -1262,7 +1404,7 @@ $('h-nova').addEventListener('click', async () => {
   if (temAlteracao() && !confirm(H.id ? 'As alterações desta hunt não foram salvas. Descartar e começar outra?'
     : 'Esta hunt não foi salva no Histórico. Descartar e começar outra?')) return;
   const personagem = H.entrada.personagem;
-  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem) };
+  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem), charms: await charmsInicial(personagem) };
   H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null;
   preencherHunt();
   analisarHunt();
@@ -1356,6 +1498,7 @@ function renderHunt() {
     ${r.xp === undefined ? '<p class="dica" style="margin:12px 0 0">XP aparece quando você cola também o <b>Hunting Analyser</b>.</p>' : ''}
   </div>`;
 
+  h += renderPerso();
   if (a.tem.party) h += renderMembros(a) + renderPagamentos(a) + renderDetalhes(a);
   h += renderMonstros(a) + renderDano(a);
   $('h-res').innerHTML = h;
@@ -1545,7 +1688,9 @@ async function huntIniciar() {
   const r = await api.hunt_carregar();
   MEUS = await api.meus_personagens();
   H.entrada.personagem = MEUS.atual || (r.entrada && r.entrada.personagem) || '';
+  TAB = await api.hunt_tabelas();
   H.entrada.prey = await preyInicial(H.entrada.personagem);
+  H.entrada.charms = await charmsInicial(H.entrada.personagem);
   H.id = null;
   preencherHunt();
   api.meus_personagens(true).then((d) => { MEUS = d; montarSeletorPersonagem(); });  // atualiza levels sem travar
@@ -1577,7 +1722,7 @@ async function carregarHistorico() {
     const s = h.resumo || {};
     const tam = s.membros || 1;
     return `<div class="card calmo hist-card ${compSel.includes(h.id) ? 'sel' : ''}" data-card="${h.id}"><div>
-      <div class="hist-nome">${esc(h.nome || 'Hunt')} <span class="tag tag-pt">${tam > 1 ? 'PT ' + tam : 'Solo'}</span>${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''} <span class="chip chip-neutro ${h.prey_informada ? '' : 'dim'}" style="font-size:.64rem">${esc(h.prey)}</span></div>
+      <div class="hist-nome">${esc(h.nome || 'Hunt')} <span class="tag tag-pt">${tam > 1 ? 'PT ' + tam : 'Solo'}</span>${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''} <span class="chip chip-neutro ${h.prey_informada ? '' : 'dim'}" style="font-size:.64rem">${esc(h.prey)}</span>${h.charms_informados ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.charms)}</span>` : ''}</div>
       <div class="hist-meta">${esc(h.data || '')}${h.personagem ? ' · ' + esc(h.personagem) : ''}${h.membros.length ? ' · ' + h.membros.length + ' membros: ' + esc(h.membros.join(', ')) : ''}</div>
       <div class="hist-nums"><span>Duração <b>${esc(s.duracao || '—')}</b></span><span>Balance <b class="${cls(s.balance)}">${n(s.balance)}</b></span>
         <span>Lucro${h.membros.length ? '/membro' : ''} <b class="${cls(s.lucro)}">${n(s.lucro)}</b></span>${s.xp_h ? `<span>XP/h <b>${n(s.xp_h)}</b></span>` : ''}
@@ -1611,7 +1756,7 @@ async function abrirHunt(id) {
     const e = await api.hunt_abrir(id);
     if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
     H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
-      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null };
+      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null, charms: e.charms ?? null };
     H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || [];
     H.salvoRetrato = retrato();
     preencherHunt();
@@ -1783,7 +1928,7 @@ function renderComparacao(r, rolar = true) {
   const fmtv = (v, tipo) => v === null || v === undefined ? '—' : tipo === 'txt' ? esc(v) : tipo === 'gp' ? `<span class="${cls(v)}">${n(v)}</span>` : n(v);
   const cab = r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${esc(h.data || '')}</span>
     <span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}${h.duracao ? ' · ' + esc(durCurta(h.duracao)) : ''}${h.personagem ? ' · ' + esc(h.personagem) : ''}</span>
-    ${h.prey ? `<span>${esc(h.prey)}</span>` : ''}
+    ${h.prey ? `<span>${esc(h.prey)}</span>` : ''}${h.charms ? `<span>${esc(h.charms)}</span>` : ''}
     <span>${h.monstros.map((m) => m.imagem ? `<img src="${esc(m.imagem)}" alt="" title="${esc(m.kills + 'x ' + m.nome)}">` : '').join('')}</span></th>`).join('');
   const linhas = r.linhas.map((l) => `<tr class="${l.chave === 'lucro_membro_h' || l.chave === 'xp_h' ? 'destaque' : ''}"><td>${esc(l.rotulo)}</td>
     ${l.valores.map((v, i) => `<td class="r ${l.melhor === i ? 'melhor' : ''}">${fmtv(v, l.tipo)}</td>`).join('')}</tr>`).join('');
