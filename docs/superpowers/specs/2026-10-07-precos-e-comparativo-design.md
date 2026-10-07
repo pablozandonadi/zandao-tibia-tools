@@ -135,7 +135,7 @@ A hunt salva em `historico_hunts.json` ganha o campo opcional `prey`:
 - **Hunt Analyser:** uma linha "Prey" perto do botão Salvar, com 3 slots. Cada slot tem um select de tipo (Nenhuma, XP, Loot, Ataque, Defesa) e um select de estrelas (★1 a ★10), que só aparece quando o tipo não é "Nenhuma".
   - O valor inicial é a prey da última hunt salva desse personagem. Se não houver nenhuma, todos os slots começam em "Nenhuma".
   - Salvar com todos os slots em "Nenhuma" grava `[]`, ou seja, sem prey.
-- **Histórico:** cada hunt mostra um chip com o texto da prey. Hunts com "Prey não informada" mostram o chip apagado. Ao abrir uma hunt salva, dá para editar a prey (usa `historico.atualizar`).
+- **Histórico:** cada hunt mostra um chip com o texto da prey. Hunts com "Prey não informada" mostram o chip apagado. Ao abrir uma hunt salva, dá para editar a prey e clicar em Salvar (o `salvar()` preserva a prey quando a entrada não traz o campo).
 - **Comparativo:** o cabeçalho de cada hunt mostra `PT 4 · 1h17 · Prey XP ★7`.
 
 ### Aviso no `comparar()`
