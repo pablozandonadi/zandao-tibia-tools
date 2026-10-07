@@ -307,6 +307,60 @@ class TestComparar(unittest.TestCase):
         self.assertTrue(historico.do_tamanho({"resumo": {}}, "1"))
 
 
+class TestPrey(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.arq = os.path.join(self.tmp.name, "h.json")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_normalizar_e_rotulo(self):
+        self.assertIsNone(historico.normalizar_prey(None))
+        self.assertEqual(historico.normalizar_prey([{"tipo": "xp", "estrelas": 11}, {"tipo": "x", "estrelas": 3},
+                                                    {"tipo": "loot", "estrelas": 0}, {"tipo": "ataque", "estrelas": "5"},
+                                                    {"tipo": "defesa", "estrelas": 2}]),
+                         [{"tipo": "xp", "estrelas": 10}, {"tipo": "loot", "estrelas": 1}, {"tipo": "ataque", "estrelas": 5}])
+        self.assertEqual(historico.normalizar_prey("lixo"), [])
+        self.assertEqual(historico.rotulo_prey([{"tipo": "xp", "estrelas": 7}]), "Prey XP ★7")
+        self.assertEqual(historico.rotulo_prey([{"tipo": "xp", "estrelas": 7}, {"tipo": "loot", "estrelas": 4}]),
+                         "Prey XP ★7 + Prey Loot ★4")
+        self.assertEqual(historico.rotulo_prey([]), "Sem prey")
+        self.assertEqual(historico.rotulo_prey(None), "Prey não informada")
+
+    def test_salvar_sem_prey_preserva_a_gravada(self):
+        reg = TestHistorico._reg(self)
+        h = historico.salvar({**reg, "prey": [{"tipo": "xp", "estrelas": 7}]}, self.arq)
+        historico.salvar({**reg, "id": h["id"]}, self.arq)  # re-salvar sem o campo prey (hunt aberta e salva)
+        self.assertEqual(historico.obter(h["id"], self.arq)["prey"], [{"tipo": "xp", "estrelas": 7}])
+        historico.salvar({**reg, "id": h["id"], "prey": []}, self.arq)  # marcar "sem prey" é explícito
+        self.assertEqual(historico.obter(h["id"], self.arq)["prey"], [])
+        antiga = historico.salvar(TestHistorico._reg(self, party=PARTY + "\nY", nome="antiga"), self.arq)
+        self.assertNotIn("prey", historico.obter(antiga["id"], self.arq))  # nunca inventa prey
+
+    def test_exportar_importar_mantem_prey(self):
+        historico.salvar({**TestHistorico._reg(self), "prey": [{"tipo": "loot", "estrelas": 3}]}, self.arq)
+        destino = os.path.join(self.tmp.name, "d.json")
+        historico.importar(historico.exportar(caminho=self.arq), caminho=destino)
+        self.assertEqual(historico.carregar(destino)[0]["prey"], [{"tipo": "loot", "estrelas": 3}])
+
+    def test_aviso_prey(self):
+        a, b = TestComparar._h(self, "a", "A", 4, 60, 1, 4), TestComparar._h(self, "b", "B", 4, 60, 1, 4)
+        a["prey"], b["prey"] = [{"tipo": "xp", "estrelas": 7}], []
+        r = historico.comparar([a, b])
+        self.assertIn('Prey diferente: "A" com Prey XP ★7, "B" sem prey. A XP/h não é comparável diretamente.', r["avisos"])
+        self.assertEqual([h["prey"] for h in r["hunts"]], ["Prey XP ★7", "Sem prey"])
+        b["prey"] = [{"tipo": "loot", "estrelas": 2}]
+        self.assertIn('Prey diferente: "A" com Prey XP ★7, "B" com Prey Loot ★2. A XP/h e o loot não são comparáveis diretamente.',
+                      historico.comparar([a, b])["avisos"])
+        b["prey"] = [{"tipo": "xp", "estrelas": 7}]
+        self.assertFalse(any("Prey" in x for x in historico.comparar([a, b])["avisos"]))
+        del b["prey"]  # não informada: sem aviso
+        r = historico.comparar([a, b])
+        self.assertFalse(any("Prey" in x for x in r["avisos"]))
+        self.assertEqual(r["hunts"][1]["prey"], "Prey não informada")
+
+
 def _reg_party(id_, inicio, duracao, k, mons):
     """Hunt salva a partir do PARTY de exemplo, com outro início/duração e o dano do Knight Alfa multiplicado por k."""
     party = (PARTY.replace("2026-10-05, 10:19:15", inicio).replace("Session: 02:47h", f"Session: {duracao}")

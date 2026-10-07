@@ -14,6 +14,7 @@ Formato do arquivo (o mesmo do exportado):
     "pagos": ["Pagador>Recebedor", ...],
     "resumo": {"duracao": "02:47h", "balance": 0, "lucro": 0, "xp": 0, ...},
     "membros": ["Zandao", ...], "monstros": [{"nome": "...", "kills": 0}],
+    "prey": [{"tipo": "xp", "estrelas": 7}],   # opcional: [] = sem prey; sem o campo = não informada
     "dano": {"elementos": [...], "protecoes": [...], "ofensivo": [...]}   # quando a análise de dano termina
   }]
 }
@@ -65,7 +66,9 @@ def ordenar(hunts):
 
 
 def salvar(registro, caminho=None):
-    """Cria ou atualiza (pelo id; senão pela assinatura dos textos). Devolve o registro gravado."""
+    """Cria ou atualiza (pelo id; senão pela assinatura dos textos). Devolve o registro gravado.
+    Sem o campo "prey" no registro, a prey já gravada é mantida (hunt antiga aberta e salva não perde nem inventa prey)."""
+    registro = _com_prey_normalizada(registro)
     with _trava:
         hunts = carregar(caminho)
         atual = next((h for h in hunts if h["id"] == registro.get("id")), None) \
@@ -76,6 +79,8 @@ def salvar(registro, caminho=None):
                 preservar["dano"] = atual["dano"]
             if "pagos" in registro:
                 preservar["pagos"] = registro["pagos"]
+            if "prey" not in registro and "prey" in atual:
+                preservar["prey"] = atual["prey"]
             atual.clear()
             atual.update(registro)
             atual.update(preservar)
@@ -147,7 +152,7 @@ def importar(dados, substituir=False, caminho=None):
             if h.get("id") in ids or (h.get("assinatura") and h["assinatura"] in assinaturas):
                 ignoradas += 1
                 continue
-            h = dict(h)
+            h = _com_prey_normalizada(dict(h))
             h["id"] = h.get("id") or uuid.uuid4().hex
             h.setdefault("criado_em", _agora())
             h["importado_em"] = _agora()
@@ -289,6 +294,68 @@ def _monstros(h):
     return {mon.singularizar(m.get("nome", "")) for m in h.get("monstros") or [] if m.get("nome")}
 
 
+# ---------------------------------------------------------------------------
+# Prey: só marca qual estava ativa (os números colados já vêm com o efeito dela).
+# "prey": [] = sem prey; sem o campo = não informada (hunts antigas). Nunca confundir os dois.
+# ---------------------------------------------------------------------------
+TIPOS_PREY = {"xp": "XP", "loot": "Loot", "ataque": "Ataque", "defesa": "Defesa"}
+_EFEITO_PREY = [("xp", "a XP/h"), ("loot", "o loot"), ("dano", "o dano")]  # ataque e defesa mexem no dano
+
+
+def normalizar_prey(valor):
+    """Até 3 preys válidas {"tipo", "estrelas" 1..10}; None continua None (não informada)."""
+    if valor is None:
+        return None
+    if not isinstance(valor, list):
+        return []
+    saida = []
+    for p in valor:
+        if not isinstance(p, dict) or p.get("tipo") not in TIPOS_PREY:
+            continue
+        try:
+            estrelas = int(p.get("estrelas"))
+        except (TypeError, ValueError):
+            continue
+        saida.append({"tipo": p["tipo"], "estrelas": max(1, min(10, estrelas))})
+    return saida[:3]
+
+
+def _com_prey_normalizada(registro):
+    if "prey" not in registro:
+        return registro
+    registro = dict(registro)
+    prey = normalizar_prey(registro["prey"])
+    if prey is None:
+        registro.pop("prey")
+    else:
+        registro["prey"] = prey
+    return registro
+
+
+def rotulo_prey(prey):
+    if prey is None:
+        return "Prey não informada"
+    if not prey:
+        return "Sem prey"
+    return " + ".join(f"Prey {TIPOS_PREY[p['tipo']]} ★{p['estrelas']}" for p in prey)
+
+
+def _aviso_prey(hunts, cab):
+    """Só avisa quando todas as hunts têm a prey informada e elas não são iguais."""
+    if not all("prey" in h for h in hunts):
+        return None
+    preys = [normalizar_prey(h["prey"]) or [] for h in hunts]
+    if len({frozenset((p["tipo"], p["estrelas"]) for p in pr) for pr in preys}) < 2:
+        return None
+    tipos = {"dano" if p["tipo"] in ("ataque", "defesa") else p["tipo"] for pr in preys for p in pr}
+    partes = [txt for t, txt in _EFEITO_PREY if t in tipos]
+    partes[0] = partes[0][0].upper() + partes[0][1:]
+    efeito = partes[0] if len(partes) == 1 else ", ".join(partes[:-1]) + " e " + partes[-1]
+    verbo = "não é comparável" if len(partes) == 1 else "não são comparáveis"
+    quem = ", ".join(f"\"{c['nome']}\" " + ("sem prey" if not pr else "com " + rotulo_prey(pr)) for c, pr in zip(cab, preys))
+    return f"Prey diferente: {quem}. {efeito} {verbo} diretamente."
+
+
 def _fmt_dur(minutos):
     return f"{minutos // 60}h{minutos % 60:02d}" if minutos else "?"
 
@@ -304,7 +371,7 @@ def comparar(hunts):
         por_jogador.append(pj)
     cab = [{"id": h["id"], "nome": h.get("nome") or "Hunt", "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
             "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"],
-            "monstros": (h.get("monstros") or [])[:4],
+            "monstros": (h.get("monstros") or [])[:4], "prey": rotulo_prey(normalizar_prey(h.get("prey"))),
             "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]]}
            for h, m in zip(hunts, ms)]
 
@@ -337,6 +404,9 @@ def comparar(hunts):
         for c, s in zip(cab[1:], conjuntos[1:]):
             if len(base & s) / len(base | s) < 0.5:
                 avisos.append(f"\"{c['nome']}\" foi em outro spawn (monstros diferentes de \"{cab[0]['nome']}\").")
+    aviso_prey = _aviso_prey(hunts, cab)
+    if aviso_prey:
+        avisos.append(aviso_prey)
 
     veredito = []
     for chave, rotulo in (("lucro_membro_h", "lucro por membro por hora"), ("xp_h", "XP por hora"),
