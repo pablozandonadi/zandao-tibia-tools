@@ -1,4 +1,4 @@
-# Histórico de preços dos Embuimentos + Ranking no comparativo de hunts
+# Histórico de preços dos Embuimentos + Ranking no comparativo + Prey nas hunts
 
 Data: 2026-10-07 · Versão alvo: 1.0.6 (não publicar sem "pode" explícito)
 
@@ -6,6 +6,8 @@ Data: 2026-10-07 · Versão alvo: 1.0.6 (não publicar sem "pode" explícito)
 
 1. **Preços:** guardar os preços que o usuário pesquisa no Market, com data, para ele saber se um item está mais caro ou mais barato que da última vez e ver a evolução em um gráfico.
 2. **Comparativo:** ao comparar de 2 a 4 hunts lado a lado, mostrar quem é o 1º, o 2º... (o ranking somado que já existe em "Comparar todas") e deixar claro que as colunas "/h" são uma projeção para 1 hora, porque é isso que torna justa a comparação entre hunts de durações diferentes.
+
+3. **Prey:** marcar em cada hunt se houve prey (tipo e estrelas), para entender as diferenças ao comparar hunts.
 
 Fora do escopo: preços automáticos (sem API do Market), sincronizar preços entre PCs e mudar a conta do "/h", que já está certa: `valor × 60 ÷ minutos`.
 
@@ -108,6 +110,48 @@ A data vem de fora (`date.today().isoformat()` no `web_api`), o que deixa os tes
 - `comparar([A, B])["ranking"]` é igual a `panorama([A, B])["jogadores"]`.
 - Um jogador que estava só em uma das hunts tem `hunts == 1` e `minutos` igual à duração só daquela hunt.
 - Os testes de `panorama` que já existem continuam passando, o que garante que a extração não mudou nenhum número.
+
+---
+
+## Parte 3: Marcar a prey da hunt
+
+O app **não calcula nada** de prey: os números colados do Hunt Analyser do Tibia já vêm com o efeito dela. O objetivo é só registrar qual prey estava ativa, para explicar as diferenças quando duas hunts forem comparadas. A marcação vale **só para o personagem do usuário**, não para os outros membros da party.
+
+### Dados
+
+A hunt salva em `historico_hunts.json` ganha o campo opcional `prey`:
+
+```json
+"prey": [{"tipo": "xp", "estrelas": 7}, {"tipo": "loot", "estrelas": 4}]
+```
+
+- `tipo` ∈ `xp`, `loot`, `ataque`, `defesa`; `estrelas` é um inteiro de 1 a 10. São no máximo 3 itens, que é o número de slots do Tibia.
+- `[]` = **sem prey**. Sem o campo = **prey não informada** (todas as hunts antigas). Os dois casos são diferentes e nunca devem ser confundidos.
+- `historico.py` ganha `normalizar_prey(valor) -> list|None`, que valida o tipo e limita as estrelas entre 1 e 10, descartando entradas inválidas. Ela é usada em `salvar()`, em `atualizar()` e na importação.
+- Rótulos: `xp` → "XP", `loot` → "Loot", `ataque` → "Ataque", `defesa` → "Defesa". Formato do texto: `Prey XP ★7`. Várias preys ficam separadas por " + ". Lista vazia → "Sem prey". `None` → "Prey não informada".
+
+### Tela
+
+- **Hunt Analyser:** uma linha "Prey" perto do botão Salvar, com 3 slots. Cada slot tem um select de tipo (Nenhuma, XP, Loot, Ataque, Defesa) e um select de estrelas (★1 a ★10), que só aparece quando o tipo não é "Nenhuma".
+  - O valor inicial é a prey da última hunt salva desse personagem. Se não houver nenhuma, todos os slots começam em "Nenhuma".
+  - Salvar com todos os slots em "Nenhuma" grava `[]`, ou seja, sem prey.
+- **Histórico:** cada hunt mostra um chip com o texto da prey. Hunts com "Prey não informada" mostram o chip apagado. Ao abrir uma hunt salva, dá para editar a prey (usa `historico.atualizar`).
+- **Comparativo:** o cabeçalho de cada hunt mostra `PT 4 · 1h17 · Prey XP ★7`.
+
+### Aviso no `comparar()`
+
+Ele só aparece se **todas** as hunts comparadas tiverem a prey informada e as preys forem diferentes. Para isso, compara o conjunto de pares `(tipo, estrelas)` de cada hunt:
+
+> "Prey diferente: 'Hunt A' com Prey XP ★7, 'Hunt B' sem prey. A XP/h (prey de XP), o loot (prey de Loot) e o dano (prey de Ataque/Defesa) não são comparáveis diretamente."
+
+O texto final cita só os tipos envolvidos.
+
+### Testes (`test_hunt.py`)
+
+- `normalizar_prey`: tipo inválido é descartado, estrelas 0 ou 11 ficam limitadas a 1 ou 10, mais de 3 itens é cortado e `None` continua `None`.
+- `salvar` e `atualizar` gravam a prey, e uma hunt antiga sem o campo continua sem ele.
+- O aviso aparece com preys diferentes, não aparece com preys iguais e não aparece quando alguma hunt tem a prey não informada.
+- Exportar e importar o histórico mantém o campo `prey`.
 
 ---
 
