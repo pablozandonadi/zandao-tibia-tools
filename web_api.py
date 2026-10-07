@@ -691,16 +691,6 @@ class API:
                  "motivo": f"Level {next(iter(levels.values()))} divide XP com levels de {lo} a {hi}."}
         return r
 
-    def hunt_shared(self, nomes):
-        """Shared da party do Hunt Analyser, com os levels de AGORA no tibia.com (via TibiaData)."""
-        info = tibia_info.personagens([n for n in nomes if n])
-        achados = {n: i["level"] for n, i in info.items() if i}
-        r = tibia_info.verificar_shared(achados) if len(achados) >= 2 else {
-            "ok": None, "motivo": f"Só achei {len(achados)} personagem(ns) no tibia.com; preciso de pelo menos 2 para conferir o shared."}
-        r["levels"] = {n: (i and {"level": i["level"], "vocacao": i["vocacao"]}) for n, i in info.items()}
-        r["nao_achados"] = [n for n, i in info.items() if not i]
-        return r
-
     def tibia_upar(self, nome, xp_atual="", alvo="", xp_h_manual=""):
         """Quanto falta para o level alvo e quantas horas/hunts, pela XP/h média das hunts salvas desse personagem."""
         nome = (nome or "").strip()

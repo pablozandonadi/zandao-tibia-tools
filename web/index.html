@@ -362,9 +362,6 @@
   .resultado-ferr.ok { border-color: var(--good); }
   .resultado-ferr.nao { border-color: var(--bad); }
   .resultado-ferr .grande { font-family: var(--font-display); font-size: 1.3rem; }
-  .shared-linha { margin-top: 10px; font-size: .82rem; padding: 8px 10px; border-radius: 9px; border: 2px solid var(--ink-dim); }
-  .shared-linha.ok { border-color: var(--good); }
-  .shared-linha.nao { border-color: var(--bad); }
 
   /* ---- meus personagens ---- */
   .linha-pers { display: flex; gap: 6px; align-items: stretch; }
@@ -425,6 +422,15 @@
   .au-modo.on { border-color: var(--accent-2); box-shadow: 2px 2px 0 var(--accent-2); }
   @media (max-width: 1100px) { .au-item { grid-template-columns: 1fr auto; } .au-modos, .au-form .campos { grid-template-columns: 1fr; } }
 
+  /* ---- seções que abrem e fecham (Hunt Analyser) ---- */
+  .card.sanfona { margin-top: 18px; padding: 0; }
+  .sanfona > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 14px 18px; font-family: var(--font-display); font-size: 1rem; }
+  .sanfona > summary::-webkit-details-marker { display: none; }
+  .sanfona > summary::after { content: '▼'; font-size: .8rem; color: var(--ink-dim); }
+  .sanfona[open] > summary::after { content: '▲'; }
+  .sanfona > summary:hover { color: var(--accent); }
+  .sanfona-corpo { padding: 0 18px 18px; }
   /* ---- atualização ---- */
   .modal-fundo { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
   .modal-caixa { background: var(--surface); border: 2.5px solid var(--ink); border-radius: 12px; box-shadow: 6px 6px 0 var(--accent);
@@ -575,8 +581,7 @@
           <label class="campo-label" for="f-levels">Levels da party (separados por vírgula)</label>
           <input type="text" id="f-levels" placeholder="ex.: 483, 350, 420, 512">
           <div id="f-shared-res" class="resultado-ferr">Digite um level para ver a faixa, ou os levels da party para saber se o shared funciona.</div>
-          <p class="dica" style="margin:10px 0 0">Regra do Tibia: o maior level pode ser no máximo 3/2 do menor. Além disso, todos precisam estar atacando ou curando e perto do líder.
-            No <b>Hunt Analyser</b>, o botão <b>🤝 Verificar shared</b> confere a party com os levels de agora no tibia.com.</p>
+          <p class="dica" style="margin:10px 0 0">Regra do Tibia: o maior level pode ser no máximo 3/2 do menor. Além disso, todos precisam estar atacando ou curando e perto do líder.</p>
         </div>
 
         <div class="card calmo">
@@ -1258,7 +1263,7 @@ $('h-nova').addEventListener('click', async () => {
     : 'Esta hunt não foi salva no Histórico. Descartar e começar outra?')) return;
   const personagem = H.entrada.personagem;
   H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem) };
-  H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null; H.shared = null;
+  H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null;
   preencherHunt();
   analisarHunt();
 });
@@ -1311,7 +1316,7 @@ async function analisarHunt() {
   if (r.id !== H.id) H.aba = null;
   if (outraHunt) { H.pagos = []; H.salvoRetrato = null; H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
   H.id = r.id; H.assinatura = r.assinatura; H.a = a; H.texto = r.texto;
-  if (mudouHunt) { H.dano = null; H.shared = null; if (H.equip) H.equip.cache = {}; }
+  if (mudouHunt) { H.dano = null; if (H.equip) H.equip.cache = {}; }
   if (!(H.entrada.nome || '').trim()) { H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
   montarDespesas();
   renderHunt();
@@ -1359,9 +1364,7 @@ function renderHunt() {
 
 function renderMembros(a) {
   return `<div class="card calmo" style="margin-top:18px"><div class="h-titulo"><h2 class="sub">Membros da party</h2>
-    <span class="acoes"><span class="dica">clique no nome para tirar/voltar alguém da divisão</span>
-    <button class="btn btn-sm" id="h-shared">🤝 Verificar shared</button></span></div>
-    ${H.shared ? sharedHtml(H.shared) : ''}
+    <span class="dica">clique no nome para tirar/voltar alguém da divisão</span></div>
     <div class="tabela-wrap"><table class="tab"><tr><th>#</th><th>Membro</th><th class="r">Dano</th><th class="r">Dano/h</th><th class="r">Cura</th><th class="r">Cura/h</th><th class="r">Loot</th><th class="r">Supplies</th><th class="r">Balance</th><th class="r" title="Balance de cada um por hora, antes da divisão">Profit/h</th><th class="r">Ajuste</th></tr>
     ${a.membros.map((m, i) => `<tr class="${m.excluido ? 'fora' : ''}"><td class="dim">#${i + 1}</td>
       <td class="nome-membro" data-excluir="${esc(m.nome)}" title="${m.excluido ? 'Voltar para a divisão' : 'Tirar da divisão'}">${esc(m.nome)}${m.lider ? '<span class="tag tag-lider">líder</span>' : ''}${m.eu ? '<span class="tag tag-eu">você</span>' : ''}</td>
@@ -1420,20 +1423,26 @@ function renderMonstros(a) {
   </div>`;
 }
 
+// seção que abre e fecha, fechada por padrão; lembra se o usuário deixou aberta (até fechar o app)
+const SANFONA = {};
+const sanfona = (chave, titulo, corpo) => `<details class="card calmo sanfona" data-sanfona="${chave}" ${SANFONA[chave] ? 'open' : ''}>
+  <summary>${titulo}</summary><div class="sanfona-corpo">${corpo}</div></details>`;
+document.addEventListener('toggle', (e) => { const d = e.target; if (d.dataset && d.dataset.sanfona) SANFONA[d.dataset.sanfona] = d.open; }, true);
+
 function renderDano(a) {
-  const titulo = '<h2 class="sub">🛡️ Dano recebido, proteções e elemento para atacar</h2>';
+  const caixa = (corpo) => sanfona('dano', '🛡️ Dano recebido, proteções e elemento para atacar', corpo);
   const d = H.dano;
   if (!d) {
     if (!a.kills.length && !a.tem.dano) {
-      return `<div class="card calmo" style="margin-top:18px">${titulo}<p class="dica" style="margin:0">Cole o <b>Hunting Analyser</b> (monstros mortos) e/ou o <b>Damage Input</b> para ver de que elemento vem o dano, quais proteções usar e o melhor elemento para atacar.</p></div>`;
+      return caixa(`<p class="dica" style="margin:0">Cole o <b>Hunting Analyser</b> (monstros mortos) e/ou o <b>Damage Input</b> para ver de que elemento vem o dano, quais proteções usar e o melhor elemento para atacar.</p>`);
     }
-    return `<div class="card calmo" style="margin-top:18px">${titulo}<div class="carregando">Buscando as fichas dos monstros na TibiaWiki e no TibiaData...</div></div>`;
+    return caixa(`<div class="carregando">Buscando as fichas dos monstros na TibiaWiki e no TibiaData...</div>`);
   }
-  if (d.erro) return `<div class="card calmo" style="margin-top:18px">${titulo}<div class="falta"><b>Não consegui montar a análise de dano:</b> ${esc(d.erro)}</div></div>`;
+  if (d.erro) return caixa(`<div class="falta"><b>Não consegui montar a análise de dano:</b> ${esc(d.erro)}</div>`);
   const an = d.analise;
-  if (d.vazio || !an) return `<div class="card calmo" style="margin-top:18px">${titulo}<p class="dica" style="margin:0">Sem monstros reconhecidos nem Damage Input.</p></div>`;
+  if (d.vazio || !an) return caixa(`<p class="dica" style="margin:0">Sem monstros reconhecidos nem Damage Input.</p>`);
 
-  let h = `<div class="card calmo" style="margin-top:18px">${titulo}`;
+  let h = '';
   if (an.avisos.length) h += `<div class="avisos">${an.avisos.map((x) => `<div>⚠ ${esc(x)}</div>`).join('')}</div>`;
   if (an.total) h += `<div class="resumo-chips" style="margin:0 0 14px"><span class="chip chip-neutro">dano recebido ${n(an.total)}</span>${an.max_dps ? `<span class="chip chip-neutro">max DPS ${n(an.max_dps)}</span>` : ''}</div>`;
   const real = an.elementos.some((e) => e.real);
@@ -1459,11 +1468,11 @@ function renderDano(a) {
       <div class="dica">peso de cada monstro nessa média (kills${an.fontes.length ? ' + dano de cada um no Damage Input' : ''})</div></div>
     </div>
   </div>`;
-  if (an.elementos.length) h += `<div class="card calmo" id="equip-card" style="margin-top:18px">${equipHtml(an)}</div>`;
+  const equip = an.elementos.length ? sanfona('equip', '🧥 Itens recomendados', `<div id="equip-card">${equipHtml(an)}</div>`) : '';
   if (d.fichas && d.fichas.length) {
     h += `<h2 class="sub" style="margin-top:18px">Ficha dos monstros</h2><div class="fichas">${d.fichas.map(fichaHtml).join('')}</div>`;
   }
-  return h + '</div>';
+  return caixa(h) + equip;
 }
 
 function fichaHtml(f) {
@@ -1523,15 +1532,10 @@ function ligarHunt() {
   res.querySelectorAll('[data-ver-itens]').forEach((b) => b.addEventListener('click', () => {
     estadoEquip().aba = b.dataset.verItens;  // abre o card de itens já no elemento escolhido
     redesenharEquip();
+    if ($('equip-card')) $('equip-card').closest('details').open = true;
     if ($('equip-card')) $('equip-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }));
   ligarEquip();
-  const bs = $('h-shared');
-  if (bs) bs.addEventListener('click', async () => {
-    bs.disabled = true; bs.textContent = 'Consultando tibia.com...';
-    H.shared = await api.hunt_shared(H.a.personagens || []);
-    renderHunt();
-  });
   atualizarSalvar();
 }
 
@@ -1608,7 +1612,7 @@ async function abrirHunt(id) {
     if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
     H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
       despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null };
-    H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || []; H.shared = null;
+    H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || [];
     H.salvoRetrato = retrato();
     preencherHunt();
     irPara('hunt');
@@ -1879,7 +1883,7 @@ function equipHtml(an) {
           : '<div class="dica">Nenhum item com essa proteção no level/vocação.</div>'}</div></div>`).join('')}</div>
       <p class="dica" style="margin:8px 0 0">Amarelo = elemento ${alvo ? 'escolhido' : 'que aparece nesta hunt'}; vermelho = o item tira proteção. "Temporário" = some depois de um tempo ou tem cargas. Os embuimentos de proteção somam com os itens.</p>`;
   }
-  return `<div class="equip-topo"><h2 class="sub" style="margin:0">🧥 Itens recomendados</h2>
+  return `<div class="equip-topo"><span class="dica">filtre pela vocação e pelo level</span>
     <div class="equip-filtros"><div><label class="campo-label" for="eq-voc">Vocação</label><select id="eq-voc"><option value="">—</option>${VOCS.map(([k, n]) => `<option value="${k}" ${k === e.voc ? 'selected' : ''}>${n}</option>`).join('')}</select></div>
       <div><label class="campo-label" for="eq-lvl">Level</label><input type="text" class="num" id="eq-lvl" value="${esc(e.lvl)}"></div></div></div>
     <div class="abas" style="margin:0">${abas.map(([k, rot]) => `<span class="pilula ${k === e.aba ? 'on' : ''}" data-eq-aba="${k}">${esc(rot)}</span>`).join('')}</div>
@@ -2306,13 +2310,6 @@ $('f-up-calc').addEventListener('click', async () => {
   box.innerHTML = h;
   if (!$('f-up-xph').value && r.xp_h_hist) $('f-up-xph').placeholder = `média: ${n(r.xp_h_hist)}`;
 });
-
-// ---------- shared da party no Hunt Analyser ----------
-function sharedHtml(r) {
-  const lv = Object.entries(r.levels || {}).map(([nome, i]) => `${esc(nome)} <b>${i ? i.level : '?'}</b>`).join(' · ');
-  return `<div class="shared-linha ${r.ok ? 'ok' : r.ok === false ? 'nao' : ''}">${r.ok ? '✔' : r.ok === false ? '✖' : '•'} ${esc(r.motivo)}
-    <div class="dica" style="margin-top:4px">Levels de agora no tibia.com: ${lv}${r.nao_achados && r.nao_achados.length ? ` · não achei: ${esc(r.nao_achados.join(', '))}` : ''}</div></div>`;
-}
 
 // ================= atualização automática =================
 async function checarAtualizacao() {
