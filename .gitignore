@@ -1,6 +1,8 @@
 # dados pessoais de quem usa o programa (cada um tem os seus; nunca vão para o GitHub)
 historico_hunts.json
 historico_hunts.json.tmp
+precos_historico.json
+precos_historico.json.tmp
 hunt_atual.json
 dados_embuimentos.json
 settings.json
