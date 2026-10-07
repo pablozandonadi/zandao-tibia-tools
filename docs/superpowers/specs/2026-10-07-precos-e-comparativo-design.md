@@ -6,7 +6,6 @@ Data: 2026-10-07 · Versão alvo: 1.0.6 (não publicar sem "pode" explícito)
 
 1. **Preços:** guardar os preços que o usuário pesquisa no Market, com data, para ele saber se um item está mais caro ou mais barato que da última vez e ver a evolução em um gráfico.
 2. **Comparativo:** ao comparar de 2 a 4 hunts lado a lado, mostrar quem é o 1º, o 2º... (o ranking somado que já existe em "Comparar todas") e deixar claro que as colunas "/h" são uma projeção para 1 hora, porque é isso que torna justa a comparação entre hunts de durações diferentes.
-
 3. **Prey:** marcar em cada hunt se houve prey (tipo e estrelas), para entender as diferenças ao comparar hunts.
 4. **Party por hora:** na tabela de membros da party, mostrar Dano/h, Cura/h e Profit/h.
 
