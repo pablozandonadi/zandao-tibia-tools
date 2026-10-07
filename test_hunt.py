@@ -272,6 +272,21 @@ class TestComparar(unittest.TestCase):
         self.assertIn("outro spawn", texto)
         self.assertFalse(any("Durações" in x for x in r["avisos"]))
 
+    def test_ranking_igual_ao_panorama(self):
+        a = _reg_party("a", "2026-10-01, 10:00:00", "01:17h", 1, ["gloom maws"])
+        b = _reg_party("b", "2026-10-02, 10:00:00", "02:00h", 2, ["gloom maws"])
+        self.assertEqual(historico.comparar([a, b])["ranking"], historico.panorama([a, b])["jogadores"])
+        self.assertEqual(historico.ranking_jogadores([a, b]), historico.panorama([a, b])["jogadores"])
+
+    def test_ranking_usa_so_o_tempo_de_quem_estava(self):
+        a = _reg_party("a", "2026-10-01, 10:00:00", "01:00h", 1, ["varg"])
+        b = _reg_party("b", "2026-10-02, 10:00:00", "02:00h", 1, ["varg"])
+        b["entrada"]["party"] = b["entrada"]["party"].replace("Knight Alfa", "Knight Zulu")
+        r = {j["nome"]: j for j in historico.comparar([a, b])["ranking"]}
+        self.assertEqual((r["Knight Alfa"]["hunts"], r["Knight Alfa"]["minutos"]), (1, 60))
+        self.assertEqual(r["Knight Alfa"]["dano_h"], 12_846_796)
+        self.assertEqual(r["Zandao"]["minutos"], 180)
+
     def test_filtro_tamanho(self):
         self.assertTrue(historico.do_tamanho(self._h("a", "A", 4, 60, 1, 1), "4"))
         self.assertFalse(historico.do_tamanho(self._h("a", "A", 3, 60, 1, 1), "4"))
@@ -279,14 +294,18 @@ class TestComparar(unittest.TestCase):
         self.assertTrue(historico.do_tamanho({"resumo": {}}, "1"))
 
 
+def _reg_party(id_, inicio, duracao, k, mons):
+    """Hunt salva a partir do PARTY de exemplo, com outro início/duração e o dano do Knight Alfa multiplicado por k."""
+    party = (PARTY.replace("2026-10-05, 10:19:15", inicio).replace("Session: 02:47h", f"Session: {duracao}")
+             .replace("12,846,796", f"{12846796 * k:,}"))
+    e = {"party": party, "solo": "", "dano": ""}
+    a = hunt.montar(e)
+    return {"id": id_, "nome": id_, "entrada": e, "resumo": a["resumo"], "data_hunt": a["data"],
+            "monstros": [{"nome": m, "kills": 10} for m in mons]}
+
+
 class TestPanorama(unittest.TestCase):
-    def _reg(self, id_, inicio, duracao, k, mons):
-        party = (PARTY.replace("2026-10-05, 10:19:15", inicio).replace("Session: 02:47h", f"Session: {duracao}")
-                 .replace("12,846,796", f"{12846796 * k:,}"))
-        e = {"party": party, "solo": "", "dano": ""}
-        a = hunt.montar(e)
-        return {"id": id_, "nome": id_, "entrada": e, "resumo": a["resumo"], "data_hunt": a["data"],
-                "monstros": [{"nome": m, "kills": 10} for m in mons]}
+    _reg = staticmethod(_reg_party)
 
     def test_muitas_hunts(self):
         hs = [self._reg(f"h{i}", f"2026-10-0{i}, 10:00:00", "01:00h" if i % 2 else "02:00h", i, ["gloom maws", "varg"])

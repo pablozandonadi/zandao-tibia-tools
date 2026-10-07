@@ -366,6 +366,7 @@ def comparar(hunts):
         jogadores.append({"nome": nome, "em": sum(v is not None for v in vals), "valores": vals, "melhor": melhor})
     jogadores.sort(key=lambda j: (-j["em"], -sum((v or {}).get("dano", 0) for v in j["valores"])))
     return {"hunts": cab, "linhas": linhas, "avisos": avisos, "veredito": veredito, "jogadores": jogadores,
+            "ranking": _ranking([(m["minutos"], pj) for m, pj in zip(ms, por_jogador)]),
             "metricas_jogador": [{"chave": c, "rotulo": r} for c, r, _ in METRICAS_JOGADOR]}
 
 
@@ -412,11 +413,12 @@ COLUNAS_PANORAMA = [
 def panorama(hunts):
     """Todas as hunts (já filtradas) numa tabela: uma linha por hunt, colunas normalizadas por hora/membro,
     média/melhor/pior de cada coluna e ranking somado por jogador."""
-    linhas, jogadores = [], {}
+    linhas, pares = [], []
     for h in hunts:
         m = metricas(h)
         extra, pj = _metricas_jogadores(_membros_da_hunt(h), m["minutos"])
         m.update(extra)
+        pares.append((m["minutos"], pj))
         linhas.append({
             "id": h["id"], "nome": h.get("nome") or "Hunt",
             "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
@@ -424,13 +426,6 @@ def panorama(hunts):
             "minutos": m["minutos"], "monstros": (h.get("monstros") or [])[:3],
             **{c: m.get(c) for c, *_ in COLUNAS_PANORAMA},
         })
-        for k, v in pj.items():
-            j = jogadores.setdefault(k, {"nome": v["nome"], "hunts": 0, "minutos": 0, "dano": 0, "cura": 0,
-                                         "supplies": 0, "loot": 0, "balance": 0})
-            j["hunts"] += 1
-            j["minutos"] += m["minutos"] or 0
-            for campo in ("dano", "cura", "supplies", "loot", "balance"):
-                j[campo] += v[campo] or 0
 
     stats = {}
     for chave, _, criterio, _ in COLUNAS_PANORAMA:
@@ -441,17 +436,39 @@ def panorama(hunts):
                         "melhor": max(vals) if criterio == "max" else min(vals),
                         "pior": min(vals) if criterio == "max" else max(vals)}
 
+    minutos = sum(l["minutos"] or 0 for l in linhas)
+    return {"colunas": [{"chave": c, "rotulo": r, "melhor": b, "tipo": t} for c, r, b, t in COLUNAS_PANORAMA],
+            "linhas": sorted(linhas, key=lambda l: l["data"]), "stats": stats, "jogadores": _ranking(pares),
+            "total": {"hunts": len(linhas), "minutos": minutos}}
+
+
+def _ranking(pares):
+    """pares = [(minutos da hunt, {jogador: métricas})]. Soma por jogador só as hunts em que ele estava."""
+    jogadores = {}
+    for minutos, pj in pares:
+        for k, v in pj.items():
+            j = jogadores.setdefault(k, {"nome": v["nome"], "hunts": 0, "minutos": 0, "dano": 0, "cura": 0,
+                                         "supplies": 0, "loot": 0, "balance": 0})
+            j["hunts"] += 1
+            j["minutos"] += minutos or 0
+            for campo in ("dano", "cura", "supplies", "loot", "balance"):
+                j[campo] += v[campo] or 0
     ranking = []
     for j in jogadores.values():
         mn = j["minutos"]
         ranking.append({**j, "dano_h": _por_hora(j["dano"], mn), "cura_h": _por_hora(j["cura"], mn),
                         "supplies_h": _por_hora(j["supplies"], mn), "balance_media": j["balance"] // j["hunts"]})
     ranking.sort(key=lambda j: -(j["dano_h"] or 0))
+    return ranking
 
-    minutos = sum(l["minutos"] or 0 for l in linhas)
-    return {"colunas": [{"chave": c, "rotulo": r, "melhor": b, "tipo": t} for c, r, b, t in COLUNAS_PANORAMA],
-            "linhas": sorted(linhas, key=lambda l: l["data"]), "stats": stats, "jogadores": ranking,
-            "total": {"hunts": len(linhas), "minutos": minutos}}
+
+def ranking_jogadores(hunts):
+    """Ranking por jogador somando as hunts (o mesmo do "Comparar todas" e do comparativo lado a lado)."""
+    pares = []
+    for h in hunts:
+        minutos = metricas(h)["minutos"]
+        pares.append((minutos, _metricas_jogadores(_membros_da_hunt(h), minutos)[1]))
+    return _ranking(pares)
 
 
 def totais(hunts):
