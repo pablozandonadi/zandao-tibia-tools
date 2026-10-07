@@ -427,6 +427,14 @@
     padding: 18px 20px; width: 440px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; }
   .modal-caixa h3 { margin: 0; font-family: var(--font-display); }
   .modal-acoes { display: flex; justify-content: flex-end; gap: 8px; }
+  .modal-larga { width: 760px; max-height: 90vh; overflow-y: auto; }
+  /* ---- histórico de preços ---- */
+  .var-preco { font-family: var(--font-mono); font-size: .64rem; text-align: right; margin-top: 2px; white-space: nowrap; }
+  .var-preco:empty { display: none; }
+  .nome-grafico { cursor: pointer; border-bottom: 1px dashed var(--ink-dim); }
+  .nome-grafico:hover { color: var(--accent); border-bottom-color: var(--accent); }
+  .btn-grafico { background: none; border: 0; cursor: pointer; font-size: .8rem; padding: 0 2px; }
+  .acoes-precos { display: flex; justify-content: flex-end; margin: 0 2px 10px; }
   .notas-atualizacao { white-space: pre-wrap; font-size: .76rem; color: var(--ink-dim); max-height: 140px; overflow-y: auto; margin: 0; }
   .barra-progresso { height: 14px; border: 2px solid var(--ink); border-radius: 8px; background: var(--surface-2); overflow: hidden; }
   .barra-progresso div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
@@ -467,9 +475,9 @@
       <h1 class="titulo">Embuimentos</h1>
       <div class="card calmo">
         <div class="vars">
-          <div><label class="campo-label" for="v-token">Gold Token</label><input type="text" class="num" id="v-token" placeholder="ex.: 53.805"></div>
+          <div><label class="campo-label" for="v-token">Gold Token <button class="btn-grafico" data-grafico-preco="token" data-grafico-nome="Gold Token" title="Ver histórico de preços">📈</button></label><input type="text" class="num" id="v-token" placeholder="ex.: 53.805"><div class="var-preco" data-var="token"></div></div>
           <div><label class="campo-label" for="v-taxa">Taxa de embuir</label><input type="text" class="num" id="v-taxa"></div>
-          <div><label class="campo-label" for="v-blank">Blank scroll</label><input type="text" class="num" id="v-blank"></div>
+          <div><label class="campo-label" for="v-blank">Blank scroll <button class="btn-grafico" data-grafico-preco="blank" data-grafico-nome="Blank scroll" title="Ver histórico de preços">📈</button></label><input type="text" class="num" id="v-blank"><div class="var-preco" data-var="blank"></div></div>
           <label class="check"><input type="checkbox" id="v-scroll"> Fazer scroll para usar depois (soma o blank)</label>
         </div>
       </div>
@@ -481,6 +489,7 @@
             <div id="seletor"></div>
           </div>
           <p class="dica" style="margin:16px 2px 10px;">Preço unitário em gp. Aceita 4.475, 4,475, 4.5k ou 1.2kk. Em <b>Tenho</b>, o que já está no seu inventário.</p>
+          <div class="acoes-precos"><button class="btn btn-sm" id="precos-registrar" title="Guarda os preços de hoje para comparar depois (▲ mais caro / ▼ mais barato) e ver o gráfico de cada item">📌 Registrar preços de hoje</button></div>
           <div id="itens"></div>
         </div>
         <div class="coluna-resultado">
@@ -685,6 +694,12 @@
   </main>
 </div>
 <div class="toast" id="toast"></div>
+<div class="modal-fundo" id="modal-preco" style="display:none;">
+  <div class="modal-caixa modal-larga">
+    <div class="h-titulo"><h3 id="mp-titulo"></h3><button class="btn btn-sm" id="mp-fechar">✕ Fechar</button></div>
+    <div id="mp-corpo"></div>
+  </div>
+</div>
 <div class="modal-fundo" id="modal-atualizacao" style="display:none;">
   <div class="modal-caixa">
     <h3>Nova versão disponível!</h3>
@@ -788,9 +803,9 @@ function montarItens() {
       <div class="card-titulo"><b>${esc(imb.nome)}</b><span class="chip ${imb.token ? 'chip-good' : 'chip-neutro'}">${imb.token ? 'aceita token' : esc(imb.sub)}</span></div>
       <table class="tabela-itens">
         <tr><th>Item</th><th>Qtd</th><th>Preço un.</th><th>Tenho</th></tr>
-        ${imb.itens.map((it) => `<tr><td class="nome">${btnCopiar(it.nome)}${esc(it.nome)}</td><td class="qtd">x${it.qtd}</td>
-          <td class="preco">${inputNum('preco', it.key)}</td><td class="tenho">${inputNum('inv', it.key)}</td></tr>`).join('')}
-        <tr class="linha-scroll"><td class="nome">${btnCopiar(imb.scrollNome)}Scroll pronto</td><td></td><td class="preco">${inputNum('preco', imb.scrollKey)}</td><td></td></tr>
+        ${imb.itens.map((it) => `<tr><td class="nome">${btnCopiar(it.nome)}${nomeGrafico(it.key, it.nome, it.nome)}</td><td class="qtd">x${it.qtd}</td>
+          <td class="preco">${inputNum('preco', it.key)}${varPreco(it.key)}</td><td class="tenho">${inputNum('inv', it.key)}</td></tr>`).join('')}
+        <tr class="linha-scroll"><td class="nome">${btnCopiar(imb.scrollNome)}${nomeGrafico(imb.scrollKey, imb.scrollNome, 'Scroll pronto')}</td><td></td><td class="preco">${inputNum('preco', imb.scrollKey)}${varPreco(imb.scrollKey)}</td><td></td></tr>
       </table>
     </div>`).join('');
 }
@@ -826,10 +841,75 @@ $('itens').addEventListener('input', (e) => {
   $(id).addEventListener('input', () => { estado[k] = $(id).value; calcular(); }));
 $('v-scroll').addEventListener('change', () => { estado.fazer_scroll = $('v-scroll').checked; calcular(); });
 
+// ---------- histórico de preços ----------
+const nomeGrafico = (chave, nome, texto) => `<span class="nome-grafico" data-grafico-preco="${esc(chave)}" data-grafico-nome="${esc(nome)}" title="Ver histórico de preços de ${esc(nome)}">${esc(texto)}</span>`;
+const varPreco = (chave) => `<div class="var-preco" data-var="${esc(chave)}"></div>`;
+const dataBR = (d) => (d || '').slice(8, 10) + '/' + (d || '').slice(5, 7);
+// só o que está na tela (itens dos embuimentos escolhidos + token + blank): preço velho de item não escolhido não é registrado como "de hoje"
+function precosTexto() {
+  const t = { token: estado.token, blank: estado.blank };
+  $('itens').querySelectorAll('input[data-tipo="preco"]').forEach((i) => { t[i.dataset.key] = i.value; });
+  return t;
+}
+async function atualizarVariacoes() {
+  const v = await api.precos_variacoes(precosTexto());
+  document.querySelectorAll('#page-emb [data-var]').forEach((el) => {
+    const x = v[el.dataset.var];
+    el.className = 'var-preco' + (x ? (x.sentido === 'subiu' ? ' neg' : ' pos') : '');
+    el.textContent = x ? `${x.sentido === 'subiu' ? '▲' : '▼'} ${Math.abs(x.pct)}% · antes ${n(x.antes)} (${dataBR(x.data)})` : '';
+    el.title = x ? `Último registro: ${n(x.antes)} em ${dataBR(x.data)}` : '';
+  });
+}
+$('precos-registrar').addEventListener('click', async () => {
+  const r = await api.precos_registrar(precosTexto());
+  if (r.erro) { toast(r.erro, true); return; }
+  if (!r.gravados) { toast('Nenhum preço preenchido', true); return; }
+  toast(`${r.gravados} preços registrados`);
+  atualizarVariacoes();
+});
+let mpChave = null, mpNome = '';
+async function abrirGraficoPreco(chave, nome) {
+  mpChave = chave; mpNome = nome;
+  $('mp-titulo').textContent = `📈 ${nome}`;
+  renderGraficoPreco(await api.precos_serie(chave));
+  $('modal-preco').style.display = 'flex';
+}
+function renderGraficoPreco(s) {
+  const pts = s.pontos.map((p) => ({ nome: mpNome, data: p.data, preco: p.preco }));
+  if (!pts.length) {
+    $('mp-corpo').innerHTML = '<p class="dica">Nenhum preço registrado ainda. Use 📌 Registrar preços de hoje.</p>';
+    return;
+  }
+  $('mp-corpo').innerHTML = `
+    <div class="resumo-chips" style="margin:0 0 6px"><span class="chip chip-good">menor ${n(s.min)}</span><span class="chip chip-bad">maior ${n(s.max)}</span><span class="chip chip-neutro">média ${n(s.media)}</span></div>
+    ${pts.length >= 2 ? graficoEvolucao(pts, { chave: 'preco', rotulo: 'Preço', desdeZero: false }, 'gp') : '<p class="dica">Registre mais dias para ver a evolução.</p>'}
+    <div class="tabela-wrap"><table class="tab"><tr><th>Data</th><th class="r">Preço</th><th></th></tr>
+      ${[...pts].reverse().map((p) => `<tr><td>${dataBR(p.data)}/${p.data.slice(0, 4)}</td><td class="r">${n(p.preco)}</td>
+        <td class="r"><button class="btn btn-sm btn-danger" data-mp-apagar="${esc(p.data)}" title="Apagar este registro (preço digitado errado)">✕</button></td></tr>`).join('')}
+    </table></div>`;
+  ligarGrafico('gp');
+}
+$('mp-corpo').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-mp-apagar]');
+  if (!b) return;
+  renderGraficoPreco(await api.precos_apagar(mpChave, b.dataset.mpApagar));
+  atualizarVariacoes();
+});
+const fecharGraficoPreco = () => { $('modal-preco').style.display = 'none'; };
+$('mp-fechar').addEventListener('click', fecharGraficoPreco);
+$('modal-preco').addEventListener('click', (e) => { if (e.target === $('modal-preco')) fecharGraficoPreco(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('modal-preco').style.display !== 'none') fecharGraficoPreco(); });
+$('page-emb').addEventListener('click', (e) => {
+  const g = e.target.closest('[data-grafico-preco]');
+  if (!g) return;
+  e.preventDefault();  // o 📈 fica dentro do <label>: não deixa o clique ir para o campo
+  abrirGraficoPreco(g.dataset.graficoPreco, g.dataset.graficoNome);
+});
+
 let tCalc = null;
 function calcular() {
   clearTimeout(tCalc);
-  tCalc = setTimeout(async () => renderResultado(await api.calcular(estado)), 180);
+  tCalc = setTimeout(async () => { renderResultado(await api.calcular(estado)); atualizarVariacoes(); }, 180);
 }
 
 function renderResultado(r) {
@@ -1578,14 +1658,15 @@ function renderPanorama() {
 }
 
 // gráfico de linha (uma série, um eixo), em ordem de data, com a média tracejada e dica ao passar o mouse
-function graficoEvolucao(linhas, col) {
+function graficoEvolucao(linhas, col, pref = 'graf') {
   const pts = linhas.filter((l) => l[col.chave] !== null && l[col.chave] !== undefined);
   if (pts.length < 2) return '<p class="dica">Precisa de pelo menos 2 hunts com esse dado para o gráfico.</p>';
   const W = 860, Hh = 230, ml = 64, mr = 16, mt = 14, mb = 30;
   const vals = pts.map((p) => p[col.chave]);
-  let lo = Math.min(0, ...vals), hi = Math.max(...vals);
+  const doZero = col.desdeZero !== false;  // preços: o eixo começa perto do menor valor, para a variação aparecer
+  let lo = doZero ? Math.min(0, ...vals) : Math.min(...vals), hi = Math.max(...vals);
   if (hi === lo) hi = lo + 1;
-  const pad = (hi - lo) * 0.08; hi += pad; if (lo < 0) lo -= pad;
+  const pad = (hi - lo) * 0.08; hi += pad; if (lo < 0 || !doZero) lo -= pad;
   const x = (i) => ml + i * (W - ml - mr) / (pts.length - 1);
   const y = (v) => mt + (hi - v) * (Hh - mt - mb) / (hi - lo);
   const media = vals.reduce((a, b) => a + b, 0) / vals.length;
@@ -1593,27 +1674,27 @@ function graficoEvolucao(linhas, col) {
   const passoX = Math.max(1, Math.ceil(pts.length / 6));
   const caminho = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p[col.chave]).toFixed(1)}`).join(' ');
   const dataCurta = (d) => (d || '').slice(8, 10) + '/' + (d || '').slice(5, 7);
-  window._grafPts = pts.map((p, i) => ({ x: x(i), y: y(p[col.chave]), nome: p.nome, data: p.data, v: p[col.chave], rot: col.rotulo, W }));
-  return `<div class="grafico" id="grafico"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Evolução de ${esc(col.rotulo)} por hunt">
+  window['_pts_' + pref] = pts.map((p, i) => ({ x: x(i), y: y(p[col.chave]), nome: p.nome, data: p.data, v: p[col.chave], rot: col.rotulo, W }));
+  return `<div class="grafico" id="${pref}-box"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Evolução de ${esc(col.rotulo)} por hunt">
     ${grade.map((g) => `<line x1="${ml}" x2="${W - mr}" y1="${y(g)}" y2="${y(g)}" stroke="rgba(243,239,230,.08)"/>
       <text x="${ml - 8}" y="${y(g) + 4}" text-anchor="end" font-size="11" fill="#9aa1b0" font-family="Space Mono, monospace">${curto(Math.round(g))}</text>`).join('')}
     ${lo < 0 ? `<line x1="${ml}" x2="${W - mr}" y1="${y(0)}" y2="${y(0)}" stroke="rgba(243,239,230,.35)"/>` : ''}
     <line x1="${ml}" x2="${W - mr}" y1="${y(media)}" y2="${y(media)}" stroke="#9aa1b0" stroke-dasharray="5 5"/>
     <text x="${W - mr}" y="${y(media) - 5}" text-anchor="end" font-size="11" fill="#9aa1b0">média</text>
     ${pts.map((p, i) => i % passoX === 0 || i === pts.length - 1 ? `<text x="${x(i)}" y="${Hh - 8}" text-anchor="middle" font-size="11" fill="#9aa1b0">${dataCurta(p.data)}</text>` : '').join('')}
-    <line id="graf-cruz" x1="0" x2="0" y1="${mt}" y2="${Hh - mb}" stroke="rgba(243,239,230,.3)" visibility="hidden"/>
+    <line id="${pref}-cruz" x1="0" x2="0" y1="${mt}" y2="${Hh - mb}" stroke="rgba(243,239,230,.3)" visibility="hidden"/>
     <path d="${caminho}" fill="none" stroke="#ff6b3d" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
     ${pts.map((p, i) => `<circle cx="${x(i)}" cy="${y(p[col.chave])}" r="4" fill="#ff6b3d" stroke="#1b1f26" stroke-width="2"/>`).join('')}
-    <rect id="graf-area" x="${ml}" y="${mt}" width="${W - ml - mr}" height="${Hh - mt - mb}" fill="transparent"/>
-  </svg><div class="dica-graf" id="graf-dica"></div></div>`;
+    <rect id="${pref}-area" x="${ml}" y="${mt}" width="${W - ml - mr}" height="${Hh - mt - mb}" fill="transparent"/>
+  </svg><div class="dica-graf" id="${pref}-dica"></div></div>`;
 }
-function ligarGrafico() {
-  const area = document.getElementById('graf-area');
+function ligarGrafico(pref = 'graf') {
+  const area = document.getElementById(`${pref}-area`);
   if (!area) return;
-  const svg = area.ownerSVGElement, dica = $('graf-dica'), cruz = document.getElementById('graf-cruz');
+  const svg = area.ownerSVGElement, dica = $(`${pref}-dica`), cruz = document.getElementById(`${pref}-cruz`);
   area.addEventListener('mousemove', (ev) => {
     const caixa = svg.getBoundingClientRect();
-    const pts = window._grafPts, escala = caixa.width / pts[0].W;
+    const pts = window['_pts_' + pref], escala = caixa.width / pts[0].W;
     const mx = (ev.clientX - caixa.left) / escala;
     const p = pts.reduce((a, b) => (Math.abs(b.x - mx) < Math.abs(a.x - mx) ? b : a));
     cruz.setAttribute('x1', p.x); cruz.setAttribute('x2', p.x); cruz.setAttribute('visibility', 'visible');
