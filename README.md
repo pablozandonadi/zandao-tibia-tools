@@ -26,8 +26,9 @@ funcionando separados. Esta pasta tem as suas próprias cópias.
    **⚙** para cadastrar seus personagens: o app confere no tibia.com e guarda nome, level, vocação e mundo (em
    `meus_personagens.json`). Dá para ter vários e trocar a qualquer momento; o escolhido fica salvo.
 3. A análise sai sozinha:
-   - **Resumo da hunt**: duração, XP e Raw XP (e por hora), balance, lucro por membro, balance/h, top dano, despesas.
-   - **Membros da party**: dano e cura (com %), loot, supplies, balance e quanto cada um recebe ou paga.
+   - **Resumo da hunt**: duração, XP e Raw XP (e por hora), balance, lucro por membro (e por hora), balance/h, top dano, despesas.
+   - **Membros da party**: dano e cura (com % e por hora), loot, supplies, balance, **Profit/h** (o balance de cada
+     um por hora, antes da divisão) e quanto cada um recebe ou paga.
      Clique no nome para tirar alguém da divisão.
    - **Distribuição dos pagamentos**: os `transfer N to Fulano` com botão de copiar e a caixinha **Pago?**.
    - **Detalhes por membro** e **Monstros mortos** (com imagem).
@@ -40,6 +41,10 @@ funcionando separados. Esta pasta tem as suas próprias cópias.
      total (pesando cada elemento pela parte do dano); as outras abas ordenam por um elemento só. Dados da
      TibiaWiki, baixados na primeira vez e guardados em `cache_itens.json`.
 4. **Despesas extras** (boat, hireling...): quem pagou é reembolsado na divisão. **Copiar resumo** gera o texto para o Discord.
+5. **Prey**: marque até 3 preys (XP, Loot, Ataque ou Defesa, com as estrelas) que estavam ativas. Não muda nenhum
+   número (o que você cola do Tibia já vem com a prey); serve para lembrar, ao comparar hunts, por que uma rendeu
+   mais. Uma hunt nova começa com a prey da sua última hunt. Hunts antigas ficam como "prey não informada" (diferente
+   de "sem prey") até você marcar.
 
 As contas do Loot Split são as mesmas do `divisor de loot` (TibiaLootSplit). A parte de dano é o Tibia Damage
 portado para Python, com duas correções: os embuimentos de proteção certos (Dragon Hide = fogo,
@@ -60,10 +65,14 @@ clicar em **💾 Salvar alterações**. O Hunt Analyser abre sempre limpo; só o
   Clique no título de uma coluna para ordenar e ver a evolução dela no gráfico (com a linha da média). Verde = acima
   da média, vermelho = abaixo; no rodapé, média, melhor e pior. Embaixo, o ranking por jogador somando todas as
   hunts (clique numa coluna para ordenar, maior primeiro). Clique no nome de uma hunt para abri-la.
-- **⚖️ Comparar** (lado a lado): marque 2 a 4 hunts e clique em **⚖️ Comparar**. A tabela mostra tudo normalizado por hora e por
-  membro (lucro, balance, loot, supplies, XP, dano e cura), quem bateu, curou, gastou e lootou mais em cada hunt,
-  e a seção **Por jogador** mostra cada um nas hunts comparadas. ★ marca o melhor valor; o veredito diz qual hunt
-  rendeu mais, e os avisos dizem quando a party, a duração, o personagem ou o spawn são diferentes.
+- **⚖️ Comparar** (lado a lado): marque 2 a 4 hunts e clique em **⚖️ Comparar**. Primeiro vem o **ranking por
+  jogador** somando as hunts comparadas (1º, 2º...; o mesmo do "Comparar todas"). As colunas "/h" são a projeção para
+  1 hora: uma hunt de 1h17 é dividida por 1,28 e uma de 40 min multiplicada por 1,5, e cada jogador conta só o tempo
+  das hunts em que estava. Depois, a tabela normalizada por hora e por membro (lucro, balance, loot, supplies, XP,
+  dano e cura) e o **Detalhe por hunt** (cada jogador em cada hunt, abrindo em "Dano / hora"). ★ marca o melhor valor;
+  o veredito diz qual hunt rendeu mais, e os avisos dizem quando a party, a duração, o personagem, o spawn ou a
+  prey são diferentes.
+- Cada hunt mostra a **prey** marcada (ou "prey não informada").
 - **Abrir** recarrega a hunt no Hunt Analyser (com as transferências já marcadas como pagas).
 - **Exportar** gera um `.json` com todas as hunts (ou só as do personagem filtrado).
 - **Importar (somar)** traz as hunts de um arquivo exportado, seu ou de um amigo, sem repetir as que você já tem.
@@ -109,6 +118,12 @@ As duas opções ficam salvas em `preferencias.json`. Funciona com o Tibia em ja
    Aceita `4.475`, `4,475`, `4.5k` ou `1.2kk`. Em **Já tenho**, coloque o que já está no seu inventário.
 3. O resultado à direita atualiza sozinho: **FAÇA ASSIM**, as 4 rotas (scroll pronto, itens no market,
    6 tokens, 4 tokens + último item) e a comparação do plano inteiro. Use **Copiar resultado** para colar no Discord.
+
+4. **📌 Registrar preços de hoje** guarda os preços que estão na tela (itens dos embuimentos escolhidos, scrolls,
+   gold token e blank) com a data de hoje, em `precos_historico.json` (1 registro por dia; registrar de novo no mesmo
+   dia troca o valor). Ao digitar um preço, aparece embaixo **▲ mais caro** (vermelho) ou **▼ mais barato** (verde)
+   em relação ao último registro de antes de hoje. Clique no nome do item (ou no 📈 do token/blank) para ver o
+   gráfico, o menor, o maior e a média, e apagar um registro digitado errado. Entra no backup das Configurações.
 
 Tudo o que você digita fica salvo em `dados_embuimentos.json`. Para adicionar ou alterar embuimentos, edite
 `data/imbuements.json`. Só Void, Strike e Vampirism têm rota de token (`has_token: true`).
