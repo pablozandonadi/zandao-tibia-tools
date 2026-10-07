@@ -1,0 +1,120 @@
+# Histórico de preços dos Embuimentos + Ranking no comparativo de hunts
+
+Data: 2026-10-07 · Versão alvo: 1.0.6 (não publicar sem "pode" explícito)
+
+## Objetivo
+
+1. **Preços:** guardar os preços que o usuário pesquisa no Market, com data, para ele saber se um item está mais caro ou mais barato que da última vez e ver a evolução em um gráfico.
+2. **Comparativo:** ao comparar de 2 a 4 hunts lado a lado, mostrar quem é o 1º, o 2º... (o ranking somado que já existe em "Comparar todas") e deixar claro que as colunas "/h" são uma projeção para 1 hora, porque é isso que torna justa a comparação entre hunts de durações diferentes.
+
+Fora do escopo: preços automáticos (sem API do Market), sincronizar preços entre PCs e mudar a conta do "/h", que já está certa: `valor × 60 ÷ minutos`.
+
+---
+
+## Parte 1: Histórico de preços
+
+### Dados
+
+Arquivo novo **`precos_historico.json`** na mesma pasta do `dados_embuimentos.json` (`BASE_DIR`).
+
+```json
+{
+  "item:rope belt": [{"data": "2026-10-03", "preco": 4600}, {"data": "2026-10-07", "preco": 4973}],
+  "scroll:void":    [{"data": "2026-10-07", "preco": 590090}],
+  "token":          [{"data": "2026-10-07", "preco": 55554}],
+  "blank":          [{"data": "2026-10-07", "preco": 25000}]
+}
+```
+
+- As chaves são as mesmas que a tela já usa (`emb.item_key`, `emb.scroll_key`), mais `token` e `blank`. A taxa de embuir é um valor fixo de NPC e não entra.
+- Cada lista fica em ordem de data crescente, com **no máximo 1 registro por dia**.
+- O arquivo fica separado do `dados_embuimentos.json` porque aquele é reescrito a cada tecla digitada. O histórico só cresce e não pode correr esse risco.
+- A gravação é atômica, como no `historico.py`: grava um `.tmp` e depois troca pelo arquivo final.
+- Entra no `.gitignore` (`precos_historico.json` e `precos_historico.json.tmp`).
+- Entra no Backup com a chave `"precos"` e o rótulo "Histórico de preços dos embuimentos" (`backup.ITENS` e `_caminhos_backup()` no `web_api.py`).
+
+### Módulo `precos.py` (sem interface, testável)
+
+| Função | O que faz |
+|---|---|
+| `carregar(caminho=None) -> dict` | Lê o arquivo. Se ele não existir ou estiver corrompido, devolve `{}` sem dar erro. |
+| `registrar(precos: dict[str, int\|None], data: str, caminho=None) -> int` | Para cada chave com preço > 0, grava `{data, preco}`. Se já houver registro nessa data, substitui o valor. Devolve quantos preços gravou. Ignora `None` e 0. |
+| `ultimo_antes(historico, chave, data) -> dict\|None` | Devolve o último registro com data **anterior** a `data`. É a base de comparação do aviso. |
+| `variacao(preco_atual, chave, hoje, historico) -> dict\|None` | Devolve `{"pct": 8.1, "antes": 4600, "data": "2026-10-03", "sentido": "subiu"\|"caiu"}`. Devolve `None` se não houver registro anterior, se o preço atual estiver vazio ou se for igual ao anterior. |
+| `serie(historico, chave) -> dict` | Devolve `{"pontos": [...], "min", "max", "media"}` para o gráfico. |
+| `apagar(chave, data, caminho=None) -> bool` | Remove um registro (para corrigir um preço errado). |
+
+A data vem de fora (`date.today().isoformat()` no `web_api`), o que deixa os testes determinísticos.
+
+### API (`web_api.py`)
+
+- `precos_registrar(precos_texto: dict) -> {"gravados": n}`: recebe os textos digitados (itens, scrolls, token, blank), converte com `emb.parse_num` e chama `precos.registrar` com a data de hoje.
+- `precos_variacoes(precos_texto: dict) -> {chave: variacao|None}`: devolve o aviso de cada campo preenchido.
+- `precos_serie(chave) -> serie` e `precos_apagar(chave, data) -> serie atualizada`.
+
+### Tela (aba Embuimentos)
+
+- **Botão "📌 Registrar preços de hoje"** logo acima da lista de itens. Ele chama `precos_registrar` e mostra o toast "12 preços registrados". Se não houver nenhum preço preenchido, o toast diz "Nenhum preço preenchido".
+  - Nada vai para o histórico sem esse clique. Foi uma decisão do usuário.
+- **Aviso por campo** (itens, scroll pronto, gold token, blank scroll): uma linha pequena embaixo do input.
+  - `▲ 8% · antes 4.600 (03/10)` em vermelho, quando está mais caro.
+  - `▼ 5% · antes 5.230 (03/10)` em verde, quando está mais barato.
+  - Fica vazio quando não há registro anterior ou o preço é igual.
+  - Atualiza junto com o cálculo, no mesmo debounce de 180 ms (uma chamada a `precos_variacoes`).
+  - Compara com o último registro **anterior a hoje**. Assim, depois de registrar hoje, o aviso continua mostrando a mudança em relação à pesquisa anterior.
+- **Gráfico:** o nome do item (e "Scroll pronto", "Gold token", "Blank scroll") vira clicável e abre um painel/modal com:
+  - um gráfico de linha em SVG desenhado à mão, no mesmo estilo do gráfico de "Comparar todas", sem biblioteca, para funcionar offline;
+  - menor, maior e média;
+  - a lista de data e preço (mais recente primeiro), com ✕ para apagar um registro;
+  - com só 1 registro, o painel mostra o ponto e o texto "Registre mais dias para ver a evolução".
+  - O 📋 (copiar nome) continua funcionando separado do clique no nome.
+
+### Erros
+
+- Se a gravação falhar (OSError), o toast mostra "Não consegui salvar o histórico de preços" e o arquivo antigo fica intacto.
+- Uma chave do histórico que não existe mais na tela é ignorada sem erro.
+
+### Testes (`test_precos.py`)
+
+- `registrar` grava, substitui no mesmo dia, ignora None/0 e mantém a ordem por data.
+- `variacao` cobre: subiu, caiu, igual (`None`), sem histórico (`None`) e registro de hoje ignorado na comparação.
+- `serie` calcula min, max e média; `apagar` remove só o registro certo.
+- Arquivo corrompido vira `{}` em `carregar`.
+- O backup exporta e importa a chave `precos`.
+
+---
+
+## Parte 2: Ranking no comparativo lado a lado
+
+### Backend (`historico.py`)
+
+- Extrair de `panorama()` a função **`ranking_jogadores(hunts) -> list`**. Ela soma dano, cura, supplies, loot, balance e minutos por jogador, considerando só as hunts em que ele estava, e calcula `dano_h`, `cura_h`, `supplies_h` e `balance_media`, ordenando por `dano_h` decrescente.
+- `panorama()` passa a usar essa função, e o resultado não muda.
+- `comparar()` ganha o campo **`ranking`**, gerado pela mesma função.
+- `cab` (o cabeçalho de cada hunt) já tem `duracao` e passa a ser exibido na tela.
+
+### Tela (`index.html`)
+
+- Extrair o HTML da tabela "Ranking por jogador" do panorama para a função **`htmlRanking(jogadores)`**, com ordenação ao clicar na coluna.
+  - O panorama e o comparativo passam a usar essa mesma função.
+- No comparativo, a ordem fica assim:
+  1. avisos e veredito (como hoje);
+  2. **👥 Ranking por jogador (somando estas hunts)** com `htmlRanking(r.ranking)`;
+  3. a nota: *"/h = projeção para 1 hora: uma hunt de 1h17 é dividida por 1,28 (puxa para baixo), uma de 40 min é multiplicada por 1,5 (puxa para cima). Cada jogador conta só o tempo das hunts em que estava."*;
+  4. **Detalhe por hunt:** a tabela atual "Por jogador", com uma coluna por hunt e a ⭐, que agora abre em **"Dano / hora"**. Cada cabeçalho mostra `PT 4 · 1h17`.
+
+### Testes (`test_hunt.py`)
+
+- `comparar([A, B])["ranking"]` é igual a `panorama([A, B])["jogadores"]`.
+- Um jogador que estava só em uma das hunts tem `hunts == 1` e `minutos` igual à duração só daquela hunt.
+- Os testes de `panorama` que já existem continuam passando, o que garante que a extração não mudou nenhum número.
+
+---
+
+## Verificação
+
+- `python -m pytest` (ou os testes no formato atual do projeto) passa por completo.
+- A UI é testada no painel do navegador com o servidor de teste que simula `window.pywebview.api`:
+  - registrar preços, mudar um valor e ver ▲/▼, abrir o gráfico e apagar um registro;
+  - comparar 2 hunts e conferir que o ranking bate com o do "Comparar todas".
+- A versão sobe para 1.0.6 no `versao.py`. Gerar o instalador e publicar só com autorização explícita.
