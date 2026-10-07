@@ -311,7 +311,7 @@ def normalizar_prey(valor):
         return None
     if not isinstance(valor, list):
         return []
-    saida = []
+    saida, criaturas = [], set()
     for p in valor:
         if not isinstance(p, dict) or p.get("tipo") not in TIPOS_PREY:
             continue
@@ -321,7 +321,8 @@ def normalizar_prey(valor):
             continue
         item = {"tipo": p["tipo"], "estrelas": max(1, min(10, estrelas))}
         criatura = p.get("criatura").strip()[:60] if isinstance(p.get("criatura"), str) else ""
-        if criatura:
+        if criatura and criatura.lower() not in criaturas:  # a mesma criatura não pode ter duas preys
+            criaturas.add(criatura.lower())
             item["criatura"] = criatura
         saida.append(item)
     return saida[:3]

@@ -6,6 +6,18 @@ Na hunt salva: "prey": [{"tipo", "estrelas", "criatura"}] e "charms": [{"nome", 
 lista vazia = nenhum; sem o campo = não informado (hunts antigas).
 """
 
+import json
+import os
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+if getattr(sys, "frozen", False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 # bônus em % por estrela (índice 0 = 1 estrela)
 PREY = {
     "xp": {"rotulo": "Bonus Experience", "curto": "XP", "bonus": [13, 16, 19, 22, 25, 28, 31, 34, 37, 40],
@@ -33,6 +45,12 @@ CHARMS = {
     ],
 }
 _PCT_CHARM = {nome: pct for lista in CHARMS.values() for nome, pct in lista}
+_CATEGORIA = {nome: cat for cat, lista in CHARMS.items() for nome, _ in lista}
+
+
+def categoria_charm(nome):
+    """"major", "minor" ou None."""
+    return _CATEGORIA.get(nome)
 
 
 def bonus_prey(tipo, estrelas):
@@ -59,7 +77,7 @@ def normalizar_charms(valor):
         return None
     if not isinstance(valor, list):
         return []
-    saida, vistos = [], set()
+    saida, vistos, criaturas = [], set(), set()
     for c in valor:
         if not isinstance(c, dict) or c.get("nome") not in _PCT_CHARM or c["nome"] in vistos:
             continue
@@ -70,7 +88,14 @@ def normalizar_charms(valor):
         if not 1 <= nivel <= 3:
             continue
         vistos.add(c["nome"])
-        saida.append({"nome": c["nome"], "criatura": _texto(c.get("criatura")), "nivel": nivel})
+        criatura = _texto(c.get("criatura"))
+        # a mesma criatura só pode ter 1 major e 1 minor: a repetida na categoria fica sem criatura
+        chave = (_CATEGORIA[c["nome"]], criatura.lower())
+        if criatura and chave in criaturas:
+            criatura = ""
+        elif criatura:
+            criaturas.add(chave)
+        saida.append({"nome": c["nome"], "criatura": criatura, "nivel": nivel})
     return saida
 
 
@@ -80,6 +105,53 @@ def rotulo_charms(charms):
     if not charms:
         return "Sem charms"
     return f"{len(charms)} charm" + ("s" if len(charms) > 1 else "")
+
+
+CACHE_PATH = os.path.join(BASE_DIR, "cache_charms.json")
+WIKI = "https://tibia.fandom.com/api.php"
+HEADERS = {"User-Agent": "ZandaoTibiaTools/1.0 (+desktop app)"}
+VALIDADE = 60 * 24 * 3600  # os ícones quase nunca mudam
+
+
+def _buscar_wiki(nomes):
+    """Endereço da imagem de cada charm na TibiaWiki (arquivo "<nome>.png"), em um pedido só."""
+    params = {"action": "query", "prop": "imageinfo", "iiprop": "url", "format": "json",
+              "titles": "|".join(f"File:{n}.png" for n in nomes)}
+    req = urllib.request.Request(WIKI + "?" + urllib.parse.urlencode(params), headers=HEADERS)
+    with urllib.request.urlopen(req, timeout=30) as r:
+        dados = json.load(r)
+    normal = {x["to"]: x["from"] for x in dados["query"].get("normalized", [])}
+    urls = {}
+    for p in dados["query"]["pages"].values():
+        info = (p.get("imageinfo") or [{}])[0]
+        if info.get("url"):
+            urls[normal.get(p["title"], p["title"])[len("File:"):-len(".png")]] = info["url"]
+    return urls
+
+
+def icones_charms(caminho_cache=None, buscar=None):
+    """{nome do charm: URL do ícone}. Cache de 60 dias; sem internet usa o cache velho (ou {} se não houver)."""
+    caminho = caminho_cache or CACHE_PATH
+    nomes = list(_PCT_CHARM)
+    try:
+        with open(caminho, "r", encoding="utf-8") as f:
+            cache = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        cache = {}
+    if cache.get("urls") and time.time() - cache.get("t", 0) < VALIDADE and all(n in cache["urls"] for n in nomes):
+        return cache["urls"]
+    try:
+        urls = (buscar or _buscar_wiki)(nomes)
+        if urls:
+            try:
+                with open(caminho, "w", encoding="utf-8") as f:
+                    json.dump({"t": time.time(), "urls": urls}, f, ensure_ascii=False)
+            except OSError:
+                pass
+            return urls
+    except Exception:
+        pass
+    return cache.get("urls") or {}
 
 
 def tabelas():

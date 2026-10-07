@@ -648,6 +648,10 @@ class API:
     def hunt_ultimos_charms(self, personagem=""):
         return self._ultimo_campo("charms", personagem)
 
+    def hunt_icones_charms(self):
+        """{nome do charm: URL do ícone na TibiaWiki}; {} sem internet e sem cache (a tela mostra só o nome)."""
+        return preys_charms.icones_charms()
+
     def hunt_tabelas(self):
         """Tabelas de Prey (bônus por estrela) e Charms (% por nível) para a tela."""
         return preys_charms.tabelas()

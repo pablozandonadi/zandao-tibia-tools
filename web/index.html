@@ -206,41 +206,61 @@
 
   /* ---- hunt analyser ---- */
   /* preys e charms (seção "Seu personagem nesta hunt") */
-  .sub3 { font-family: var(--font-display); font-size: .95rem; margin: 0 0 8px; }
+  .sub3 { font-family: var(--font-display); font-size: .95rem; margin: 0 0 6px; }
+  .perso-desc { margin: 0 0 10px; }
   .prey-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-  .prey-card { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 10px; border: 2px solid var(--ink-dim);
-    border-radius: 10px; background: var(--surface-2); min-height: 92px; }
-  .prey-card.vazio { align-items: center; border-style: dashed; }
-  .prey-mais { width: 44px; height: 64px; border: 2px dashed var(--ink-dim); border-radius: 8px; background: none; color: var(--ink); font-size: 1.4rem; cursor: pointer; }
-  .prey-banner { width: 34px; min-height: 72px; border: 0; border-radius: 6px; font-weight: 700; font-size: .66rem; cursor: pointer; color: #fff;
-    writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: .05em; }
-  .tipo-xp .prey-banner { background: #7b3fa0; }
-  .tipo-ataque .prey-banner { background: #b8322a; }
-  .tipo-defesa .prey-banner { background: #2f6db5; }
-  .tipo-loot .prey-banner { background: #2f8f4e; }
-  .prey-x { position: absolute; top: 4px; right: 6px; background: none; border: 0; color: var(--ink-dim); cursor: pointer; }
-  .prey-info { min-width: 0; font-size: .84rem; }
-  .estrelas { display: flex; flex-wrap: wrap; margin: 4px 0; }
-  .estrela { background: none; border: 0; padding: 0 1px; font-size: 1rem; line-height: 1; color: var(--ink-dim); cursor: pointer; opacity: .45; }
+  .prey-card { display: flex; gap: 12px; padding: 12px; border: 2px solid var(--ink-dim); border-radius: 12px; background: var(--surface-2); min-width: 0; }
+  .prey-card.vazio { border-style: dashed; }
+  .banner-box { position: relative; flex: none; width: 52px; }
+  .banner { display: block; width: 52px; height: 98px; padding: 0; border: 0; background: none; cursor: pointer; }
+  .banner-svg { width: 100%; height: 100%; display: block; filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+  .banner-vazio { flex: none; width: 52px; height: 98px; border: 2px dashed var(--ink-dim); border-radius: 8px; background: none; color: var(--ink); font-size: 1.5rem; cursor: pointer; }
+  .banner-vazio:hover, .criatura-box:hover { border-color: var(--accent); }
+  .prey-x { position: absolute; top: -6px; right: -8px; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--ink-dim);
+    background: var(--surface); color: var(--ink); font-size: .55rem; line-height: 1; cursor: pointer; padding: 0; }
+  .prey-corpo { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+  .prey-titulo { display: flex; align-items: center; gap: 6px; font-size: .95rem; }
+  .ajuda { display: inline-flex; width: 15px; height: 15px; align-items: center; justify-content: center; border: 1.5px solid var(--ink-dim);
+    border-radius: 50%; font-size: .62rem; color: var(--ink-dim); cursor: help; flex: none; }
+  .prey-meio { display: flex; align-items: center; gap: 12px; }
+  .estrelas { display: grid; grid-template-columns: repeat(5, auto); gap: 2px 3px; }
+  .estrela { background: none; border: 0; padding: 0; font-size: 1.15rem; line-height: 1; color: var(--ink-dim); cursor: pointer; opacity: .45; }
   .estrela.on { color: #f5b301; opacity: 1; }
-  .prey-bonus { font-size: .72rem; color: var(--ink-dim); margin-bottom: 6px; }
-  .prey-bonus b { color: var(--good); font-family: var(--font-mono); }
-  .criatura-sel { display: inline-flex; gap: 6px; align-items: center; font-size: .76rem; font-weight: 700; padding: 2px 8px;
-    border: 2px solid var(--ink-dim); border-radius: 8px; cursor: pointer; max-width: 100%; }
-  .mini-x { background: none; border: 0; color: var(--ink-dim); cursor: pointer; padding: 0; }
+  .estrelas.off .estrela { cursor: default; opacity: .3; }
+  .prey-bonus { display: flex; flex-direction: column; font-family: var(--font-mono); }
+  .prey-bonus small { font-size: .6rem; font-weight: 700; letter-spacing: .08em; color: var(--ink-dim); }
+  .prey-bonus b { color: var(--good); font-size: 1rem; }
+  .criatura-linha { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .criatura-linha.desligada { opacity: .4; pointer-events: none; }
+  .criatura-box { flex: none; width: 40px; height: 40px; border: 2px dashed var(--ink-dim); border-radius: 8px; background: none; color: var(--ink);
+    font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0; }
+  .criatura-box.cheia { border-style: solid; background: var(--surface); font-weight: 700; }
+  .criatura-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .criatura-nome { font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .mini-x { background: none; border: 0; color: var(--ink-dim); cursor: pointer; padding: 0 2px; flex: none; }
   .charm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-  .charm-card { padding: 8px 10px; border: 2px solid var(--ink-dim); border-radius: 10px; background: var(--surface-2);
-    display: flex; flex-direction: column; gap: 6px; font-size: .8rem; align-items: flex-start; }
+  .charm-card { padding: 10px; border: 2px solid var(--ink-dim); border-radius: 12px; background: var(--surface-2);
+    display: flex; flex-direction: column; gap: 8px; font-size: .84rem; min-width: 0; }
   .charm-card.on { border-color: var(--accent); }
-  .charm-niveis { display: flex; gap: 4px; }
+  .charm-topo { display: flex; align-items: center; gap: 6px; }
+  .charm-topo b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .charm-icone { width: 26px; height: 26px; image-rendering: pixelated; object-fit: contain; flex: none; }
+  .charm-card .criatura-linha { flex-direction: column; gap: 4px; text-align: center; }
+  .charm-card .criatura-nome { max-width: 100%; font-size: .72rem; }
+  .charm-card .criatura-linha:has(.mini-x) { position: relative; }
+  .charm-card .mini-x { position: absolute; top: -4px; right: 2px; }
+  .charm-niveis { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
   .charm-niveis .pilula, button.pilula { font-family: inherit; padding: 2px 7px; font-size: .68rem; cursor: pointer; }
   .escolha-lista { display: grid; gap: 8px; max-height: 60vh; overflow-y: auto; }
+  .escolha-lista.grade { grid-template-columns: 1fr 1fr; }
   .escolha-item { display: flex; gap: 10px; align-items: center; text-align: left; padding: 10px; border: 2px solid var(--ink-dim);
-    border-radius: 9px; background: var(--surface-2); color: var(--ink); cursor: pointer; flex-wrap: wrap; font: inherit; }
+    border-radius: 9px; background: var(--surface-2); color: var(--ink); cursor: pointer; font: inherit; min-width: 0; }
   .escolha-item:hover { border-color: var(--accent); }
-  .escolha-item img { width: 32px; height: 32px; object-fit: contain; }
-  .escolha-item .dica { flex-basis: 100%; }
-  @media (max-width: 1100px) { .prey-grid { grid-template-columns: 1fr; } }
+  .escolha-item img { width: 32px; height: 32px; object-fit: contain; flex: none; }
+  .escolha-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .banner-mini { flex: none; width: 34px; height: 64px; }
+  .banner-mini .banner-svg { filter: none; }
+  @media (max-width: 1100px) { .prey-grid { grid-template-columns: 1fr; } .escolha-lista.grade { grid-template-columns: 1fr; } }
   .hunt-topo { display: grid; grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) auto; gap: 14px; align-items: start; }
   .caixas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
   .caixa-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -744,6 +764,7 @@
 <div class="modal-fundo" id="modal-escolha" style="display:none;">
   <div class="modal-caixa">
     <div class="h-titulo"><h3 id="me-titulo"></h3><button class="btn btn-sm" id="me-fechar">Cancelar</button></div>
+    <input type="text" id="me-filtro" placeholder="Digite para filtrar..." autocomplete="off" style="display:none">
     <div id="me-lista" class="escolha-lista"></div>
   </div>
 </div>
@@ -1077,7 +1098,9 @@ function preencherHunt() {
 // ---------- seu personagem nesta hunt: preys e charms ----------
 // Só marcam o que estava ativo (os números colados do Tibia já vêm com o efeito deles).
 // H.entrada.prey / H.entrada.charms: lista = escolhida ([] = nenhum); null = hunt antiga não informada (não é enviada ao salvar)
+// Regras: a mesma criatura não pode ter duas preys; num charm, a criatura só repete entre major e minor (nunca 2 majors ou 2 minors).
 let TAB = null;            // tabelas de prey (bônus por estrela) e charms (% por nível), vindas do Python
+let ICONES_CHARM = {};     // nome do charm -> imagem na TibiaWiki (vazio sem internet: a tela mostra só o nome)
 let persoAba = 'major';
 const preyInicial = async (personagem) => (await api.hunt_ultima_prey(personagem || '')) || [];
 const charmsInicial = async (personagem) => (await api.hunt_ultimos_charms(personagem || '')) || [];
@@ -1087,6 +1110,23 @@ const tituloCase = (s) => (s || '').replace(/\b\w/g, (c) => c.toUpperCase());
 function criaturasDaHunt() {
   if (H.dano && H.dano.kills && H.dano.kills.length) return H.dano.kills.map((k) => ({ nome: k.nome, imagem: k.imagem }));
   return ((H.a && H.a.kills) || []).map((k) => ({ nome: tituloCase(k.nome), imagem: null }));
+}
+const categoriaCharm = (nome) => (TAB.charms.major.some((c) => c.nome === nome) ? 'major' : 'minor');
+
+// banners das preys: a wiki não tem essas imagens, então são desenhados aqui (faixa colorida + ícone)
+const PREY_COR = { xp: ['#9b59b6', '#5b2c83'], ataque: ['#e0453a', '#8f1f17'], defesa: ['#3a8be0', '#1b4f8a'], loot: ['#37b36a', '#1b6b3a'] };
+const PREY_ICONE = {
+  xp: '<path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z"/>',
+  ataque: '<path d="M12 2l2.2 3v9.5H9.8V5z"/><rect x="6.5" y="14.5" width="11" height="2.2" rx="1"/><rect x="10.8" y="16.7" width="2.4" height="4"/><circle cx="12" cy="21.6" r="1.3"/>',
+  defesa: '<path d="M12 2.5l8 3v6.2c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V5.5z"/>',
+  loot: '<path d="M9 3h6l-1.2 3h-3.6z"/><path d="M8.6 7.5h6.8c3 2.4 4.6 5.2 4.6 8.2 0 3.4-2.8 5.3-8 5.3s-8-1.9-8-5.3c0-3 1.6-5.8 4.6-8.2z"/>',
+};
+function bannerPrey(tipo) {
+  const [c1, c2] = PREY_COR[tipo];
+  return `<svg class="banner-svg" viewBox="0 0 40 76" aria-hidden="true"><defs><linearGradient id="gp-${tipo}" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>
+    <path d="M2 2h36v62l-18 10L2 64z" fill="url(#gp-${tipo})" stroke="rgba(0,0,0,.45)" stroke-width="1.5"/>
+    <g transform="translate(8 14)" fill="#fff" fill-opacity=".92">${PREY_ICONE[tipo]}</g></svg>`;
 }
 
 function resumoPerso() {
@@ -1098,32 +1138,60 @@ function resumoPerso() {
   return `${tp} · ${tc}`;
 }
 
+// criaturas que NÃO podem ser escolhidas para este alvo ("prey:1" ou "charm:Carnage"), minúsculas
+function criaturasEmUso(alvo) {
+  const i = alvo.indexOf(':'), tipo = alvo.slice(0, i), chave = alvo.slice(i + 1), usadas = new Set();
+  if (tipo === 'prey') {
+    (H.entrada.prey || []).forEach((p, k) => { if (k !== +chave && p.criatura) usadas.add(p.criatura.toLowerCase()); });
+  } else {
+    const cat = categoriaCharm(chave);
+    (H.entrada.charms || []).forEach((c) => { if (c.nome !== chave && c.criatura && categoriaCharm(c.nome) === cat) usadas.add(c.criatura.toLowerCase()); });
+  }
+  return usadas;
+}
+
 function htmlPerso() {
   const p = H.entrada.prey, c = H.entrada.charms;
-  const btnCriatura = (alvo, nome) => nome
-    ? `<span class="criatura-sel" data-criatura="${esc(alvo)}" title="Trocar a criatura">${esc(nome)} <button class="mini-x" data-criatura-tirar="${esc(alvo)}" title="Tirar a criatura">✕</button></span>`
-    : `<button class="btn btn-sm" data-criatura="${esc(alvo)}">+ criatura</button>`;
-  const estrelas = (i, qtd) => [...Array(10)].map((_, k) => `<button class="estrela ${k < qtd ? 'on' : ''}" data-estrela="${i}:${k + 1}" title="${k + 1} estrela${k ? 's' : ''}">★</button>`).join('');
+  const criaturaBox = (alvo, nome) => {
+    const info = nome && criaturasDaHunt().find((x) => x.nome.toLowerCase() === nome.toLowerCase());
+    const img = info && info.imagem ? `<img src="${esc(info.imagem)}" alt="" onerror="this.style.display='none'">` : '';
+    return `<div class="criatura-linha"><button class="criatura-box ${nome ? 'cheia' : ''}" data-criatura="${esc(alvo)}" title="${nome ? 'Trocar a criatura' : 'Selecionar criatura'}">${nome ? (img || esc(nome[0])) : '+'}</button>
+      ${nome ? `<span class="criatura-nome" title="${esc(nome)}">${esc(nome)}</span><button class="mini-x" data-criatura-tirar="${esc(alvo)}" title="Tirar a criatura">✕</button>`
+        : '<span class="criatura-nome dim">Selecionar criatura</span>'}</div>`;
+  };
+  const estrelas = (i, qtd) => `<div class="estrelas">${[...Array(10)].map((_, k) =>
+    `<button class="estrela ${k < qtd ? 'on' : ''}" data-estrela="${i}:${k + 1}" title="${k + 1} estrela${k ? 's' : ''}">★</button>`).join('')}</div>`;
   const preyCard = (s, i) => {
-    if (!s) return `<div class="prey-card vazio"><button class="prey-mais" data-prey-tipo="${i}" title="Escolher o tipo da prey">+</button>
-      <div><b>Escolher prey</b><div class="dica">tipo, estrelas e criatura</div></div></div>`;
+    if (!s) {
+      return `<div class="prey-card vazio"><button class="banner-vazio" data-prey-tipo="${i}" title="Escolher o tipo da prey">+</button>
+        <div class="prey-corpo"><div class="prey-titulo"><b class="dim">Escolher prey</b></div>
+          <div class="prey-meio"><div class="estrelas off">${[...Array(10)].map(() => '<span class="estrela">★</span>').join('')}</div>
+            <div class="prey-bonus"><small>BÔNUS</small></div></div>
+          <div class="criatura-linha desligada"><span class="criatura-box">+</span><span class="criatura-nome dim">Selecionar criatura</span></div></div></div>`;
+    }
     const t = TAB.prey.find((x) => x.tipo === s.tipo);
-    return `<div class="prey-card tipo-${s.tipo}"><button class="prey-x" data-prey-tirar="${i}" title="Tirar esta prey">✕</button>
-      <button class="prey-banner" data-prey-tipo="${i}" title="Trocar o tipo">${esc(t.curto)}</button>
-      <div class="prey-info"><b>${esc(t.rotulo)}</b><div class="estrelas">${estrelas(i, s.estrelas)}</div>
-        <div class="prey-bonus">bônus <b>+${t.bonus[s.estrelas - 1]}%</b></div>${btnCriatura(`prey:${i}`, s.criatura)}</div></div>`;
+    return `<div class="prey-card"><div class="banner-box"><button class="banner" data-prey-tipo="${i}" title="Trocar o tipo">${bannerPrey(s.tipo)}</button>
+        <button class="prey-x" data-prey-tirar="${i}" title="Tirar esta prey">✕</button></div>
+      <div class="prey-corpo"><div class="prey-titulo"><b>${esc(t.rotulo)}</b><span class="ajuda" title="${esc(t.descricao)}">?</span></div>
+        <div class="prey-meio">${estrelas(i, s.estrelas)}<div class="prey-bonus"><small>BÔNUS</small><b>+${t.bonus[s.estrelas - 1]}%</b></div></div>
+        ${criaturaBox(`prey:${i}`, s.criatura)}</div></div>`;
   };
   const usados = new Map((c || []).map((x) => [x.nome, x]));
   const charmCard = (ch) => {
-    const u = usados.get(ch.nome);
-    return `<div class="charm-card ${u ? 'on' : ''}"><b>${esc(ch.nome)}</b>${btnCriatura(`charm:${ch.nome}`, u && u.criatura)}
+    const u = usados.get(ch.nome), ic = ICONES_CHARM[ch.nome];
+    const dica = `Charm ${persoAba}: ` + ch.pct.map((v) => String(v).replace('.', ',') + '%').join(' / ');
+    return `<div class="charm-card ${u ? 'on' : ''}"><div class="charm-topo">${ic ? `<img class="charm-icone" src="${esc(ic)}" alt="" onerror="this.style.display='none'">` : ''}
+        <b title="${esc(ch.nome)}">${esc(ch.nome)}</b><span class="ajuda" title="${esc(dica)}">?</span></div>
+      ${criaturaBox(`charm:${ch.nome}`, u && u.criatura)}
       <div class="charm-niveis">${ch.pct.map((v, k) => `<button class="pilula ${u && u.nivel === k + 1 ? 'on' : ''}" data-charm-nivel="${esc(ch.nome)}:${k + 1}" title="Nível ${k + 1}">${String(v).replace('.', ',')}%</button>`).join('')}</div></div>`;
   };
   const naoInf = (campo, txt) => `<div class="dica" style="margin:0 0 8px">${txt} nesta hunt: escolha para marcar, ou
     <button class="btn btn-sm" data-marcar-vazio="${campo}">Marcar sem ${campo === 'prey' ? 'prey' : 'charms'}</button></div>`;
-  return `<h3 class="sub3">Preys</h3>${p == null ? naoInf('prey', 'Prey não informada') : ''}
+  return `<h3 class="sub3">Preys</h3><div class="dica perso-desc">Selecione as preys usadas nesta hunt. Cada criatura só pode ter uma prey.</div>
+    ${p == null ? naoInf('prey', 'Prey não informada') : ''}
     <div class="prey-grid">${[0, 1, 2].map((i) => preyCard((p || [])[i], i)).join('')}</div>
-    <div class="h-titulo" style="margin:16px 0 8px"><h3 class="sub3" style="margin:0">Charms</h3>
+    <div class="h-titulo" style="margin:18px 0 6px"><div><h3 class="sub3" style="margin:0">Charms</h3>
+      <div class="dica">Selecione os charms usados nesta hunt. A criatura pode repetir entre um major e um minor, mas não entre dois majors (nem dois minors).</div></div>
       <div class="abas" style="margin:0">${[['major', 'Majors'], ['minor', 'Minors']].map(([k, r]) => `<span class="pilula ${k === persoAba ? 'on' : ''}" data-charm-aba="${k}">${r}</span>`).join('')}</div></div>
     ${c == null ? naoInf('charms', 'Charms não informados') : ''}
     <div class="charm-grid">${TAB.charms[persoAba].map(charmCard).join('')}</div>
@@ -1163,7 +1231,7 @@ async function persoClique(e) {
   if (d.preyTirar !== undefined) { (H.entrada.prey || []).splice(+d.preyTirar, 1); return redesenharPerso(); }
   if (d.preyTipo !== undefined) {
     const tipo = await escolher('Escolha o tipo da prey', TAB.prey.map((t) => ({ valor: t.tipo,
-      html: `<b>${esc(t.rotulo)}</b><span class="dica">${esc(t.descricao)}</span>` })));
+      html: `<span class="banner-mini">${bannerPrey(t.tipo)}</span><span class="escolha-txt"><b>${esc(t.rotulo)}</b><span class="dica">${esc(t.descricao)}</span></span>` })), { grade: true });
     if (!tipo) return;
     H.entrada.prey = H.entrada.prey || [];
     const s = H.entrada.prey[+d.preyTipo];
@@ -1173,8 +1241,11 @@ async function persoClique(e) {
   if (d.estrela) { const [i, k] = d.estrela.split(':').map(Number); H.entrada.prey[i].estrelas = k; return redesenharPerso(); }
   if (d.criaturaTirar) { alvoCriatura(d.criaturaTirar).criatura = ''; return redesenharPerso(); }
   if (d.criatura) {
-    const nome = await escolher('Escolha a criatura', criaturasDaHunt().map((c) => ({ valor: c.nome,
-      html: `${c.imagem ? `<img src="${esc(c.imagem)}" alt="">` : ''}<b>${esc(c.nome)}</b>` })));
+    const todas = criaturasDaHunt(), emUso = criaturasEmUso(d.criatura);
+    const livres = todas.filter((c) => !emUso.has(c.nome.toLowerCase()));  // quem já foi escolhido some da lista
+    const nome = await escolher('Selecionar criatura', livres.map((c) => ({ valor: c.nome, busca: c.nome,
+      html: `${c.imagem ? `<img src="${esc(c.imagem)}" alt="">` : ''}<b>${esc(c.nome)}</b>` })),
+    { filtro: true, vazio: todas.length ? 'Todas as criaturas desta hunt já estão em uso.' : 'Nenhuma criatura nesta hunt ainda: cole o Hunting Analyser.' });
     if (!nome) return;
     alvoCriatura(d.criatura).criatura = nome;
     return redesenharPerso();
@@ -1192,16 +1263,26 @@ async function persoClique(e) {
 $('h-res').addEventListener('click', persoClique);
 
 // janela de escolha (tipo de prey, criatura): devolve o valor escolhido ou null
-let meResolver = null;
-function escolher(titulo, opcoes) {
+let meResolver = null, meRedesenhar = null;
+function escolher(titulo, opcoes, { filtro = false, grade = false, vazio = '' } = {}) {
   $('me-titulo').textContent = titulo;
-  $('me-lista').innerHTML = opcoes.length ? opcoes.map((o, i) => `<button class="escolha-item" data-me="${i}">${o.html}</button>`).join('')
-    : '<p class="dica">Nenhuma criatura nesta hunt ainda: cole o Hunting Analyser.</p>';
+  $('me-filtro').style.display = filtro ? '' : 'none';
+  $('me-filtro').value = '';
+  $('me-lista').className = 'escolha-lista' + (grade ? ' grade' : '');
+  meRedesenhar = () => {
+    const f = $('me-filtro').value.trim().toLowerCase();
+    const vis = opcoes.map((o, i) => [o, i]).filter(([o]) => !f || (o.busca || '').toLowerCase().includes(f));
+    $('me-lista').innerHTML = vis.length ? vis.map(([o, i]) => `<button class="escolha-item" data-me="${i}">${o.html}</button>`).join('')
+      : `<p class="dica">${esc(opcoes.length ? 'Nenhuma criatura com esse nome.' : vazio)}</p>`;
+  };
+  meRedesenhar();
   $('modal-escolha').style.display = 'flex';
+  if (filtro) $('me-filtro').focus();
   return new Promise((res) => {
     meResolver = (i) => { $('modal-escolha').style.display = 'none'; meResolver = null; res(i === null ? null : opcoes[i].valor); };
   });
 }
+$('me-filtro').addEventListener('input', () => meRedesenhar && meRedesenhar());
 $('me-lista').addEventListener('click', (e) => { const b = e.target.closest('[data-me]'); if (b && meResolver) meResolver(+b.dataset.me); });
 $('me-fechar').addEventListener('click', () => meResolver && meResolver(null));
 $('modal-escolha').addEventListener('click', (e) => { if (e.target === $('modal-escolha') && meResolver) meResolver(null); });
@@ -1689,6 +1770,7 @@ async function huntIniciar() {
   MEUS = await api.meus_personagens();
   H.entrada.personagem = MEUS.atual || (r.entrada && r.entrada.personagem) || '';
   TAB = await api.hunt_tabelas();
+  api.hunt_icones_charms().then((u) => { ICONES_CHARM = u || {}; redesenharPerso(false); });
   H.entrada.prey = await preyInicial(H.entrada.personagem);
   H.entrada.charms = await charmsInicial(H.entrada.personagem);
   H.id = null;

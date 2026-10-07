@@ -37,6 +37,49 @@ class TestCharms(unittest.TestCase):
             {"nome": "Scavenge", "nivel": 2},                             # sem criatura vale
         ]), [{"nome": "Carnage", "criatura": "Gloom Maw", "nivel": 3}, {"nome": "Scavenge", "criatura": "", "nivel": 2}])
 
+    def test_criatura_unica_por_categoria(self):
+        # major + minor podem repetir a criatura; duas majors (ou duas minors) não: a repetida perde a criatura
+        r = pc.normalizar_charms([
+            {"nome": "Carnage", "criatura": "Varg", "nivel": 1},
+            {"nome": "Curse", "criatura": "varg", "nivel": 2},
+            {"nome": "Bless", "criatura": "Varg", "nivel": 1},
+            {"nome": "Gut", "criatura": "VARG", "nivel": 2},
+            {"nome": "Zap", "criatura": "Gloom Maw", "nivel": 3},
+        ])
+        self.assertEqual([(c["nome"], c["criatura"]) for c in r],
+                         [("Carnage", "Varg"), ("Curse", ""), ("Bless", "Varg"), ("Gut", ""), ("Zap", "Gloom Maw")])
+        self.assertEqual(pc.categoria_charm("Carnage"), "major")
+        self.assertEqual(pc.categoria_charm("Scavenge"), "minor")
+        self.assertIsNone(pc.categoria_charm("Inventado"))
+
+    def test_icones_com_cache(self):
+        import json
+        import os
+        import tempfile
+        chamadas = []
+
+        def falso(nomes):
+            chamadas.append(len(nomes))
+            return {n: f"https://wiki/{n}.png" for n in nomes}
+        with tempfile.TemporaryDirectory() as tmp:
+            cache = os.path.join(tmp, "c.json")
+            u = pc.icones_charms(cache, falso)
+            self.assertEqual(len(u), 25)
+            self.assertEqual(u["Carnage"], "https://wiki/Carnage.png")
+            pc.icones_charms(cache, falso)           # segunda vez vem do cache: não busca de novo
+            self.assertEqual(chamadas, [25])
+
+            def sem_internet(nomes):
+                raise OSError("sem internet")
+            with open(cache, "r+", encoding="utf-8") as f:   # cache vencido: usa o velho se a busca falhar
+                d = json.load(f)
+                d["t"] = 0
+                f.seek(0)
+                f.truncate()
+                json.dump(d, f)
+            self.assertEqual(len(pc.icones_charms(cache, sem_internet)), 25)
+            self.assertEqual(pc.icones_charms(os.path.join(tmp, "nao_existe.json"), sem_internet), {})
+
     def test_rotulo(self):
         self.assertEqual(pc.rotulo_charms(None), "Charms não informados")
         self.assertEqual(pc.rotulo_charms([]), "Sem charms")

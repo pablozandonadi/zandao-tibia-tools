@@ -348,6 +348,13 @@ class TestPrey(unittest.TestCase):
         self.assertTrue(any(x.startswith("Prey diferente") and x.endswith("A XP/h não é comparável diretamente.")
                             for x in historico.comparar([a, b])["avisos"]))
 
+    def test_mesma_criatura_nao_repete_em_duas_preys(self):
+        r = historico.normalizar_prey([{"tipo": "xp", "estrelas": 7, "criatura": "Varg"},
+                                       {"tipo": "loot", "estrelas": 5, "criatura": "varg"},
+                                       {"tipo": "ataque", "estrelas": 3, "criatura": "Gloom Maw"}])
+        self.assertEqual([p.get("criatura") for p in r], ["Varg", None, "Gloom Maw"])
+        self.assertEqual(len(r), 3)  # a prey repetida continua; só perde a criatura
+
     def test_charms_salvos_e_preservados(self):
         reg = TestHistorico._reg(self)
         h = historico.salvar({**reg, "charms": [{"nome": "Carnage", "criatura": "Varg", "nivel": "3"}, {"nome": "X", "nivel": 1}]}, self.arq)
