@@ -1,4 +1,4 @@
-# Histórico de preços dos Embuimentos + Ranking no comparativo + Prey nas hunts
+# Histórico de preços dos Embuimentos + Ranking no comparativo + Prey + Party por hora
 
 Data: 2026-10-07 · Versão alvo: 1.0.6 (não publicar sem "pode" explícito)
 
@@ -8,6 +8,7 @@ Data: 2026-10-07 · Versão alvo: 1.0.6 (não publicar sem "pode" explícito)
 2. **Comparativo:** ao comparar de 2 a 4 hunts lado a lado, mostrar quem é o 1º, o 2º... (o ranking somado que já existe em "Comparar todas") e deixar claro que as colunas "/h" são uma projeção para 1 hora, porque é isso que torna justa a comparação entre hunts de durações diferentes.
 
 3. **Prey:** marcar em cada hunt se houve prey (tipo e estrelas), para entender as diferenças ao comparar hunts.
+4. **Party por hora:** na tabela de membros da party, mostrar Dano/h, Cura/h e Profit/h.
 
 Fora do escopo: preços automáticos (sem API do Market), sincronizar preços entre PCs e mudar a conta do "/h", que já está certa: `valor × 60 ÷ minutos`.
 
@@ -152,6 +153,32 @@ O texto final cita só os tipos envolvidos.
 - `salvar` e `atualizar` gravam a prey, e uma hunt antiga sem o campo continua sem ele.
 - O aviso aparece com preys diferentes, não aparece com preys iguais e não aparece quando alguma hunt tem a prey não informada.
 - Exportar e importar o histórico mantém o campo `prey`.
+
+---
+
+## Parte 4: Valores por hora na tabela da party (Hunt Analyser)
+
+Só na análise de **party** do Hunt Analyser. O comparativo não muda. A análise solo já mostra Dano/h e Cura/h.
+
+### Backend (`hunt.py`, em `montar()`)
+
+- Cada item de `membros` ganha:
+  - `dano_h = _por_hora(p.damage, minutos)`;
+  - `cura_h = _por_hora(p.healing, minutos)`;
+  - `balance_h = _por_hora(p.balance, minutos)`, que na tela aparece como "Profit/h" e é o lucro ou gasto de cada um **antes** da divisão.
+- O `resumo` da party ganha `lucro_h = _por_hora(split.fair_share_per_player, minutos)`, o lucro final por membro por hora.
+- Sem duração (`minutos` vazio ou 0), todos esses campos ficam `None`.
+
+### Tela (`index.html`)
+
+- Tabela de membros: `# · Membro · Dano · Dano/h · Cura · Cura/h · Loot · Supplies · Balance · Profit/h · Ajuste`. As colunas /h usam um tom mais apagado (classe `dim`), e um valor `None` aparece como "—". O Profit/h usa as mesmas cores de positivo e negativo do Balance.
+- Resumo da party: um stat novo, **"Lucro/h (por membro)"**, ao lado de "Lucro final (por membro)".
+- O card de cada membro (o detalhe com Paga/Recebe) ganha Dano/h e Cura/h.
+
+### Testes (`test_hunt.py`)
+
+- Na hunt real do teste de party que já existe, `dano_h`, `cura_h` e `balance_h` de cada membro são iguais a `valor × 60 // minutos`, e `resumo["lucro_h"]` é igual a `lucro × 60 // minutos`.
+- Sem duração, todos esses campos são `None`.
 
 ---
 
