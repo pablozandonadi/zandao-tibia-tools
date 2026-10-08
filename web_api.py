@@ -27,6 +27,7 @@ import precos
 import preys_charms
 import roda
 import sets
+import stats_set
 import tibia_info
 from versao import VERSAO_APP
 
@@ -682,6 +683,10 @@ class API:
             imbs = []
         return {"slots": [list(s) for s in itens_set.SLOTS],
                 "embuimentos": [{"nome": i["name"], "sub": i.get("subtitle") or ""} for i in imbs]}
+
+    def set_stats(self, valor):
+        """Combat Stats (soma dos itens e embuimentos) do set pedido: lista de linhas para a tela."""
+        return stats_set.linhas(stats_set.somar(sets.normalizar_set(valor)))
 
     def set_itens(self, slot):
         """Todos os itens do slot (primeira vez baixa da TibiaWiki; vale alguns segundos), já com a descrição pronta."""

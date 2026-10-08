@@ -136,6 +136,12 @@ No Hunt Analyser, em **Seu personagem nesta hunt**, você escolhe o set usado e 
 **Ataque** (arma, anel, amuleto) e **Defesa** (capacete, armadura, calça, botas, escudo). O set escolhido fica salvo junto
 da hunt (mesmo que você edite ou apague o set depois) e aparece no Histórico e no comparativo.
 
+O painel **📊 Combat Stats** (no editor e em "Ver o set") soma tudo do set: Armor, Defense, Attack (e ataque elemental),
+resistências por elemento, skills (magic level, sword fighting, speed...), leech, crítico, conversão elemental, capacidade
+e o que só vem em texto (ex.: Faster Regeneration). Os embuimentos entram com os valores dos **Powerful** da TibiaWiki
+(`stats_set.py`; ex.: Void = 8% de mana leech, Vampirism = 25% de life leech, Lich Shroud = +10% de proteção Death). No
+comparativo, a tabela **🛡 Stats do set** mostra cada stat lado a lado, com ★ no melhor valor de cada linha.
+
 ## Embuimentos
 
 1. Marque à esquerda os embuimentos que vai fazer (dá para filtrar por grupo).

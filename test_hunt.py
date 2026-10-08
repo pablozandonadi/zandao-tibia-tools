@@ -415,6 +415,17 @@ class TestComparar(unittest.TestCase):
         c = self._solo("c", "C", 60, 2, 1)                                      # prey não informada: não dá para afirmar
         self.assertEqual(historico.comparar([a, c])["efeito_prey"], [])
 
+    def test_stats_do_set_no_comparativo(self):
+        cab = lambda armor, energia: {"titulo": "S", "itens": {"cabeca": {"nome": "H", "armor": armor, "resist": {"energy": energia}}}}
+        a, b, c = self._h("a", "A", 1, 60, 1, 1), self._h("b", "B", 1, 60, 1, 1), self._h("c", "C", 1, 60, 1, 1)
+        self.assertEqual(historico.comparar([a, b])["stats_set"], [])          # ninguém com set: sem tabela
+        a["set"], b["set"] = cab(8, 8), cab(10, 0)
+        r = historico.comparar([a, b, c])
+        linha = {l["chave"]: l for l in r["stats_set"]}
+        self.assertEqual((linha["armor"]["rotulo"], linha["armor"]["valores"], linha["armor"]["melhor"]), ("Armor", [8, 10, None], 1))
+        self.assertEqual((linha["resist:energy"]["valores"], linha["resist:energy"]["melhor"]), ([8, 0, None], 0))   # B tem set sem energy: 0; C não tem set: None
+        self.assertEqual([l["grupo"] for l in r["stats_set"]], ["Defesa", "Defesa"])
+
     def test_filtro_tamanho(self):
         self.assertTrue(historico.do_tamanho(self._h("a", "A", 4, 60, 1, 1), "4"))
         self.assertFalse(historico.do_tamanho(self._h("a", "A", 3, 60, 1, 1), "4"))
@@ -623,6 +634,12 @@ class TestApiPrey(unittest.TestCase):
         historico.atualizar(r["id"], set=h["set"])
         self.assertEqual(self.api.hunt_abrir(r["id"])["set"]["consumiveis"], [{"nome": "Mana Potion"}])
         self.assertEqual(self.api.hunt_ultimo_set("Zandao")["consumiveis"], [{"nome": "Mana Potion"}])
+
+    def test_stats_do_set_pela_api(self):
+        linhas = self.api.set_stats({"titulo": "x", "itens": {"cabeca": {"nome": "H", "armor": 8, "imbue": 1, "imbues": ["Powerful Void"]}}})
+        self.assertEqual({l["chave"]: l["valor"] for l in linhas}, {"armor": 8, "leech:mana": 8})
+        self.assertEqual(self.api.set_stats(None), [])
+        self.assertEqual(self.api.set_stats("lixo"), [])
 
     def test_cadastro_de_sets_pela_api(self):
         from unittest import mock

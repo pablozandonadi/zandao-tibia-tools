@@ -29,6 +29,7 @@ import uuid
 import preys_charms
 import roda as _roda
 import sets as _sets
+import stats_set as _stats_set
 from datetime import datetime
 
 if getattr(sys, "frozen", False):
@@ -433,6 +434,28 @@ def _efeito_prey(hunts, cab, ms):
     return saida
 
 
+def _stats_do_set(hunts):
+    """Tabela "Stats do set": uma linha por stat (armor, resistências, skills...), um valor por hunt (None = hunt sem set;
+    0 = tem set mas não tem esse stat). Vazia se nenhuma hunt tem set. O que só vem em texto (Faster Regeneration...) fica de fora."""
+    sets_ = [_sets.normalizar_set(h.get("set")) for h in hunts]
+    por_hunt = [{l["chave"]: l for l in _stats_set.linhas(_stats_set.somar(s)) if l["valor"] is not None} if s and s.get("itens") else None
+                for s in sets_]
+    ordem = {}
+    for linhas in por_hunt:
+        for chave, l in (linhas or {}).items():
+            ordem.setdefault(chave, l)
+    saida = []
+    for chave, l in sorted(ordem.items(), key=lambda x: _GRUPOS_STATS.index(x[1]["grupo"])):   # estável: mantém a ordem de cada grupo
+        valores = [None if linhas is None else (linhas.get(chave) or {}).get("valor", 0) for linhas in por_hunt]
+        numeros = [(i, v) for i, v in enumerate(valores) if v is not None]
+        melhor = max(numeros, key=lambda x: x[1])[0] if len(numeros) >= 2 and len({v for _, v in numeros}) > 1 else None
+        saida.append({"chave": chave, "grupo": l["grupo"], "rotulo": l["rotulo"], "valores": valores, "melhor": melhor})
+    return saida
+
+
+_GRUPOS_STATS = ["Defesa", "Ataque", "Skills", "Outros"]
+
+
 def _aviso_roda(hunts, cab):
     """Só avisa quando todas as hunts têm a roda informada e os códigos não são todos iguais (o título não conta)."""
     if not all("roda" in h for h in hunts):
@@ -562,7 +585,7 @@ def comparar(hunts):
     if so_solo:   # um jogador só: sem ranking nem detalhe por jogador
         jogadores = []
     return {"hunts": cab, "linhas": linhas, "avisos": avisos, "veredito": veredito, "jogadores": jogadores,
-            "efeito_prey": _efeito_prey(hunts, cab, ms),
+            "efeito_prey": _efeito_prey(hunts, cab, ms), "stats_set": _stats_do_set(hunts),
             "ranking": [] if so_solo else _ranking([(m["minutos"], pj) for m, pj in zip(ms, por_jogador)]),
             "metricas_jogador": [{"chave": c, "rotulo": r} for c, r, _ in METRICAS_JOGADOR]}
 

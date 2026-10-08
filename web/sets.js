@@ -49,6 +49,22 @@ function htmlFotoSet(s, { editavel = false, sel = '', mini = false } = {}) {
     ${consHtml ? `<div class="set-cons-rotulo">Consumíveis</div><div class="set-cons">${consHtml}</div>` : ''}</div>`;
 }
 
+// ---------- Combat Stats: a soma dos itens e dos embuimentos (calculada em stats_set.py) ----------
+function htmlStatsSet(linhas) {
+  if (!linhas || !linhas.length) return '<p class="dica" style="margin:0">Escolha itens para ver a soma dos stats.</p>';
+  const grupo = (nome) => {
+    const l = linhas.filter((x) => x.grupo === nome);
+    return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin"><span>${esc(x.rotulo)}</span><b>${esc(x.texto)}</b></div>`).join('')}</div>` : '';
+  };
+  return `<div class="stats-set"><h4>📊 Combat Stats</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Outros'].map(grupo).join('')}</div>
+    <p class="dica" style="margin:6px 0 0">Soma dos itens e dos embuimentos Powerful (valores da TibiaWiki).</p></div>`;
+}
+async function preencherStats(alvoId, set) {
+  const linhas = await api.set_stats(set);
+  const el = $(alvoId);
+  if (el) el.innerHTML = htmlStatsSet(linhas);
+}
+
 // ---------- a vista de um set (janela "Ver set": a foto e, embaixo, o detalhe por grupo) ----------
 function htmlItemSet(slot, it) {
   const imb = (it.imbues || []).map((e) => `<span class="chip chip-neutro" style="font-size:.64rem">${esc(e)}</span>`).join(' ');
@@ -62,12 +78,13 @@ function htmlSetVista(s) {
     return `<div class="set-grupo"><h4>${nome}</h4>${itens.length ? itens.map((k) => htmlItemSet(k, s.itens[k])).join('') : '<p class="dica">Nada escolhido.</p>'}</div>`;
   };
   const cons = (s.consumiveis || []).length ? `<div class="set-grupo"><h4>Consumíveis</h4><div>${s.consumiveis.map((c) => `<span class="chip chip-neutro">${esc(c.nome)}</span>`).join(' ')}</div></div>` : '';
-  return `${htmlFotoSet(s)}<div class="set-vista">${SET_GRUPOS.map(grupo).join('')}${cons}</div>`;
+  return `${htmlFotoSet(s)}<div id="set-vista-stats"></div><div class="set-vista">${SET_GRUPOS.map(grupo).join('')}${cons}</div>`;
 }
 function abrirVistaSet(s) {
   $('set-vista-titulo').textContent = s && s.titulo ? s.titulo : 'Set';
   $('set-vista-corpo').innerHTML = htmlSetVista(s);
   $('modal-set').style.display = 'flex';
+  if (s && s.itens) preencherStats('set-vista-stats', s);
 }
 $('set-vista-fechar').addEventListener('click', () => { $('modal-set').style.display = 'none'; });
 $('modal-set').addEventListener('click', (e) => { if (e.target === $('modal-set')) $('modal-set').style.display = 'none'; });
@@ -101,8 +118,9 @@ function desenharEditorSet() {
   $('sets-editor').innerHTML = `<div class="roda-barra"><input type="text" id="set-titulo" placeholder="Nome do set (ex.: Tokyo - Elite Knight)" maxlength="60" value="${esc(s.titulo)}">
       <select id="set-voc" title="Mostra só os itens dessa vocação ao escolher"><option value="">Todas as vocações</option>
       ${['knight', 'paladin', 'sorcerer', 'druid', 'monk'].map((v) => `<option value="${v}" ${s.voc === v ? 'selected' : ''}>${v[0].toUpperCase() + v.slice(1)}</option>`).join('')}</select></div>
-    <div class="set-editor-corpo"><div>${htmlFotoSet(s, { editavel: true, sel: s.sel })}</div><div class="set-painel">${htmlPainelSet()}</div></div>
+    <div class="set-editor-corpo"><div>${htmlFotoSet(s, { editavel: true, sel: s.sel })}</div><div class="set-painel">${htmlPainelSet()}<div id="set-stats"></div></div></div>
     <div class="acoes" style="margin-top:10px"><button class="btn btn-sm btn-primary" id="set-salvar">Salvar set</button><button class="btn btn-sm" id="set-cancelar">Cancelar</button><span class="dica" id="set-msg"></span></div>`;
+  preencherStats('set-stats', { titulo: s.titulo, itens: s.itens, consumiveis: s.consumiveis });
 }
 function abrirEditorSet(s) {
   SETED = { id: s ? s.id : null, titulo: s ? s.titulo : '', itens: s ? JSON.parse(JSON.stringify(s.itens)) : {}, consumiveis: s ? JSON.parse(JSON.stringify(s.consumiveis)) : [], voc: '', sel: '' };
