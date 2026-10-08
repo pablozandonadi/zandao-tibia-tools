@@ -271,6 +271,20 @@
   .roda-linha { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .roda-linha select { width: auto; min-width: 220px; }
   @media (max-width: 700px) { .roda-form { grid-template-columns: 1fr; } }
+  /* Character Set */
+  #cfg-sets { grid-column: 1 / -1; }
+  .set-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin: 10px 0; }
+  .set-slot { border: 2px dashed var(--ink-dim); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+  .set-slot.ocupado { border-style: solid; align-items: stretch; background: var(--surface-2); }
+  .set-slot select { width: 100%; }
+  #set-voc { width: auto; min-width: 180px; }
+  .set-slot-topo { display: flex; justify-content: space-between; align-items: center; }
+  .set-item { display: flex; gap: 10px; align-items: center; }
+  .set-item-txt { display: flex; flex-direction: column; min-width: 0; }
+  .set-img { width: 32px; height: 32px; object-fit: contain; flex: none; image-rendering: pixelated; }
+  .set-vista { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-top: 10px; }
+  .set-grupo h4 { margin: 0 0 8px; font-family: var(--font-display); }
+  .set-grupo .set-item { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
   /* roda: visualizador numa caixa isolada */
   .roda-frame { display: block; width: 100%; min-height: 420px; border: 2px solid var(--ink-dim); border-radius: 10px; background: #14171c; }
   .roda-planob { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
@@ -788,6 +802,14 @@
           </div>
         </div>
 
+        <div class="card" id="cfg-sets">
+          <h2 class="sub">🛡 Meus sets de equipamento</h2>
+          <p class="dica" style="margin:0 0 10px">Monte o conjunto de itens que você usa (capacete, armadura, arma...) com os embuimentos de cada um. Na aba Hunt Analyser você escolhe qual set usou em cada hunt e depois compara qual compensa mais. Os itens vêm da TibiaWiki.</p>
+          <div id="sets-lista"></div>
+          <div class="acoes" style="margin-top:8px"><button class="btn btn-sm btn-primary" id="sets-novo">➕ Novo set</button></div>
+          <div id="sets-editor-box" style="display:none;margin-top:12px"><div id="sets-editor"></div></div>
+        </div>
+
         <div class="card calmo">
           <h2 class="sub">💾 Backup de tudo</h2>
           <p class="texto" style="margin:0">Guarda num arquivo só tudo o que é seu, para levar para outro PC ou não perder nada:</p>
@@ -795,6 +817,7 @@
             <li><b>Histórico de hunts</b> (com as transferências pagas)</li>
             <li><b>Meus personagens</b></li>
             <li><b>Minhas rodas</b> (Wheel of Destiny)</li>
+            <li><b>Meus sets</b> de equipamento</li>
             <li><b>Embuimentos</b>: preços, o que você já tem e os escolhidos</li>
             <li><b>Prints</b>: pastas e opções</li>
             <li><b>Janela</b>: fixar por cima e transparência</li>
@@ -820,6 +843,12 @@
   <div class="modal-caixa modal-larga">
     <div class="h-titulo"><h3 id="mp-titulo"></h3><button class="btn btn-sm" id="mp-fechar">✕ Fechar</button></div>
     <div id="mp-corpo"></div>
+  </div>
+</div>
+<div class="modal-fundo" id="modal-set" style="display:none;">
+  <div class="modal-caixa" style="max-width:760px;width:94vw">
+    <div class="h-titulo"><h3 id="set-vista-titulo"></h3><button class="btn btn-sm" id="set-vista-fechar">Fechar</button></div>
+    <div id="set-vista-corpo"></div>
   </div>
 </div>
 <div class="modal-fundo" id="modal-escolha" style="display:none;">
@@ -1142,7 +1171,7 @@ const ouro = (v) => `<span class="${cls(v)}">${n(v)}</span>`;
 const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
 
 const H = {
-  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [], charms: [], duracao: '', roda: {} },
+  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [], charms: [], duracao: '', roda: {}, set: {} },
   id: null, assinatura: null, a: null, pagos: [], texto: '', dano: null, aba: null, seq: 0,
   herdado: { prey: false, charms: false },   // veio da hunt anterior e você ainda não mexeu (ver podarHeranca)
 };
@@ -1259,7 +1288,7 @@ function resumoPerso() {
   const tp = p == null ? 'prey não informada' : !p.length ? 'sem prey'
     : p.map((x) => `Prey ${curto(x.tipo)} ★${x.estrelas}`).join(' + ');
   const tc = c == null ? 'charms não informados' : !c.length ? 'sem charms' : `${c.length} charm${c.length > 1 ? 's' : ''}`;
-  return `${tp} · ${tc} · ${resumoRoda()}`;
+  return `${tp} · ${tc} · ${resumoRoda()} · ${resumoSet()}`;
 }
 
 // criaturas que NÃO podem ser escolhidas para este alvo ("prey:1" ou "charm:Carnage"), minúsculas
@@ -1320,7 +1349,8 @@ function htmlPerso() {
     ${c == null ? naoInf('charms', 'Charms não informados') : ''}
     <div class="charm-grid">${TAB.charms[persoAba].map(charmCard).join('')}</div>
     ${htmlRodaHunt()}
-    <p class="dica" style="margin:10px 0 0">Só para comparar hunts depois: não muda nenhum número (o que você cola do Tibia já vem com prey, charms e roda).
+    ${htmlSetHunt()}
+    <p class="dica" style="margin:10px 0 0">Só para comparar hunts depois: não muda nenhum número (o que você cola do Tibia já vem com prey, charms e roda; o set você escolhe aqui).
       Uma hunt nova começa com as preys e charms da sua última hunt.</p>`;
 }
 
@@ -1375,7 +1405,7 @@ async function persoClique(e) {
   if (d.preyTirar !== undefined || d.preyTipo !== undefined || d.estrela || alvoCr.startsWith('prey:') || d.marcarVazio === 'prey') H.herdado.prey = false;
   if (d.charmNivel || alvoCr.startsWith('charm:') || d.marcarVazio === 'charms') H.herdado.charms = false;
   if (d.charmAba) { persoAba = d.charmAba; return redesenharPerso(false); }
-  if (d.marcarVazio) { H.entrada[d.marcarVazio] = d.marcarVazio === 'roda' ? {} : []; return redesenharPerso(); }
+  if (d.marcarVazio) { H.entrada[d.marcarVazio] = d.marcarVazio === 'roda' || d.marcarVazio === 'set' ? {} : []; return redesenharPerso(); }
   if (d.preyTirar !== undefined) { (H.entrada.prey || []).splice(+d.preyTirar, 1); return redesenharPerso(); }
   if (d.preyTipo !== undefined) {
     const tipo = await escolher('Escolha o tipo da prey', TAB.prey.map((t) => ({ valor: t.tipo,
@@ -1506,7 +1536,7 @@ $('h-nome').addEventListener('input', () => {
 // ---------- salvar no Histórico (só quando o usuário clica) ----------
 // "retrato" = tudo o que vai para o Histórico; se mudou desde o último Salvar, há alterações não salvas
 const retrato = () => JSON.stringify([H.entrada.nome, H.entrada.party, H.entrada.solo, H.entrada.dano,
-  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort(), H.entrada.prey ?? null, H.entrada.charms ?? null, H.entrada.duracao || '', H.entrada.roda ?? null]);
+  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort(), H.entrada.prey ?? null, H.entrada.charms ?? null, H.entrada.duracao || '', H.entrada.roda ?? null, H.entrada.set ?? null]);
 const temAlteracao = () => !!H.a && (!H.id || retrato() !== H.salvoRetrato);
 function atualizarSalvar() {
   const b = $('h-salvar');
@@ -1532,7 +1562,7 @@ $('h-salvar').addEventListener('click', async () => {
 $('h-personagem').addEventListener('change', async () => {
   H.entrada.personagem = $('h-personagem').value;
   H.equip = null;
-  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); H.entrada.charms = await charmsInicial(H.entrada.personagem); H.entrada.roda = await rodaInicial(H.entrada.personagem); marcarHerdado(); }
+  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); H.entrada.charms = await charmsInicial(H.entrada.personagem); H.entrada.roda = await rodaInicial(H.entrada.personagem); H.entrada.set = await setInicial(H.entrada.personagem); marcarHerdado(); }
   if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) MEUS = await api.personagem_usar(H.entrada.personagem);
   montarSeletorPersonagem();
   analisarHunt();
@@ -1573,6 +1603,7 @@ function montarListaPersonagens() {
 $('h-pers-gerenciar').addEventListener('click', () => { irPara('config'); $('pers-novo').focus(); });
 async function abrirConfiguracoes() {
   montarRodasConfig();
+  montarSetsConfig();
   montarListaPersonagens();
   $('pers-msg').textContent = 'Atualizando os levels no tibia.com...';
   MEUS = await api.meus_personagens(true);
@@ -1634,7 +1665,7 @@ $('h-nova').addEventListener('click', async () => {
   if (temAlteracao() && !confirm(H.id ? 'As alterações desta hunt não foram salvas. Descartar e começar outra?'
     : 'Esta hunt não foi salva no Histórico. Descartar e começar outra?')) return;
   const personagem = H.entrada.personagem;
-  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem), charms: await charmsInicial(personagem), duracao: '', roda: await rodaInicial(personagem) };
+  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem), charms: await charmsInicial(personagem), duracao: '', roda: await rodaInicial(personagem), set: await setInicial(personagem) };
   marcarHerdado();
   H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null;
   preencherHunt();
@@ -1927,6 +1958,8 @@ async function huntIniciar() {
   H.entrada.charms = await charmsInicial(H.entrada.personagem);
   await carregarRodas();
   H.entrada.roda = await rodaInicial(H.entrada.personagem);
+  await carregarSets();
+  H.entrada.set = await setInicial(H.entrada.personagem);
   marcarHerdado();
   H.id = null;
   preencherHunt();
@@ -1959,7 +1992,7 @@ async function carregarHistorico() {
     const s = h.resumo || {};
     const tam = s.membros || 1;
     return `<div class="card calmo hist-card ${compSel.includes(h.id) ? 'sel' : ''}" data-card="${h.id}"><div>
-      <div class="hist-nome">${esc(h.nome || 'Hunt')} <span class="tag tag-pt">${tam > 1 ? 'PT ' + tam : 'Solo'}</span>${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''} <span class="chip chip-neutro ${h.prey_informada ? '' : 'dim'}" style="font-size:.64rem">${esc(h.prey)}</span>${h.charms_informados ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.charms)}</span>` : ''}${h.roda_informada ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.roda)}</span>` : ''}</div>
+      <div class="hist-nome">${esc(h.nome || 'Hunt')} <span class="tag tag-pt">${tam > 1 ? 'PT ' + tam : 'Solo'}</span>${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''} <span class="chip chip-neutro ${h.prey_informada ? '' : 'dim'}" style="font-size:.64rem">${esc(h.prey)}</span>${h.charms_informados ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.charms)}</span>` : ''}${h.roda_informada ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.roda)}</span>` : ''}${h.set_informado ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.set)}</span>` : ''}</div>
       <div class="hist-meta">${esc(h.data || '')}${h.personagem ? ' · ' + esc(h.personagem) : ''}${h.membros.length ? ' · ' + h.membros.length + ' membros: ' + esc(h.membros.join(', ')) : ''}</div>
       <div class="hist-nums"><span>Duração <b>${esc(s.duracao || '—')}</b></span><span>Balance <b class="${cls(s.balance)}">${n(s.balance)}</b></span>
         <span>Lucro${h.membros.length ? '/membro' : ''} <b class="${cls(s.lucro)}">${n(s.lucro)}</b></span>${s.xp_h ? `<span>XP/h <b>${n(s.xp_h)}</b></span>` : ''}
@@ -1993,7 +2026,7 @@ async function abrirHunt(id) {
     const e = await api.hunt_abrir(id);
     if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
     H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
-      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null, charms: e.charms ?? null, duracao: e.duracao || '', roda: e.roda ?? null };
+      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null, charms: e.charms ?? null, duracao: e.duracao || '', roda: e.roda ?? null, set: e.set ?? null };
     H.herdado = { prey: false, charms: false };   // hunt salva: nada é herança
     H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || [];
     H.salvoRetrato = retrato();
@@ -2166,7 +2199,7 @@ function renderComparacao(r, rolar = true) {
   const fmtv = (v, tipo) => v === null || v === undefined ? '—' : tipo === 'txt' ? esc(v) : tipo === 'gp' ? `<span class="${cls(v)}">${n(v)}</span>` : n(v);
   const cab = r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${esc(h.data || '')}</span>
     <span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}${h.duracao ? ' · ' + esc(durCurta(h.duracao)) : ''}${h.personagem ? ' · ' + esc(h.personagem) : ''}</span>
-    ${h.prey ? `<span>${esc(h.prey)}</span>` : ''}${h.charms ? `<span>${esc(h.charms)}</span>` : ''}${h.roda && h.roda !== 'Roda não informada' ? `<span>${esc(h.roda)}</span>` : ''}
+    ${h.prey ? `<span>${esc(h.prey)}</span>` : ''}${h.charms ? `<span>${esc(h.charms)}</span>` : ''}${h.roda && h.roda !== 'Roda não informada' ? `<span>${esc(h.roda)}</span>` : ''}${h.set && h.set !== 'Set não informado' ? `<span>${esc(h.set)}</span>` : ''}
     <span>${h.monstros.map((m) => m.imagem ? `<img src="${esc(m.imagem)}" alt="" title="${esc(m.kills + 'x ' + m.nome)}">` : '').join('')}</span></th>`).join('');
   const linhas = r.linhas.map((l) => `<tr class="${l.chave === 'lucro_membro_h' || l.chave === 'xp_h' ? 'destaque' : ''}"><td>${esc(l.rotulo)}</td>
     ${l.valores.map((v, i) => `<td class="r ${l.melhor === i ? 'melhor' : ''}">${fmtv(v, l.tipo)}</td>`).join('')}</tr>`).join('');
@@ -2773,5 +2806,6 @@ if (window.pywebview && window.pywebview.api) iniciar();
 else window.addEventListener('pywebviewready', iniciar);
 </script>
 <script src="roda.js"></script>
+<script src="sets.js"></script>
 </body>
 </html>

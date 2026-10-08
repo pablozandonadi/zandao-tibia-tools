@@ -76,8 +76,8 @@ clicar em **💾 Salvar alterações**. O Hunt Analyser abre sempre limpo; só o
   dano e cura) e o **Detalhe por hunt** (cada jogador em cada hunt, abrindo em "Dano / hora"). ★ marca o melhor valor;
   o veredito diz qual hunt rendeu mais, e os avisos dizem quando a party, a duração, o personagem, o spawn ou a
   prey são diferentes.
-- Cada hunt mostra a **prey**, os **charms** e a **roda** marcados (ou "não informado"); rodas diferentes entre as hunts
-  comparadas geram um aviso.
+- Cada hunt mostra a **prey**, os **charms**, a **roda** e o **set** marcados (ou "não informado"); rodas ou sets
+  diferentes entre as hunts comparadas geram um aviso (o do set diz quais itens mudam).
 - **Abrir** recarrega a hunt no Hunt Analyser (com as transferências já marcadas como pagas).
 - **Exportar** gera um `.json` com todas as hunts (ou só as do personagem filtrado).
 - **Importar (somar)** traz as hunts de um arquivo exportado, seu ou de um amigo, sem repetir as que você já tem.
@@ -124,6 +124,17 @@ no seu PC, e não vão para o GitHub nem para o instalador) e roda tudo numa cai
 Se não houver internet ou o planner mudar, aparece o código e um botão que abre o planner no navegador. As rodas ficam em
 `rodas.json` e entram no backup. Na hunt, a roda escolhida fica salva junto (nome e código), mesmo que você apague a roda
 depois.
+
+## Character Set (equipamento da hunt)
+
+Em **Configurações → Meus sets de equipamento** você monta o conjunto que usa: para cada espaço (capacete, amuleto,
+armadura, arma, escudo/spellbook/quiver, calça, botas, anel) escolhe o item numa lista da **TibiaWiki** (com filtro por
+nome e por vocação) e, se o item tiver vaga de embuimento, escolhe quais embuimentos ele leva. Também dá para listar os
+consumíveis (poções etc.). A lista de itens de cada espaço é baixada na primeira vez (precisa de internet) e fica em
+`cache_itens_set.json` por 30 dias; os sets ficam em `sets.json` e entram no backup. Nenhum dos dois vai para o GitHub.
+No Hunt Analyser, em **Seu personagem nesta hunt**, você escolhe o set usado e abre **👁 Ver o set** para vê-lo dividido em
+**Ataque** (arma, anel, amuleto) e **Defesa** (capacete, armadura, calça, botas, escudo). O set escolhido fica salvo junto
+da hunt (mesmo que você edite ou apague o set depois) e aparece no Histórico e no comparativo.
 
 ## Embuimentos
 
