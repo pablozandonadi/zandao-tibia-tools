@@ -1822,12 +1822,11 @@ function renderMonstros(a) {
   if (!kills.length) return '';
   const total = kills.reduce((s, k) => s + k.kills, 0);
   const itens = (a.solo && a.solo.itens) || [];
-  return `<div class="card calmo" style="margin-top:18px"><div class="h-titulo"><h2 class="sub">Monstros mortos</h2><span class="chip chip-neutro">${n(total)} no total</span></div>
+  return sanfona('monstros', `<span>🐉 Monstros mortos</span><span class="chip chip-neutro" style="margin-left:auto">${n(total)} no total</span>`, `
     <div class="tabela-wrap"><table class="tab"><tr><th>#</th><th>Monstro</th><th class="r">Mortos</th><th class="r">%</th></tr>
     ${kills.map((k, i) => `<tr><td class="dim">#${i + 1}</td><td>${k.imagem ? `<img class="mon-img" src="${esc(k.imagem)}" alt="">` : '<span class="mon-ph"></span>'}${esc(k.nome)}</td>
       <td class="r">${n(k.kills)}</td><td class="r dim">${(k.kills / total * 100).toFixed(1)}%</td></tr>`).join('')}</table></div>
-    ${itens.length ? `<details class="itens"><summary>Itens coletados (${n(a.solo.itens_total)})</summary><div class="lista-itens">${itens.map((x) => `<div>${n(x.qtd)}x ${esc(x.nome)}</div>`).join('')}</div></details>` : ''}
-  </div>`;
+    ${itens.length ? `<details class="itens"><summary>Itens coletados (${n(a.solo.itens_total)})</summary><div class="lista-itens">${itens.map((x) => `<div>${n(x.qtd)}x ${esc(x.nome)}</div>`).join('')}</div></details>` : ''}`);
 }
 
 // seção que abre e fecha, fechada por padrão; lembra se o usuário deixou aberta (até fechar o app)
@@ -2208,6 +2207,7 @@ function renderComparacao(r, rolar = true) {
   $('hi-comparar').innerHTML = `<div class="card" style="margin-top:16px">
     <div class="h-titulo"><h2 class="sub">⚖️ Comparação</h2><button class="btn btn-sm" id="hi-comp-fechar">Fechar</button></div>
     ${r.veredito.length ? `<div class="veredito">${r.veredito.map((v) => `<div>🏆 ${esc(v)}</div>`).join('')}</div>` : ''}
+    ${(r.efeito_prey || []).length ? `<div class="veredito"><div><b>🎯 O que a prey mudou</b></div>${r.efeito_prey.map((v) => `<div>${esc(v)}</div>`).join('')}</div>` : ''}
     ${r.avisos.length ? `<div class="avisos">${r.avisos.map((a) => `<div>⚠ ${esc(a)}</div>`).join('')}</div>`
       : '<div class="dica" style="margin-bottom:12px">✔ Mesmo tamanho de party, duração parecida e mesmo spawn: dá para comparar direto.</div>'}
     ${r.ranking && r.ranking.length ? `<h2 class="sub" style="margin-top:4px">👥 Ranking por jogador (somando estas hunts)</h2>

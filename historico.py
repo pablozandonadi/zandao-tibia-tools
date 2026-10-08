@@ -210,6 +210,21 @@ LINHAS_COMPARACAO = [
     ("top_balance", "Maior balance", None, "txt"),
 ]
 
+# Só Hunt Analyser (sem Party Hunt): quem está sozinho não tem membros nem "quem bateu mais"; essas linhas somem
+LINHAS_SO_PARTY = {"membros", "balance_h", "balance", "dano_membro_h", "loot_total", "supplies_total",
+                   "top_dano", "top_cura", "top_supplies", "top_loot", "top_balance"}
+ROTULOS_SOLO = {"dano_total": "Dano total", "dano_h": "Dano / hora", "cura_total": "Cura total", "cura_h": "Cura / hora"}
+
+
+def tem_party(h):
+    """A hunt tem o texto do Party Hunt? Sem ele só existe o Hunt Analyser (um jogador). Hunts sem os textos guardados
+    (importadas antigas) valem pelo tamanho da party."""
+    e = h.get("entrada")
+    if isinstance(e, dict) and e:
+        return bool((e.get("party") or "").strip())
+    return tamanho_party(h) > 1
+
+
 # por jogador: (chave, rótulo, o que é melhor)
 METRICAS_JOGADOR = [
     ("dano", "Dano", "max"), ("dano_h", "Dano / hora", "max"),
@@ -373,6 +388,51 @@ def _aviso_prey(hunts, cab):
     return f"Prey diferente: {quem}. {efeito} {verbo} diretamente."
 
 
+# tipo de prey -> (nome, métrica do comparativo que ela mexe, rótulo da métrica); defesa mexe no dano recebido (não medido)
+_EFEITO_NUMERICO = {"xp": ("XP", "xp_h", "XP/h"), "loot": ("Loot", "loot_membro_h", "Loot por membro/h"),
+                    "ataque": ("Ataque", "dano_membro_h", "Dano por membro/h"), "defesa": ("Defesa", None, "")}
+
+
+def _bonus_do_tipo(prey, tipo):
+    return sum(preys_charms.bonus_prey(p["tipo"], p["estrelas"]) or 0 for p in prey if p["tipo"] == tipo)
+
+
+def _descreve_prey(c, prey, tipo, nome):
+    do_tipo = [p for p in prey if p["tipo"] == tipo]
+    if not do_tipo:
+        return f"\"{c['nome']}\" sem Prey {nome}"
+    estrelas = " + ".join(f"★{p['estrelas']}" for p in do_tipo)
+    return f"\"{c['nome']}\" com Prey {nome} {estrelas} (+{_bonus_do_tipo(prey, tipo)}%)"
+
+
+def _efeito_prey(hunts, cab, ms):
+    """Explica, tipo de prey por tipo de prey, o que a diferença de prey entre as hunts deve ter causado (só quando todas
+    têm a prey informada): XP/h, loot, dano; a defesa mexe no dano recebido, que o app não mede."""
+    if not all("prey" in h for h in hunts):
+        return []
+    preys = [normalizar_prey(h["prey"]) or [] for h in hunts]
+    saida = []
+    for tipo, (nome, metrica, rotulo) in _EFEITO_NUMERICO.items():
+        bonus = [_bonus_do_tipo(pr, tipo) for pr in preys]
+        if len(set(bonus)) < 2:
+            continue
+        i_hi, i_lo = bonus.index(max(bonus)), bonus.index(min(bonus))
+        texto = f"Prey {nome}: {_descreve_prey(cab[i_hi], preys[i_hi], tipo, nome)} contra {_descreve_prey(cab[i_lo], preys[i_lo], tipo, nome)}."
+        if metrica is None:
+            texto += (f" Ela reduz o dano recebido em {bonus[i_hi]}% em \"{cab[i_hi]['nome']}\" (contra {bonus[i_lo]}% em \"{cab[i_lo]['nome']}\"); "
+                      "o app não mede o dano recebido total, então isso não aparece nos números.")
+        else:
+            hi, lo = ms[i_hi].get(metrica), ms[i_lo].get(metrica)
+            if hi is not None and lo:
+                real = (hi - lo) / lo * 100
+                esperado = ((100 + bonus[i_hi]) / (100 + bonus[i_lo]) - 1) * 100
+                sinal = "maior" if real >= 0 else "menor"
+                texto += (f" {rotulo} de \"{cab[i_hi]['nome']}\" é {abs(real):.0f}% {sinal} "
+                          f"(só pela prey seria cerca de {round(esperado)}%).")
+        saida.append(texto)
+    return saida
+
+
 def _aviso_roda(hunts, cab):
     """Só avisa quando todas as hunts têm a roda informada e os códigos não são todos iguais (o título não conta)."""
     if not all("roda" in h for h in hunts):
@@ -415,7 +475,7 @@ def comparar(hunts):
         m.update(extra)
         por_jogador.append(pj)
     cab = [{"id": h["id"], "nome": h.get("nome") or "Hunt", "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
-            "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"],
+            "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"], "party": tem_party(h),
             "monstros": (h.get("monstros") or [])[:4], "prey": rotulo_prey(normalizar_prey(h.get("prey"))),
             "charms": preys_charms.rotulo_charms(preys_charms.normalizar_charms(h.get("charms"))),
             "roda": _roda.rotulo_roda(_roda.normalizar_roda(h.get("roda"))),
@@ -423,9 +483,15 @@ def comparar(hunts):
             "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]]}
            for h, m in zip(hunts, ms)]
 
+    party = [c["party"] for c in cab]
+    so_solo = not any(party)
     linhas = []
     for chave, rotulo, melhor, tipo in LINHAS_COMPARACAO:
-        valores = [m[chave] for m in ms]
+        if so_solo and chave in LINHAS_SO_PARTY:
+            continue
+        if so_solo:
+            rotulo = ROTULOS_SOLO.get(chave, rotulo)
+        valores = [None if chave.startswith("top_") and not p else m[chave] for m, p in zip(ms, party)]
         if all(v is None for v in valores):
             continue
         idx = None
@@ -452,6 +518,10 @@ def comparar(hunts):
         for c, s in zip(cab[1:], conjuntos[1:]):
             if len(base & s) / len(base | s) < 0.5:
                 avisos.append(f"\"{c['nome']}\" foi em outro spawn (monstros diferentes de \"{cab[0]['nome']}\").")
+    if not so_solo and not all(party):
+        sem = ", ".join(f"\"{c['nome']}\"" for c, p in zip(cab, party) if not p)
+        avisos.append(f"{sem} só tem o Hunt Analyser (sem Party Hunt): não há dados por membro dele. "
+                      "Compare pelas linhas \"por membro\" e \"/ hora\".")
     aviso_prey = _aviso_prey(hunts, cab)
     if aviso_prey:
         avisos.append(aviso_prey)
@@ -464,7 +534,7 @@ def comparar(hunts):
 
     veredito = []
     for chave, rotulo in (("lucro_membro_h", "lucro por membro por hora"), ("xp_h", "XP por hora"),
-                          ("dano_h", "dano da party por hora")):
+                          ("dano_h", "dano por hora" if so_solo else "dano da party por hora")):
         vals = [(i, m[chave]) for i, m in enumerate(ms) if m[chave] is not None]
         if len(vals) < 2:
             continue
@@ -489,8 +559,11 @@ def comparar(hunts):
                 melhor[chave] = (max if criterio == "max" else min)(nums, key=lambda x: x[1])[0]
         jogadores.append({"nome": nome, "em": sum(v is not None for v in vals), "valores": vals, "melhor": melhor})
     jogadores.sort(key=lambda j: (-j["em"], -sum((v or {}).get("dano", 0) for v in j["valores"])))
+    if so_solo:   # um jogador só: sem ranking nem detalhe por jogador
+        jogadores = []
     return {"hunts": cab, "linhas": linhas, "avisos": avisos, "veredito": veredito, "jogadores": jogadores,
-            "ranking": _ranking([(m["minutos"], pj) for m, pj in zip(ms, por_jogador)]),
+            "efeito_prey": _efeito_prey(hunts, cab, ms),
+            "ranking": [] if so_solo else _ranking([(m["minutos"], pj) for m, pj in zip(ms, por_jogador)]),
             "metricas_jogador": [{"chave": c, "rotulo": r} for c, r, _ in METRICAS_JOGADOR]}
 
 

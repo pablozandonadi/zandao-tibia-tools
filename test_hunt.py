@@ -351,6 +351,70 @@ class TestComparar(unittest.TestCase):
         self.assertEqual(r["Knight Alfa"]["dano_h"], 12_846_796)
         self.assertEqual(r["Zandao"]["minutos"], 180)
 
+    def _solo(self, id_, nome, minutos, xp_h, lucro, prey=None):
+        h = self._h(id_, nome, 1, minutos, lucro, lucro, xp_h=xp_h)
+        h["entrada"] = {"party": "", "solo": SOLO, "dano": ""}
+        if prey is not None:
+            h["prey"] = prey
+        return h
+
+    def test_so_hunt_analyser_nao_mostra_dados_de_party(self):
+        a, b = self._solo("a", "A", 60, 10_000_000, 500_000), self._solo("b", "B", 60, 12_000_000, 600_000)
+        r = historico.comparar([a, b])
+        chaves = {l["chave"] for l in r["linhas"]}
+        for so_party in ("membros", "balance_h", "balance", "dano_membro_h", "loot_total", "supplies_total",
+                         "top_dano", "top_cura", "top_supplies", "top_loot", "top_balance"):
+            self.assertNotIn(so_party, chaves, so_party)
+        self.assertIn("xp_h", chaves)
+        self.assertEqual(r["ranking"], [])                                   # sem ranking nem detalhe por jogador
+        self.assertEqual(r["jogadores"], [])
+        rotulos = {l["chave"]: l["rotulo"] for l in r["linhas"]}
+        self.assertEqual((rotulos["dano_h"], rotulos["cura_h"]), ("Dano / hora", "Cura / hora"))   # não é "da party"
+        self.assertTrue(all(not h["party"] for h in r["hunts"]))
+        self.assertFalse(any("party" in v.lower() for v in r["veredito"]))
+
+    def test_com_party_mantem_tudo_e_misto_nao_inventa_top(self):
+        a = _reg_party("a", "2026-10-01, 10:00:00", "01:00h", 1, ["varg"])
+        b = _reg_party("b", "2026-10-02, 10:00:00", "01:00h", 2, ["varg"])
+        r = historico.comparar([a, b])
+        chaves = {l["chave"] for l in r["linhas"]}
+        self.assertTrue({"membros", "balance_h", "dano_membro_h", "top_dano", "top_cura"} <= chaves)
+        self.assertTrue(r["ranking"] and all(h["party"] for h in r["hunts"]))
+        solo = self._solo("s", "S", 60, 9_000_000, 400_000)
+        solo["monstros"] = [{"nome": "varg", "kills": 10}]
+        m = historico.comparar([a, solo])
+        linha = {l["chave"]: l for l in m["linhas"]}
+        self.assertIsNone(linha["top_dano"]["valores"][1])                   # quem solo bateu mais é sempre o mesmo: sem destaque
+        self.assertEqual([h["party"] for h in m["hunts"]], [True, False])
+        self.assertEqual(linha["dano_total"]["rotulo"], "Dano total da party")
+
+    def test_efeito_da_prey_no_comparativo(self):
+        import preys_charms
+        a = self._solo("a", "A", 60, 10_000_000, 500_000, prey=[])
+        b = self._solo("b", "B", 60, 12_500_000, 500_000, prey=[{"tipo": "xp", "estrelas": 7}])
+        bonus = preys_charms.bonus_prey("xp", 7)
+        r = historico.comparar([a, b])
+        self.assertEqual(len(r["efeito_prey"]), 1)
+        txt = r["efeito_prey"][0]
+        self.assertIn('"B" com Prey XP ★7 (+%d%%) contra "A" sem Prey XP' % bonus, txt)
+        self.assertIn("XP/h de \"B\" é 25% maior", txt)                       # 12,5M contra 10M
+        self.assertIn("só pela prey seria cerca de %d%%" % round(bonus), txt)
+
+    def test_efeito_da_prey_loot_ataque_e_defesa(self):
+        a = self._solo("a", "A", 60, 10_000_000, 500_000, prey=[{"tipo": "loot", "estrelas": 3}])
+        b = self._solo("b", "B", 60, 10_000_000, 500_000, prey=[{"tipo": "loot", "estrelas": 9}, {"tipo": "ataque", "estrelas": 10}, {"tipo": "defesa", "estrelas": 10}])
+        textos = historico.comparar([a, b])["efeito_prey"]
+        self.assertEqual([t.split(":")[0] for t in textos], ["Prey Loot", "Prey Ataque", "Prey Defesa"])
+        self.assertIn('"A" com Prey Loot ★3', textos[0])
+        self.assertIn("dano recebido", textos[2])                               # defesa: o app não mede o dano recebido
+
+    def test_efeito_da_prey_so_quando_muda_e_esta_informada(self):
+        igual = [{"tipo": "xp", "estrelas": 7}]
+        a, b = self._solo("a", "A", 60, 1, 1, prey=igual), self._solo("b", "B", 60, 2, 1, prey=igual)
+        self.assertEqual(historico.comparar([a, b])["efeito_prey"], [])        # mesma prey: nada a explicar
+        c = self._solo("c", "C", 60, 2, 1)                                      # prey não informada: não dá para afirmar
+        self.assertEqual(historico.comparar([a, c])["efeito_prey"], [])
+
     def test_filtro_tamanho(self):
         self.assertTrue(historico.do_tamanho(self._h("a", "A", 4, 60, 1, 1), "4"))
         self.assertFalse(historico.do_tamanho(self._h("a", "A", 3, 60, 1, 1), "4"))
