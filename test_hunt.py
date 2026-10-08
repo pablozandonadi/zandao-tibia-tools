@@ -408,6 +408,35 @@ class TestPrey(unittest.TestCase):
         self.assertEqual([p.get("criatura") for p in r], ["Varg", None, "Gloom Maw"])
         self.assertEqual(len(r), 3)  # a prey repetida continua; só perde a criatura
 
+    def test_roda_salva_preservada_e_no_comparativo(self):
+        reg = TestHistorico._reg(self)
+        beam = {"titulo": " Beam ", "codigo": "S0Y2AgDP4jAQA", "lixo": 1}
+        h = historico.salvar({**reg, "roda": beam}, self.arq)
+        self.assertEqual(historico.obter(h["id"], self.arq)["roda"], {"titulo": "Beam", "codigo": "S0Y2AgDP4jAQA"})
+        historico.salvar({**reg, "id": h["id"]}, self.arq)               # re-salvar sem o campo mantém a gravada
+        self.assertEqual(historico.obter(h["id"], self.arq)["roda"]["titulo"], "Beam")
+        historico.salvar({**reg, "id": h["id"], "roda": {"codigo": "ruim"}}, self.arq)  # código inválido = "sem roda"
+        self.assertEqual(historico.obter(h["id"], self.arq)["roda"], {})
+        antiga = historico.salvar(TestHistorico._reg(self, party=PARTY + "\nW", nome="antiga"), self.arq)
+        self.assertNotIn("roda", historico.obter(antiga["id"], self.arq))   # nunca inventa roda
+
+    def test_aviso_roda_diferente(self):
+        a, b = TestComparar._h(self, "a", "A", 4, 60, 1, 4), TestComparar._h(self, "b", "B", 4, 60, 1, 4)
+        a["roda"] = {"titulo": "Beam", "codigo": "S0Y2AgDP4jAQA"}
+        b["roda"] = {"titulo": "Fire", "codigo": "S0OzEthYGBYVqKN5"}
+        r = historico.comparar([a, b])
+        self.assertIn('Roda diferente: "A" com Roda: Beam, "B" com Roda: Fire. O dano e a cura podem não ser comparáveis diretamente.', r["avisos"])
+        self.assertEqual([h["roda"] for h in r["hunts"]], ["Roda: Beam", "Roda: Fire"])
+        b["roda"] = {"titulo": "Outro nome", "codigo": "S0Y2AgDP4jAQA"}   # mesma roda (mesmo código): sem aviso
+        self.assertFalse(any("Roda" in x for x in historico.comparar([a, b])["avisos"]))
+        b["roda"] = {}                                                     # sem roda é diferente de ter roda
+        self.assertIn('Roda diferente: "A" com Roda: Beam, "B" sem roda. O dano e a cura podem não ser comparáveis diretamente.',
+                      historico.comparar([a, b])["avisos"])
+        del b["roda"]                                                      # não informada: sem aviso
+        r = historico.comparar([a, b])
+        self.assertFalse(any("Roda" in x for x in r["avisos"]))
+        self.assertEqual(r["hunts"][1]["roda"], "Roda não informada")
+
     def test_charms_salvos_e_preservados(self):
         reg = TestHistorico._reg(self)
         h = historico.salvar({**reg, "charms": [{"nome": "Carnage", "criatura": "Varg", "nivel": "3"}, {"nome": "X", "nivel": 1}]}, self.arq)
@@ -483,6 +512,20 @@ class TestApiPrey(unittest.TestCase):
         antiga = self.api.hunt_salvar({"party": PARTY + "\nZ", "personagem": "Zandao"})
         self.assertEqual(self.api.hunt_abrir(antiga["id"]).get("duracao") or "", "")
         self.assertEqual(historico.obter(antiga["id"])["resumo"]["minutos"], 167)
+
+    def test_roda_pela_api(self):
+        self.assertIsNone(self.api.hunt_ultima_roda("Zandao"))
+        beam = {"titulo": "Beam", "codigo": "S0Y2AgDP4jAQA"}
+        r = self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "roda": beam})
+        self.assertEqual(self.api.hunt_abrir(r["id"])["roda"], beam)
+        self.assertEqual(self.api.hunt_ultima_roda("Zandao"), beam)
+        h = self.api.hunt_historico()["hunts"][0]
+        self.assertEqual((h["roda"], h["roda_informada"]), ("Roda: Beam", True))
+        self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "id": r["id"], "roda": None})   # hunt antiga salva sem mexer
+        self.assertEqual(historico.obter(r["id"])["roda"], beam)
+        outra = self.api.hunt_salvar({"party": PARTY + "\nW", "personagem": "Zandao"})
+        h2 = next(x for x in self.api.hunt_historico()["hunts"] if x["id"] == outra["id"])
+        self.assertEqual((h2["roda"], h2["roda_informada"]), ("Roda não informada", False))
 
     def test_charms_pela_api(self):
         self.assertIsNone(self.api.hunt_ultimos_charms("Zandao"))

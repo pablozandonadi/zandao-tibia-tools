@@ -27,6 +27,7 @@ import threading
 import uuid
 
 import preys_charms
+import roda as _roda
 from datetime import datetime
 
 if getattr(sys, "frozen", False):
@@ -81,7 +82,7 @@ def salvar(registro, caminho=None):
                 preservar["dano"] = atual["dano"]
             if "pagos" in registro:
                 preservar["pagos"] = registro["pagos"]
-            for campo in ("prey", "charms"):  # sem o campo no registro = o usuário não mexeu: mantém o gravado
+            for campo in ("prey", "charms", "roda"):  # sem o campo no registro = o usuário não mexeu: mantém o gravado
                 if campo not in registro and campo in atual:
                     preservar[campo] = atual[campo]
             atual.clear()
@@ -330,7 +331,7 @@ def normalizar_prey(valor):
 
 def _com_prey_normalizada(registro):
     """Normaliza "prey" e "charms" do registro; um None vira "sem o campo" (não informado)."""
-    for campo, normalizar in (("prey", normalizar_prey), ("charms", preys_charms.normalizar_charms)):
+    for campo, normalizar in (("prey", normalizar_prey), ("charms", preys_charms.normalizar_charms), ("roda", _roda.normalizar_roda)):
         if campo not in registro:
             continue
         registro = dict(registro)
@@ -371,6 +372,17 @@ def _aviso_prey(hunts, cab):
     return f"Prey diferente: {quem}. {efeito} {verbo} diretamente."
 
 
+def _aviso_roda(hunts, cab):
+    """Só avisa quando todas as hunts têm a roda informada e os códigos não são todos iguais (o título não conta)."""
+    if not all("roda" in h for h in hunts):
+        return None
+    rodas = [_roda.normalizar_roda(h["roda"]) or {} for h in hunts]
+    if len({r.get("codigo", "") for r in rodas}) < 2:
+        return None
+    quem = ", ".join(f"\"{c['nome']}\" " + ("sem roda" if not r else "com " + _roda.rotulo_roda(r)) for c, r in zip(cab, rodas))
+    return f"Roda diferente: {quem}. O dano e a cura podem não ser comparáveis diretamente."
+
+
 def _fmt_dur(minutos):
     return f"{minutos // 60}h{minutos % 60:02d}" if minutos else "?"
 
@@ -388,6 +400,7 @@ def comparar(hunts):
             "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"],
             "monstros": (h.get("monstros") or [])[:4], "prey": rotulo_prey(normalizar_prey(h.get("prey"))),
             "charms": preys_charms.rotulo_charms(preys_charms.normalizar_charms(h.get("charms"))),
+            "roda": _roda.rotulo_roda(_roda.normalizar_roda(h.get("roda"))),
             "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]]}
            for h, m in zip(hunts, ms)]
 
@@ -423,6 +436,9 @@ def comparar(hunts):
     aviso_prey = _aviso_prey(hunts, cab)
     if aviso_prey:
         avisos.append(aviso_prey)
+    aviso_roda = _aviso_roda(hunts, cab)
+    if aviso_roda:
+        avisos.append(aviso_roda)
 
     veredito = []
     for chave, rotulo in (("lucro_membro_h", "lucro por membro por hora"), ("xp_h", "XP por hora"),

@@ -33,6 +33,7 @@ ITENS = {
     "janela": "Fixar por cima e transparência",
     "audio": "Timers de áudio",
     "precos": "Histórico de preços dos embuimentos",
+    "rodas": "Minhas rodas (Wheel of Destiny)",
 }
 
 

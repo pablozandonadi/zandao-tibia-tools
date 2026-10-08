@@ -19,6 +19,9 @@ cache_tibia.json
 meus_personagens.json
 cache_itens.json
 cache_charms.json
+rodas.json
+rodas.json.tmp
+cache_roda/
 audio_timers.json
 sons/
 sons_usuario/
