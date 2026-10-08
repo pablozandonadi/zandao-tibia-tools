@@ -126,6 +126,18 @@ class TestEfeitos(unittest.TestCase):
         fora = {x["rotulo"] for x in self._soma({"nivel": 2, "escolhas": [0, 9]})["lista"]}   # escolha inválida volta para a primeira
         self.assertIn("critical extra damage para Death spells e runes", fora)
 
+    def test_reshape_vale_para_a_opcao_trocada(self):
+        op = pf.opcao_do_wikitext("Armor Penetration", OPCAO)
+        t = {"coluna": 2, "indice": 1, "opcao": "Armor Penetration", "rank": 10}        # trocou a 2ª opção do nível 2 (+1 Magic Level)
+        base = {"nivel": 2, "escolhas": [0, 0]}
+        r = {x["rotulo"]: x["valor"] for x in self._soma({**base, "trocas": [t]}, [op])["lista"]}
+        self.assertEqual(r, {"critical extra damage": 5, "critical extra damage para Death spells e runes": 7.5})   # a 1ª opção está em uso: o reshape fica guardado, sem efeito
+        r = {x["rotulo"]: x["valor"] for x in self._soma({**base, "escolhas": [0, 1], "trocas": [t]}, [op])["lista"]}
+        self.assertEqual(r, {"critical extra damage": 5, "penetração de armadura": 10})                              # a opção trocada está em uso: vale o perk novo
+        sem_indice = {"coluna": 2, "opcao": "Armor Penetration", "rank": 10}                                          # formato antigo: vale para a opção em uso
+        r = {x["rotulo"]: x["valor"] for x in self._soma({**base, "escolhas": [0, 1], "trocas": [sem_indice]}, [op])["lista"]}
+        self.assertEqual(r["penetração de armadura"], 10)
+
     def test_trocas_do_perk_shaping(self):
         op = pf.opcao_do_wikitext("Armor Penetration", OPCAO)
         t1 = {"coluna": 2, "opcao": "Armor Penetration", "rank": 10}

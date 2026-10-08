@@ -176,53 +176,51 @@ function icoPerk(tipo, aug) {
   const img = (cls, n) => (u(n) ? `<img class="${cls}" src="${esc(u(n))}" alt="" onerror="this.style.display='none'">` : '');
   return `<span class="prof-ico">${img('b', 'Proficiency_Border')}${img('i', 'Proficiency_' + tipo)}${aug ? img('a', 'Proficiency_Augment_' + aug) : ''}</span>`;
 }
-// valor curto para o canto do ícone: "+5.00% critical..." -> "5%"; "+1 Magic Level" -> "1"
-const valorCurto = (texto) => { const n = numTexto(texto); return n ? `${+Math.abs(n.v).toFixed(2)}${n.u}` : ''; };
-// reshape ativo na coluna c (índice em prof.trocas) ou -1. O 1º precisa de 1 nível; o 2º, de Maestria.
-function reshapeDa(p, c) {
-  return (p.trocas || []).findIndex((t, i) => t && t.coluna === c && t.opcao && p.nivel >= 1 && (i === 0 || p.maestria));
+const opcaoUsada = (p, ci, col) => (Number.isInteger(p.escolhas[ci]) && p.escolhas[ci] < col.length ? p.escolhas[ci] : 0);
+// índice (em prof.trocas) do reshape ativo na opção oi da coluna c, ou -1. O 1º reshape precisa de 1 nível; o 2º, de Maestria.
+// Reshape sem "indice" (formato antigo) vale para a opção em uso (sel).
+function reshapeDa(p, c, oi, sel) {
+  return (p.trocas || []).findIndex((t, i) => t && t.coluna === c && t.opcao && p.nivel >= 1 && (i === 0 || p.maestria)
+    && (Number.isInteger(t.indice) ? t.indice === oi : oi === sel));
 }
 function htmlProfArma(it) {
   const p = it.prof, opcoes = SET_SHAPING[SETED.voc || ''] || [], nivel = p.nivel;
   const usados = (p.trocas || []).filter((t) => t && t.opcao).length, max = nivel >= 1 ? (p.maestria ? 2 : 1) : 0;
-  const colunas = it.perks.map((col, ci) => {
-    const c = ci + 1, livre = c <= nivel, ri = reshapeDa(p, c);
-    const sel = Number.isInteger(p.escolhas[ci]) && p.escolhas[ci] < col.length ? p.escolhas[ci] : 0;
-    const t = ri >= 0 ? p.trocas[ri] : null, op = t && opcoes.find((o) => o.nome === t.opcao);
-    const tiles = col.map((o, oi) => {
-      if (oi === sel && op) {   // o perk escolhido foi trocado pelo reshape: mostra a opção nova no mesmo lugar
-        const tx = textoRank(op, t.rank || 0);
-        return `<button class="prof-tile sel reshaped" data-prof-pick="${ci}:${oi}" title="Reshape (rank ${t.rank || 0}): ${esc(tx)} | Original: ${esc(o.texto)}">${icoPerk(op.perk, op.modifier)}<b class="prof-val">${esc(valorCurto(tx))}</b></button>`;
-      }
-      return `<button class="prof-tile ${oi === sel ? 'sel' : 'off'}" data-prof-pick="${ci}:${oi}" ${livre ? '' : 'disabled'} title="${esc(o.texto)}">${icoPerk(o.tipo, o.aug)}<b class="prof-val">${esc(valorCurto(o.texto))}</b></button>`;
+  const topo = it.perks.map((_, ci) => `<div class="prof-th ${ci + 1 <= nivel ? '' : 'trav'}">${ci + 1}</div>`).join('');
+  const celulas = it.perks.map((col, ci) => {
+    const c = ci + 1, livre = c <= nivel, sel = opcaoUsada(p, ci, col);
+    const blocos = col.map((o, oi) => {
+      const ri = reshapeDa(p, c, oi, sel), t = ri >= 0 ? p.trocas[ri] : null, op = t && opcoes.find((x) => x.nome === t.opcao);
+      const ativo = oi === sel;
+      const card = op
+        ? `<button class="prof-card ${ativo ? 'sel' : 'off'} reshaped" data-prof-pick="${ci}:${oi}" ${livre ? '' : 'disabled'} title="Original: ${esc(o.texto)}">${icoPerk(op.perk, op.modifier)}<span class="prof-txt">${esc(textoRank(op, t.rank || 0))}</span><small class="dica">reshape · rank ${t.rank || 0}</small></button>`
+        : `<button class="prof-card ${ativo ? 'sel' : 'off'}" data-prof-pick="${ci}:${oi}" ${livre ? '' : 'disabled'} title="${livre ? 'Clique para usar este perk' : 'Nível ainda não liberado'}">${icoPerk(o.tipo, o.aug)}<span class="prof-txt">${esc(o.texto)}</span></button>`;
+      const pode = livre && (ri >= 0 || usados < max);
+      const dica = pode ? 'Trocar ESTE perk por outra opção (Reshape)' : (max === 0 ? 'Precisa de 1 nível de proficiência' : 'Os reshapes já foram usados (o 2º precisa de Maestria)');
+      const btn = livre ? `<button class="prof-shape ${ri >= 0 ? 'on' : ''}" data-reshape="${ci}:${oi}" ${pode ? '' : 'disabled'} title="${dica}">⚒ ${ri >= 0 ? 'reshape · rank ' + (t.rank || 0) : 'reshape'}</button>` : '';
+      return `<div class="prof-op1">${card}${btn}</div>`;
     }).join('');
-    const pode = livre && (ri >= 0 || usados < max);
-    const dica = pode ? 'Trocar este perk por outra opção (Reshape)' : (max === 0 ? 'Precisa de 1 nível de proficiência' : 'Os reshapes já foram usados (o 2º precisa de Maestria)');
-    const btn = livre ? `<button class="prof-shape ${ri >= 0 ? 'on' : ''}" data-reshape="${c}" ${pode ? '' : 'disabled'} title="${dica}">⚒ ${ri >= 0 ? 'rank ' + (t.rank || 0) : 'reshape'}</button>` : '';
-    return `<div class="prof-colx ${livre ? '' : 'trav'}"><div class="prof-star">★ ${c}</div>${tiles}${btn}</div>`;
-  }).join('');
-  const lista = it.perks.map((col, ci) => {
-    if (ci + 1 > nivel) return '';
-    const sel = Number.isInteger(p.escolhas[ci]) && p.escolhas[ci] < col.length ? p.escolhas[ci] : 0, ri = reshapeDa(p, ci + 1);
-    const t = ri >= 0 ? p.trocas[ri] : null, op = t && opcoes.find((o) => o.nome === t.opcao);
-    const tx = op ? textoRank(op, t.rank || 0) : (col[sel] || {}).texto;
-    return tx ? `<li><b>★ ${ci + 1}</b> ${esc(tx)}${op ? ` <span class="chip chip-neutro" style="font-size:.6rem">reshape · rank ${t.rank || 0}</span>` : ''}</li>` : '';
+    return `<div class="prof-cel ${livre ? '' : 'trav'}">${blocos || '<span class="dica">—</span>'}</div>`;
   }).join('');
   return `<div class="prof-box"><h5>Proficiência da arma · ${esc(it.nome)}</h5>
     <div class="roda-linha"><label>Nível de proficiência <select data-prof-nivel>${Array.from({ length: 8 }, (_, n) => `<option value="${n}" ${n === nivel ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       <label><input type="checkbox" data-prof-maestria ${p.maestria ? 'checked' : ''}> Maestria</label>
       <span class="dica">Reshapes: ${usados}/${max}${max < 2 ? (max === 0 ? ' (precisa de 1 nível)' : ' (o 2º precisa de Maestria)') : ''}</span></div>
-    <div class="prof-grade">${colunas}</div>
-    <ul class="prof-lista">${lista}</ul>
-    <p class="dica" style="margin:4px 0 0">Clique no perk que você usa em cada nível. "⚒ reshape" troca o perk escolhido por outra opção, no mesmo lugar.</p></div>`;
+    <div class="prof-tab"><div class="prof-lado">Nível</div>${topo}<div class="prof-lado">Perks</div>${celulas}</div>
+    <p class="dica" style="margin:6px 0 0">Clique no perk que você usa em cada nível (o primeiro é o padrão). O "⚒ reshape" de baixo troca justamente aquele perk por outra opção, no mesmo lugar.</p></div>`;
 }
 
-// ---------- janela do Reshape: escolhe a opção que substitui o perk da coluna ----------
-let RS = null;   // {coluna, rank}
-function abrirReshape(coluna) {
-  const p = SETED.itens.arma.prof, ri = reshapeDa(p, coluna);
-  RS = { coluna, rank: ri >= 0 ? (p.trocas[ri].rank || 0) : 10 };
-  $('rs-titulo').textContent = `Reshape · nível ${coluna}`;
+// ---------- janela do Reshape: escolhe a opção que substitui UM perk (coluna ci, opção oi) ----------
+let RS = null;   // {ci, oi, rank}
+function reshapeAtual() {
+  const p = SETED.itens.arma.prof, col = SETED.itens.arma.perks[RS.ci];
+  return reshapeDa(p, RS.ci + 1, RS.oi, opcaoUsada(p, RS.ci, col));
+}
+function abrirReshape(ci, oi) {
+  RS = { ci, oi, rank: 10 };
+  const p = SETED.itens.arma.prof, ri = reshapeAtual();
+  if (ri >= 0) RS.rank = p.trocas[ri].rank || 0;
+  $('rs-titulo').textContent = `Reshape · nível ${ci + 1} · ${SETED.itens.arma.perks[ci][oi].texto}`;
   $('rs-filtro').value = '';
   $('rs-rank').value = String(RS.rank);
   $('rs-limpar').style.display = ri >= 0 ? '' : 'none';
@@ -230,25 +228,27 @@ function abrirReshape(coluna) {
   $('modal-reshape').style.display = 'flex';
   $('rs-filtro').focus();
 }
+// valor curto para o cartão da janela: "+5.00% critical..." -> "5%"; "+1 Magic Level" -> "1"
+const valorCurto = (texto) => { const n = numTexto(texto); return n ? `${+Math.abs(n.v).toFixed(2)}${n.u}` : ''; };
 function desenharReshape() {
   const voc = SETED.voc || '', opcoes = SET_SHAPING[voc] || [], f = $('rs-filtro').value.trim().toLowerCase();
-  const p = SETED.itens.arma.prof, ri = reshapeDa(p, RS.coluna), atual = ri >= 0 ? p.trocas[ri].opcao : '';
+  const p = SETED.itens.arma.prof, ri = reshapeAtual(), atual = ri >= 0 ? p.trocas[ri].opcao : '';
   const item = (o) => { const tx = textoRank(o, RS.rank);
     return `<button class="rs-card ${o.nome === atual ? 'on' : ''}" data-rs="${esc(o.nome)}" title="${esc(o.nome)}: ${esc(tx)}">${icoPerk(o.perk, o.modifier)}<b class="rs-val">${esc(valorCurto(tx))}</b><span class="rs-nome">${esc(o.nome.replace(/^Spell Augment /, ''))}</span></button>`; };
   const grupo = (titulo, lista) => { const l = lista.filter((o) => !f || (o.nome + ' ' + o.rank0).toLowerCase().includes(f)); return l.length ? `<h5>${titulo} <span class="dica">(${l.length})</span></h5><div class="rs-grade">${l.map(item).join('')}</div>` : ''; };
   $('rs-lista').innerHTML = grupo('Todas as vocações', opcoes.filter((o) => !o.voc)) + (voc ? grupo(nomeVoc(voc), opcoes.filter((o) => o.voc === voc)) : '') || '<p class="dica">Nenhuma opção com esse nome.</p>';
 }
 function aplicarReshape(nome) {
-  const p = SETED.itens.arma.prof;
-  let ri = reshapeDa(p, RS.coluna);
-  p.trocas = [p.trocas[0] || {}, p.trocas[1] || {}];
-  if (nome === null) { if (ri >= 0) p.trocas[ri] = {}; }
+  const p = SETED.itens.arma.prof, ri = reshapeAtual();
+  p.trocas = (p.trocas || []).slice();
+  if (nome === null) { if (ri >= 0) p.trocas.splice(ri, 1); }
+  else if (ri >= 0) p.trocas[ri] = { coluna: RS.ci + 1, indice: RS.oi, opcao: nome, rank: RS.rank };
   else {
-    if (ri < 0) ri = !p.trocas[0].opcao ? 0 : (p.maestria && !p.trocas[1].opcao ? 1 : -1);
-    if (ri < 0) { toast('Os reshapes já foram usados (o 2º precisa de Maestria).', true); return; }
-    p.trocas[ri] = { coluna: RS.coluna, opcao: nome, rank: RS.rank };
+    const max = p.nivel >= 1 ? (p.maestria ? 2 : 1) : 0;
+    if (p.trocas.filter((t) => t && t.opcao).length >= max) { toast('Os reshapes já foram usados (o 2º precisa de Maestria).', true); return; }
+    p.trocas.push({ coluna: RS.ci + 1, indice: RS.oi, opcao: nome, rank: RS.rank });
   }
-  p.trocas = p.trocas.filter((t) => t && t.opcao);   // sempre compacto: o que sobra vira a Troca 1 (a 2ª só existe com Maestria)
+  p.trocas = p.trocas.filter((t) => t && t.opcao);   // sempre compacto: o primeiro é o Reshape 1 e o segundo (só com Maestria) é o Reshape 2
   $('modal-reshape').style.display = 'none';
   RS = null;
   desenharEditorSet();
@@ -257,8 +257,8 @@ $('rs-filtro').addEventListener('input', () => RS && desenharReshape());
 $('rs-rank').addEventListener('change', () => {
   if (!RS) return;
   RS.rank = +$('rs-rank').value;
-  const p = SETED.itens.arma.prof, ri = reshapeDa(p, RS.coluna);
-  if (ri >= 0) { p.trocas[ri].rank = RS.rank; desenharEditorSet(); }   // já tem reshape: o rank vale na hora
+  const p = SETED.itens.arma.prof, ri = reshapeAtual();
+  if (ri >= 0) { p.trocas[ri].rank = RS.rank; desenharEditorSet(); }   // já tem reshape neste perk: o rank vale na hora
   desenharReshape();
 });
 $('rs-lista').addEventListener('click', (e) => { const b = e.target.closest('[data-rs]'); if (b && RS) aplicarReshape(b.dataset.rs); });
@@ -364,7 +364,7 @@ $('cfg-sets').addEventListener('click', async (e) => {
     return escolherItemSet(d.setCel);
   }
   if (d.setTrocar) return escolherItemSet(d.setTrocar);
-  if (d.reshape !== undefined) { lerCamposSet(); return abrirReshape(+d.reshape); }
+  if (d.reshape !== undefined) { lerCamposSet(); const [ci, oi] = d.reshape.split(':').map(Number); return abrirReshape(ci, oi); }
   if (d.profPick !== undefined) {
     lerCamposSet();
     const arma = SETED.itens.arma, [ci, oi] = d.profPick.split(':').map(Number);

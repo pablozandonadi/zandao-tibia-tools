@@ -145,7 +145,9 @@ comparativo, a tabela **📊 Combat Stats (set, prey, charms e roda)** mostra ca
 **Proficiência da arma e Perk Shaping:** ao escolher a arma no set, o app busca na TibiaWiki em português os perks dela
 (7 níveis, 1 a 3 opções por nível). Você marca o **nível de proficiência** que tem (começa no 7, sem Maestria), escolhe
 **uma opção por nível** (a primeira é o padrão) e, no **Perk Shaping**, troca perks por outras opções com rank de 0 a 10:
-a **Troca 1** precisa de 1 nível de proficiência e a **Troca 2** precisa de Maestria. Os perks que valem sempre (critical
+embaixo de **cada perk** há o botão **⚒ reshape**, que troca justamente aquele perk (o novo aparece no mesmo lugar, com ícone e
+valor). O 1º reshape precisa de 1 nível de proficiência e o 2º precisa de Maestria. O reshape só entra na soma quando você
+está usando aquele perk. Os perks que valem sempre (critical
 extra damage, critical hit chance, magic level, leech, attack) entram nas linhas normais; os que valem só numa condição
 (ex.: "para Death spells e runes") ficam em **Perks da arma**. Os dados ficam em `cache_proficiencia.json` (30 dias).
 

@@ -53,6 +53,9 @@ class TestNormalizar(unittest.TestCase):
         self.assertEqual(s["perks"], cols)
         self.assertEqual(s["prof"], {"nivel": 5, "maestria": True, "escolhas": [0, 1, 0, 0],            # escolha inválida volta para a 1ª opção
                                      "trocas": [{"coluna": 2, "opcao": "Armor Penetration", "rank": 10}]})   # rank limitado a 10; só as 2 primeiras trocas contam e a vazia no fim some
+        com_indice = dict(arma, prof={"trocas": [{"coluna": 2, "indice": 1, "opcao": "X", "rank": 3}, {"coluna": 3, "indice": 9, "opcao": "Y"}]})
+        trocas = sets.normalizar_set({"titulo": "x", "itens": {"arma": com_indice}})["itens"]["arma"]["prof"]["trocas"]
+        self.assertEqual(trocas, [{"coluna": 2, "indice": 1, "opcao": "X", "rank": 3}, {"coluna": 3, "opcao": "Y", "rank": 0}])   # o índice vai de 0 a 2; inválido some
         buraco = dict(arma, prof={"trocas": [{}, {"coluna": 1, "opcao": "Y", "rank": 3}]})
         self.assertEqual(sets.normalizar_set({"titulo": "x", "itens": {"arma": buraco}})["itens"]["arma"]["prof"]["trocas"],
                          [{}, {"coluna": 1, "opcao": "Y", "rank": 3}])                                            # a Troca 2 continua sendo a 2ª (exige Maestria)

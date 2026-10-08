@@ -315,23 +315,14 @@
   .prof-ico .i { left: 3px; top: 3px; width: 32px; height: 32px; }
   .prof-ico .a { right: -6px; top: -6px; width: 16px; height: 16px; }
   .prof-trocas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
-  /* grade compacta de proficiência (estilo exivabuild): uma coluna por nível, ícone com o valor no canto */
-  .prof-grade { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
-  .prof-colx { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 64px; }
-  .prof-colx.trav { opacity: .4; filter: grayscale(1); }
-  .prof-star { font-size: .72rem; color: #e7b73c; font-weight: 700; }
-  .prof-tile { position: relative; width: 56px; height: 56px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 2px solid var(--ink-dim); background: rgba(255,255,255,.04); cursor: pointer; }
-  .prof-tile.off { opacity: .45; }
-  .prof-tile.sel { border-color: #e7b73c; background: rgba(231,183,60,.12); opacity: 1; }
-  .prof-tile.reshaped { border-color: var(--accent); background: rgba(255,120,60,.14); }
-  .prof-tile:not(:disabled):hover { opacity: 1; }
-  .prof-tile:disabled { cursor: default; }
-  .prof-val { position: absolute; right: 3px; bottom: 1px; font-size: .62rem; color: #f3e3b0; text-shadow: 0 0 3px #000, 0 0 2px #000; }
-  .prof-shape { background: none; border: 0; color: var(--ink-dim); font: inherit; font-size: .68rem; cursor: pointer; padding: 0 2px; }
+  /* cada perk tem o seu botão de reshape embaixo */
+  .prof-op1 { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 100%; }
+  .prof-card.reshaped { border-color: var(--accent); background: rgba(255,120,60,.14); }
+  .prof-card.reshaped.off { opacity: .8; }
+  .prof-shape { background: none; border: 0; color: var(--ink-dim); font: inherit; font-size: .68rem; cursor: pointer; padding: 1px 4px; }
   .prof-shape.on { color: var(--accent); font-weight: 700; }
   .prof-shape:not(:disabled):hover { color: var(--ink); text-decoration: underline; }
-  .prof-shape:disabled { opacity: .45; cursor: default; }
-  .prof-lista { margin: 10px 0 0; padding-left: 18px; font-size: .8rem; display: grid; gap: 2px; }
+  .prof-shape:disabled { opacity: .4; cursor: default; }
   /* janela do Reshape: grade de cartões com imagem */
   #modal-reshape .modal-caixa { max-height: calc(100vh - 32px); max-width: 96vw; }
   .rs-lista { overflow-y: auto; max-height: 62vh; padding-right: 4px; }

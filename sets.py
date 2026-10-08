@@ -90,7 +90,10 @@ def _proficiencia(item, out):
     trocas = []   # posição importa: a 1ª é a Troca 1 e a 2ª é a Troca 2 (exige Maestria); a vazia vira {}
     for t in (prof.get("trocas") if isinstance(prof.get("trocas"), list) else [])[:2]:
         ok = isinstance(t, dict) and _inteiro(t.get("coluna"), 1, 7) and _texto(t.get("opcao"), 80)
-        trocas.append({"coluna": t["coluna"], "opcao": _texto(t["opcao"], 80), "rank": max(0, min(10, _inteiro(t.get("rank"), -999, 999) or 0))} if ok else {})
+        troca = {"coluna": t["coluna"], "opcao": _texto(t["opcao"], 80), "rank": max(0, min(10, _inteiro(t.get("rank"), -999, 999) or 0))} if ok else {}
+        if ok and _inteiro(t.get("indice"), 0, 2) is not None:
+            troca = {"coluna": troca["coluna"], "indice": t["indice"], "opcao": troca["opcao"], "rank": troca["rank"]}   # qual opção da coluna foi trocada
+        trocas.append(troca)
     while trocas and not trocas[-1]:
         trocas.pop()
     out["prof"] = {"nivel": 7 if nivel is None else nivel, "maestria": prof.get("maestria") is True, "escolhas": escolhas, "trocas": trocas}

@@ -101,8 +101,9 @@ def _trocas_validas(prof, opcoes, nivel):
         if not isinstance(t, dict) or nivel < 1 or (i == 1 and not prof.get("maestria")):
             continue                                   # Troca 1: 1 nível de proficiência; Troca 2: Maestria
         coluna, op = t.get("coluna"), por_nome.get(t.get("opcao"))
+        indice = t.get("indice")                      # qual opção da coluna foi trocada; sem índice (formato antigo) = a opção em uso
         if isinstance(coluna, int) and 1 <= coluna <= nivel and op:
-            saida[coluna] = texto_no_rank(op, t.get("rank") or 0)
+            saida[(coluna, indice if isinstance(indice, int) else None)] = texto_no_rank(op, t.get("rank") or 0)
     return saida
 
 
@@ -117,10 +118,12 @@ def efeitos(arma, opcoes=()):
     trocas = _trocas_validas(prof, opcoes, nivel)
     textos = []
     for c in range(1, min(nivel, len(colunas)) + 1):
-        if c in trocas:
-            textos.append(trocas[c])
-        elif colunas[c - 1]:
-            i = escolhas[c - 1] if c - 1 < len(escolhas) and isinstance(escolhas[c - 1], int) and 0 <= escolhas[c - 1] < len(colunas[c - 1]) else 0
+        if not colunas[c - 1]:
+            continue
+        i = escolhas[c - 1] if c - 1 < len(escolhas) and isinstance(escolhas[c - 1], int) and 0 <= escolhas[c - 1] < len(colunas[c - 1]) else 0
+        if (c, i) in trocas or (c, None) in trocas:          # a opção em uso foi trocada pelo reshape
+            textos.append(trocas[(c, i)] if (c, i) in trocas else trocas[(c, None)])
+        else:
             textos.append(colunas[c - 1][i]["texto"])
     soma, sem_numero = {}, []
     for t in textos:
