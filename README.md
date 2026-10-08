@@ -175,10 +175,13 @@ de cada revelação (Avatar of Storm, Gift of Life...), ◆ o nível de cada aug
 Knight; as da sua vocação aparecem primeiro). O efeito entra no Combat Stats, e o Histórico e o comparativo mostram a postura (e avisam
 quando ela muda). Os dados vêm da TibiaWiki (`posturas.py`).
 
-**Classificador de dano:** no Hunt Analyser há a seção **🔎 Classificador de dano**, que abre dentro do app a página da comunidade
-([lucasporfz](https://github.com/lucasporfz/classificador)): você cola o server log e o local chat da mesma hunt e vê quanto cada spell fez. É a página
-dele ao vivo (precisa de internet); o código não é copiado para o app. O Tibia guarda só as últimas linhas desses logs, então copie
-logo depois da hunt.
+**Classificador de dano:** no Hunt Analyser há a seção **🔎 Classificador de dano**, que roda dentro do app a página da comunidade
+([lucasporfz](https://github.com/lucasporfz/classificador)): você cola o server log e o local chat da mesma hunt e vê quanto cada spell fez.
+**A sessão fica salva na hunt** (`sessoes_classificador.json`, nos seus dados): os logs colados e o resultado. Ao abrir a hunt de novo, o resultado
+aparece na hora, sem colar nem classificar outra vez; "Reclassificar com os logs salvos" refaz a análise e "Apagar a sessão" limpa. Como o
+repositório dele não declara licença, o código dele **não** vem no instalador nem neste repositório: na primeira vez o app baixa os arquivos da
+página (`cache_classificador/`, conferidos a cada 7 dias; precisa de internet) e os roda numa caixa isolada, sem acesso aos dados do app
+(`classificador.py`, `web/classificador.js`). O Tibia guarda só as últimas linhas desses logs, então copie logo depois da hunt.
 
 ## Embuimentos
 

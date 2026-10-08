@@ -735,13 +735,19 @@
       <div id="h-res"></div>
 
       <details class="card calmo sanfona" id="h-classificador">
-        <summary><span>🔎 Classificador de dano (server log + local chat)</span><span class="dica" style="margin-left:auto">página da comunidade, aberta aqui dentro</span></summary>
+        <summary><span>🔎 Classificador de dano (server log + local chat)</span><span class="dica" id="cls-resumo" style="margin-left:auto"></span></summary>
         <div class="sanfona-corpo">
-          <p class="dica" style="margin:0 0 8px">Cole o <b>server log</b> e o <b>local chat</b> da mesma hunt e veja quanto cada spell e componente realmente fez (turnos, hits e dano por spell). Feito por
-            <a href="https://github.com/lucasporfz/classificador" target="_blank" rel="noopener noreferrer">lucasporfz</a>; aqui é a página dele ao vivo, dentro do app (precisa de internet).</p>
-          <p class="dica" style="margin:0 0 8px">⚠ O Tibia guarda só as últimas linhas desses logs (as mais antigas vão sendo apagadas): copie logo depois da hunt, antes de perder o começo.</p>
+          <p class="dica" style="margin:0 0 8px">Cole o <b>server log</b> e o <b>local chat</b> da mesma hunt e veja quanto cada spell e componente realmente fez. A sessão (os logs e o resultado) fica
+            <b>salva nesta hunt</b>: da próxima vez o resultado aparece na hora, sem colar e classificar de novo. Feito por
+            <a href="https://github.com/lucasporfz/classificador" target="_blank" rel="noopener noreferrer">lucasporfz</a>; o app baixa a página dele no seu PC na primeira vez (precisa de internet) e a roda aqui dentro.</p>
+          <p class="dica" style="margin:0 0 8px">⚠ O Tibia guarda só as últimas linhas desses logs (as mais antigas vão sendo apagadas): cole logo depois da hunt, antes de perder o começo.</p>
+          <div class="acoes" style="margin-bottom:8px">
+            <button class="btn btn-sm btn-primary" id="cls-abrir" title="Abre o classificador para colar o server log e o local chat">▶ Abrir o classificador</button>
+            <button class="btn btn-sm" id="cls-ver" style="display:none">📊 Ver resultado salvo</button>
+            <button class="btn btn-sm" id="cls-reclassificar" style="display:none" title="Abre o classificador com os logs salvos e classifica de novo">↻ Reclassificar com os logs salvos</button>
+            <button class="btn btn-sm btn-danger" id="cls-apagar" style="display:none">🗑 Apagar a sessão</button>
+          </div>
           <div id="h-class-quadro"></div>
-          <div class="acoes" style="margin-top:8px"><a class="btn btn-sm" href="https://lucasporfz.github.io/classificador/" target="_blank" rel="noopener noreferrer">Abrir no navegador</a></div>
         </div>
       </details>
     </section>
@@ -1678,6 +1684,7 @@ $('h-salvar').addEventListener('click', async () => {
   if (!r.ok) { toast(r.erro, true); atualizarSalvar(); return; }
   const nova = !H.id;
   H.id = r.id;
+  if (typeof clsAposSalvarHunt === 'function') clsAposSalvarHunt();   // guarda a sessão do classificador que foi colada antes de a hunt existir
   H.entrada.nome = r.nome; $('h-nome').value = r.nome;
   H.salvoRetrato = retrato();
   atualizarSalvar();
@@ -1792,6 +1799,7 @@ $('h-nova').addEventListener('click', async () => {
   H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem), charms: await charmsInicial(personagem), duracao: '', roda: await rodaInicial(personagem), set: await setInicial(personagem), postura: await posturaInicial(personagem) };
   marcarHerdado();
   H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null;
+  if (typeof clsMudouDeHunt === 'function') clsMudouDeHunt();
   preencherHunt();
   analisarHunt();
 });
@@ -1845,6 +1853,7 @@ async function analisarHunt() {
   if (r.id !== H.id) H.aba = null;
   if (outraHunt) { H.pagos = []; H.salvoRetrato = null; H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
   H.id = r.id; H.assinatura = r.assinatura; H.a = a; H.texto = r.texto;
+  if (mudouHunt && typeof clsMudouDeHunt === 'function') clsMudouDeHunt();
   if (mudouHunt) { H.dano = null; if (H.equip) H.equip.cache = {}; }
   if (!(H.entrada.nome || '').trim()) { H.entrada.nome = r.nome; $('h-nome').value = r.nome; }
   montarDespesas();
@@ -2131,7 +2140,7 @@ async function carregarHistorico() {
   $('hi-lista').querySelectorAll('[data-apagar]').forEach((b) => b.addEventListener('click', async () => {
     if (!confirm('Apagar essa hunt do histórico? Não dá para desfazer (a não ser que você tenha exportado antes).')) return;
     await api.hunt_apagar(b.dataset.apagar);
-    if (H.id === b.dataset.apagar) H.id = null;
+    if (H.id === b.dataset.apagar) { H.id = null; if (typeof clsMudouDeHunt === 'function') clsMudouDeHunt(); }
     compSel = compSel.filter((x) => x !== b.dataset.apagar);
     carregarHistorico();
   }));
@@ -2155,6 +2164,7 @@ async function abrirHunt(id) {
     H.herdado = { prey: false, charms: false };   // hunt salva: nada é herança
     H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || [];
     H.salvoRetrato = retrato();
+    if (typeof clsMudouDeHunt === 'function') clsMudouDeHunt();
     preencherHunt();
     irPara('hunt');
     analisarHunt();
@@ -2937,5 +2947,6 @@ else window.addEventListener('pywebviewready', iniciar);
 </script>
 <script src="roda.js"></script>
 <script src="sets.js"></script>
+<script src="classificador.js"></script>
 </body>
 </html>

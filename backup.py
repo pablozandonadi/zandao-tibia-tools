@@ -35,6 +35,7 @@ ITENS = {
     "precos": "Histórico de preços dos embuimentos",
     "rodas": "Minhas rodas (Wheel of Destiny)",
     "sets": "Meus sets de equipamento",
+    "classificador": "Sessões do classificador de dano (logs e resultados por hunt)",
 }
 
 

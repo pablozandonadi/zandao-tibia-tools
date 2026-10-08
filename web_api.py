@@ -18,6 +18,7 @@ import damage_core
 import embuimentos as emb
 import equipamentos
 import historico
+import classificador
 import hunt
 import itens_set
 import monstros
@@ -793,7 +794,47 @@ class API:
         return preys_charms.tabelas()
 
     def hunt_apagar(self, id_):
-        return historico.apagar(id_)
+        apagada = historico.apagar(id_)
+        if apagada:
+            try:
+                classificador.apagar_sessao(id_)      # a sessão do classificador morre junto com a hunt
+            except OSError:
+                pass
+        return apagada
+
+    # ----- classificador de dano (página da comunidade baixada no PC; a sessão fica salva na hunt) -----
+    def classificador_pagina(self):
+        """A página do classificador numa string só (css e js embutidos). Baixa os arquivos na primeira vez."""
+        r = classificador.arquivos()
+        return {"ok": True, "html": classificador.montar_pagina(r["arquivos"])} if r["ok"] else r
+
+    def classificador_sessao(self, id_hunt):
+        """Os logs salvos da hunt (sem o resultado, que é grande): {local, server, t, linhas_local, linhas_server, tem_resultado} ou None."""
+        s = classificador.obter_sessao(id_hunt)
+        if not s:
+            return None
+        s["tem_resultado"] = bool(s.pop("html"))
+        return s
+
+    def classificador_resultado(self, id_hunt):
+        """Página só com o último resultado salvo da hunt, para ver na hora sem reclassificar."""
+        s = classificador.obter_sessao(id_hunt)
+        if not s or not s["html"]:
+            return {"ok": False}
+        r = classificador.arquivos()
+        return {"ok": True, "html": classificador.pagina_resultado(r["arquivos"], s["html"])} if r["ok"] else r
+
+    def classificador_salvar(self, id_hunt, local, server, html=None):
+        try:
+            return classificador.salvar_sessao(id_hunt, local, server, html)
+        except OSError:
+            return False
+
+    def classificador_apagar(self, id_hunt):
+        try:
+            return classificador.apagar_sessao(id_hunt)
+        except OSError:
+            return False
 
     def hunt_exportar(self, personagem=""):
         pacote = historico.exportar(personagem=personagem or None)
@@ -984,7 +1025,7 @@ class API:
     def _caminhos_backup(self):
         return {"historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
                 "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO,
-                "precos": precos.PRECOS_PATH, "rodas": roda.RODAS_PATH, "sets": sets.SETS_PATH}
+                "precos": precos.PRECOS_PATH, "rodas": roda.RODAS_PATH, "sets": sets.SETS_PATH, "classificador": classificador.SESSOES_PATH}
 
     def config_exportar(self):
         pacote = backup.exportar(self._caminhos_backup(), VERSAO_APP)

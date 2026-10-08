@@ -431,19 +431,6 @@ $('cfg-sets').addEventListener('change', async (e) => {
   desenharEditorSet();
 });
 
-// ---------- classificador de dano (página da comunidade, embutida: carrega só na primeira vez que a seção é aberta) ----------
-$('h-classificador').addEventListener('toggle', () => {
-  const quadro = $('h-class-quadro');
-  if (!$('h-classificador').open || quadro.firstChild) return;
-  const f = document.createElement('iframe');
-  f.className = 'class-frame';
-  f.src = 'https://lucasporfz.github.io/classificador/';
-  f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-downloads allow-popups');   // roda na origem dele, sem acesso ao app
-  f.setAttribute('referrerpolicy', 'no-referrer');
-  f.title = 'Classificador de dano';
-  quadro.appendChild(f);
-});
-
 // ---------- skills do personagem (base, sem itens): com elas o Combat Stats calcula Attack Value, Defence Value e auto-attack ----------
 const SKILL_ROTULO = [['sword fighting', 'Sword'], ['axe fighting', 'Axe'], ['club fighting', 'Club'], ['fist fighting', 'Fist'],
   ['distance fighting', 'Distance'], ['shielding', 'Shielding'], ['magic level', 'Magic Level']];
