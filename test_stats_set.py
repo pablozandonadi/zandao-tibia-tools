@@ -60,6 +60,42 @@ class TestSomar(unittest.TestCase):
         self.assertEqual(s["leech"], {})                                      # só os Powerful contam (o app só oferece esses)
 
 
+class TestProficiencia(unittest.TestCase):
+    COLS = [[{"tipo": "Type_Critical_Dmg", "texto": "+5.00% critical extra damage"}],
+            [{"tipo": "Type_Skill_Magic", "texto": "+1 Magic Level"}, {"tipo": "X", "texto": "+7.50% critical extra damage para Death spells e runes"}],
+            [{"tipo": "Type_Critical_Chance", "texto": "+1.00% critical hit chance"}],
+            [{"tipo": "Type_Life", "texto": "+2% life leech"}],
+            [{"tipo": "Type_Attack", "texto": "+3 attack"}]]
+
+    def _set(self, prof=None):
+        arma = {"nome": "Soultainter", "perks": self.COLS, "attrib": "magic level +4"}
+        if prof is not None:
+            arma["prof"] = prof
+        return sets.normalizar_set({"titulo": "x", "itens": {"arma": arma, "anel": {"nome": "R", "attrib": "magic level +1"}}})
+
+    def test_perks_globais_somam_nas_linhas_normais(self):
+        s = ss.somar(self._set())
+        self.assertEqual(s["crit"], {"dano": 5, "chance": 1})
+        self.assertEqual(s["leech"], {"life": 2})
+        self.assertEqual(s["attack"], 3)
+        self.assertEqual(s["skills"], {"magic level": 6})                    # 4 do item + 1 do anel + 1 do perk da coluna 2 (1ª opção)
+
+    def test_perks_condicionais_ficam_a_parte(self):
+        s = ss.somar(self._set({"nivel": 7, "escolhas": [0, 1]}))
+        self.assertEqual(s["perks"], {"critical extra damage para Death spells e runes": {"valor": 7.5, "unidade": "%"}})
+        self.assertEqual(s["skills"], {"magic level": 5})                    # escolheu a opção 2 da coluna 2: sem o +1 Magic Level
+        linhas = {l["chave"]: l for l in ss.linhas(s)}
+        l = linhas["perk:critical extra damage para Death spells e runes"]
+        self.assertEqual((l["grupo"], l["rotulo"], l["texto"]), ("Perks da arma", "Critical extra damage para Death spells e runes", "+7.5%"))
+
+    def test_nivel_e_trocas_mudam_a_soma(self):
+        self.assertEqual(ss.somar(self._set({"nivel": 1}))["crit"], {"dano": 5})
+        op = {"nome": "Armor Penetration", "perk": "", "voc": "", "descricao": "", "rank0": "+4% de penetração de armadura", "rank10": "+10% de penetração de armadura"}
+        s = ss.somar(self._set({"nivel": 3, "trocas": [{"coluna": 3, "opcao": "Armor Penetration", "rank": 10}]}), opcoes=[op])
+        self.assertEqual(s["perks"], {"penetração de armadura": {"valor": 10, "unidade": "%"}})
+        self.assertNotIn("chance", s["crit"])                                # a coluna 3 foi trocada
+
+
 class TestLinhas(unittest.TestCase):
     def test_linhas_para_a_tela(self):
         linhas = {l["chave"]: l for l in ss.linhas(ss.somar(SET))}
@@ -74,7 +110,7 @@ class TestLinhas(unittest.TestCase):
         self.assertEqual(linhas["extra:faster regeneration"]["texto"], "Faster Regeneration")
         self.assertNotIn("resist:holy", linhas)                              # zerado não aparece
         grupos = [l["grupo"] for l in ss.linhas(ss.somar(SET))]
-        self.assertEqual(grupos, sorted(grupos, key=["Defesa", "Ataque", "Skills", "Outros"].index))   # agrupadas na ordem da tela
+        self.assertEqual(grupos, sorted(grupos, key=["Defesa", "Ataque", "Skills", "Perks da arma", "Outros"].index))   # agrupadas na ordem da tela
 
 
 if __name__ == "__main__":

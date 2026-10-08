@@ -23,6 +23,7 @@ import itens_set
 import monstros
 import organizer
 import personagens
+import proficiencia
 import precos
 import preys_charms
 import roda
@@ -683,6 +684,16 @@ class API:
             imbs = []
         return {"slots": [list(s) for s in itens_set.SLOTS],
                 "embuimentos": [{"nome": i["name"], "sub": i.get("subtitle") or ""} for i in imbs]}
+
+    def set_perks(self, nome):
+        """Colunas de perks de proficiência da arma (TibiaWiki em português; a 1ª vez baixa tudo e leva ~10 s)."""
+        armas = proficiencia.carregar().get("armas", {})
+        achado = next((v for k, v in armas.items() if k.lower() == (nome or "").lower()), [])
+        return {"colunas": achado}
+
+    def set_shaping(self, voc=""):
+        """Opções do Perk Shaping: as de todas as vocações e as da vocação pedida (todas, se voc vazio)."""
+        return [o for o in proficiencia.carregar().get("opcoes", []) if not voc or o.get("voc") in ("", voc)]
 
     def set_stats(self, valor):
         """Combat Stats (soma dos itens e embuimentos) do set pedido: lista de linhas para a tela."""

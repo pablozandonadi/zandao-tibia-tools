@@ -453,7 +453,7 @@ def _stats_do_set(hunts):
     return saida
 
 
-_GRUPOS_STATS = ["Defesa", "Ataque", "Skills", "Outros"]
+_GRUPOS_STATS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Outros"]
 
 
 def _aviso_roda(hunts, cab):

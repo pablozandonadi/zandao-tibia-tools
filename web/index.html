@@ -292,9 +292,18 @@
   .set-cel:hover img.set-sil { opacity: .3; }
   .set-cel-ini { font-size: .7rem; font-weight: 700; color: #3a4150; }
   .set-editor-corpo { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; margin: 14px 0; }
-  .set-painel { flex: 1; min-width: 240px; max-width: 420px; display: flex; flex-direction: column; gap: 6px; }
+  .set-painel { flex: 1; min-width: 260px; max-width: 760px; display: flex; flex-direction: column; gap: 6px; }
   .set-painel select { width: 100%; }
   .set-hunt-foto { margin-top: 10px; }
+  .prof-box { margin-top: 12px; border-top: 1px solid rgba(255,255,255,.12); padding-top: 8px; }
+  .prof-box h5 { margin: 8px 0 4px; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-dim); }
+  .prof-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin-top: 8px; }
+  .prof-col { border: 2px solid var(--ink-dim); border-radius: 8px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; font-size: .8rem; }
+  .prof-col.trav, .prof-troca.trav { opacity: .45; }
+  .prof-op { display: flex; gap: 6px; align-items: flex-start; cursor: pointer; }
+  .prof-troca { margin-top: 6px; }
+  .prof-troca .roda-linha select { width: auto; flex: 1 1 150px; }
+  .prof-troca .roda-linha select { min-width: 120px; }
   .stats-set { margin-top: 14px; border: 2px solid var(--ink-dim); border-radius: 10px; padding: 10px 12px; background: var(--surface-2); }
   .stats-set h4 { margin: 0 0 8px; font-family: var(--font-display); }
   .stats-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; }

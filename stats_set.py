@@ -6,6 +6,8 @@ Quem usa: web_api (set_stats), historico.comparar (tabela "Stats do set"), web/s
 
 import re
 
+import proficiencia
+
 # efeitos dos embuimentos (só os Powerful, os 24 que o app oferece): nome -> [(tipo, chave, valor)]
 #   conv = % do dano físico convertido em elemento; leech = % do dano devolvido; crit = chance / dano extra (%);
 #   resist = % de proteção; skill = pontos de skill (speed em pontos); capacidade e paralisia em %
@@ -28,12 +30,15 @@ IMBUEMENTS = {
 _ELEMENTO = {"physical": "Physical", "fire": "Fire", "earth": "Earth", "energy": "Energy", "ice": "Ice", "holy": "Holy", "death": "Death",
              "lifedrain": "Life Drain", "manadrain": "Mana Drain", "drown": "Drown"}
 _ATRIBUTO = re.compile(r"^(?P<nome>[a-z][a-z ]*?)\s*(?P<valor>[+-]?\d+)(?P<pct>%?)$")
-_GRUPOS = ["Defesa", "Ataque", "Skills", "Outros"]
+_GRUPOS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Outros"]
+# perk da arma que vira uma linha normal (o resto fica em "Perks da arma", somado por rótulo): (rótulo em minúsculas, unidade) -> (campo, chave)
+_PERK_GLOBAL = {("critical extra damage", "%"): ("crit", "dano"), ("critical hit chance", "%"): ("crit", "chance"),
+                ("life leech", "%"): ("leech", "life"), ("mana leech", "%"): ("leech", "mana"), ("attack", ""): ("attack", None), ("defence", ""): ("defense", None)}
 
 
 def _vazio():
     return {"armor": 0, "defense": 0, "attack": 0, "atk_elem": {}, "resist": {}, "skills": {}, "leech": {}, "crit": {},
-            "conversao": {}, "capacidade": 0, "paralisia": 0, "extras": []}
+            "conversao": {}, "capacidade": 0, "paralisia": 0, "perks": {}, "extras": []}
 
 
 def _soma(d, chave, v):
@@ -70,10 +75,34 @@ def _atributo(s, texto):
         _extra(s, texto)
 
 
-def somar(valor):
-    """Soma o set ({"itens": {slot: item}}) e devolve o dicionário de stats (todos zerados se o set for vazio)."""
+def _perk(s, e):
+    """Um efeito de perk da arma ({"rotulo", "valor", "unidade"}): linha normal se for global, senão fica em s["perks"]."""
+    rotulo, valor, unidade = e["rotulo"], e["valor"], e["unidade"]
+    destino = _PERK_GLOBAL.get((rotulo.lower(), unidade))
+    if destino and destino[1]:
+        _soma(s[destino[0]], destino[1], valor)
+    elif destino:
+        s[destino[0]] += valor
+    elif not unidade and rotulo.lower().endswith(("level", "fighting", "shielding")):
+        _soma(s["skills"], rotulo.lower(), valor)
+    else:
+        atual = s["perks"].setdefault(rotulo, {"valor": 0, "unidade": unidade})
+        atual["valor"] = round(atual["valor"] + valor, 4)
+
+
+def somar(valor, opcoes=None):
+    """Soma o set ({"itens": {slot: item}}) e devolve o dicionário de stats (todos zerados se o set for vazio).
+    opcoes: lista do Perk Shaping (só é lida do cache de proficiência se alguma arma tiver troca)."""
     s = _vazio()
     for item in ((valor or {}).get("itens") or {}).values():
+        if item.get("perks"):
+            if opcoes is None and (item.get("prof") or {}).get("trocas"):
+                opcoes = proficiencia.carregar().get("opcoes", [])
+            ef = proficiencia.efeitos(item, opcoes or ())
+            for e in ef["lista"]:
+                _perk(s, e)
+            for t in ef["textos"]:
+                _extra(s, t)
         s["armor"] += item.get("armor") or 0
         s["defense"] += item.get("defense") or 0
         s["attack"] += item.get("attack") or 0
@@ -105,6 +134,11 @@ def _sinal(v):
     return f"{v:+d}"
 
 
+def _sinal_num(v):
+    """+7.5, -20, +1 (inteiro sem casas)."""
+    return f"{v:+g}"
+
+
 def linhas(s):
     """O que aparece na tela: [{chave, grupo, rotulo, valor, texto}], só o que não é zero, agrupado (Defesa, Ataque, Skills, Outros)."""
     def lin(chave, grupo, rotulo, valor, texto):
@@ -133,6 +167,9 @@ def linhas(s):
     for nome, v in sorted(s["skills"].items(), key=lambda x: (-x[1], x[0])):
         if v:
             saida.append(lin(f"skill:{nome}", "Skills", _titulo(nome), v, _sinal(v)))
+    for rotulo, e in s["perks"].items():
+        if e["valor"]:
+            saida.append(lin(f"perk:{rotulo}", "Perks da arma", rotulo[:1].upper() + rotulo[1:], e["valor"], f"{_sinal_num(e['valor'])}{e['unidade']}"))
     if s["capacidade"]:
         saida.append(lin("capacidade", "Outros", "Capacity", s["capacidade"], f"+{s['capacidade']}%"))
     for texto in s["extras"]:

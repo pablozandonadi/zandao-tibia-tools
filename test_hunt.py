@@ -641,6 +641,19 @@ class TestApiPrey(unittest.TestCase):
         self.assertEqual(self.api.set_stats(None), [])
         self.assertEqual(self.api.set_stats("lixo"), [])
 
+    def test_perks_e_shaping_pela_api(self):
+        from unittest import mock
+        import proficiencia
+        dados = {"armas": {"Soultainter": [[{"tipo": "T", "texto": "+5% critical extra damage"}]]},
+                 "opcoes": [{"nome": "A", "voc": "", "descricao": "", "rank0": "+1% x", "rank10": "+2% x", "perk": ""},
+                            {"nome": "B", "voc": "sorcerer", "descricao": "", "rank0": "+1% y", "rank10": "+2% y", "perk": ""},
+                            {"nome": "C", "voc": "knight", "descricao": "", "rank0": "+1% z", "rank10": "+2% z", "perk": ""}]}
+        with mock.patch.object(proficiencia, "carregar", return_value=dados):
+            self.assertEqual(self.api.set_perks("soultainter")["colunas"][0][0]["texto"], "+5% critical extra damage")   # sem diferenciar maiúsculas
+            self.assertEqual(self.api.set_perks("Espada Qualquer")["colunas"], [])                              # arma sem proficiência
+            self.assertEqual([o["nome"] for o in self.api.set_shaping("sorcerer")], ["A", "B"])                  # as de todas as vocações + as do sorcerer
+            self.assertEqual([o["nome"] for o in self.api.set_shaping("")], ["A", "B", "C"])
+
     def test_cadastro_de_sets_pela_api(self):
         from unittest import mock
         import sets

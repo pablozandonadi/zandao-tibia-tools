@@ -61,7 +61,7 @@ function htmlStatsSet(linhas) {
     const l = linhas.filter((x) => x.grupo === nome);
     return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin"><span>${esc(x.rotulo)}</span><b>${esc(x.texto)}</b></div>`).join('')}</div>` : '';
   };
-  return `<div class="stats-set"><h4>📊 Combat Stats</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Outros'].map(grupo).join('')}</div>
+  return `<div class="stats-set"><h4>📊 Combat Stats</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Perks da arma', 'Outros'].map(grupo).join('')}</div>
     <p class="dica" style="margin:6px 0 0">Soma dos itens e dos embuimentos Powerful (valores da TibiaWiki).</p></div>`;
 }
 async function preencherStats(alvoId, set) {
@@ -73,8 +73,9 @@ async function preencherStats(alvoId, set) {
 // ---------- a vista de um set (janela "Ver set": a foto e, embaixo, o detalhe por grupo) ----------
 function htmlItemSet(slot, it) {
   const imb = (it.imbues || []).map((e) => `<span class="chip chip-neutro" style="font-size:.64rem">${esc(e)}</span>`).join(' ');
+  const prof = it.prof ? ` <span class="chip chip-neutro" style="font-size:.64rem">Proficiência ${it.prof.nivel}${it.prof.maestria ? ' · Maestria' : ''}${(it.prof.trocas || []).filter((t) => t && t.opcao).length ? ' · ' + it.prof.trocas.filter((t) => t && t.opcao).length + ' troca(s)' : ''}</span>` : '';
   return `<div class="set-item"><span class="set-img">${it.imagem ? `<img src="${esc(it.imagem)}" alt="" onerror="this.style.visibility='hidden'">` : ''}</span><div class="set-item-txt"><small class="dim">${esc(rotuloSlot(slot))}</small><b>${esc(it.nome)}</b>
-    ${it.desc ? `<span class="dica">${esc(it.desc)}</span>` : ''}${imb ? `<div>${imb}</div>` : ''}</div></div>`;
+    ${it.desc ? `<span class="dica">${esc(it.desc)}</span>` : ''}${imb || prof ? `<div>${imb}${prof}</div>` : ''}</div></div>`;
 }
 function htmlSetVista(s) {
   if (!s || !s.itens) return '<p class="dica">Sem set nesta hunt.</p>';
@@ -106,6 +107,61 @@ function desenharSetsConfig() {
 }
 async function montarSetsConfig() { await carregarSets(); desenharSetsConfig(); }
 
+// ---------- proficiência da arma e Perk Shaping (dados da TibiaWiki em português; ver proficiencia.py) ----------
+const SET_SHAPING = {};   // opções do Perk Shaping por vocação ('' = todas), baixadas uma vez
+function numTexto(t) {
+  const m = /^([+-]?[0-9]+(?:[.,][0-9]+)?)(%?)[ ]*(.*)$/.exec((t || '').trim());
+  return m ? { v: parseFloat(m[1].replace(',', '.')), u: m[2], l: m[3] } : null;
+}
+// texto da opção no rank (reta entre o rank 0 e o rank 10 da wiki), igual ao proficiencia.texto_no_rank
+function textoRank(op, rank) {
+  const a = numTexto(op.rank0), b = numTexto(op.rank10);
+  if (!a || !b) return rank ? op.rank10 : op.rank0;
+  const v = a.v + (b.v - a.v) * rank / 10;
+  return `${v < 0 ? '-' : '+'}${(+Math.abs(v).toFixed(2)).toString()}${a.u} ${a.l}`.trim();
+}
+async function carregarPerksArma(anterior) {
+  const it = SETED.itens.arma;
+  if (!it) return;
+  if (anterior && anterior.nome === it.nome && anterior.perks) { it.perks = anterior.perks; it.prof = anterior.prof; return; }   // mesma arma: mantém as escolhas
+  toast('Buscando a proficiência da arma na TibiaWiki (só na primeira vez, ~10 s)...');
+  const r = await api.set_perks(it.nome);
+  if (r.colunas && r.colunas.length) { it.perks = r.colunas; it.prof = { nivel: 7, maestria: false, escolhas: [], trocas: [] }; }
+  else { delete it.perks; delete it.prof; }
+  const voc = SETED.voc || '';
+  if (!SET_SHAPING[voc]) SET_SHAPING[voc] = (await api.set_shaping(voc)) || [];
+}
+
+function htmlProfArma(it) {
+  const p = it.prof, opcoes = SET_SHAPING[SETED.voc || ''] || [];
+  const nivel = p.nivel, trocas = p.trocas || [];
+  const trocadas = new Map(trocas.map((t, i) => [t && t.coluna, i]).filter(([c]) => c));
+  const colHtml = it.perks.map((col, ci) => {
+    const c = ci + 1, livre = c <= nivel && col.length;
+    const sel = Number.isInteger(p.escolhas[ci]) && p.escolhas[ci] < col.length ? p.escolhas[ci] : 0;
+    const t = trocadas.has(c) && nivel >= 1 && (trocadas.get(c) === 0 || p.maestria);
+    return `<div class="prof-col ${livre ? '' : 'trav'}"><b>Nível ${c}</b>${t ? '<span class="dica">trocado pelo Perk Shaping</span>' : ''}
+      ${col.map((o, oi) => `<label class="prof-op"><input type="radio" name="prof-c${c}" data-prof-col="${ci}" value="${oi}" ${oi === sel ? 'checked' : ''} ${livre && !t ? '' : 'disabled'}> ${esc(o.texto)}</label>`).join('') || '<span class="dica">—</span>'}</div>`;
+  }).join('');
+  const trocaHtml = [0, 1].map((i) => {
+    const t = trocas[i] || {}, livre = i === 0 ? nivel >= 1 : p.maestria;
+    const op = opcoes.find((o) => o.nome === t.opcao);
+    const colunas = Array.from({ length: nivel }, (_, k) => k + 1);
+    const dis = livre ? '' : 'disabled';
+    return `<div class="prof-troca ${livre ? '' : 'trav'}"><b>Troca ${i + 1}</b> <span class="dica">${i === 0 ? 'precisa de 1 nível de proficiência' : 'precisa de Maestria'}</span>
+      <div class="roda-linha"><select data-troca-col="${i}" ${dis}><option value="">— sem troca —</option>${colunas.map((c) => `<option value="${c}" ${t.coluna === c ? 'selected' : ''}>Nível ${c}</option>`).join('')}</select>
+      <select data-troca-op="${i}" ${dis}><option value="">— perk —</option>${opcoes.map((o) => `<option value="${esc(o.nome)}" ${t.opcao === o.nome ? 'selected' : ''}>${esc(o.nome)}${o.voc ? '' : ' (todas)'}</option>`).join('')}</select>
+      <select data-troca-rank="${i}" ${dis}>${Array.from({ length: 11 }, (_, r) => `<option value="${r}" ${(t.rank || 0) === r ? 'selected' : ''}>Rank ${r}</option>`).join('')}</select></div>
+      ${op && t.coluna ? `<span class="dica">→ ${esc(textoRank(op, t.rank || 0))}</span>` : ''}</div>`;
+  }).join('');
+  return `<div class="prof-box"><h5>Proficiência da arma</h5>
+    <div class="roda-linha"><label>Nível <select data-prof-nivel>${Array.from({ length: 8 }, (_, n) => `<option value="${n}" ${n === nivel ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <label><input type="checkbox" data-prof-maestria ${p.maestria ? 'checked' : ''}> Maestria</label></div>
+    <div class="prof-cols">${colHtml}</div>
+    <h5>Perk Shaping</h5>${trocaHtml}
+    <p class="dica" style="margin:6px 0 0">Cada nível usa um perk (o primeiro é o padrão). O Perk Shaping troca um perk por outra opção, com rank de 0 a 10.</p></div>`;
+}
+
 // o painel ao lado da foto: detalhe do espaço escolhido (embuimentos, trocar, tirar)
 function htmlPainelSet() {
   const k = SETED.sel, it = k && SETED.itens[k];
@@ -116,7 +172,8 @@ function htmlPainelSet() {
   return `<small class="dim">${esc(rotuloSlot(k))}</small>
     <div class="set-item" style="margin:4px 0 8px"><span class="set-img">${it.imagem ? `<img src="${esc(it.imagem)}" alt="">` : ''}</span><div class="set-item-txt"><b>${esc(it.nome)}</b>${it.desc ? `<span class="dica">${esc(it.desc)}</span>` : ''}</div></div>
     ${sel || '<span class="dica">Este item não tem vaga de embuimento.</span>'}
-    <div class="acoes" style="margin-top:8px"><button class="btn btn-sm" data-set-trocar="${k}">⇄ Trocar item</button><button class="btn btn-sm btn-danger" data-set-tirar="${k}">✕ Tirar</button></div>`;
+    <div class="acoes" style="margin-top:8px"><button class="btn btn-sm" data-set-trocar="${k}">⇄ Trocar item</button><button class="btn btn-sm btn-danger" data-set-tirar="${k}">✕ Tirar</button></div>
+    ${k === 'arma' ? (it.perks && it.prof ? htmlProfArma(it) : '<div class="acoes" style="margin-top:8px"><button class="btn btn-sm" data-set-perks>⚙ Carregar a proficiência da arma</button></div>') : ''}`;
 }
 function desenharEditorSet() {
   const s = SETED;
@@ -163,6 +220,7 @@ async function escolherItemSet(slot) {
   SETED.itens[slot] = { nome: it.nome, imagem: it.imagem, desc: it.desc, imbue: it.imbue || 0, imbues: anterior && anterior.nome === it.nome ? anterior.imbues : [],
     armor: it.armor, defense: it.defense, attack: it.attack, attrib: it.attrib, resist: it.resist, atk_elem: it.atk_elem };
   SETED.sel = slot;
+  if (slot === 'arma') await carregarPerksArma(anterior);
   desenharEditorSet();
 }
 async function adicionarConsumivel() {
@@ -175,7 +233,7 @@ async function adicionarConsumivel() {
 }
 $('sets-novo').addEventListener('click', () => { if (SET_TAB) abrirEditorSet(null); });
 $('cfg-sets').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-set-ver],[data-set-editar],[data-set-apagar],[data-set-cel],[data-set-trocar],[data-set-tirar],[data-set-cons-add],[data-set-cons-tirar],#set-salvar,#set-cancelar');
+  const b = e.target.closest('[data-set-ver],[data-set-editar],[data-set-apagar],[data-set-cel],[data-set-trocar],[data-set-tirar],[data-set-cons-add],[data-set-cons-tirar],[data-set-perks],#set-salvar,#set-cancelar');
   if (!b) return;
   const d = b.dataset, achar = (id) => SETS.find((s) => s.id === id);
   if (d.setVer) return abrirVistaSet(achar(d.setVer));
@@ -192,6 +250,7 @@ $('cfg-sets').addEventListener('click', async (e) => {
     return escolherItemSet(d.setCel);
   }
   if (d.setTrocar) return escolherItemSet(d.setTrocar);
+  if (d.setPerks !== undefined) { lerCamposSet(); await carregarPerksArma(null); return desenharEditorSet(); }
   if (d.setTirar) { lerCamposSet(); delete SETED.itens[d.setTirar]; SETED.sel = ''; return desenharEditorSet(); }
   if (d.setConsAdd !== undefined) return adicionarConsumivel();
   if (d.setConsTirar !== undefined) { lerCamposSet(); SETED.consumiveis.splice(+d.setConsTirar, 1); return desenharEditorSet(); }
@@ -205,8 +264,31 @@ $('cfg-sets').addEventListener('click', async (e) => {
     await montarSetsConfig();
   }
 });
-$('cfg-sets').addEventListener('change', (e) => {
-  if (e.target.id === 'set-voc') { SETED.voc = e.target.value; return; }
+$('cfg-sets').addEventListener('change', async (e) => {
+  const d = e.target.dataset, arma = SETED && SETED.itens.arma;
+  const ehProf = ['profNivel', 'profMaestria', 'profCol', 'trocaCol', 'trocaOp', 'trocaRank'].some((k) => d[k] !== undefined);
+  if (arma && arma.prof && ehProf) {
+    lerCamposSet();
+    const p = arma.prof;
+    if (d.profNivel !== undefined) p.nivel = +e.target.value;
+    if (d.profMaestria !== undefined) p.maestria = e.target.checked;
+    if (d.profCol !== undefined) { p.escolhas = Array.from({ length: arma.perks.length }, (_, k) => p.escolhas[k] || 0); p.escolhas[+d.profCol] = +e.target.value; }
+    for (const [campo, chave] of [['trocaCol', 'coluna'], ['trocaOp', 'opcao'], ['trocaRank', 'rank']]) {
+      if (d[campo] === undefined) continue;
+      const i = +d[campo];
+      p.trocas = [p.trocas[0] || {}, p.trocas[1] || {}];
+      p.trocas[i] = { coluna: 0, opcao: '', rank: 0, ...p.trocas[i], [chave]: chave === 'opcao' ? e.target.value : +e.target.value };
+    }
+    p.trocas = p.trocas.map((t) => (t && t.coluna && t.opcao ? t : (t && Object.keys(t).length ? t : {})));
+    while (p.trocas.length && !p.trocas[p.trocas.length - 1].coluna && !p.trocas[p.trocas.length - 1].opcao) p.trocas.pop();
+    return desenharEditorSet();
+  }
+  if (e.target.id === 'set-voc') {
+    SETED.voc = e.target.value;
+    if (!SET_SHAPING[SETED.voc]) SET_SHAPING[SETED.voc] = (await api.set_shaping(SETED.voc)) || [];
+    desenharEditorSet();
+    return;
+  }
   const m = e.target.dataset.setImb;
   if (!m) return;
   lerCamposSet();

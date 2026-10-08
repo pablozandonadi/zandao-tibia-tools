@@ -43,6 +43,25 @@ class TestNormalizar(unittest.TestCase):
         self.assertEqual(set(s["itens"]), {"arma"})                            # slot inexistente, item sem nome, item que não é dict
         self.assertNotIn("imagem", s["itens"]["arma"])                         # só imagem http(s)
 
+    def test_proficiencia_da_arma(self):
+        cols = [[{"tipo": "Type_Critical_Dmg", "texto": "+5.00% critical extra damage"}],
+                [{"tipo": "A", "texto": "+7.50% x"}, {"tipo": "B", "texto": "+1 Magic Level"}]]
+        arma = {"nome": "Soultainter", "imbue": 2, "perks": cols,
+                "prof": {"nivel": 5, "maestria": True, "escolhas": [0, 1, 9, "x"],
+                         "trocas": [{"coluna": 2, "opcao": "Armor Penetration", "rank": 12}, {"coluna": "a"}, {"coluna": 1, "opcao": "Y", "rank": 3}, {"coluna": 3, "opcao": "Z"}]}}
+        s = sets.normalizar_set({"titulo": "x", "itens": {"arma": arma}})["itens"]["arma"]
+        self.assertEqual(s["perks"], cols)
+        self.assertEqual(s["prof"], {"nivel": 5, "maestria": True, "escolhas": [0, 1, 0, 0],            # escolha inválida volta para a 1ª opção
+                                     "trocas": [{"coluna": 2, "opcao": "Armor Penetration", "rank": 10}]})   # rank limitado a 10; só as 2 primeiras trocas contam e a vazia no fim some
+        buraco = dict(arma, prof={"trocas": [{}, {"coluna": 1, "opcao": "Y", "rank": 3}]})
+        self.assertEqual(sets.normalizar_set({"titulo": "x", "itens": {"arma": buraco}})["itens"]["arma"]["prof"]["trocas"],
+                         [{}, {"coluna": 1, "opcao": "Y", "rank": 3}])                                            # a Troca 2 continua sendo a 2ª (exige Maestria)
+        padrao = sets.normalizar_set({"titulo": "x", "itens": {"arma": {"nome": "W", "perks": cols, "prof": {}}}})["itens"]["arma"]["prof"]
+        self.assertEqual(padrao, {"nivel": 7, "maestria": False, "escolhas": [], "trocas": []})          # começa com a 1ª opção de cada coluna, sem Maestria
+        sem = sets.normalizar_set({"titulo": "x", "itens": {"cabeca": {"nome": "H", "perks": cols, "prof": {"nivel": 3}}}})["itens"]["cabeca"]
+        self.assertNotIn("perks", sem)                                                               # só a arma tem proficiência
+        self.assertNotIn("prof", sem)
+
     def test_vocacao_do_set(self):
         self.assertEqual(sets.normalizar_set({"titulo": "x", "itens": {"arma": VARINHA}, "voc": "sorcerer"})["voc"], "sorcerer")
         self.assertNotIn("voc", sets.normalizar_set({"titulo": "x", "itens": {"arma": VARINHA}, "voc": "mago"}))   # inválida some

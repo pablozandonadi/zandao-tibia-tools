@@ -39,7 +39,7 @@ def _inteiro(v, minimo, maximo):
     return v if isinstance(v, int) and not isinstance(v, bool) and minimo <= v <= maximo else None
 
 
-def _normalizar_item(item):
+def _normalizar_item(item, com_prof=False):
     if not isinstance(item, dict):
         return None
     nome = _texto(item.get("nome"), 80)
@@ -69,7 +69,31 @@ def _normalizar_item(item):
             limpo = {_texto(k, 20): v for k, v in d.items() if _texto(k, 20) and _inteiro(v, -999, 999)}
             if limpo:
                 out[chave] = limpo
+    if com_prof:
+        _proficiencia(item, out)
     return out
+
+
+def _proficiencia(item, out):
+    """Arma: as colunas de perks (lidas da wiki, até 7 x 3) e as escolhas do jogador (ver proficiencia.py)."""
+    colunas = []
+    for col in (item.get("perks") if isinstance(item.get("perks"), list) else [])[:7]:
+        opcoes = [{"tipo": _texto(o.get("tipo"), 60), "texto": _texto(o.get("texto"), 200)}
+                  for o in (col if isinstance(col, list) else [])[:3] if isinstance(o, dict) and _texto(o.get("texto"), 200)]
+        colunas.append(opcoes)
+    if not any(colunas):
+        return
+    out["perks"] = colunas
+    prof = item.get("prof") if isinstance(item.get("prof"), dict) else {}
+    nivel = _inteiro(prof.get("nivel"), 0, 7)
+    escolhas = [i if isinstance(i, int) and not isinstance(i, bool) and 0 <= i < 3 else 0 for i in (prof.get("escolhas") if isinstance(prof.get("escolhas"), list) else [])[:7]]
+    trocas = []   # posição importa: a 1ª é a Troca 1 e a 2ª é a Troca 2 (exige Maestria); a vazia vira {}
+    for t in (prof.get("trocas") if isinstance(prof.get("trocas"), list) else [])[:2]:
+        ok = isinstance(t, dict) and _inteiro(t.get("coluna"), 1, 7) and _texto(t.get("opcao"), 80)
+        trocas.append({"coluna": t["coluna"], "opcao": _texto(t["opcao"], 80), "rank": max(0, min(10, _inteiro(t.get("rank"), -999, 999) or 0))} if ok else {})
+    while trocas and not trocas[-1]:
+        trocas.pop()
+    out["prof"] = {"nivel": 7 if nivel is None else nivel, "maestria": prof.get("maestria") is True, "escolhas": escolhas, "trocas": trocas}
 
 
 def normalizar_set(valor):
@@ -81,7 +105,7 @@ def normalizar_set(valor):
     itens = {}
     brutos = valor.get("itens") if isinstance(valor.get("itens"), dict) else {}
     for slot, _ in itens_set.SLOTS:                      # na ordem dos slots; slot desconhecido é descartado
-        item = _normalizar_item(brutos.get(slot))
+        item = _normalizar_item(brutos.get(slot), com_prof=(slot == "arma"))
         if item:
             itens[slot] = item
     consumiveis, nomes = [], set()
