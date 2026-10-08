@@ -315,6 +315,33 @@
   .prof-ico .i { left: 3px; top: 3px; width: 32px; height: 32px; }
   .prof-ico .a { right: -6px; top: -6px; width: 16px; height: 16px; }
   .prof-trocas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+  /* grade compacta de proficiência (estilo exivabuild): uma coluna por nível, ícone com o valor no canto */
+  .prof-grade { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .prof-colx { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 64px; }
+  .prof-colx.trav { opacity: .4; filter: grayscale(1); }
+  .prof-star { font-size: .72rem; color: #e7b73c; font-weight: 700; }
+  .prof-tile { position: relative; width: 56px; height: 56px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 2px solid var(--ink-dim); background: rgba(255,255,255,.04); cursor: pointer; }
+  .prof-tile.off { opacity: .45; }
+  .prof-tile.sel { border-color: #e7b73c; background: rgba(231,183,60,.12); opacity: 1; }
+  .prof-tile.reshaped { border-color: var(--accent); background: rgba(255,120,60,.14); }
+  .prof-tile:not(:disabled):hover { opacity: 1; }
+  .prof-tile:disabled { cursor: default; }
+  .prof-val { position: absolute; right: 3px; bottom: 1px; font-size: .62rem; color: #f3e3b0; text-shadow: 0 0 3px #000, 0 0 2px #000; }
+  .prof-shape { background: none; border: 0; color: var(--ink-dim); font: inherit; font-size: .68rem; cursor: pointer; padding: 0 2px; }
+  .prof-shape.on { color: var(--accent); font-weight: 700; }
+  .prof-shape:not(:disabled):hover { color: var(--ink); text-decoration: underline; }
+  .prof-shape:disabled { opacity: .45; cursor: default; }
+  .prof-lista { margin: 10px 0 0; padding-left: 18px; font-size: .8rem; display: grid; gap: 2px; }
+  /* janela do Reshape: grade de cartões com imagem */
+  #modal-reshape .modal-caixa { max-height: calc(100vh - 32px); max-width: 96vw; }
+  .rs-lista { overflow-y: auto; max-height: 62vh; padding-right: 4px; }
+  .rs-lista h5 { margin: 10px 0 6px; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-dim); }
+  .rs-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .rs-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border-radius: 10px; border: 2px solid var(--ink-dim); background: rgba(255,255,255,.03); color: inherit; font: inherit; cursor: pointer; text-align: center; }
+  .rs-card:hover { border-color: #e7b73c; background: rgba(231,183,60,.08); }
+  .rs-card.on { border-color: var(--accent); background: rgba(255,120,60,.14); }
+  .rs-val { font-size: .8rem; color: #e7b73c; }
+  .rs-nome { font-size: .66rem; line-height: 1.2; color: var(--ink-dim); }
   .prof-troca { margin-top: 2px; }
   .set-item-txt .dica { line-height: 1.35; }
   .set-item-txt > div { margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px; }
@@ -903,6 +930,15 @@
   <div class="modal-caixa" style="max-width:760px;width:94vw">
     <div class="h-titulo"><h3 id="set-vista-titulo"></h3><button class="btn btn-sm" id="set-vista-fechar">Fechar</button></div>
     <div id="set-vista-corpo"></div>
+  </div>
+</div>
+<div class="modal-fundo" id="modal-reshape" style="display:none;">
+  <div class="modal-caixa" style="width:820px">
+    <div class="h-titulo"><h3 id="rs-titulo">Reshape</h3><button class="btn btn-sm" id="rs-fechar">Fechar</button></div>
+    <div class="roda-linha"><input type="text" id="rs-filtro" placeholder="Digite para filtrar (ex.: critical, leech, Death)..." autocomplete="off" style="flex:1">
+      <label>Rank <select id="rs-rank"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select></label></div>
+    <div id="rs-lista" class="rs-lista"></div>
+    <div class="acoes"><button class="btn btn-sm btn-danger" id="rs-limpar">Limpar (volta ao perk padrão)</button><span class="dica">Clique numa opção para trocar o perk escolhido nesse nível.</span></div>
   </div>
 </div>
 <div class="modal-fundo" id="modal-escolha" style="display:none;">
