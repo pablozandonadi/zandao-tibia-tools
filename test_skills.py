@@ -93,6 +93,19 @@ class TestAttackEDefence(unittest.TestCase):
         self.assertEqual([(f["origem"], f["valor"]) for f in l["skillfinal:sword fighting"]["fontes"]], [("Base", 112), ("Equipamento", 4), ("Postura", 29)])
         self.assertEqual(l["defencevalue"]["valor"], 131)                               # 34 x (145 + 10) / 40
 
+    def test_prints_com_a_postura_protector(self):
+        roda = [{"titulo": "Vessels", "linhas": ["Damage and Healing", "+1", "Energy Resistance", "+2%"]}]
+        l = self._l({"sword fighting": 116, "shielding": 109}, postura="Protector", roda=roda)
+        self.assertEqual(l["skillfinal:sword fighting"]["valor"], 120)                 # print: Sword 120
+        self.assertEqual(l["skillfinal:shielding"]["valor"], 141)                      # print: Shielding 141
+        self.assertEqual(l["attackvalue"]["valor"], 291)                               # print: 35 + 49 + 168 + 39
+        self.assertEqual([(f["origem"], f["valor"]) for f in l["attackvalue"]["fontes"]],
+                         [("Bônus fixo", 35), ("Equipamento", 49), ("Skill", 168), ("Tática de combate", 39)])
+        self.assertEqual(l["defencevalue"]["valor"], 110)                              # print: 34 do equipamento + 76 do Sword Fighting
+        self.assertEqual(l["autoextra"]["valor"], 5)                                   # print: 5 from Sword Fighting
+        self.assertIsInstance(l["attackvalue"]["valor"], int)                          # nada de "291.0" na tela
+        self.assertEqual(l["attackvalue"]["texto"], "291")
+
     def test_com_escudo_vale_o_shielding(self):
         com_escudo = sets.normalizar_set({"titulo": "x", "itens": {"arma": {"nome": "Espada", "tipo": "Sword Weapons", "attack": 40, "defense": 10},
                                                                    "mao": {"nome": "Escudo", "defense": 30}}})

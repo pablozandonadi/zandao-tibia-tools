@@ -62,7 +62,7 @@ function htmlStatsSet(linhas, titulo = '📊 Combat Stats', nota = 'Soma dos ite
     const origens = (x) => {   // de onde vem cada parte do valor (como o Tibia: bônus fixo, equipamento, embuimento...); omite o caso trivial "só equipamento"
       const f = x.fontes || [], un = (x.texto || '').endsWith('%') ? '%' : '';
       if (!f.length || (f.length === 1 && f[0].origem === 'Equipamento')) return '';
-      return `<small class="stat-fon">${f.map((p) => `${p.valor > 0 ? '+' : ''}${p.valor}${un} ${esc(p.origem)}`).join(' · ')}</small>`;
+      return `<small class="stat-fon">${f.map((p) => `${p.valor > 0 && !['Base', 'Nível'].includes(p.origem) ? '+' : ''}${p.valor}${un} ${esc(p.origem)}`).join(' · ')}</small>`;
     };
     return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin" ${x.detalhe ? `title="${esc(x.detalhe)}"` : ''}><span>${esc(x.rotulo)}${x.misc ? ' <em class="misc-tag" title="No Tibia fica na aba Misc">misc</em>' : ''}</span>${x.pontos ? `<b class="pt-bol ${x.pontos.tipo}" title="${esc(x.texto)}">${bolinhas(x.pontos)}</b>` : `<b>${esc(x.texto)}</b>`}</div>${origens(x)}${x.detalhe ? `<small class="stat-det">${esc(x.detalhe)}</small>` : ''}`).join('')}</div>` : '';
   };

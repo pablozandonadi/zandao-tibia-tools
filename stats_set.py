@@ -533,6 +533,7 @@ def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None, postura=No
     todas = linhas(s)
     flat_fontes = ([{"origem": "Nível", "valor": nivel // 5}] if nivel else []) + ([{"origem": "Roda", "valor": flat_roda}] if flat_roda else [])
     flat = sum(f["valor"] for f in flat_fontes)
+    flat = int(flat) if float(flat).is_integer() else flat
     if flat_fontes:
         todas.append({"chave": "flat", "grupo": "Ataque", "rotulo": "Flat Damage and Healing", "valor": flat, "texto": _num(flat), "misc": False, "fontes": flat_fontes})
     finais = _skills_finais(s, (skills or {}).get("base"), postura)
