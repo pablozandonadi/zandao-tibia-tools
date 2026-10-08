@@ -78,7 +78,7 @@ def _proficiencia(item, out):
     """Arma: as colunas de perks (lidas da wiki, até 7 x 3) e as escolhas do jogador (ver proficiencia.py)."""
     colunas = []
     for col in (item.get("perks") if isinstance(item.get("perks"), list) else [])[:7]:
-        opcoes = [{"tipo": _texto(o.get("tipo"), 60), "texto": _texto(o.get("texto"), 200)}
+        opcoes = [{"tipo": _texto(o.get("tipo"), 60), **({"aug": _texto(o.get("aug"), 60)} if _texto(o.get("aug"), 60) else {}), "texto": _texto(o.get("texto"), 200)}
                   for o in (col if isinstance(col, list) else [])[:3] if isinstance(o, dict) and _texto(o.get("texto"), 200)]
         colunas.append(opcoes)
     if not any(colunas):

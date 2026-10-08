@@ -42,6 +42,7 @@ class TestLeitura(unittest.TestCase):
         self.assertEqual(cols[1][0], {"tipo": "Type_Element_Critical_Dmg_Death", "texto": "+7.50% critical extra damage para Death spells e runes"})
         self.assertEqual(cols[1][1]["texto"], "+1 Magic Level")
         self.assertEqual(pf.perks_da_wikitext("sem perks"), [])
+        self.assertEqual(cols[2][0], {"tipo": "Spell_Great_Death_Beam", "aug": "Critical_Chance", "texto": "+2% critical hit chance para Great Death Beam"})   # variante = selo do ícone
 
     def test_valor_e_rotulo(self):
         self.assertEqual(pf.valor_e_rotulo("+7.50% critical extra damage para Death spells e runes"), (7.5, "%", "critical extra damage para Death spells e runes"))
@@ -59,7 +60,41 @@ class TestLeitura(unittest.TestCase):
         v = pf.opcao_do_wikitext("Spell Augment Death Echo Life Leech", OPCAO_VOC)
         self.assertEqual(v["voc"], "sorcerer")
         self.assertEqual(pf.texto_no_rank(v, 5), "+6.5% de life leech para Death Echo")
+        self.assertEqual((o["perk"], o["modifier"], v["perk"], v["modifier"]), ("Type_Armor_Penetration", "", "Spell_Death_Echo", "Life_Leech"))
         self.assertIsNone(pf.opcao_do_wikitext("X", "sem infobox"))
+
+
+class TestIcones(unittest.TestCase):
+    def test_nomes_dos_icones_usados(self):
+        armas = {"Soultainter": pf.perks_da_wikitext(SOULTAINTER)}
+        op = pf.opcao_do_wikitext("Spell Augment Death Echo Life Leech", OPCAO_VOC)
+        nomes = pf.nomes_de_icones(armas, [op])
+        self.assertIn("Proficiency_Border", nomes)
+        self.assertIn("Proficiency_Type_Critical_Dmg", nomes)
+        self.assertIn("Proficiency_Spell_Great_Death_Beam", nomes)
+        self.assertIn("Proficiency_Augment_Critical_Chance", nomes)
+        self.assertIn("Proficiency_Spell_Death_Echo", nomes)           # ícone da opção do Perk Shaping
+        self.assertIn("Proficiency_Augment_Life_Leech", nomes)
+
+
+class TestCache(unittest.TestCase):
+    def test_cache_com_icones_e_versao(self):
+        import json, os, tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            arq = os.path.join(tmp, "c.json")
+            chamadas = []
+
+            def buscar():
+                chamadas.append(1)
+                return {"armas": {"W": [[{"tipo": "T", "texto": "+1 x"}]]}, "opcoes": [], "icones": {"Proficiency_Border": "https://x/b.gif"}}
+            self.assertEqual(pf.carregar(arq, buscar)["icones"], {"Proficiency_Border": "https://x/b.gif"})
+            pf.carregar(arq, buscar)
+            self.assertEqual(len(chamadas), 1)                                          # 2ª vez: cache
+            d = json.load(open(arq, encoding="utf-8"))
+            d["v"] = 1                                                                  # versão antiga: baixa de novo
+            json.dump(d, open(arq, "w", encoding="utf-8"))
+            pf.carregar(arq, buscar)
+            self.assertEqual(len(chamadas), 2)
 
 
 class TestEfeitos(unittest.TestCase):

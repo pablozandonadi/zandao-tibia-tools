@@ -162,40 +162,52 @@ async function carregarPerksArma(anterior) {
   if (anterior && anterior.nome === it.nome && anterior.perks) { it.perks = anterior.perks; it.prof = anterior.prof; return; }   // mesma arma: mantém as escolhas
   toast('Buscando a proficiência da arma na TibiaWiki (só na primeira vez, ~10 s)...');
   const r = await api.set_perks(it.nome);
+  SET_ICONES = r.icones || SET_ICONES;
   if (r.colunas && r.colunas.length) { it.perks = r.colunas; it.prof = { nivel: 7, maestria: false, escolhas: [], trocas: [] }; }
   else { delete it.perks; delete it.prof; }
   const voc = SETED.voc || '';
   if (!SET_SHAPING[voc]) SET_SHAPING[voc] = (await api.set_shaping(voc)) || [];
 }
 
+// ícone de um perk como na wiki: moldura, ícone do tipo e o selo pequeno (aug) no canto
+let SET_ICONES = {};
+function icoPerk(tipo, aug) {
+  const u = (n) => SET_ICONES[n] || '';
+  const img = (cls, n) => (u(n) ? `<img class="${cls}" src="${esc(u(n))}" alt="" onerror="this.style.display='none'">` : '');
+  return `<span class="prof-ico">${img('b', 'Proficiency_Border')}${img('i', 'Proficiency_' + tipo)}${aug ? img('a', 'Proficiency_Augment_' + aug) : ''}</span>`;
+}
 function htmlProfArma(it) {
   const p = it.prof, opcoes = SET_SHAPING[SETED.voc || ''] || [];
   const nivel = p.nivel, trocas = p.trocas || [];
-  const trocadas = new Map(trocas.map((t, i) => [t && t.coluna, i]).filter(([c]) => c));
-  const colHtml = it.perks.map((col, ci) => {
-    const c = ci + 1, livre = c <= nivel && col.length;
+  const trocaDa = (c) => trocas.findIndex((t, i) => t && t.coluna === c && t.opcao && nivel >= 1 && (i === 0 || p.maestria));   // índice da troca ativa na coluna (ou -1)
+  const topo = it.perks.map((_, ci) => `<div class="prof-th ${ci + 1 <= nivel ? '' : 'trav'}">${ci + 1}</div>`).join('');
+  const celulas = it.perks.map((col, ci) => {
+    const c = ci + 1, livre = c <= nivel, ti = trocaDa(c);
     const sel = Number.isInteger(p.escolhas[ci]) && p.escolhas[ci] < col.length ? p.escolhas[ci] : 0;
-    const t = trocadas.has(c) && nivel >= 1 && (trocadas.get(c) === 0 || p.maestria);
-    return `<div class="prof-col ${livre ? '' : 'trav'}"><b>Nível ${c}</b>${t ? '<span class="dica">trocado pelo Perk Shaping</span>' : ''}
-      ${col.map((o, oi) => `<label class="prof-op"><input type="radio" name="prof-c${c}" data-prof-col="${ci}" value="${oi}" ${oi === sel ? 'checked' : ''} ${livre && !t ? '' : 'disabled'}> ${esc(o.texto)}</label>`).join('') || '<span class="dica">—</span>'}</div>`;
+    let troca = '';
+    if (ti >= 0) {
+      const t = trocas[ti], op = opcoes.find((o) => o.nome === t.opcao);
+      if (op) troca = `<div class="prof-card sel" title="Perk Shaping (Troca ${ti + 1}, rank ${t.rank || 0})">${icoPerk(op.perk, op.modifier)}<span class="prof-txt">${esc(textoRank(op, t.rank || 0))}</span><small class="dica">Troca ${ti + 1} · rank ${t.rank || 0}</small></div>`;
+    }
+    const cartoes = col.map((o, oi) => `<button class="prof-card ${troca ? 'off' : (oi === sel ? 'sel' : 'off')}" data-prof-pick="${ci}:${oi}" ${livre && !troca ? '' : 'disabled'}
+      title="${livre ? 'Clique para usar este perk' : 'Nível ainda não liberado'}">${icoPerk(o.tipo, o.aug)}<span class="prof-txt">${esc(o.texto)}</span></button>`).join('');
+    return `<div class="prof-cel ${livre ? '' : 'trav'}">${troca}${cartoes || '<span class="dica">—</span>'}</div>`;
   }).join('');
   const trocaHtml = [0, 1].map((i) => {
     const t = trocas[i] || {}, livre = i === 0 ? nivel >= 1 : p.maestria;
-    const op = opcoes.find((o) => o.nome === t.opcao);
-    const colunas = Array.from({ length: nivel }, (_, k) => k + 1);
     const dis = livre ? '' : 'disabled';
+    const colunas = Array.from({ length: nivel }, (_, k) => k + 1);
     return `<div class="prof-troca ${livre ? '' : 'trav'}"><b>Troca ${i + 1}</b> <span class="dica">${i === 0 ? 'precisa de 1 nível de proficiência' : 'precisa de Maestria'}</span>
       <div class="roda-linha"><select data-troca-col="${i}" ${dis}><option value="">— sem troca —</option>${colunas.map((c) => `<option value="${c}" ${t.coluna === c ? 'selected' : ''}>Nível ${c}</option>`).join('')}</select>
       <select data-troca-op="${i}" ${dis}><option value="">— perk —</option>${opcoes.map((o) => `<option value="${esc(o.nome)}" ${t.opcao === o.nome ? 'selected' : ''}>${esc(o.nome)}${o.voc ? '' : ' (todas)'}</option>`).join('')}</select>
-      <select data-troca-rank="${i}" ${dis}>${Array.from({ length: 11 }, (_, r) => `<option value="${r}" ${(t.rank || 0) === r ? 'selected' : ''}>Rank ${r}</option>`).join('')}</select></div>
-      ${op && t.coluna ? `<span class="dica">→ ${esc(textoRank(op, t.rank || 0))}</span>` : ''}</div>`;
+      <select data-troca-rank="${i}" ${dis}>${Array.from({ length: 11 }, (_, r) => `<option value="${r}" ${(t.rank || 0) === r ? 'selected' : ''}>Rank ${r}</option>`).join('')}</select></div></div>`;
   }).join('');
-  return `<div class="prof-box"><h5>Proficiência da arma</h5>
-    <div class="roda-linha"><label>Nível <select data-prof-nivel>${Array.from({ length: 8 }, (_, n) => `<option value="${n}" ${n === nivel ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+  return `<div class="prof-box"><h5>Proficiência da arma · ${esc(it.nome)}</h5>
+    <div class="roda-linha"><label>Nível de proficiência <select data-prof-nivel>${Array.from({ length: 8 }, (_, n) => `<option value="${n}" ${n === nivel ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       <label><input type="checkbox" data-prof-maestria ${p.maestria ? 'checked' : ''}> Maestria</label></div>
-    <div class="prof-cols">${colHtml}</div>
-    <h5>Perk Shaping</h5>${trocaHtml}
-    <p class="dica" style="margin:6px 0 0">Cada nível usa um perk (o primeiro é o padrão). O Perk Shaping troca um perk por outra opção, com rank de 0 a 10.</p></div>`;
+    <div class="prof-tab"><div class="prof-lado">Nível</div>${topo}<div class="prof-lado">Perks</div>${celulas}</div>
+    <p class="dica" style="margin:6px 0 8px">Clique no perk que você usa em cada nível (o primeiro é o padrão). Níveis acima do seu ficam apagados.</p>
+    <h5>Perk Shaping</h5><div class="prof-trocas">${trocaHtml}</div></div>`;
 }
 
 // o painel ao lado da foto: detalhe do espaço escolhido (embuimentos, trocar, tirar)
@@ -209,7 +221,7 @@ function htmlPainelSet() {
     <div class="set-item" style="margin:4px 0 8px"><span class="set-img">${it.imagem ? `<img src="${esc(it.imagem)}" alt="">` : ''}</span><div class="set-item-txt"><b>${esc(it.nome)}</b>${it.desc ? `<span class="dica">${esc(it.desc)}</span>` : ''}</div></div>
     ${sel || '<span class="dica">Este item não tem vaga de embuimento.</span>'}
     <div class="acoes" style="margin-top:8px"><button class="btn btn-sm" data-set-trocar="${k}">⇄ Trocar item</button><button class="btn btn-sm btn-danger" data-set-tirar="${k}">✕ Tirar</button></div>
-    ${k === 'arma' ? (it.perks && it.prof ? htmlProfArma(it) : '<div class="acoes" style="margin-top:8px"><button class="btn btn-sm" data-set-perks>⚙ Carregar a proficiência da arma</button></div>') : ''}`;
+    ${k === 'arma' && !(it.perks && it.prof) ? '<div class="acoes" style="margin-top:8px"><button class="btn btn-sm" data-set-perks>⚙ Carregar a proficiência da arma</button></div>' : ''}`;
 }
 function desenharEditorSet() {
   const s = SETED;
@@ -218,6 +230,7 @@ function desenharEditorSet() {
       ${['knight', 'paladin', 'sorcerer', 'druid', 'monk'].map((v) => `<option value="${v}" ${s.voc === v ? 'selected' : ''}>${nomeVoc(v)}</option>`).join('')}</select>
       <span class="dica">${vocEmUso() ? `Personagem em uso: ${esc(MEUS.atual)} (${esc(nomeVoc(vocEmUso()))}). ` : ''}Só aparecem os itens da vocação escolhida.</span></div>
     <div class="set-editor-corpo"><div>${htmlFotoSet(s, { editavel: true, sel: s.sel })}</div><div class="set-painel">${htmlPainelSet()}<div id="set-stats"></div></div></div>
+    ${s.itens.arma && s.itens.arma.perks && s.itens.arma.prof ? htmlProfArma(s.itens.arma) : ''}
     <div class="acoes" style="margin-top:10px"><button class="btn btn-sm btn-primary" id="set-salvar">Salvar set</button><button class="btn btn-sm" id="set-cancelar">Cancelar</button><span class="dica" id="set-msg"></span></div>`;
   preencherStats('set-stats', { titulo: s.titulo, itens: s.itens, consumiveis: s.consumiveis });
 }
@@ -226,6 +239,15 @@ function abrirEditorSet(s) {
   $('sets-editor-box').style.display = '';
   desenharEditorSet();
   $('sets-editor-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const arma = SETED.itens.arma;
+  if (arma && arma.perks && arma.prof) {   // set já salvo com proficiência: carrega os ícones e as opções do Perk Shaping e redesenha
+    const voc = SETED.voc || '';
+    Promise.all([Object.keys(SET_ICONES).length ? null : api.set_icones_prof(), SET_SHAPING[voc] ? null : api.set_shaping(voc)]).then(([ic, sh]) => {
+      if (ic) SET_ICONES = ic;
+      if (sh) SET_SHAPING[voc] = sh;
+      if (SETED) desenharEditorSet();
+    });
+  }
 }
 function lerCamposSet() {   // guarda o que foi digitado antes de redesenhar
   if (!$('set-titulo')) return;
@@ -269,7 +291,7 @@ async function adicionarConsumivel() {
 }
 $('sets-novo').addEventListener('click', () => { if (SET_TAB) abrirEditorSet(null); });
 $('cfg-sets').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-set-ver],[data-set-editar],[data-set-apagar],[data-set-cel],[data-set-trocar],[data-set-tirar],[data-set-cons-add],[data-set-cons-tirar],[data-set-perks],#set-salvar,#set-cancelar');
+  const b = e.target.closest('[data-set-ver],[data-set-editar],[data-set-apagar],[data-set-cel],[data-set-trocar],[data-set-tirar],[data-set-cons-add],[data-set-cons-tirar],[data-set-perks],[data-prof-pick],#set-salvar,#set-cancelar');
   if (!b) return;
   const d = b.dataset, achar = (id) => SETS.find((s) => s.id === id);
   if (d.setVer) return abrirVistaSet(achar(d.setVer));
@@ -286,6 +308,13 @@ $('cfg-sets').addEventListener('click', async (e) => {
     return escolherItemSet(d.setCel);
   }
   if (d.setTrocar) return escolherItemSet(d.setTrocar);
+  if (d.profPick !== undefined) {
+    lerCamposSet();
+    const arma = SETED.itens.arma, [ci, oi] = d.profPick.split(':').map(Number);
+    arma.prof.escolhas = Array.from({ length: arma.perks.length }, (_, k) => arma.prof.escolhas[k] || 0);
+    arma.prof.escolhas[ci] = oi;
+    return desenharEditorSet();
+  }
   if (d.setPerks !== undefined) { lerCamposSet(); await carregarPerksArma(null); return desenharEditorSet(); }
   if (d.setTirar) { lerCamposSet(); delete SETED.itens[d.setTirar]; SETED.sel = ''; return desenharEditorSet(); }
   if (d.setConsAdd !== undefined) return adicionarConsumivel();

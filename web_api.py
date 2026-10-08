@@ -690,7 +690,11 @@ class API:
         """Colunas de perks de proficiência da arma (TibiaWiki em português; a 1ª vez baixa tudo e leva ~10 s)."""
         armas = proficiencia.carregar().get("armas", {})
         achado = next((v for k, v in armas.items() if k.lower() == (nome or "").lower()), [])
-        return {"colunas": achado}
+        return {"colunas": achado, "icones": proficiencia.carregar().get("icones", {})}
+
+    def set_icones_prof(self):
+        """Endereços dos ícones da proficiência (para desenhar a tabela de perks da arma)."""
+        return proficiencia.carregar().get("icones", {})
 
     def set_shaping(self, voc=""):
         """Opções do Perk Shaping: as de todas as vocações e as da vocação pedida (todas, se voc vazio)."""

@@ -26,12 +26,12 @@ else:
 
 CACHE_PATH = os.path.join(BASE_DIR, "cache_proficiencia.json")
 VALIDADE = 30 * 86400
-VERSAO_CACHE = 1
+VERSAO_CACHE = 2   # 2: perks com "aug", opções com "modifier" e os endereços dos ícones
 WIKI = "https://www.tibiawiki.com.br/api.php"
 HEADERS = {"User-Agent": "ZandaoTibiaTools/1.0 (+desktop app)"}
 NIVEIS = 7
 MAX_RANK = 10
-_PERK = re.compile(r"\{\{Weapon Perk\|([^|{}]*)\|[^|{}]*\|(.*?)\}\}", re.S)
+_PERK = re.compile(r"\{\{Weapon Perk\|([^|{}]*)\|([^|{}]*)\|(.*?)\}\}", re.S)
 _NUMERO = re.compile(r"^\s*([+-]?\d+(?:[.,]\d+)?)(%?)\s*(.*)$", re.S)
 _trava = threading.Lock()
 
@@ -44,7 +44,12 @@ def perks_da_wikitext(wikitext):
     campos = monstros._campos_infobox(wikitext, "Infobox_Item") or monstros._campos_infobox(wikitext, "Infobox Item")
     colunas = []
     for k in range(1, NIVEIS + 1):
-        opcoes = [{"tipo": t.strip(), "texto": monstros._sem_links(x).strip()} for t, x in _PERK.findall(campos.get(f"perk{k}", ""))]
+        opcoes = []
+        for tipo, aug, texto in _PERK.findall(campos.get(f"perk{k}", "")):
+            o = {"tipo": tipo.strip(), "texto": monstros._sem_links(texto).strip()}
+            if aug.strip():
+                o = {"tipo": o["tipo"], "aug": aug.strip(), "texto": o["texto"]}      # "aug" = selo pequeno do ícone (ex.: Critical_Chance)
+            opcoes.append(o)
         colunas.append(opcoes)
     while colunas and not colunas[-1]:
         colunas.pop()
@@ -67,7 +72,7 @@ def opcao_do_wikitext(titulo, wikitext):
     f = monstros._campos_infobox(wikitext, "Infobox Perk Option")
     if not f or not f.get("rank0") or not f.get("rank10"):
         return None
-    return {"nome": f.get("name") or titulo, "perk": f.get("perk", ""), "voc": (f.get("voc") or "").strip().lower(),
+    return {"nome": f.get("name") or titulo, "perk": f.get("perk", ""), "modifier": f.get("modifier", ""), "voc": (f.get("voc") or "").strip().lower(),
             "descricao": monstros._sem_links(f.get("description", "")), "rank0": monstros._sem_links(f["rank0"]), "rank10": monstros._sem_links(f["rank10"])}
 
 
@@ -155,6 +160,37 @@ def _paginas(categoria):
                 continue
 
 
+def nomes_de_icones(armas, opcoes):
+    """Nomes (sem .gif) dos ícones da proficiência usados pelas armas e pelas opções do Perk Shaping."""
+    nomes = {"Proficiency_Border"}
+    for colunas in armas.values():
+        for coluna in colunas:
+            for o in coluna:
+                if o.get("tipo"):
+                    nomes.add("Proficiency_" + o["tipo"])
+                if o.get("aug"):
+                    nomes.add("Proficiency_Augment_" + o["aug"])
+    for op in opcoes:
+        if op.get("perk"):
+            nomes.add("Proficiency_" + op["perk"])
+        if op.get("modifier"):
+            nomes.add("Proficiency_Augment_" + op["modifier"])
+    return nomes
+
+
+def _icones(nomes):
+    """nome -> endereço do ícone na wiki (lotes de 50)."""
+    urls = {}
+    nomes = sorted(nomes)
+    for i in range(0, len(nomes), 50):
+        r = _get({"action": "query", "prop": "imageinfo", "iiprop": "url", "titles": "|".join(f"Arquivo:{n}.gif" for n in nomes[i:i + 50])})
+        for p in r["query"]["pages"].values():
+            info = (p.get("imageinfo") or [{}])[0]
+            if info.get("url"):
+                urls[p["title"][len("Arquivo:"):-len(".gif")].replace(" ", "_")] = info["url"]
+    return urls
+
+
 def _baixar():
     armas = {}
     for titulo, texto in _paginas("Arma com Proficiência"):
@@ -162,7 +198,8 @@ def _baixar():
         if colunas:
             armas[titulo] = colunas
     opcoes = [o for t, x in _paginas("Perk Shaping Options") if (o := opcao_do_wikitext(t, x))]
-    return {"armas": armas, "opcoes": sorted(opcoes, key=lambda o: o["nome"])}
+    opcoes = sorted(opcoes, key=lambda o: o["nome"])
+    return {"armas": armas, "opcoes": opcoes, "icones": _icones(nomes_de_icones(armas, opcoes))}
 
 
 def carregar(caminho=None, buscar=None):
@@ -175,7 +212,7 @@ def carregar(caminho=None, buscar=None):
         except (OSError, json.JSONDecodeError):
             cache = {}
         if cache.get("v") == VERSAO_CACHE and cache.get("armas") and time.time() - cache.get("t", 0) < VALIDADE:
-            return {"armas": cache["armas"], "opcoes": cache.get("opcoes", [])}
+            return {"armas": cache["armas"], "opcoes": cache.get("opcoes", []), "icones": cache.get("icones", {})}
         try:
             dados = (buscar or _baixar)()
             if dados.get("armas"):
@@ -187,4 +224,4 @@ def carregar(caminho=None, buscar=None):
                 return dados
         except Exception:
             pass
-        return {"armas": cache.get("armas") or {}, "opcoes": cache.get("opcoes") or []}
+        return {"armas": cache.get("armas") or {}, "opcoes": cache.get("opcoes") or [], "icones": cache.get("icones") or {}}
