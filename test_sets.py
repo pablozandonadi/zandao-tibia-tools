@@ -43,6 +43,13 @@ class TestNormalizar(unittest.TestCase):
         self.assertEqual(set(s["itens"]), {"arma"})                            # slot inexistente, item sem nome, item que não é dict
         self.assertNotIn("imagem", s["itens"]["arma"])                         # só imagem http(s)
 
+    def test_vocacao_do_set(self):
+        self.assertEqual(sets.normalizar_set({"titulo": "x", "itens": {"arma": VARINHA}, "voc": "sorcerer"})["voc"], "sorcerer")
+        self.assertNotIn("voc", sets.normalizar_set({"titulo": "x", "itens": {"arma": VARINHA}, "voc": "mago"}))   # inválida some
+        self.assertNotIn("voc", sets.normalizar_set({"titulo": "x", "itens": {"arma": VARINHA}}))
+        self.assertEqual(sets.diferencas(sets.normalizar_set({"titulo": "a", "itens": {"arma": VARINHA}, "voc": "sorcerer"}),
+                                         sets.normalizar_set({"titulo": "a", "itens": {"arma": VARINHA}, "voc": "druid"})), [])   # vocação não conta como diferença
+
     def test_vazio_nulo_e_rotulo(self):
         self.assertIsNone(sets.normalizar_set(None))                           # None = não informado (hunts antigas)
         self.assertEqual(sets.normalizar_set("lixo"), {})                      # {} = sem set

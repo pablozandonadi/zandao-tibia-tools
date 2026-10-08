@@ -26,7 +26,13 @@ CACHE_PATH = os.path.join(BASE_DIR, "cache_itens_set.json")
 VALIDADE = 30 * 86400
 WIKI = "https://tibia.fandom.com/api.php"
 HEADERS = {"User-Agent": "ZandaoTibiaTools/1.0 (+desktop app)"}
-VOCACOES = equipamentos.VOCACOES
+VOCACOES = [*equipamentos.VOCACOES, "monk"] if "monk" not in equipamentos.VOCACOES else list(equipamentos.VOCACOES)
+
+
+def _vocs(texto):
+    """Vocações citadas no campo vocrequired da wiki ("knights and monks"); vazio / None / without = qualquer uma."""
+    t = (texto or "").lower()
+    return [v for v in VOCACOES if v in t] or list(VOCACOES)
 
 # slot do app -> categorias da wiki que o alimentam
 CATEGORIAS = {
@@ -39,7 +45,11 @@ SLOTS = [("cabeca", "Capacete"), ("amuleto", "Amuleto"), ("armadura", "Armadura"
          ("mao", "Escudo / Spellbook / Quiver"), ("pernas", "Calça"), ("botas", "Botas"), ("anel", "Anel"), ("trinket", "Trinket")]
 # o campo "slot" da página da wiki -> slot do app
 _SLOT_WIKI = {"head": "cabeca", "neck": "amuleto", "body": "armadura", "legs": "pernas", "feet": "botas", "finger": "anel",
-              "weapon hand": "arma", "two-handed": "arma", "shield hand": "mao", "shield": "mao"}
+              "weapon hand": "arma", "two-handed": "arma", "both hands": "arma", "shield hand": "mao", "shield": "mao"}
+# arma sem vocação na wiki: quem usa é decidido pelo tipo dela (primarytype da página)
+_VOC_DA_ARMA = {"sword weapons": ["knight"], "axe weapons": ["knight"], "club weapons": ["knight"], "distance weapons": ["paladin"],
+                "wands": ["sorcerer"], "rods": ["druid"], "fist fighting weapons": ["monk"]}
+VERSAO_CACHE = 2   # 2: itens com "tipo" e vocação da arma pelo tipo; cache de versão menor é baixado de novo
 _NOME_ELEMENTO = {"lifedrain": "Life Drain", "manadrain": "Mana Drain"}
 ELEMENTOS_ATAQUE = ("physical", "fire", "ice", "earth", "energy", "death", "holy")
 
@@ -83,9 +93,13 @@ def item_do_wikitext(titulo, wikitext, slot_padrao):
         if slot_padrao == "arma":
             return None
         slot = slot_padrao
+    tipo = (f.get("primarytype") or "").strip() or None
+    vocs = _vocs(f.get("vocrequired"))
+    if slot == "arma" and (f.get("vocrequired") or "").strip().lower() in ("", "none", "without", "--"):
+        vocs = list(_VOC_DA_ARMA.get((tipo or "").lower(), vocs))
     return {
-        "nome": f.get("name") or titulo, "slot": slot, "level": equipamentos._num(f.get("levelrequired")),
-        "vocs": equipamentos._vocs_do_item(f.get("vocrequired")), "imbue": equipamentos._num(f.get("imbueslots")),
+        "nome": f.get("name") or titulo, "slot": slot, "level": equipamentos._num(f.get("levelrequired")), "tipo": tipo,
+        "vocs": vocs, "imbue": equipamentos._num(f.get("imbueslots")),
         "atk_elem": {el: n for el in ELEMENTOS_ATAQUE if (n := _inteiro(f.get(el + "_attack")))},
         "armor": _inteiro(f.get("armor")), "defense": _inteiro(f.get("defense")), "attack": _inteiro(f.get("attack")),
         "attrib": monstros._sem_links(f.get("attrib") or "") or None, "resist": equipamentos.parse_resist(f.get("resist")),
@@ -197,12 +211,12 @@ def itens_do_slot(slot, caminho=None, buscar=None):
             cache = {}
         slots = cache.get("slots") if isinstance(cache.get("slots"), dict) else {}
         entrada = slots.get(slot) or {}
-        if entrada.get("itens") and time.time() - entrada.get("t", 0) < VALIDADE:
+        if entrada.get("itens") and entrada.get("v") == VERSAO_CACHE and time.time() - entrada.get("t", 0) < VALIDADE:
             return entrada["itens"]
         try:
             itens = _organizar((buscar or _baixar_slot)(slot))
             if itens:
-                slots[slot] = {"t": time.time(), "itens": itens}
+                slots[slot] = {"t": time.time(), "v": VERSAO_CACHE, "itens": itens}
                 try:
                     with open(caminho, "w", encoding="utf-8") as f:
                         json.dump({"v": 1, "slots": slots}, f, ensure_ascii=False)

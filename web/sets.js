@@ -23,6 +23,11 @@ let SET_TAB = null;            // {slots: [[chave, rótulo]], embuimentos: [{nom
 const SET_ITENS = {};          // itens da TibiaWiki por slot (baixados na 1ª vez que o slot é aberto)
 const rotuloSlot = (k) => ((SET_TAB && SET_TAB.slots.find((s) => s[0] === k)) || [k, k])[1];
 
+// vocação (sorcerer, knight...) a partir do texto do tibia.com ("Master Sorcerer", "Elite Knight"...)
+const VOC_DE = (txt) => ['sorcerer', 'druid', 'knight', 'paladin', 'monk'].find((v) => (txt || '').toLowerCase().includes(v)) || '';
+const vocEmUso = () => { const p = acharMeu(MEUS.atual); return p ? VOC_DE(p.vocacao) : ''; };   // do personagem "em uso" (Configurações)
+const nomeVoc = (v) => (v ? v[0].toUpperCase() + v.slice(1) : '');
+
 async function carregarSets() {
   SETS = (await api.set_listar()) || [];
   if (!SET_TAB) SET_TAB = await api.set_tabelas();
@@ -94,7 +99,7 @@ let SETED = null;   // set em edição: {id|null, titulo, itens, consumiveis, vo
 const qtdItens = (s) => Object.keys(s.itens || {}).length;
 function desenharSetsConfig() {
   $('sets-lista').innerHTML = SETS.length ? SETS.map((s) => `<div class="roda-item">
-      <div class="roda-nome"><b>${esc(s.titulo)}</b> <span class="chip chip-neutro">${qtdItens(s)} ite${qtdItens(s) === 1 ? 'm' : 'ns'}</span></div>
+      <div class="roda-nome"><b>${esc(s.titulo)}</b> ${s.voc ? `<span class="chip chip-neutro">${nomeVoc(s.voc)}</span>` : ''} <span class="chip chip-neutro">${qtdItens(s)} ite${qtdItens(s) === 1 ? 'm' : 'ns'}</span></div>
       <div class="acoes"><button class="btn btn-sm" data-set-ver="${esc(s.id)}">👁 Ver</button><button class="btn btn-sm" data-set-editar="${esc(s.id)}">🛠 Editar</button>
         <button class="btn btn-sm btn-danger" data-set-apagar="${esc(s.id)}" title="Apagar">✕</button></div></div>`).join('')
     : '<div class="dica">Nenhum set cadastrado ainda.</div>';
@@ -117,13 +122,14 @@ function desenharEditorSet() {
   const s = SETED;
   $('sets-editor').innerHTML = `<div class="roda-barra"><input type="text" id="set-titulo" placeholder="Nome do set (ex.: Tokyo - Elite Knight)" maxlength="60" value="${esc(s.titulo)}">
       <select id="set-voc" title="Mostra só os itens dessa vocação ao escolher"><option value="">Todas as vocações</option>
-      ${['knight', 'paladin', 'sorcerer', 'druid', 'monk'].map((v) => `<option value="${v}" ${s.voc === v ? 'selected' : ''}>${v[0].toUpperCase() + v.slice(1)}</option>`).join('')}</select></div>
+      ${['knight', 'paladin', 'sorcerer', 'druid', 'monk'].map((v) => `<option value="${v}" ${s.voc === v ? 'selected' : ''}>${nomeVoc(v)}</option>`).join('')}</select>
+      <span class="dica">${vocEmUso() ? `Personagem em uso: ${esc(MEUS.atual)} (${esc(nomeVoc(vocEmUso()))}). ` : ''}Só aparecem os itens da vocação escolhida.</span></div>
     <div class="set-editor-corpo"><div>${htmlFotoSet(s, { editavel: true, sel: s.sel })}</div><div class="set-painel">${htmlPainelSet()}<div id="set-stats"></div></div></div>
     <div class="acoes" style="margin-top:10px"><button class="btn btn-sm btn-primary" id="set-salvar">Salvar set</button><button class="btn btn-sm" id="set-cancelar">Cancelar</button><span class="dica" id="set-msg"></span></div>`;
   preencherStats('set-stats', { titulo: s.titulo, itens: s.itens, consumiveis: s.consumiveis });
 }
 function abrirEditorSet(s) {
-  SETED = { id: s ? s.id : null, titulo: s ? s.titulo : '', itens: s ? JSON.parse(JSON.stringify(s.itens)) : {}, consumiveis: s ? JSON.parse(JSON.stringify(s.consumiveis)) : [], voc: '', sel: '' };
+  SETED = { id: s ? s.id : null, titulo: s ? s.titulo : '', itens: s ? JSON.parse(JSON.stringify(s.itens)) : {}, consumiveis: s ? JSON.parse(JSON.stringify(s.consumiveis)) : [], voc: (s && s.voc) || vocEmUso(), sel: '' };
   $('sets-editor-box').style.display = '';
   desenharEditorSet();
   $('sets-editor-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -192,7 +198,7 @@ $('cfg-sets').addEventListener('click', async (e) => {
   if (b.id === 'set-cancelar') { SETED = null; $('sets-editor').innerHTML = ''; $('sets-editor-box').style.display = 'none'; return; }
   if (b.id === 'set-salvar') {
     lerCamposSet();
-    const r = await api.set_salvar({ id: SETED.id, titulo: SETED.titulo, itens: SETED.itens, consumiveis: SETED.consumiveis });
+    const r = await api.set_salvar({ id: SETED.id, titulo: SETED.titulo, itens: SETED.itens, consumiveis: SETED.consumiveis, voc: SETED.voc });
     if (!r.ok) { $('set-msg').textContent = r.erro; return; }
     toast(`Set "${r.set.titulo}" salvo!`);
     SETED = null; $('sets-editor').innerHTML = ''; $('sets-editor-box').style.display = 'none';
@@ -238,7 +244,7 @@ $('h-res').addEventListener('change', (e) => {
   const v = e.target.value;
   if (v === '__hunt') return;                         // o set guardado na hunt já é o escolhido
   if (v === '__nenhum') H.entrada.set = {};
-  else { const x = SETS.find((s) => s.id === v); if (x) H.entrada.set = { titulo: x.titulo, itens: x.itens, consumiveis: x.consumiveis }; }
+  else { const x = SETS.find((s) => s.id === v); if (x) H.entrada.set = { titulo: x.titulo, itens: x.itens, consumiveis: x.consumiveis, voc: x.voc }; }
   redesenharPerso();
 });
 $('h-res').addEventListener('click', (e) => {

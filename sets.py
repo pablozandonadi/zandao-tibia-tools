@@ -98,7 +98,10 @@ def normalizar_set(valor):
     consumiveis = consumiveis[:MAX_CONSUMIVEIS]
     if not itens and not consumiveis:
         return {}
-    return {"titulo": _texto(valor.get("titulo"), 60) or "Set sem título", "itens": itens, "consumiveis": consumiveis}
+    saida = {"titulo": _texto(valor.get("titulo"), 60) or "Set sem título", "itens": itens, "consumiveis": consumiveis}
+    if valor.get("voc") in itens_set.VOCACOES:   # vocação para a qual o set foi montado (filtra os itens ao editar)
+        saida["voc"] = valor["voc"]
+    return saida
 
 
 def rotulo_set(valor):

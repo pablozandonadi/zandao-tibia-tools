@@ -93,6 +93,7 @@ class TestItemDoWikitext(unittest.TestCase):
         # a categoria "Weapons" mistura coisas; quem decide é o campo slot da própria página
         self.assertEqual(it.item_do_wikitext("X", CAPACETE, "arma")["slot"], "cabeca")
         self.assertEqual(it.item_do_wikitext("Y", CAPACETE.replace("slot = Head", "slot = Two-Handed"), "arma")["slot"], "arma")
+        self.assertEqual(it.item_do_wikitext("Z", CAPACETE.replace("slot = Head", "slot = Both Hands"), "arma")["slot"], "arma")   # como a wiki chama as de duas mãos
 
     def test_ataque_elemental_e_slot_shield(self):
         m = it.item_do_wikitext("Amber Axe", MACHADO, "arma")
@@ -100,6 +101,26 @@ class TestItemDoWikitext(unittest.TestCase):
         self.assertEqual(it.descricao(m), "Def: 32, Ice Atk: 46, Axe Fighting +3")
         self.assertEqual(it.item_do_wikitext("Adamant Shield", ESCUDO, "mao")["slot"], "mao")
         self.assertEqual(it.item_do_wikitext("Adamant Shield", ESCUDO, "arma")["slot"], "mao")
+
+    def test_arma_sem_vocacao_na_wiki_vale_pelo_tipo(self):
+        def arma(tipo, extra=""):
+            texto = "{{Infobox Object" + chr(10) + "| name = X" + chr(10) + "| slot = Weapon Hand" + chr(10) + f"| primarytype = {tipo}" + chr(10) + extra + "}}"
+            return it.item_do_wikitext("X", texto, "arma")["vocs"]
+        self.assertEqual(arma("Axe Weapons"), ["knight"])
+        self.assertEqual(arma("Sword Weapons"), ["knight"])
+        self.assertEqual(arma("Club Weapons"), ["knight"])
+        self.assertEqual(arma("Distance Weapons"), ["paladin"])
+        self.assertEqual(arma("Wands"), ["sorcerer"])
+        self.assertEqual(arma("Rods"), ["druid"])
+        self.assertEqual(arma("Fist Fighting Weapons"), ["monk"])
+        self.assertEqual(arma("Fist Fighting Weapons", "| vocrequired = monks" + chr(10)), ["monk"])      # monk é vocação como as outras
+        self.assertEqual(arma("Sword Weapons", "| vocrequired = knights and monks" + chr(10)), ["knight", "monk"])
+        self.assertIn("monk", it.VOCACOES)
+        self.assertEqual(arma("Tools"), list(it.VOCACOES))                     # machete, crowbar: qualquer um
+        self.assertEqual(arma("Wands", "| vocrequired = druids" + chr(10)), ["druid"])   # o que a wiki marcou vence o tipo
+        for vazio in ("None", "without", "--"):                                # a wiki escreve "None" onde não há restrição
+            self.assertEqual(arma("Sword Weapons", "| vocrequired = " + vazio + chr(10)), ["knight"], vazio)
+        self.assertEqual(it.item_do_wikitext("Amber Axe", MACHADO, "arma")["tipo"], None)
 
     def test_pagina_sem_infobox(self):
         self.assertIsNone(it.item_do_wikitext("Lixo", "texto qualquer sem infobox", "cabeca"))
@@ -145,6 +166,16 @@ class TestCache(unittest.TestCase):
         self.assertEqual(self.chamadas, ["cabeca"])                             # 2ª vez: cache
         it.itens_do_slot("botas", self.arq, self._buscar)
         self.assertEqual(self.chamadas, ["cabeca", "botas"])                    # cada slot tem o seu cache
+
+    def test_cache_de_versao_antiga_e_baixado_de_novo_mas_serve_se_falhar(self):
+        antigo = {"v": 1, "slots": {"cabeca": {"t": time.time(), "itens": [{"nome": "Velho", "slot": "cabeca"}]}}}   # sem o campo de versão do item
+        json.dump(antigo, open(self.arq, "w", encoding="utf-8"))
+        self.assertEqual([x["nome"] for x in it.itens_do_slot("cabeca", self.arq, self._buscar)], ["Alfa", "Zeta"])   # baixou de novo
+        json.dump(antigo, open(self.arq, "w", encoding="utf-8"))
+
+        def sem_internet(slot):
+            raise OSError("sem internet")
+        self.assertEqual([x["nome"] for x in it.itens_do_slot("cabeca", self.arq, sem_internet)], ["Velho"])   # sem internet: usa o velho
 
     def test_cache_vencido_e_sem_internet_usa_o_velho(self):
         it.itens_do_slot("cabeca", self.arq, self._buscar)
