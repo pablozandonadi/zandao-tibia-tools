@@ -150,16 +150,16 @@ class TestHunt(unittest.TestCase):
 class TestLinhas(unittest.TestCase):
     def test_linhas_para_a_tela(self):
         linhas = {l["chave"]: l for l in ss.linhas(ss.somar(SET))}
-        self.assertEqual((linhas["armor"]["rotulo"], linhas["armor"]["valor"], linhas["armor"]["texto"]), ("Armor", 23, "23"))
+        self.assertEqual((linhas["armor"]["rotulo"], linhas["armor"]["valor"], linhas["armor"]["texto"]), ("Armor Value", 23, "23"))
         self.assertEqual((linhas["resist:energy"]["rotulo"], linhas["resist:energy"]["texto"]), ("Energy", "+8%"))
         self.assertEqual(linhas["resist:ice"]["texto"], "-2%")
         self.assertEqual((linhas["skill:magic level"]["rotulo"], linhas["skill:magic level"]["texto"]), ("Magic Level", "+2"))
         self.assertEqual(linhas["leech:mana"]["texto"], "8%")
-        self.assertEqual(linhas["crit:dano"]["rotulo"], "Critical extra damage")
+        self.assertEqual(linhas["crit:dano"]["rotulo"], "Critical Hit: Extra Damage")
         self.assertEqual(linhas["conv:fire"]["texto"], "50%")
         self.assertEqual(linhas["atk_elem:ice"]["valor"], 46)
         self.assertEqual(linhas["extra:faster regeneration"]["texto"], "Faster Regeneration")
-        self.assertNotIn("resist:holy", linhas)                              # zerado não aparece
+        self.assertEqual((linhas["resist:holy"]["rotulo"], linhas["resist:holy"]["texto"]), ("Holy", "+0%"))   # como o Tibia: os 7 elementos sempre aparecem
         grupos = [l["grupo"] for l in ss.linhas(ss.somar(SET))]
         self.assertEqual(grupos, sorted(grupos, key=["Defesa", "Ataque", "Skills", "Perks da arma", "Outros"].index))   # agrupadas na ordem da tela
 

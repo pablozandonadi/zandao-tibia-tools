@@ -38,6 +38,10 @@ _PERK_GLOBAL = {("critical extra damage", "%"): ("crit", "dano"), ("critical hit
                 ("life leech", "%"): ("leech", "life"), ("mana leech", "%"): ("leech", "mana"), ("attack", ""): ("attack", None), ("defence", ""): ("defense", None)}
 
 
+_ELEM_TIBIA = ["physical", "fire", "earth", "energy", "ice", "holy", "death"]
+# ordem das linhas dentro de cada aba, como no Tibia (Offence Stats e Defence Stats)
+_POSICAO = {"flat": 0, "attackvalue": 1, "attack": 2, "leech:life": 3, "leech:mana": 4, "autoextra": 5, "crit:chance": 6, "crit:dano": 7,
+            "defencevalue": 0, "defense": 0, "armor": 1, "paralisia": 2, **{f"resist:{e}": 3 + i for i, e in enumerate(_ELEM_TIBIA)}}
 _PREFIXO = {"leech": "leech", "crit": "crit", "skills": "skill", "conversao": "conv", "atk_elem": "atk_elem", "resist": "resist"}
 
 
@@ -217,11 +221,14 @@ def linhas(s):
     def lin(chave, grupo, rotulo, valor, texto, misc=False):
         return {"chave": chave, "grupo": grupo, "rotulo": rotulo, "valor": valor, "texto": texto, "misc": misc, "fontes": _fontes_agrupadas(chave, s["fontes"].get(chave, []))}
     saida = []
-    for chave, rotulo in (("armor", "Armor"), ("defense", "Defense")):
+    for chave, rotulo in (("defense", "Defence Value"), ("armor", "Armor Value")):
         if s[chave]:
             saida.append(lin(chave, "Defesa", rotulo, s[chave], str(s[chave])))
-    for el, v in sorted(s["resist"].items(), key=lambda x: (-x[1], x[0])):
-        if v:
+    # como a aba Defence Stats do Tibia: os 7 elementos sempre aparecem (mesmo +0%), nesta ordem; os raros (life drain...) só se tiverem valor
+    tem_dados = bool(s["armor"] or s["defense"] or s["attack"] or s["resist"] or s["fontes"])
+    for el in [*_ELEM_TIBIA, *sorted(e for e in s["resist"] if e not in _ELEM_TIBIA)]:
+        v = s["resist"].get(el, 0)
+        if v or (el in _ELEM_TIBIA and tem_dados):
             saida.append(lin(f"resist:{el}", "Defesa", _ELEMENTO.get(el, el.capitalize()), v, f"{_sinal_num(v)}%"))
     if s["paralisia"]:
         saida.append(lin("paralisia", "Defesa", "Paralysis deflection", s["paralisia"], f"{_num(s['paralisia'])}%"))
@@ -231,10 +238,10 @@ def linhas(s):
         saida.append(lin(f"atk_elem:{el}", "Ataque", f"{_ELEMENTO.get(el, el.capitalize())} attack", v, str(v)))
     for el, v in s["conversao"].items():
         saida.append(lin(f"conv:{el}", "Ataque", f"{_ELEMENTO.get(el, el.capitalize())} damage conversion", v, f"{_num(v)}%"))
-    for chave, rotulo in (("life", "Life leech"), ("mana", "Mana leech")):
+    for chave, rotulo in (("life", "Life Leech"), ("mana", "Mana Leech")):
         if s["leech"].get(chave):
             saida.append(lin(f"leech:{chave}", "Ataque", rotulo, s["leech"][chave], f"{_num(s['leech'][chave])}%"))
-    for chave, rotulo in (("chance", "Critical chance"), ("dano", "Critical extra damage")):
+    for chave, rotulo in (("chance", "Critical Hit: Chance"), ("dano", "Critical Hit: Extra Damage")):
         if s["crit"].get(chave):
             saida.append(lin(f"crit:{chave}", "Ataque", rotulo, s["crit"][chave], f"{_num(s['crit'][chave])}%"))
     for rotulo, e in s["perks"].items():
@@ -543,10 +550,12 @@ def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None, postura=No
         extra = _ataque_e_defesa(set_, s, finais, flat, (skills or {}).get("modo") or "offensive")
         if any(l["chave"] == "defencevalue" for l in extra):
             todas = [l for l in todas if l["chave"] != "defense"]       # o Defence Value substitui a soma simples dos Def
+        if any(l["chave"] == "attackvalue" for l in extra):
+            todas = [l for l in todas if l["chave"] != "attack"]        # e o Attack Value substitui o ataque simples da arma
         todas += extra
         auto, usados = _auto_ataque(s, finais)
         if auto:
             todas = [l for l in todas if l["chave"] not in {f"perk:{r}" for r in usados}] + [auto]
     todas += _linhas_prey(prey) + _linhas_charms(charms) + _linhas_roda(roda_resto) + _linhas_augments(roda) + posturas.linhas(postura)
     ordem = {g: i for i, g in enumerate(_GRUPOS)}
-    return sorted(todas, key=lambda l: (ordem[l["grupo"]], bool(l.get("misc"))))
+    return sorted(todas, key=lambda l: (ordem[l["grupo"]], bool(l.get("misc")), _POSICAO.get(l["chave"], 50)))

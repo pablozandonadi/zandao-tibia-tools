@@ -422,9 +422,10 @@ class TestComparar(unittest.TestCase):
         a["set"], b["set"] = cab(8, 8), cab(10, 0)
         r = historico.comparar([a, b, c])
         linha = {l["chave"]: l for l in r["stats_set"]}
-        self.assertEqual((linha["armor"]["rotulo"], linha["armor"]["valores"], linha["armor"]["melhor"]), ("Armor", [8, 10, None], 1))
+        self.assertEqual((linha["armor"]["rotulo"], linha["armor"]["valores"], linha["armor"]["melhor"]), ("Armor Value", [8, 10, None], 1))
         self.assertEqual((linha["resist:energy"]["valores"], linha["resist:energy"]["melhor"]), ([8, 0, None], 0))   # B tem set sem energy: 0; C não tem set: None
-        self.assertEqual([l["grupo"] for l in r["stats_set"]], ["Defesa", "Defesa", "Ataque", "Ataque"])   # + crítico do bônus fixo (igual nas duas)
+        self.assertEqual({l["grupo"] for l in r["stats_set"]}, {"Defesa", "Ataque"})   # + crítico do bônus fixo (igual nas duas)
+        self.assertEqual(r["stats_set"][0]["rotulo"], "Armor Value")
 
     def test_stats_da_hunt_inclui_prey_charms_e_roda(self):
         from unittest import mock
@@ -440,7 +441,7 @@ class TestComparar(unittest.TestCase):
         self.assertEqual((linha["prey:xp"]["valores"], linha["prey:xp"]["melhor"]), ([31, None], None))   # B informou "sem prey", mas não tem nenhum dado de stats
         self.assertEqual(linha["charm:Low Blow"]["valores"][0], 9)
         self.assertEqual(linha["roda:Hit Points"]["valores"][0], 1500)
-        self.assertEqual({l["grupo"] for l in linha.values()}, {"Prey", "Charms", "Roda", "Ataque"})
+        self.assertEqual({l["grupo"] for l in linha.values()}, {"Prey", "Charms", "Roda", "Ataque", "Defesa"})
         self.assertEqual(linha["crit:chance"]["valores"], [5, None])              # o bônus fixo de crítico só aparece em hunt com dados
 
     def test_filtro_tamanho(self):
@@ -701,12 +702,14 @@ class TestApiPrey(unittest.TestCase):
     def test_stats_da_hunt_pela_api(self):
         st = {"titulo": "x", "itens": {"cabeca": {"nome": "H", "armor": 8}}}
         linhas = self.api.hunt_stats(st, [{"tipo": "ataque", "estrelas": 10, "criatura": "Varg"}], [{"nome": "Wound", "criatura": "Varg", "nivel": 1}], None)
-        self.assertEqual({l["chave"]: l["valor"] for l in linhas}, {"armor": 8, "crit:chance": 5, "crit:dano": 10, "prey:ataque": 25, "charm:Wound": 5})   # crit = bônus fixo do personagem
+        self.assertEqual({l["chave"]: l["valor"] for l in linhas if not l["chave"].startswith("resist:")},
+                         {"armor": 8, "crit:chance": 5, "crit:dano": 10, "prey:ataque": 25, "charm:Wound": 5})   # crit = bônus fixo do personagem
         self.assertEqual(self.api.hunt_stats(None, None, None, None), [])
 
     def test_stats_do_set_pela_api(self):
         linhas = self.api.set_stats({"titulo": "x", "itens": {"cabeca": {"nome": "H", "armor": 8, "imbue": 1, "imbues": ["Powerful Void"]}}})
-        self.assertEqual({l["chave"]: l["valor"] for l in linhas}, {"armor": 8, "leech:mana": 8})
+        self.assertEqual({l["chave"]: l["valor"] for l in linhas if not l["chave"].startswith("resist:")}, {"armor": 8, "leech:mana": 8})
+        self.assertEqual([l["rotulo"] for l in linhas if l["chave"].startswith("resist:")], ["Physical", "Fire", "Earth", "Energy", "Ice", "Holy", "Death"])   # como o Tibia: os 7 sempre
         self.assertEqual(self.api.set_stats(None), [])
         self.assertEqual(self.api.set_stats("lixo"), [])
 

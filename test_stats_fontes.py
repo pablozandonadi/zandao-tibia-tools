@@ -13,7 +13,7 @@ EK = sets.normalizar_set({"titulo": "EK", "itens": {
     "botas": {"nome": "Depth Calcei", "armor": 3, "attrib": "speed -5", "resist": {"physical": 5}},
     "amuleto": {"nome": "Lightning Pendant", "resist": {"energy": 20, "earth": -10}},
     "anel": {"nome": "Sword Ring", "attrib": "sword fighting +4"},
-    "arma": {"nome": "Havoc Blade", "attack": 49, "defense": 34, "imbue": 3, "imbues": ["Powerful Void", "Powerful Strike", "Powerful Vampirism"],
+    "arma": {"nome": "Havoc Blade", "tipo": "Sword Weapons", "attack": 49, "defense": 34, "imbue": 3, "imbues": ["Powerful Void", "Powerful Strike", "Powerful Vampirism"],
              "perks": [[{"tipo": "T", "texto": "+4.00% do seu Sword Fighting como extra damage para auto-attacks"}],
                        [{"tipo": "T", "texto": "+2.00% critical extra damage"}],
                        [{"tipo": "T", "texto": "+3.00% critical extra damage"}],
@@ -59,6 +59,23 @@ class TestFontes(unittest.TestCase):
         auto = l["perk:do seu Sword Fighting como extra damage para auto-attacks"]
         self.assertTrue(auto["misc"])
         self.assertFalse(l["crit:dano"].get("misc"))
+
+
+class TestNomesEOrdemDoTibia(unittest.TestCase):
+    def test_mesmos_nomes_e_ordem_da_aba_do_tibia(self):
+        rot = [(x["chave"], x["rotulo"]) for x in ss.linhas_hunt(EK, nivel=170) if x["grupo"] in ("Defesa", "Ataque") and not x.get("misc")]
+        defesa = [r for r in rot if r[0] in ("armor", "defense") or r[0].startswith("resist:")]
+        self.assertEqual([r[1] for r in defesa], ["Defence Value", "Armor Value", "Physical", "Fire", "Earth", "Energy", "Ice", "Holy", "Death"])
+        ataque = [r[1] for r in rot if r[0] in ("flat", "leech:life", "leech:mana", "crit:chance", "crit:dano")]
+        self.assertEqual(ataque, ["Flat Damage and Healing", "Life Leech", "Mana Leech", "Critical Hit: Chance", "Critical Hit: Extra Damage"])
+
+    def test_com_skills_defence_value_vem_antes_do_armor_e_attack_value_depois_do_flat(self):
+        l = ss.linhas_hunt(EK, nivel=170, skills={"base": {"sword fighting": 112}})
+        chaves = [x["chave"] for x in l if x["grupo"] in ("Defesa", "Ataque") and not x.get("misc")]
+        self.assertLess(chaves.index("defencevalue"), chaves.index("armor"))
+        self.assertLess(chaves.index("flat"), chaves.index("attackvalue"))
+        self.assertLess(chaves.index("attackvalue"), chaves.index("leech:life"))
+        self.assertNotIn("attack", chaves)                                   # o Attack Value substitui o ataque simples da arma
 
 
 class TestBonusFixoEFlat(unittest.TestCase):

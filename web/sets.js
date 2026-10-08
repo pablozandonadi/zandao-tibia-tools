@@ -57,6 +57,7 @@ function htmlFotoSet(s, { editavel = false, sel = '', mini = false } = {}) {
 // ---------- Combat Stats: a soma dos itens e dos embuimentos (calculada em stats_set.py) ----------
 function htmlStatsSet(linhas, titulo = '📊 Combat Stats', nota = 'Soma dos itens, dos embuimentos Powerful e dos perks da arma (valores da TibiaWiki).') {
   if (!linhas || !linhas.length) return '<p class="dica" style="margin:0">Escolha itens para ver a soma dos stats.</p>';
+  const NOME_GRUPO = { Defesa: 'Defence Stats', Ataque: 'Offence Stats', Outros: 'Misc. Stats' };   // os nomes das abas do Tibia
   const grupo = (nome) => {
     const l = linhas.filter((x) => x.grupo === nome);
     const origens = (x) => {   // de onde vem cada parte do valor (como o Tibia: bônus fixo, equipamento, embuimento...); omite o caso trivial "só equipamento"
@@ -64,7 +65,7 @@ function htmlStatsSet(linhas, titulo = '📊 Combat Stats', nota = 'Soma dos ite
       if (!f.length || (f.length === 1 && f[0].origem === 'Equipamento')) return '';
       return `<small class="stat-fon">${f.map((p) => `${p.valor > 0 && !['Base', 'Nível'].includes(p.origem) ? '+' : ''}${p.valor}${un} ${esc(p.origem)}`).join(' · ')}</small>`;
     };
-    return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin" ${x.detalhe ? `title="${esc(x.detalhe)}"` : ''}><span>${esc(x.rotulo)}${x.misc ? ' <em class="misc-tag" title="No Tibia fica na aba Misc">misc</em>' : ''}</span>${x.pontos ? `<b class="pt-bol ${x.pontos.tipo}" title="${esc(x.texto)}">${bolinhas(x.pontos)}</b>` : `<b>${esc(x.texto)}</b>`}</div>${origens(x)}${x.detalhe ? `<small class="stat-det">${esc(x.detalhe)}</small>` : ''}`).join('')}</div>` : '';
+    return l.length ? `<div class="stats-grupo"><h5>${NOME_GRUPO[nome] || nome}</h5>${l.map((x) => `<div class="stat-lin" ${x.detalhe ? `title="${esc(x.detalhe)}"` : ''}><span>${esc(x.rotulo)}${x.misc ? ' <em class="misc-tag" title="No Tibia fica na aba Misc">misc</em>' : ''}</span>${x.pontos ? `<b class="pt-bol ${x.pontos.tipo}" title="${esc(x.texto)}">${bolinhas(x.pontos)}</b>` : `<b>${esc(x.texto)}</b>`}</div>${origens(x)}${x.detalhe ? `<small class="stat-det">${esc(x.detalhe)}</small>` : ''}`).join('')}</div>` : '';
   };
   return `<div class="stats-set"><h4>${titulo}</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Prey', 'Charms', 'Roda', 'Postura', 'Outros'].map(grupo).join('')}</div>
     <p class="dica" style="margin:6px 0 0">${nota}</p></div>`;
