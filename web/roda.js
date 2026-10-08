@@ -17,19 +17,57 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
   .oculto-leitura { display: none !important; }
   .editor-vocacao { display: flex; gap: 12px; flex-wrap: wrap; }
   .editor-vocacao label { text-transform: capitalize; cursor: pointer; }
-  #botoes-pontos { display: flex; gap: 6px; margin: 4px 0; }
-  #botoes-pontos button { background: #2a303b; color: #e8e4d9; border: 1px solid #555; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
-  #botoes-pontos button::before { content: attr(data-rot); }
+  body.leitura #vocacoes, body.leitura #painel-selecao { display: none !important; }   /* só ver: sem editar a roda */
+  .PerkWrapper { margin: 0 0 8px; } .Bold { font-weight: bold; margin-bottom: 2px; }
+  .SkillValue, .LargePerkValue, .ModEffectValue, .VesselValue { color: #cfcabd; }
+  .LargePerkName { font-weight: bold; color: #f5b301; }
+  .SkillPercentage { position: relative; height: 18px; background: #2a303b; border: 1px solid #555; border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+  .PercentageBar { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #a8741a; }
+  .SkillPercentage .Text { position: relative; text-align: center; line-height: 18px; font-size: 12px; }
+  .SmallButtonRow { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .SmallButtonRow input[type=button] { background: #2a303b; color: #e8e4d9; border: 1px solid #666; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+  .SmallButtonRow input[type=button]:hover { border-color: #f5b301; }
+  .GemWrapper, .VesselWrapper { margin-bottom: 8px; }
+  .GemModsWrapper { display: grid; gap: 4px; }
+  .GemDropdownWrapper select { width: 100%; }
+  .ModEffectWrapper { display: flex; gap: 6px; align-items: center; min-height: 18px; margin-bottom: 4px; }
+  .ModGrades img { height: 12px; margin-right: 2px; }
+  /* ícones recortados de uma folha: o planner define o tamanho e desloca a imagem; o recorte (overflow) vem do CSS do site */
+  #wod-selection-box [id$="-icon"], #wod-information-box [id$="-icon"] { overflow: hidden; flex: none; }
+  #wod-selection-box [id$="-icon"] img, #wod-information-box [id$="-icon"] img { max-width: none; display: block; }
   .painel { border: 1px solid #3a4150; border-radius: 8px; padding: 6px 10px; margin: 6px 0; background: #1a1e25; }
   .painel h4 { margin: 0 0 4px; font-size: 13px; color: #f5b301; }
   table { border-collapse: collapse; width: 100%; } td { padding: 1px 4px; vertical-align: top; } td:last-child { text-align: right; white-space: nowrap; }
   .nota { color: #9aa1b0; font-size: 11px; }
+  /* duas colunas: o desenho (522 px, tamanho real) à esquerda; seleção/gemas, informação e resumos à direita */
+  #wod-wrapper { display: grid; grid-template-columns: 540px minmax(300px, 1fr); gap: 14px; align-items: start; }
+  .col-info { min-width: 0; }
+  .resumos { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 8px; }
+  .resumos .painel, .col-info .painel { margin: 0 0 8px; }
+  .painel:empty { display: none; }
+  select { background: #1c2027; color: #e8e4d9; border: 1px solid #555; border-radius: 4px; padding: 3px 4px; max-width: 100%; }
+  select:disabled { opacity: .45; }
+  @media (max-width: 920px) { #wod-wrapper { display: block; } .resumos { grid-template-columns: 1fr; } }
 </style></head><body>
 <p id="wod-warning" class="nota">Carregando a roda...</p>
 <div id="wod-wrapper" class="hide">
-  <div class="cabecalho">
-    <span id="vocacoes" class="oculto-leitura editor-vocacao"></span>
-    <span>Pontos de promoção: <span id="wod-reqpoints">0</span> / <input id="wod-limitpoints" type="text" maxlength="4" inputmode="numeric"></span>
+  <div class="col-roda">
+    <div class="cabecalho">
+      <span id="vocacoes" class="editor-vocacao"></span>
+      <span>Pontos de promoção: <span id="wod-reqpoints">0</span> / <input id="wod-limitpoints" type="text" maxlength="4" inputmode="numeric"></span>
+    </div>
+    <canvas id="wod-canvas" width="522" height="522"></canvas>
+  </div>
+  <div class="col-info">
+    <div class="painel" id="painel-selecao"><h4>Seleção</h4><div id="wod-selection-box"></div></div>
+    <div class="painel" id="painel-info"><h4>Informação</h4><div id="wod-information-box"></div></div>
+    <div class="resumos">
+      <div class="painel"><h4 id="wod-dedication-perks-header"></h4><div id="wod-dedication-perks"></div></div>
+      <div class="painel"><h4 id="wod-conviction-perks-header"></h4><div id="wod-conviction-perks"></div></div>
+      <div class="painel"><h4 id="wod-revelation-perks-header"></h4><div id="wod-revelation-perks"></div></div>
+      <div class="painel"><h4 id="wod-gem-perks-header"></h4><div id="wod-gem-perks"></div></div>
+    </div>
+    <p id="wod-summary-note" class="nota"></p>
   </div>
   <div class="oculto-leitura">
     <span id="wod-code-mobile"></span><span id="wod-code"></span>
@@ -37,15 +75,6 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
     <input id="wod-code-input" type="text"><button id="wod-code-import"></button><button id="wod-code-reset"></button><span id="wod-code-invalid"></span>
     <input id="wod-code-input-mobile" type="text"><button id="wod-code-import-mobile"></button><button id="wod-code-reset-mobile"></button><span id="wod-code-invalid-mobile"></span>
   </div>
-  <canvas id="wod-canvas" width="522" height="522"></canvas>
-  <div id="wod-selection-box" class="painel"></div>
-  <div id="wod-information-box" class="painel"></div>
-  <div id="botoes-pontos" class="oculto-leitura"><button id="wod-maxminus-button" data-rot="−−"></button><button id="wod-minus-button" data-rot="−"></button><button id="wod-plus-button" data-rot="+"></button><button id="wod-maxplus-button" data-rot="++"></button></div>
-  <div class="painel"><h4 id="wod-dedication-perks-header"></h4><div id="wod-dedication-perks"></div></div>
-  <div class="painel"><h4 id="wod-conviction-perks-header"></h4><div id="wod-conviction-perks"></div></div>
-  <div class="painel"><h4 id="wod-revelation-perks-header"></h4><div id="wod-revelation-perks"></div></div>
-  <div class="painel"><h4 id="wod-gem-perks-header"></h4><div id="wod-gem-perks"></div></div>
-  <p id="wod-summary-note" class="nota"></p>
 </div>
 <script>
   // o que o planner espera encontrar na página do tibia.com
@@ -63,6 +92,26 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
   }
   history.replaceState = function () {};
   function alturaConteudo() { return Math.ceil(document.body.getBoundingClientRect().height) + 16; }
+  // Seleção e Informação: o planner espera esta estrutura pronta (ids com o nome da caixa) e só mostra/esconde e preenche.
+  function montarPainel(p, comSelecao) {
+    var perk = function (k, t) { return '<div id="' + p + '-' + k + '-wrapper" class="PerkWrapper"><div id="' + p + '-' + k + '-header" class="Bold">' + t + '</div><div id="' + p + '-' + k + '-value" class="SkillValue"></div></div>'; };
+    var mod = function (n) {
+      return '<div class="GemDropdownWrapper">' + (comSelecao ? '<select name="' + p + '-gem-mod' + n + '-dropdown" class="GemDropdown"></select>' : '') + '</div>'
+        + '<div class="ModEffectWrapper"><div class="ModEffectIconWrapper"><div id="' + p + '-gem-mod' + n + '-icon"></div></div><div id="' + p + '-gem-mod' + n + '" class="ModEffectValue"></div></div>';
+    };
+    var grau = function (n) { return '<img id="' + p + '-gem-modgrades-' + n + '" class="hide" src="https://static.tibia.com/images/community/wheelofdestiny/icon_modgrade4.png">'; };
+    var botoes = '<div id="' + p + '-buttons" class="SmallButtonRow"><input type="button" id="wod-maxminus-button" value="− Max"><input type="button" id="wod-minus-button" value="− 1">'
+      + '<input type="button" id="wod-plus-button" value="+ 1"><input type="button" id="wod-maxplus-button" value="+ Max"></div>';
+    return '<div id="' + p + '-bar" class="SkillPercentage hide"><span id="' + p + '-bar-filling" class="PercentageBar"></span><div id="' + p + '-bar-text" class="Text">0/100</div></div>'
+      + '<div id="' + p + '-empty" class="nota">' + (comSelecao ? 'Selecione uma fatia ou um encaixe de gema.' : 'Passe o mouse sobre uma fatia.') + '</div>'
+      + '<div id="' + p + '-medium" class="hide">' + perk('dedication', 'Dedication Perk') + perk('conviction', 'Conviction Perk')
+        + (comSelecao ? botoes : '<div id="' + p + '-fillinfo" class="nota"></div>') + '</div>'
+      + '<div id="' + p + '-large" class="hide"><div id="' + p + '-revelation-wrapper" class="PerkWrapper"><div id="' + p + '-revelation-header" class="Bold">Revelation Perk</div>'
+        + '<div id="' + p + '-revelation-icon"></div><div id="' + p + '-revelation-name" class="LargePerkName"></div><div id="' + p + '-revelation-description" class="LargePerkValue"></div></div></div>'
+      + '<div id="' + p + '-socket" class="hide"><div id="' + p + '-gem-wrapper" class="GemWrapper"><div id="' + p + '-gem-modgrades" class="ModGrades">' + grau(1) + grau(2) + grau(3) + '</div>'
+        + '<div id="' + p + '-gem-name" class="Bold">Gem</div><div id="' + p + '-gem-mod-wrapper" class="GemModsWrapper">' + mod(1) + mod(2) + mod(3) + '</div></div>'
+        + '<div id="' + p + '-vessel-wrapper" class="VesselWrapper"><div id="' + p + '-vessel-header" class="Bold">Vessel</div><div id="' + p + '-vessel-value" class="VesselValue"></div></div></div>';
+  }
   function avisar(o) { parent.postMessage(Object.assign({ fonte: 'roda' }, o), '*'); }
   window.onerror = function (m) { avisar({ tipo: 'erro', msg: String(m) }); };
   function injetar(texto) { var s = document.createElement('script'); s.text = texto; document.head.appendChild(s); }
@@ -75,10 +124,9 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
         vocs += '<label for="wod-vocation_' + v + '"><input id="wod-vocation_' + v + '" type="radio" name="wod-vocation" value="' + v + '">' + v + '</label>';
       });
       document.getElementById('vocacoes').innerHTML = vocs;
-      if (d.editavel) {   // modo "montar a roda": libera a vocação e os botões de pontos (a seleção/preenchimento é no desenho)
-        document.getElementById('vocacoes').classList.remove('oculto-leitura');
-        document.getElementById('botoes-pontos').classList.remove('oculto-leitura');
-      }
+      document.getElementById('wod-selection-box').innerHTML = montarPainel('wod-selection-box', true);
+      document.getElementById('wod-information-box').innerHTML = montarPainel('wod-information-box', false);
+      if (!d.editavel) document.body.classList.add('leitura');   // só ver: esconde a vocação e a Seleção (botões, gemas)
       injetar(d.jquery); injetar(d.skillgrid); injetar(d.planner);
       var textos = 'data:application/json;charset=utf-8;base64,' + btoa(unescape(encodeURIComponent(d.strings)));
       runWodPlanner(textos, { warning: 'wod-warning', wrapper: 'wod-wrapper', vocationRadio: 'wod-vocation', reqPoints: 'wod-reqpoints', limitPoints: 'wod-limitpoints',
