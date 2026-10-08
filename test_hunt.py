@@ -444,6 +444,22 @@ class TestComparar(unittest.TestCase):
         self.assertEqual({l["grupo"] for l in linha.values()}, {"Prey", "Charms", "Roda", "Ataque", "Defesa"})
         self.assertEqual(linha["crit:chance"]["valores"], [5, None])              # o bônus fixo de crítico só aparece em hunt com dados
 
+    def test_cabecalho_sem_duracao_fica_vazio(self):
+        a, b = TestComparar._h(self, "a", "A", 4, 60, 1, 4), TestComparar._h(self, "b", "B", 4, 60, 1, 4)
+        b["resumo"]["duracao"], b["resumo"]["minutos"] = None, 0
+        r = historico.comparar([a, b])
+        self.assertEqual(r["hunts"][0]["duracao"], "01:00h")
+        self.assertEqual(r["hunts"][1]["duracao"], "")                          # antes vinha "—" e a tela mostrava "PT 4 · —"
+
+    def test_atualizar_normaliza_a_prey(self):
+        import tempfile
+        arq = os.path.join(tempfile.mkdtemp(), "h.json")
+        h = historico.salvar(TestHistorico._reg(self), arq)
+        historico.atualizar(h["id"], arq, prey=[{"tipo": "xp", "estrelas": 99}, {"tipo": "lixo", "estrelas": 3}], set="lixo")
+        guardado = historico.obter(h["id"], arq)
+        self.assertEqual(guardado["prey"], [{"tipo": "xp", "estrelas": 10}])     # normalizado como no salvar
+        self.assertEqual(guardado["set"], {})
+
     def test_filtro_tamanho(self):
         self.assertTrue(historico.do_tamanho(self._h("a", "A", 4, 60, 1, 1), "4"))
         self.assertFalse(historico.do_tamanho(self._h("a", "A", 3, 60, 1, 1), "4"))

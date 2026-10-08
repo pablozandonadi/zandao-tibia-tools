@@ -34,7 +34,15 @@ def carregar(caminho=None):
         return {}
     if not isinstance(d, dict):
         return {}
-    return {k: v for k, v in d.items() if isinstance(v, list)}
+    limpo = {}
+    for chave, lista in d.items():
+        if not isinstance(lista, list):
+            continue
+        ok = [p for p in lista if isinstance(p, dict) and isinstance(p.get("data"), str) and isinstance(p.get("preco"), int)
+              and not isinstance(p.get("preco"), bool) and p["preco"] > 0]   # registro estragado é ignorado, não derruba o app
+        if ok:
+            limpo[chave] = ok
+    return limpo
 
 
 def _gravar(hist, caminho=None):

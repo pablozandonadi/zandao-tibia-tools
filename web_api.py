@@ -307,7 +307,10 @@ class API:
         return precos.serie(precos.carregar(self._precos_path), chave)
 
     def precos_apagar(self, chave, data):
-        precos.apagar(chave, data, self._precos_path)
+        try:
+            precos.apagar(chave, data, self._precos_path)
+        except OSError:
+            return {"erro": "Não consegui apagar esse registro (o arquivo de preços está bloqueado ou o disco está cheio)."}
         return self.precos_serie(chave)
 
     def copiar(self, texto):

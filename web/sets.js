@@ -324,7 +324,10 @@ async function pedirItemSet(slot) {
     SET_ITENS[slot] = (await api.set_itens(slot)) || [];
   }
   const voc = slot === 'consumivel' ? '' : SETED.voc;
-  const lista = SET_ITENS[slot].filter((i) => !voc || (i.vocs || []).includes(voc));
+  let lista = SET_ITENS[slot].filter((i) => !voc || (i.vocs || []).includes(voc));
+  if (slot === 'mao' && (voc === 'sorcerer' || voc === 'druid')) {   // mago usa spellbook: eles vêm primeiro, depois os escudos (a ordem de dentro de cada grupo se mantém)
+    lista = [...lista.filter((i) => i.tipo === 'Spellbooks'), ...lista.filter((i) => i.tipo !== 'Spellbooks')];
+  }
   const opcoes = lista.map((i) => ({ valor: i, busca: i.nome,
     html: `${i.imagem ? `<img src="${esc(i.imagem)}" alt="" onerror="this.style.visibility='hidden'">` : ''}<span class="escolha-txt"><b>${esc(i.nome)}</b>
       <span class="dica">${esc(i.desc || '')}${i.level ? ` · level ${i.level}` : ''}${i.imbue ? ` · ${i.imbue} embuimento${i.imbue > 1 ? 's' : ''}` : ''}</span></span>` }));

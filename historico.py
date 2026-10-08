@@ -110,7 +110,7 @@ def atualizar(id_, caminho=None, **campos):
         h = next((x for x in hunts if x["id"] == id_), None)
         if not h:
             return None
-        h.update(campos)
+        h.update(_com_prey_normalizada(campos))   # prey, charms, roda, set e postura passam pela mesma limpeza do salvar
         h["atualizado_em"] = _agora()
         _gravar(hunts, caminho)
         return h
@@ -528,7 +528,7 @@ def comparar(hunts):
         m.update(extra)
         por_jogador.append(pj)
     cab = [{"id": h["id"], "nome": h.get("nome") or "Hunt", "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
-            "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"], "party": tem_party(h),
+            "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": "" if m["duracao"] == "—" else m["duracao"], "party": tem_party(h),
             "monstros": (h.get("monstros") or [])[:4], "prey": rotulo_prey(normalizar_prey(h.get("prey"))),
             "charms": preys_charms.rotulo_charms(preys_charms.normalizar_charms(h.get("charms"))),
             "roda": _roda.rotulo_roda(_roda.normalizar_roda(h.get("roda"))),

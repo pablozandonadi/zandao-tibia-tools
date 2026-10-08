@@ -53,6 +53,15 @@ class TestPrecos(unittest.TestCase):
         self.assertEqual([p["preco"] for p in precos.carregar(self.arq)["token"]], [100, 200])
         self.assertEqual(precos.serie({}, "token"), {"pontos": [], "min": None, "max": None, "media": None})
 
+    def test_registros_malformados_sao_filtrados(self):
+        import json
+        ruim = {"ok": [{"data": "2026-10-01", "preco": 100}, {"data": "2026-10-02", "preco": "x"}, {"preco": 5}, {"data": "2026-10-03", "preco": -3}, "lixo", {"data": 9, "preco": 4}],
+                "so_lixo": ["a", None], "nao_lista": 7}
+        with open(self.arq, "w", encoding="utf-8") as f:
+            json.dump(ruim, f)
+        self.assertEqual(precos.carregar(self.arq), {"ok": [{"data": "2026-10-01", "preco": 100}]})   # o app não quebra com um registro estragado
+        self.assertEqual(precos.serie(precos.carregar(self.arq), "ok")["max"], 100)
+
     def test_arquivo_corrompido(self):
         with open(self.arq, "w") as f:
             f.write("{quebrado")
@@ -87,6 +96,15 @@ class TestApiPrecos(unittest.TestCase):
         self.assertIsNone(v["blank"])
         self.assertEqual(self.api.precos_serie("token")["max"], 50000)
         self.assertEqual(self.api.precos_apagar("token", "2026-10-03")["pontos"], [])
+
+    def test_apagar_com_erro_de_gravacao_avisa(self):
+        from unittest import mock
+        self.api._hoje = lambda: "2026-10-03"
+        self.api.precos_registrar({"token": "50000"})
+        with mock.patch.object(precos, "_gravar", side_effect=OSError("disco cheio")):
+            r = self.api.precos_apagar("token", "2026-10-03")
+        self.assertIn("erro", r)                                              # a tela mostra o aviso em vez de fingir que apagou
+        self.assertEqual(len(precos.carregar(self.api._precos_path)["token"]), 1)
 
     def test_backup_inclui_precos(self):
         import backup

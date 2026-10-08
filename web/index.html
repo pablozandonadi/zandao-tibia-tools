@@ -1158,7 +1158,10 @@ function renderGraficoPreco(s) {
 $('mp-corpo').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-mp-apagar]');
   if (!b) return;
-  renderGraficoPreco(await api.precos_apagar(mpChave, b.dataset.mpApagar));
+  if (!confirm(`Apagar o registro de preço de ${b.dataset.mpApagar}? Isso não dá para desfazer.`)) return;
+  const r = await api.precos_apagar(mpChave, b.dataset.mpApagar);
+  if (r && r.erro) { toast(r.erro, true); return; }
+  renderGraficoPreco(r);
   atualizarVariacoes();
 });
 const fecharGraficoPreco = () => { $('modal-preco').style.display = 'none'; };
@@ -1486,7 +1489,20 @@ function alvoCriatura(alvo) {
 
 // Prey e charm só valem na criatura a que estão ligados. Numa hunt NOVA, o que veio da hunt anterior e você ainda não mexeu
 // é conferido quando a lista de monstros chega: sai o que está ligado a uma criatura que não existe nesta hunt.
-function marcarHerdado() { H.herdado = { prey: (H.entrada.prey || []).length > 0, charms: (H.entrada.charms || []).length > 0 }; }
+function marcarHerdado() {
+  H.herdado = { prey: (H.entrada.prey || []).length > 0, charms: (H.entrada.charms || []).length > 0 };
+  H.snap = {};   // retrato do que veio da hunt anterior: se você mexer, trocar de personagem não apaga a sua escolha
+  for (const c of ['prey', 'charms', 'roda', 'set', 'postura']) H.snap[c] = JSON.stringify(H.entrada[c] ?? null);
+}
+// ao trocar o personagem numa hunt nova: só troca pelo valor do novo personagem o que você ainda não mexeu
+async function trocarHerancaDoPersonagem() {
+  const p = H.entrada.personagem;
+  const fontes = { prey: preyInicial, charms: charmsInicial, roda: rodaInicial, set: setInicial, postura: posturaInicial };
+  for (const [c, f] of Object.entries(fontes)) {
+    if (!H.snap || JSON.stringify(H.entrada[c] ?? null) === H.snap[c]) H.entrada[c] = await f(p);
+  }
+  marcarHerdado();
+}
 function podarHeranca() {
   if (H.id || !H.dano || !H.dano.kills || !H.dano.kills.length || (!H.herdado.prey && !H.herdado.charms)) return;
   const nomes = new Set(H.dano.kills.map((k) => (k.nome || '').toLowerCase()));
@@ -1670,7 +1686,7 @@ $('h-salvar').addEventListener('click', async () => {
 $('h-personagem').addEventListener('change', async () => {
   H.entrada.personagem = $('h-personagem').value;
   H.equip = null;
-  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); H.entrada.charms = await charmsInicial(H.entrada.personagem); H.entrada.roda = await rodaInicial(H.entrada.personagem); H.entrada.set = await setInicial(H.entrada.personagem); H.entrada.postura = await posturaInicial(H.entrada.personagem); marcarHerdado(); }
+  if (!H.id) await trocarHerancaDoPersonagem();
   if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) MEUS = await api.personagem_usar(H.entrada.personagem);
   montarSeletorPersonagem();
   analisarHunt();
