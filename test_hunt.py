@@ -540,6 +540,26 @@ class TestPrey(unittest.TestCase):
         antiga = historico.salvar(TestHistorico._reg(self, party=PARTY + "\nW", nome="antiga"), self.arq)
         self.assertNotIn("set", historico.obter(antiga["id"], self.arq))   # nunca inventa set
 
+    def test_postura_salva_preservada_e_no_comparativo(self):
+        reg = TestHistorico._reg(self)
+        h = historico.salvar({**reg, "postura": " master of decay "}, self.arq)
+        self.assertEqual(historico.obter(h["id"], self.arq)["postura"], "Master of Decay")
+        historico.salvar({**reg, "id": h["id"]}, self.arq)               # re-salvar sem o campo mantém o gravado
+        self.assertEqual(historico.obter(h["id"], self.arq)["postura"], "Master of Decay")
+        historico.salvar({**reg, "id": h["id"], "postura": ""}, self.arq)   # "" = sem postura (informado)
+        self.assertEqual(historico.obter(h["id"], self.arq)["postura"], "")
+        antiga = historico.salvar(TestHistorico._reg(self, party=PARTY + chr(10) + "W", nome="antiga"), self.arq)
+        self.assertNotIn("postura", historico.obter(antiga["id"], self.arq))   # nunca inventa postura
+        a, b = TestComparar._h(self, "a", "A", 1, 60, 1, 1), TestComparar._h(self, "b", "B", 1, 60, 1, 1)
+        a["postura"], b["postura"] = "Master of Decay", "Master of Flames"
+        r = historico.comparar([a, b])
+        self.assertIn('Postura diferente: "A" com Postura: Master of Decay, "B" com Postura: Master of Flames. O dano e a cura podem não ser comparáveis diretamente.', r["avisos"])
+        self.assertEqual([x["postura"] for x in r["hunts"]], ["Postura: Master of Decay", "Postura: Master of Flames"])
+        linha = {l["chave"]: l for l in r["stats_set"]}
+        self.assertEqual(linha["postura:crit_dano_death"]["valores"], [30, 0])              # a outra postura tem dados, mas não esse stat: 0
+        del b["postura"]                                                   # não informada: sem aviso
+        self.assertFalse(any("Postura" in x for x in historico.comparar([a, b])["avisos"]))
+
     def test_aviso_set_diferente(self):
         a, b = TestComparar._h(self, "a", "A", 4, 60, 1, 4), TestComparar._h(self, "b", "B", 4, 60, 1, 4)
         cap = {"nome": "Gnome Helmet", "imbue": 2}
@@ -650,6 +670,19 @@ class TestApiPrey(unittest.TestCase):
         historico.atualizar(r["id"], set=h["set"])
         self.assertEqual(self.api.hunt_abrir(r["id"])["set"]["consumiveis"], [{"nome": "Mana Potion"}])
         self.assertEqual(self.api.hunt_ultimo_set("Zandao")["consumiveis"], [{"nome": "Mana Potion"}])
+
+    def test_postura_pela_api(self):
+        self.assertIsNone(self.api.hunt_ultima_postura("Zandao"))
+        r = self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "postura": "Blood Rage"})
+        self.assertEqual(self.api.hunt_abrir(r["id"])["postura"], "Blood Rage")
+        self.assertEqual(self.api.hunt_ultima_postura("Zandao"), "Blood Rage")
+        h = self.api.hunt_historico()["hunts"][0]
+        self.assertEqual((h["postura"], h["postura_informada"]), ("Postura: Blood Rage", True))
+        self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "id": r["id"], "postura": None})   # hunt antiga salva sem mexer
+        self.assertEqual(historico.obter(r["id"])["postura"], "Blood Rage")
+        self.assertEqual([p["nome"] for p in self.api.hunt_posturas("knight")], ["Blood Rage", "Protector"])
+        linhas = self.api.hunt_stats(None, None, None, None, "Protector")
+        self.assertEqual({l["chave"]: l["valor"] for l in linhas}, {"postura:shielding": 30, "postura:dano_recebido": -15, "postura:dano_causado": -15})
 
     def test_stats_da_hunt_pela_api(self):
         st = {"titulo": "x", "itens": {"cabeca": {"nome": "H", "armor": 8}}}

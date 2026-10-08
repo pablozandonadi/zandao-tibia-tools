@@ -61,7 +61,7 @@ function htmlStatsSet(linhas, titulo = '📊 Combat Stats', nota = 'Soma dos ite
     const l = linhas.filter((x) => x.grupo === nome);
     return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin" ${x.detalhe ? `title="${esc(x.detalhe)}"` : ''}><span>${esc(x.rotulo)}</span><b>${esc(x.texto)}</b></div>${x.detalhe ? `<small class="stat-det">${esc(x.detalhe)}</small>` : ''}`).join('')}</div>` : '';
   };
-  return `<div class="stats-set"><h4>${titulo}</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Perks da arma', 'Prey', 'Charms', 'Roda', 'Outros'].map(grupo).join('')}</div>
+  return `<div class="stats-set"><h4>${titulo}</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Perks da arma', 'Prey', 'Charms', 'Roda', 'Postura', 'Outros'].map(grupo).join('')}</div>
     <p class="dica" style="margin:6px 0 0">${nota}</p></div>`;
 }
 
@@ -92,11 +92,11 @@ function garantirResumoRoda(codigo) {
 async function atualizarCombatHunt() {
   if (!$('h-combat')) return;
   const e = H.entrada, codigo = e.roda && e.roda.codigo;
-  let linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null);
+  let linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '');
   if ($('h-combat')) $('h-combat').innerHTML = linhas.length ? htmlStatsSet(linhas, '📊 Combat Stats desta hunt', 'Set + prey + charms + roda. Prey e charms valem só contra a criatura escolhida (passe o mouse para ver).') : '';
   if (codigo && !RODA_RESUMO[codigo] && !(await api.roda_resumo(codigo))) {   // roda sem resumo guardado: calcula e atualiza o painel
     await garantirResumoRoda(codigo);
-    linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null);
+    linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '');
     if ($('h-combat')) $('h-combat').innerHTML = linhas.length ? htmlStatsSet(linhas, '📊 Combat Stats desta hunt', 'Set + prey + charms + roda. Prey e charms valem só contra a criatura escolhida (passe o mouse para ver).') : '';
   }
 }
@@ -422,6 +422,32 @@ $('cfg-sets').addEventListener('change', async (e) => {
   desenharEditorSet();
 });
 
+// ---------- a postura (stance spell) da hunt ----------
+// H.entrada.postura: "Master of Decay"... = escolhida; '' = sem postura; null = hunt antiga com postura não informada (não é enviada ao salvar)
+let POSTURAS = [];
+async function carregarPosturas() { POSTURAS = (await api.hunt_posturas('')) || []; return POSTURAS; }
+const posturaInicial = async (personagem) => (await api.hunt_ultima_postura(personagem || '')) ?? '';
+function resumoPostura() {
+  const p = H.entrada.postura;
+  return p == null ? 'postura não informada' : !p ? 'sem postura' : `Postura: ${p}`;
+}
+function htmlPosturaHunt() {
+  const p = H.entrada.postura, voc = VOC_DE((acharMeu(H.entrada.personagem) || {}).vocacao);   // vocação do personagem da hunt
+  const ordem = [voc, ...['sorcerer', 'druid', 'knight', 'paladin', 'monk'].filter((v) => v !== voc)].filter(Boolean);
+  const grupos = ordem.map((v) => { const l = POSTURAS.filter((x) => x.voc === v); return l.length ? `<optgroup label="${nomeVoc(v)}">${l.map((x) => `<option value="${esc(x.nome)}" ${p === x.nome ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</optgroup>` : ''; }).join('');
+  const atual = POSTURAS.find((x) => x.nome === p);
+  return `<h3 class="sub3" style="margin-top:18px">Postura (stance)</h3>
+    <div class="dica perso-desc">Escolha a postura que você usou nesta hunt${voc ? ` (as de ${nomeVoc(voc)} aparecem primeiro)` : ''}. Ela entra no Combat Stats e no comparativo.</div>
+    ${p == null ? '<div class="dica" style="margin:0 0 8px">Postura não informada nesta hunt: escolha para marcar, ou <button class="btn btn-sm" data-marcar-vazio="postura">Marcar sem postura</button></div>' : ''}
+    <div class="roda-linha"><select id="h-postura-sel">${p == null ? '<option value="" selected disabled>Escolher a postura...</option>' : ''}<option value="__nenhuma" ${p === '' ? 'selected' : ''}>Sem postura</option>${grupos}</select></div>
+    ${atual ? `<div class="dica" style="margin-top:6px">${esc(atual.efeito)}</div>` : ''}`;
+}
+$('h-res').addEventListener('change', (e) => {
+  if (e.target.id !== 'h-postura-sel') return;
+  H.entrada.postura = e.target.value === '__nenhuma' ? '' : e.target.value;
+  redesenharPerso();
+});
+
 // ---------- o set dentro da hunt (seção "Seu personagem nesta hunt") ----------
 // H.entrada.set: {titulo, itens, consumiveis} = escolhido; {} = sem set; null = hunt antiga com set não informado (não é enviado ao salvar)
 function resumoSet() {
@@ -442,6 +468,7 @@ function htmlSetHunt() {
       ${s && s.itens ? '<button class="btn btn-sm" data-set-hunt-ver>👁 Ver o set</button>' : ''}
       ${SETS.length ? '' : '<span class="dica">Nenhum set cadastrado: cadastre em Configurações.</span>'}</div>
     ${s && s.itens ? `<div class="set-hunt-foto">${htmlFotoSet(s, { mini: true })}</div>` : ''}
+    ${htmlPosturaHunt()}
     <div id="h-combat"></div>${(setTimeout(atualizarCombatHunt, 0), '')}`;
 }
 $('h-res').addEventListener('change', (e) => {

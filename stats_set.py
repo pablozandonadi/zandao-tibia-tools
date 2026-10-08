@@ -6,6 +6,7 @@ Quem usa: web_api (set_stats), historico.comparar (tabela "Stats do set"), web/s
 
 import re
 
+import posturas
 import preys_charms
 import proficiencia
 
@@ -31,7 +32,7 @@ IMBUEMENTS = {
 _ELEMENTO = {"physical": "Physical", "fire": "Fire", "earth": "Earth", "energy": "Energy", "ice": "Ice", "holy": "Holy", "death": "Death",
              "lifedrain": "Life Drain", "manadrain": "Mana Drain", "drown": "Drown"}
 _ATRIBUTO = re.compile(r"^(?P<nome>[a-z][a-z ]*?)\s*(?P<valor>[+-]?\d+)(?P<pct>%?)$")
-_GRUPOS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Prey", "Charms", "Roda", "Outros"]
+_GRUPOS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Prey", "Charms", "Roda", "Postura", "Outros"]
 # perk da arma que vira uma linha normal (o resto fica em "Perks da arma", somado por rótulo): (rótulo em minúsculas, unidade) -> (campo, chave)
 _PERK_GLOBAL = {("critical extra damage", "%"): ("crit", "dano"), ("critical hit chance", "%"): ("crit", "chance"),
                 ("life leech", "%"): ("leech", "life"), ("mana leech", "%"): ("leech", "mana"), ("attack", ""): ("attack", None), ("defence", ""): ("defense", None)}
@@ -273,8 +274,8 @@ def _linhas_roda(secoes):
     return saida
 
 
-def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None):
+def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None, postura=None):
     """Combat Stats de uma hunt: as linhas do set mais Prey, Charms e Roda (resumo do planner), agrupadas na ordem da tela."""
-    todas = linhas(somar(set_, opcoes)) + _linhas_prey(prey) + _linhas_charms(charms) + _linhas_roda(roda)
+    todas = linhas(somar(set_, opcoes)) + _linhas_prey(prey) + _linhas_charms(charms) + _linhas_roda(roda) + posturas.linhas(postura)
     return sorted(todas, key=lambda l: _GRUPOS.index(l["grupo"]))
 

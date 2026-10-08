@@ -26,6 +26,7 @@ import sys
 import threading
 import uuid
 
+import posturas as _posturas
 import preys_charms
 import roda as _roda
 import sets as _sets
@@ -84,7 +85,7 @@ def salvar(registro, caminho=None):
                 preservar["dano"] = atual["dano"]
             if "pagos" in registro:
                 preservar["pagos"] = registro["pagos"]
-            for campo in ("prey", "charms", "roda", "set"):  # sem o campo no registro = o usuário não mexeu: mantém o gravado
+            for campo in ("prey", "charms", "roda", "set", "postura"):  # sem o campo no registro = o usuário não mexeu: mantém o gravado
                 if campo not in registro and campo in atual:
                     preservar[campo] = atual[campo]
             atual.clear()
@@ -348,7 +349,7 @@ def normalizar_prey(valor):
 
 def _com_prey_normalizada(registro):
     """Normaliza "prey" e "charms" do registro; um None vira "sem o campo" (não informado)."""
-    for campo, normalizar in (("prey", normalizar_prey), ("charms", preys_charms.normalizar_charms), ("roda", _roda.normalizar_roda), ("set", _sets.normalizar_set)):
+    for campo, normalizar in (("prey", normalizar_prey), ("charms", preys_charms.normalizar_charms), ("roda", _roda.normalizar_roda), ("set", _sets.normalizar_set), ("postura", _posturas.normalizar_postura)):
         if campo not in registro:
             continue
         registro = dict(registro)
@@ -441,9 +442,10 @@ def _stats_da_hunt(h):
     charms = preys_charms.normalizar_charms(h.get("charms")) or []
     r = _roda.normalizar_roda(h.get("roda"))
     resumo = _roda.resumo_obter(r["codigo"]) if r else None
-    if not ((s and s.get("itens")) or prey or charms or resumo):
+    postura = _posturas.normalizar_postura(h.get("postura")) or ""
+    if not ((s and s.get("itens")) or prey or charms or resumo or postura):
         return None
-    return {l["chave"]: l for l in _stats_set.linhas_hunt(s, prey, charms, resumo) if l["valor"] is not None}
+    return {l["chave"]: l for l in _stats_set.linhas_hunt(s, prey, charms, resumo, postura=postura) if l["valor"] is not None}
 
 
 def _stats_do_set(hunts):
@@ -463,7 +465,18 @@ def _stats_do_set(hunts):
     return saida
 
 
-_GRUPOS_STATS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Prey", "Charms", "Roda", "Outros"]
+_GRUPOS_STATS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Prey", "Charms", "Roda", "Postura", "Outros"]
+
+
+def _aviso_postura(hunts, cab):
+    """Só avisa quando todas as hunts têm a postura informada e elas não são todas iguais."""
+    if not all("postura" in h for h in hunts):
+        return None
+    posturas = [_posturas.normalizar_postura(h["postura"]) or "" for h in hunts]
+    if len(set(posturas)) < 2:
+        return None
+    quem = ", ".join(f"\"{c['nome']}\" " + ("sem postura" if not p else "com " + _posturas.rotulo_postura(p)) for c, p in zip(cab, posturas))
+    return f"Postura diferente: {quem}. O dano e a cura podem não ser comparáveis diretamente."
 
 
 def _aviso_roda(hunts, cab):
@@ -513,6 +526,7 @@ def comparar(hunts):
             "charms": preys_charms.rotulo_charms(preys_charms.normalizar_charms(h.get("charms"))),
             "roda": _roda.rotulo_roda(_roda.normalizar_roda(h.get("roda"))),
             "set": _sets.rotulo_set(_sets.normalizar_set(h.get("set"))),
+            "postura": _posturas.rotulo_postura(_posturas.normalizar_postura(h.get("postura"))),
             "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]]}
            for h, m in zip(hunts, ms)]
 
@@ -564,6 +578,9 @@ def comparar(hunts):
     aviso_set = _aviso_set(hunts, cab)
     if aviso_set:
         avisos.append(aviso_set)
+    aviso_postura = _aviso_postura(hunts, cab)
+    if aviso_postura:
+        avisos.append(aviso_postura)
 
     veredito = []
     for chave, rotulo in (("lucro_membro_h", "lucro por membro por hora"), ("xp_h", "XP por hora"),

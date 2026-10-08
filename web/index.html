@@ -1252,7 +1252,7 @@ const ouro = (v) => `<span class="${cls(v)}">${n(v)}</span>`;
 const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
 
 const H = {
-  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [], charms: [], duracao: '', roda: {}, set: {} },
+  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [], charms: [], duracao: '', roda: {}, set: {}, postura: '' },
   id: null, assinatura: null, a: null, pagos: [], texto: '', dano: null, aba: null, seq: 0,
   herdado: { prey: false, charms: false },   // veio da hunt anterior e você ainda não mexeu (ver podarHeranca)
 };
@@ -1369,7 +1369,7 @@ function resumoPerso() {
   const tp = p == null ? 'prey não informada' : !p.length ? 'sem prey'
     : p.map((x) => `Prey ${curto(x.tipo)} ★${x.estrelas}`).join(' + ');
   const tc = c == null ? 'charms não informados' : !c.length ? 'sem charms' : `${c.length} charm${c.length > 1 ? 's' : ''}`;
-  return `${tp} · ${tc} · ${resumoRoda()} · ${resumoSet()}`;
+  return `${tp} · ${tc} · ${resumoRoda()} · ${resumoSet()} · ${resumoPostura()}`;
 }
 
 // criaturas que NÃO podem ser escolhidas para este alvo ("prey:1" ou "charm:Carnage"), minúsculas
@@ -1486,7 +1486,7 @@ async function persoClique(e) {
   if (d.preyTirar !== undefined || d.preyTipo !== undefined || d.estrela || alvoCr.startsWith('prey:') || d.marcarVazio === 'prey') H.herdado.prey = false;
   if (d.charmNivel || alvoCr.startsWith('charm:') || d.marcarVazio === 'charms') H.herdado.charms = false;
   if (d.charmAba) { persoAba = d.charmAba; return redesenharPerso(false); }
-  if (d.marcarVazio) { H.entrada[d.marcarVazio] = d.marcarVazio === 'roda' || d.marcarVazio === 'set' ? {} : []; return redesenharPerso(); }
+  if (d.marcarVazio) { H.entrada[d.marcarVazio] = d.marcarVazio === 'postura' ? '' : (d.marcarVazio === 'roda' || d.marcarVazio === 'set' ? {} : []); return redesenharPerso(); }
   if (d.preyTirar !== undefined) { (H.entrada.prey || []).splice(+d.preyTirar, 1); return redesenharPerso(); }
   if (d.preyTipo !== undefined) {
     const tipo = await escolher('Escolha o tipo da prey', TAB.prey.map((t) => ({ valor: t.tipo,
@@ -1617,7 +1617,7 @@ $('h-nome').addEventListener('input', () => {
 // ---------- salvar no Histórico (só quando o usuário clica) ----------
 // "retrato" = tudo o que vai para o Histórico; se mudou desde o último Salvar, há alterações não salvas
 const retrato = () => JSON.stringify([H.entrada.nome, H.entrada.party, H.entrada.solo, H.entrada.dano,
-  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort(), H.entrada.prey ?? null, H.entrada.charms ?? null, H.entrada.duracao || '', H.entrada.roda ?? null, H.entrada.set ?? null]);
+  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort(), H.entrada.prey ?? null, H.entrada.charms ?? null, H.entrada.duracao || '', H.entrada.roda ?? null, H.entrada.set ?? null, H.entrada.postura ?? null]);
 const temAlteracao = () => !!H.a && (!H.id || retrato() !== H.salvoRetrato);
 function atualizarSalvar() {
   const b = $('h-salvar');
@@ -1643,7 +1643,7 @@ $('h-salvar').addEventListener('click', async () => {
 $('h-personagem').addEventListener('change', async () => {
   H.entrada.personagem = $('h-personagem').value;
   H.equip = null;
-  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); H.entrada.charms = await charmsInicial(H.entrada.personagem); H.entrada.roda = await rodaInicial(H.entrada.personagem); H.entrada.set = await setInicial(H.entrada.personagem); marcarHerdado(); }
+  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); H.entrada.charms = await charmsInicial(H.entrada.personagem); H.entrada.roda = await rodaInicial(H.entrada.personagem); H.entrada.set = await setInicial(H.entrada.personagem); H.entrada.postura = await posturaInicial(H.entrada.personagem); marcarHerdado(); }
   if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) MEUS = await api.personagem_usar(H.entrada.personagem);
   montarSeletorPersonagem();
   analisarHunt();
@@ -1746,7 +1746,7 @@ $('h-nova').addEventListener('click', async () => {
   if (temAlteracao() && !confirm(H.id ? 'As alterações desta hunt não foram salvas. Descartar e começar outra?'
     : 'Esta hunt não foi salva no Histórico. Descartar e começar outra?')) return;
   const personagem = H.entrada.personagem;
-  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem), charms: await charmsInicial(personagem), duracao: '', roda: await rodaInicial(personagem), set: await setInicial(personagem) };
+  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem), charms: await charmsInicial(personagem), duracao: '', roda: await rodaInicial(personagem), set: await setInicial(personagem), postura: await posturaInicial(personagem) };
   marcarHerdado();
   H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null;
   preencherHunt();
@@ -2040,6 +2040,8 @@ async function huntIniciar() {
   H.entrada.roda = await rodaInicial(H.entrada.personagem);
   await carregarSets();
   H.entrada.set = await setInicial(H.entrada.personagem);
+  await carregarPosturas();
+  H.entrada.postura = await posturaInicial(H.entrada.personagem);
   marcarHerdado();
   H.id = null;
   preencherHunt();
@@ -2072,7 +2074,7 @@ async function carregarHistorico() {
     const s = h.resumo || {};
     const tam = s.membros || 1;
     return `<div class="card calmo hist-card ${compSel.includes(h.id) ? 'sel' : ''}" data-card="${h.id}"><div>
-      <div class="hist-nome">${esc(h.nome || 'Hunt')} <span class="tag tag-pt">${tam > 1 ? 'PT ' + tam : 'Solo'}</span>${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''} <span class="chip chip-neutro ${h.prey_informada ? '' : 'dim'}" style="font-size:.64rem">${esc(h.prey)}</span>${h.charms_informados ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.charms)}</span>` : ''}${h.roda_informada ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.roda)}</span>` : ''}${h.set_informado ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.set)}</span>` : ''}</div>
+      <div class="hist-nome">${esc(h.nome || 'Hunt')} <span class="tag tag-pt">${tam > 1 ? 'PT ' + tam : 'Solo'}</span>${h.id === H.id ? ' <span class="tag tag-eu">aberta</span>' : ''}${h.importada ? ' <span class="tag tag-lider">importada</span>' : ''} <span class="chip chip-neutro ${h.prey_informada ? '' : 'dim'}" style="font-size:.64rem">${esc(h.prey)}</span>${h.charms_informados ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.charms)}</span>` : ''}${h.roda_informada ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.roda)}</span>` : ''}${h.set_informado ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.set)}</span>` : ''}${h.postura_informada ? ` <span class="chip chip-neutro" style="font-size:.64rem">${esc(h.postura)}</span>` : ''}</div>
       <div class="hist-meta">${esc(h.data || '')}${h.personagem ? ' · ' + esc(h.personagem) : ''}${h.membros.length ? ' · ' + h.membros.length + ' membros: ' + esc(h.membros.join(', ')) : ''}</div>
       <div class="hist-nums"><span>Duração <b>${esc(s.duracao || '—')}</b></span><span>Balance <b class="${cls(s.balance)}">${n(s.balance)}</b></span>
         <span>Lucro${h.membros.length ? '/membro' : ''} <b class="${cls(s.lucro)}">${n(s.lucro)}</b></span>${s.xp_h ? `<span>XP/h <b>${n(s.xp_h)}</b></span>` : ''}
@@ -2106,7 +2108,7 @@ async function abrirHunt(id) {
     const e = await api.hunt_abrir(id);
     if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
     H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
-      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null, charms: e.charms ?? null, duracao: e.duracao || '', roda: e.roda ?? null, set: e.set ?? null };
+      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null, charms: e.charms ?? null, duracao: e.duracao || '', roda: e.roda ?? null, set: e.set ?? null, postura: e.postura ?? null };
     H.herdado = { prey: false, charms: false };   // hunt salva: nada é herança
     H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || [];
     H.salvoRetrato = retrato();
@@ -2279,7 +2281,7 @@ function renderComparacao(r, rolar = true) {
   const fmtv = (v, tipo) => v === null || v === undefined ? '—' : tipo === 'txt' ? esc(v) : tipo === 'gp' ? `<span class="${cls(v)}">${n(v)}</span>` : n(v);
   const cab = r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${esc(h.data || '')}</span>
     <span>${h.membros > 1 ? 'PT ' + h.membros : 'Solo'}${h.duracao ? ' · ' + esc(durCurta(h.duracao)) : ''}${h.personagem ? ' · ' + esc(h.personagem) : ''}</span>
-    ${h.prey ? `<span>${esc(h.prey)}</span>` : ''}${h.charms ? `<span>${esc(h.charms)}</span>` : ''}${h.roda && h.roda !== 'Roda não informada' ? `<span>${esc(h.roda)}</span>` : ''}${h.set && h.set !== 'Set não informado' ? `<span>${esc(h.set)}</span>` : ''}
+    ${h.prey ? `<span>${esc(h.prey)}</span>` : ''}${h.charms ? `<span>${esc(h.charms)}</span>` : ''}${h.roda && h.roda !== 'Roda não informada' ? `<span>${esc(h.roda)}</span>` : ''}${h.set && h.set !== 'Set não informado' ? `<span>${esc(h.set)}</span>` : ''}${h.postura && h.postura !== 'Postura não informada' ? `<span>${esc(h.postura)}</span>` : ''}
     <span>${h.monstros.map((m) => m.imagem ? `<img src="${esc(m.imagem)}" alt="" title="${esc(m.kills + 'x ' + m.nome)}">` : '').join('')}</span></th>`).join('');
   const linhas = r.linhas.map((l) => `<tr class="${l.chave === 'lucro_membro_h' || l.chave === 'xp_h' ? 'destaque' : ''}"><td>${esc(l.rotulo)}</td>
     ${l.valores.map((v, i) => `<td class="r ${l.melhor === i ? 'melhor' : ''}">${fmtv(v, l.tipo)}</td>`).join('')}</tr>`).join('');
@@ -2297,7 +2299,7 @@ function renderComparacao(r, rolar = true) {
     <div class="tabela-wrap"><table class="tab comp"><tr><th></th>${cab}</tr>${linhas}${prot}</table></div>
     <p class="dica" style="margin:10px 0 0">★ = melhor valor da linha. As linhas "/ hora" e "por membro" corrigem durações e tamanhos de party diferentes.</p>
     ${(r.stats_set || []).length ? `<h2 class="sub" style="margin-top:20px">📊 Combat Stats (set, prey, charms e roda)</h2>
-      <div class="tabela-wrap"><table class="tab comp"><tr><th></th>${r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${esc(h.set && h.set !== 'Set não informado' ? h.set : 'sem set')}</span></th>`).join('')}</tr>
+      <div class="tabela-wrap"><table class="tab comp"><tr><th></th>${r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${esc(h.set && h.set !== 'Set não informado' ? h.set : 'sem set')}</span>${h.postura && h.postura !== 'Postura não informada' ? `<span>${esc(h.postura)}</span>` : ''}</th>`).join('')}</tr>
       ${r.stats_set.map((l) => `<tr><td>${esc(l.rotulo)} <span class="pct">${esc(l.grupo)}</span></td>${l.valores.map((v, i) => `<td class="r ${l.melhor === i ? 'melhor' : ''}">${v === null ? '<span class="dim">—</span>' : Number.isInteger(v) ? n(v) : String(v).replace('.', ',')}</td>`).join('')}</tr>`).join('')}</table></div>
       <p class="dica" style="margin:8px 0 0">Soma do set (itens, embuimentos e perks da arma), prey, charms e roda. "—" = hunt sem esses dados.</p>` : ''}
     ${r.jogadores.length ? `<h2 class="sub" style="margin-top:20px">🔎 Detalhe por hunt</h2>
