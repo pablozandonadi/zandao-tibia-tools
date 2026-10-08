@@ -20,6 +20,8 @@ else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 ARQUIVO = os.path.join(BASE_DIR, "meus_personagens.json")
+SKILLS = ["sword fighting", "axe fighting", "club fighting", "fist fighting", "distance fighting", "shielding", "magic level"]
+MODOS = ("offensive", "balanced", "defensive")
 ATUALIZAR_APOS = 3600  # levels são reconsultados no tibia.com no máximo a cada 1 hora
 
 _trava = threading.Lock()
@@ -55,13 +57,48 @@ def adicionar(nome, caminho=None, buscar=None):
         return None, f"Não achei \"{nome}\" no tibia.com. Confira o nome (e a internet)."
     with _trava:
         d = carregar(caminho)
+        antigo = next((p for p in d["lista"] if p["nome"].lower() == info["nome"].lower()), {})
         d["lista"] = [p for p in d["lista"] if p["nome"].lower() != info["nome"].lower()]
-        d["lista"].append({**info, "atualizado": time.time()})
+        d["lista"].append({**{k: antigo[k] for k in ("skills", "modo") if k in antigo}, **info, "atualizado": time.time()})   # as skills digitadas não se perdem
         d["lista"].sort(key=lambda p: p["nome"].lower())
         if not d["atual"]:
             d["atual"] = info["nome"]
         _gravar(d, caminho)
     return d, None
+
+
+def achar(nome, caminho=None):
+    """Dados do personagem pelo nome (sem diferenciar maiúsculas), ou None."""
+    alvo = (nome or "").lower()
+    return next((p for p in carregar(caminho)["lista"] if p["nome"].lower() == alvo), None) if alvo else None
+
+
+def skills_de(nome, caminho=None):
+    """{"base": {skill: valor}, "modo": ...} do personagem, ou None se ele não tem skills digitadas."""
+    p = achar(nome, caminho)
+    return {"base": p["skills"], "modo": p.get("modo") or "offensive"} if p and p.get("skills") else None
+
+
+def salvar_skills(nome, skills, modo="offensive", caminho=None):
+    """Guarda as skills base do personagem (sem itens) e o modo de combate. Devolve os dados, ou None se ele não existir."""
+    limpas = {}
+    for k in SKILLS:
+        v = (skills or {}).get(k)
+        try:
+            v = int(v)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= v <= 9999:
+            limpas[k] = v
+    with _trava:
+        d = carregar(caminho)
+        p = next((x for x in d["lista"] if x["nome"].lower() == (nome or "").lower()), None)
+        if not p:
+            return None
+        p["skills"] = limpas
+        p["modo"] = modo if modo in MODOS else "offensive"
+        _gravar(d, caminho)
+        return d
 
 
 def remover(nome, caminho=None):

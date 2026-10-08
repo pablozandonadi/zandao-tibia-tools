@@ -385,6 +385,10 @@ class API:
                 "vocacao": equipamentos.vocacao_base(voc), "level": lvl, "elemento": elemento,
                 "slots": [{"slot": s, "rotulo": r, "itens": rec.get(s, [])} for s, r in equipamentos.SLOTS]}
 
+    def personagem_skills(self, nome, skills, modo="offensive"):
+        """Guarda as skills base (sem itens) e o modo de combate do personagem: com elas o Combat Stats calcula Attack e Defence."""
+        return personagens.salvar_skills(nome, skills, modo)
+
     def personagem_adicionar(self, nome):
         d, erro = personagens.adicionar(nome)
         return {"erro": erro} if erro else d
@@ -709,13 +713,14 @@ class API:
         """Opções do Perk Shaping: as de todas as vocações e as da vocação pedida (todas, se voc vazio)."""
         return [o for o in proficiencia.carregar().get("opcoes", []) if not voc or o.get("voc") in ("", voc)]
 
-    def hunt_stats(self, set_, prey, charms, roda, postura=None, nivel=None):
+    def hunt_stats(self, set_, prey, charms, roda, postura=None, nivel=None, personagem=""):
         """Combat Stats da hunt (set + prey + charms + roda) para o painel da tela; a roda entra pelo resumo do planner já guardado."""
         r = roda_mod.normalizar_roda(roda) if roda else None
         resumo = roda_mod.resumo_obter(r["codigo"]) if r else None
         return stats_set.linhas_hunt(sets.normalizar_set(set_), historico.normalizar_prey(prey) or [],
                                      preys_charms.normalizar_charms(charms) or [], resumo,
-                                     postura=posturas.normalizar_postura(postura) or "", nivel=nivel if isinstance(nivel, int) else None)
+                                     postura=posturas.normalizar_postura(postura) or "", nivel=nivel if isinstance(nivel, int) else None,
+                                     skills=_skills_do_personagem(personagem))
 
     def set_stats(self, valor):
         """Combat Stats (soma dos itens e embuimentos) do set pedido: lista de linhas para a tela."""
@@ -1079,3 +1084,8 @@ class API:
             return False
         aplicar_janela(hwnd, prefs["por_cima"], prefs["opacidade"])
         return True
+
+
+def _skills_do_personagem(nome):
+    """Skills base digitadas do personagem (para o Combat Stats da hunt), ou None."""
+    return personagens.skills_de(nome)

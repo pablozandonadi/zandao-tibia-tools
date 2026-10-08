@@ -15,18 +15,20 @@ POSTURAS = [
     {"nome": "Master of Thunder", "voc": "sorcerer", "efeito": "Aumenta em 4% a chance de crítico das spells Energy naturais. Ao lançar uma spell Energy, o dano da próxima spell que não é Energy vira Energy.",
      "stats": [("crit_chance_energy", "Critical hit chance das spells Energy", 4, "%")]},
     {"nome": "Blood Rage", "voc": "knight", "efeito": "Dá 25% de sword/axe/club fighting (sobre o total, com equipamento e buffs) e aumenta em 15% o dano que você recebe.",
-     "stats": [("skill_melee", "Sword/Axe/Club fighting", 25, "%"), ("dano_recebido", "Dano recebido", 15, "%")]},
+     "stats": [("skill_melee", "Sword/Axe/Club fighting", 25, "%"), ("dano_recebido", "Dano recebido", 15, "%")],
+     "skill_pct": {"sword fighting": 25, "axe fighting": 25, "club fighting": 25, "fist fighting": 25}},
     {"nome": "Protector", "voc": "knight", "efeito": "Dá 30% de shielding e reduz em 15% o dano recebido e também o dano causado.",
-     "stats": [("shielding", "Shielding", 30, "%"), ("dano_recebido", "Dano recebido", -15, "%"), ("dano_causado", "Dano causado", -15, "%")]},
+     "stats": [("shielding", "Shielding", 30, "%"), ("dano_recebido", "Dano recebido", -15, "%"), ("dano_causado", "Dano causado", -15, "%")],
+     "skill_pct": {"shielding": 30}},
     {"nome": "Sharpshooter", "voc": "paladin", "efeito": "Dá 32% de distance fighting (sobre o total, com equipamento e buffs).",
-     "stats": [("distance", "Distance fighting", 32, "%")]},
+     "stats": [("distance", "Distance fighting", 32, "%")], "skill_pct": {"distance fighting": 32}},
     {"nome": "Divine Defiance", "voc": "paladin", "efeito": "Dá 6% do seu distance fighting como holy e healing magic level, e 12% de dodge contra inimigos não adjacentes.",
      "stats": [("holy_heal_ml", "Holy e healing magic level (do distance fighting)", 6, "%"), ("dodge", "Dodge contra inimigos não adjacentes", 12, "%")]},
     {"nome": "Sniper", "voc": "paladin", "efeito": "A wiki ainda não descreve o efeito desta postura.", "stats": []},
     {"nome": "Virtue of Harmony", "voc": "monk", "efeito": "Aumenta em 3% (6% se Serene) o bônus base de Harmony. Ao usar um Spender nesta virtude, devolve 1 de Harmony.",
      "stats": [("harmony", "Bônus base de Harmony", 3, "%")]},
     {"nome": "Virtue of Justice", "voc": "monk", "efeito": "Aumenta o Fist Fighting em 8% (16% se Serene).",
-     "stats": [("fist", "Fist fighting", 8, "%")]},
+     "stats": [("fist", "Fist fighting", 8, "%")], "skill_pct": {"fist fighting": 8}},
     {"nome": "Virtue of Sustain", "voc": "monk", "efeito": "Aumenta em 35% (70% se Serene) toda a cura das spells de Monk, incluindo a cura passiva das Virtues.",
      "stats": [("cura_monk", "Cura das spells de Monk", 35, "%")]},
     {"nome": "Channeled Preservation", "voc": "druid", "efeito": "Aumenta em 100% o cooldown de Heal Friend e Mass Healing e, com isso, aumenta a cura deles em 110%.",
@@ -39,6 +41,12 @@ POSTURAS = [
      "stats": [("autocura", "Cura em si mesmo", 10, "%"), ("cura_secundaria", "Cura do alvo secundário", 30, "%")]},
 ]
 VOCACOES = ["sorcerer", "knight", "paladin", "monk", "druid"]
+
+
+def skill_pct(nome):
+    """Quanto a postura aumenta cada skill, em % do total (com itens): {"sword fighting": 25}."""
+    p = _achar(nome)
+    return dict(p.get("skill_pct") or {}) if p else {}
 
 
 def listar(voc=""):

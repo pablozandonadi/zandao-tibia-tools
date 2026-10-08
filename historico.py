@@ -438,11 +438,8 @@ def _efeito_prey(hunts, cab, ms):
 
 def _nivel_do_personagem(h):
     """Level atual do personagem da hunt (de Meus personagens), para o Flat Damage and Healing; None se não cadastrado."""
-    nome = (h.get("personagem") or "").lower()
-    for p in _personagens.carregar().get("lista", []):
-        if p.get("nome", "").lower() == nome and isinstance(p.get("level"), int):
-            return p["level"]
-    return None
+    p = _personagens.achar(h.get("personagem"))
+    return p.get("level") if p and isinstance(p.get("level"), int) else None
 
 
 def _stats_da_hunt(h):
@@ -455,7 +452,7 @@ def _stats_da_hunt(h):
     postura = _posturas.normalizar_postura(h.get("postura")) or ""
     if not ((s and s.get("itens")) or prey or charms or resumo or postura):
         return None
-    return {l["chave"]: l for l in _stats_set.linhas_hunt(s, prey, charms, resumo, postura=postura, nivel=_nivel_do_personagem(h)) if l["valor"] is not None}
+    return {l["chave"]: l for l in _stats_set.linhas_hunt(s, prey, charms, resumo, postura=postura, nivel=_nivel_do_personagem(h), skills=_personagens.skills_de(h.get("personagem"))) if l["valor"] is not None}
 
 
 def _stats_do_set(hunts):

@@ -77,6 +77,16 @@ def trinkets():
     return saida
 
 
+def tipo_da_arma(nome, caminho=None):
+    """Tipo da arma (ex.: "Sword Weapons") lido só do cache da lista de armas, sem baixar nada; None se não estiver lá."""
+    try:
+        with open(caminho or CACHE_PATH, "r", encoding="utf-8") as f:
+            itens = ((json.load(f).get("slots") or {}).get("arma") or {}).get("itens") or []
+    except (OSError, json.JSONDecodeError):
+        return None
+    return next((i.get("tipo") for i in itens if (i.get("nome") or "").lower() == (nome or "").lower()), None)
+
+
 def _inteiro(v):
     n = equipamentos._num(v)
     return n or None

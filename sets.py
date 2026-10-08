@@ -52,6 +52,8 @@ def _normalizar_item(item, com_prof=False):
         if e and e not in imbues:
             imbues.append(e)
     out = {"nome": nome, "imbue": vagas, "imbues": imbues[:vagas]}
+    if _texto(item.get("tipo"), 40):
+        out["tipo"] = _texto(item.get("tipo"), 40)   # tipo da arma (Sword Weapons...): diz qual skill ela usa
     imagem = _texto(item.get("imagem"), 400)
     if imagem.startswith(("https://", "http://")):
         out["imagem"] = imagem

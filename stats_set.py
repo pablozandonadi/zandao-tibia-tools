@@ -442,19 +442,110 @@ def _linhas_augments(roda):
     return saida
 
 
-def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None, postura=None, nivel=None):
+# skill que cada tipo de arma usa
+_SKILL_DA_ARMA = {"sword weapons": "sword fighting", "axe weapons": "axe fighting", "club weapons": "club fighting",
+                  "distance weapons": "distance fighting", "fist fighting weapons": "fist fighting"}
+_AUTO_ATAQUE = re.compile(r"^do seu (.+?) como extra damage para auto-attacks$", re.I)
+
+
+def _arma_e_escudo(set_):
+    itens = (set_ or {}).get("itens") or {}
+    return itens.get("arma"), itens.get("mao")
+
+
+def _skill_da_arma(arma):
+    import itens_set
+    tipo = (arma.get("tipo") or itens_set.tipo_da_arma(arma.get("nome")) or "").lower()
+    return _SKILL_DA_ARMA.get(tipo)
+
+
+def _skills_finais(s, base, postura):
+    """Skill de cada tipo: base digitada + bônus de itens/embuimentos, vezes a postura (arredonda para baixo, como o Tibia).
+    Devolve {skill: {"valor", "fontes"}}."""
+    pct = posturas.skill_pct(postura)
+    saida = {}
+    for nome, b in (base or {}).items():
+        if not isinstance(b, int) or b <= 0:
+            continue
+        itens = s["skills"].get(nome, 0)
+        total = b + itens
+        final = int(total * (1 + pct.get(nome, 0) / 100) + 1e-9)
+        fontes = [{"origem": "Base", "valor": b}] + ([{"origem": "Equipamento", "valor": itens}] if itens else []) + ([{"origem": "Postura", "valor": final - total}] if final != total else [])
+        saida[nome] = {"valor": final, "fontes": fontes}
+    return saida
+
+
+def _ataque_e_defesa(set_, s, finais, flat, modo):
+    """Attack Value e Defence Value como o Tibia calcula (fórmulas da TibiaWiki, conferidas com os prints do jogo):
+    ataque = B + floor(floor(m x W) x (S + 4) / 28), com m = 1,2 / 1 / 0,6 (Offensive / Balanced / Defensive);
+    defesa = floor(D x (S + 10) / 40), com D = Def do escudo (se tem) ou da arma, e S = shielding ou a skill da arma."""
+    arma, escudo = _arma_e_escudo(set_)
+    saida = []
+    if not arma:
+        return saida
+    skill_arma = _skill_da_arma(arma)
+    W = arma.get("attack") or 0
+    if W and skill_arma in finais:
+        S = finais[skill_arma]["valor"]
+        base_balanceado = W * (S + 4) // 28
+        alvo = {"offensive": (W * 12 // 10), "balanced": W, "defensive": -(-W * 6 // 10)}.get(modo, W * 12 // 10)
+        total_skill = alvo * (S + 4) // 28
+        fontes = [{"origem": "Bônus fixo", "valor": flat}, {"origem": "Equipamento", "valor": W}, {"origem": "Skill", "valor": base_balanceado - W},
+                  {"origem": "Tática de combate", "valor": total_skill - base_balanceado}]
+        saida.append({"chave": "attackvalue", "grupo": "Ataque", "rotulo": "Attack Value", "valor": flat + total_skill, "texto": str(flat + total_skill),
+                      "misc": False, "fontes": [f for f in fontes if f["valor"]]})
+    if escudo and escudo.get("defense"):
+        D, nome_s = escudo["defense"], "shielding"
+    else:
+        D, nome_s = arma.get("defense") or 0, skill_arma
+    if D and nome_s in finais:
+        S = finais[nome_s]["valor"]
+        v = D * (S + 10) // 40
+        saida.append({"chave": "defencevalue", "grupo": "Defesa", "rotulo": "Defence Value", "valor": v, "texto": str(v), "misc": False,
+                      "fontes": [{"origem": "Equipamento", "valor": D}, {"origem": "Skill", "valor": v - D}]})
+    return saida
+
+
+def _auto_ataque(s, finais):
+    """Auto-Attack Extra Damage: % do perk x a skill (ex.: 4% do Sword Fighting). Devolve (linha ou None, rótulos de perk já usados)."""
+    fontes, usados, total = [], [], 0
+    for rotulo, e in s["perks"].items():
+        m = _AUTO_ATAQUE.match(rotulo)
+        if m and m.group(1).lower() in finais:
+            v = int(e["valor"] / 100 * finais[m.group(1).lower()]["valor"] + 0.5)
+            fontes.append({"origem": _titulo(m.group(1).lower()), "valor": v})
+            usados.append(rotulo)
+            total += v
+    if not fontes:
+        return None, []
+    return {"chave": "autoextra", "grupo": "Ataque", "rotulo": "Auto-Attack Extra Damage", "valor": total, "texto": str(total), "misc": False, "fontes": fontes}, usados
+
+
+def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None, postura=None, nivel=None, skills=None):
     """Combat Stats de uma hunt, no formato do Tibia: o set (com bônus fixo e a roda somados nos totais, cada valor com a sua origem),
-    mais Prey, Charms, Roda, Postura e os augments da roda (misc). nivel = level do personagem (Flat Damage and Healing = nível / 5)."""
+    mais Prey, Charms, Roda, Postura e os augments da roda (misc). nivel = level do personagem (Flat Damage and Healing = nível / 5).
+    skills = {"base": {skill: valor sem itens}, "modo": "offensive"}: com elas saem o total de cada skill (com a postura), o Attack Value,
+    o Defence Value e o Auto-Attack Extra Damage."""
     if not ((set_ and set_.get("itens")) or prey or charms or roda or postura):
         return []                              # nada informado: o bônus fixo sozinho não diz nada
     parcial_roda, flat_roda, roda_resto = _roda_nos_totais(roda)
     s = somar(set_, opcoes, extras=[("Roda", parcial_roda)], antes=[("Bônus fixo", BONUS_FIXO)])
     todas = linhas(s)
     flat_fontes = ([{"origem": "Nível", "valor": nivel // 5}] if nivel else []) + ([{"origem": "Roda", "valor": flat_roda}] if flat_roda else [])
+    flat = sum(f["valor"] for f in flat_fontes)
     if flat_fontes:
-        total = sum(f["valor"] for f in flat_fontes)
-        todas.append({"chave": "flat", "grupo": "Ataque", "rotulo": "Flat Damage and Healing", "valor": total, "texto": _num(total), "misc": False, "fontes": flat_fontes})
+        todas.append({"chave": "flat", "grupo": "Ataque", "rotulo": "Flat Damage and Healing", "valor": flat, "texto": _num(flat), "misc": False, "fontes": flat_fontes})
+    finais = _skills_finais(s, (skills or {}).get("base"), postura)
+    if finais:
+        for nome, d in finais.items():
+            todas.append({"chave": f"skillfinal:{nome}", "grupo": "Skills", "rotulo": _titulo(nome) + " (total)", "valor": d["valor"], "texto": str(d["valor"]), "misc": False, "fontes": d["fontes"]})
+        extra = _ataque_e_defesa(set_, s, finais, flat, (skills or {}).get("modo") or "offensive")
+        if any(l["chave"] == "defencevalue" for l in extra):
+            todas = [l for l in todas if l["chave"] != "defense"]       # o Defence Value substitui a soma simples dos Def
+        todas += extra
+        auto, usados = _auto_ataque(s, finais)
+        if auto:
+            todas = [l for l in todas if l["chave"] not in {f"perk:{r}" for r in usados}] + [auto]
     todas += _linhas_prey(prey) + _linhas_charms(charms) + _linhas_roda(roda_resto) + _linhas_augments(roda) + posturas.linhas(postura)
     ordem = {g: i for i, g in enumerate(_GRUPOS)}
     return sorted(todas, key=lambda l: (ordem[l["grupo"]], bool(l.get("misc"))))
-

@@ -97,11 +97,11 @@ function garantirResumoRoda(codigo) {
 async function atualizarCombatHunt() {
   if (!$('h-combat')) return;
   const e = H.entrada, codigo = e.roda && e.roda.codigo;
-  let linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '', (acharMeu(e.personagem) || {}).level || null);
+  let linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '', (acharMeu(e.personagem) || {}).level || null, e.personagem || '');
   if ($('h-combat')) $('h-combat').innerHTML = linhas.length ? htmlStatsSet(linhas, '📊 Combat Stats desta hunt', 'Set + prey + charms + roda. Prey e charms valem só contra a criatura escolhida (passe o mouse para ver).') : '';
   if (codigo && !RODA_RESUMO[codigo] && !(await api.roda_resumo(codigo))) {   // roda sem resumo guardado: calcula e atualiza o painel
     await garantirResumoRoda(codigo);
-    linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '', (acharMeu(e.personagem) || {}).level || null);
+    linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '', (acharMeu(e.personagem) || {}).level || null, e.personagem || '');
     if ($('h-combat')) $('h-combat').innerHTML = linhas.length ? htmlStatsSet(linhas, '📊 Combat Stats desta hunt', 'Set + prey + charms + roda. Prey e charms valem só contra a criatura escolhida (passe o mouse para ver).') : '';
   }
 }
@@ -336,7 +336,7 @@ async function escolherItemSet(slot) {
   const it = await pedirItemSet(slot);
   if (!it) return;
   const anterior = SETED.itens[slot];
-  SETED.itens[slot] = { nome: it.nome, imagem: it.imagem, desc: it.desc, imbue: it.imbue || 0, imbues: anterior && anterior.nome === it.nome ? anterior.imbues : [],
+  SETED.itens[slot] = { nome: it.nome, tipo: it.tipo, imagem: it.imagem, desc: it.desc, imbue: it.imbue || 0, imbues: anterior && anterior.nome === it.nome ? anterior.imbues : [],
     armor: it.armor, defense: it.defense, attack: it.attack, attrib: it.attrib, resist: it.resist, atk_elem: it.atk_elem };
   SETED.sel = slot;
   if (slot === 'arma') await carregarPerksArma(anterior);
@@ -440,6 +440,30 @@ $('h-classificador').addEventListener('toggle', () => {
   quadro.appendChild(f);
 });
 
+// ---------- skills do personagem (base, sem itens): com elas o Combat Stats calcula Attack Value, Defence Value e auto-attack ----------
+const SKILL_ROTULO = [['sword fighting', 'Sword'], ['axe fighting', 'Axe'], ['club fighting', 'Club'], ['fist fighting', 'Fist'],
+  ['distance fighting', 'Distance'], ['shielding', 'Shielding'], ['magic level', 'Magic Level']];
+function htmlSkillsHunt() {
+  const p = acharMeu(H.entrada.personagem);
+  if (!p) return '<h3 class="sub3" style="margin-top:18px">Skills do personagem</h3><div class="dica">Escolha o seu personagem (⚙) para informar as skills.</div>';
+  const sk = p.skills || {}, modo = p.modo || 'offensive';
+  return `<h3 class="sub3" style="margin-top:18px">Skills de ${esc(p.nome)}</h3>
+    <div class="dica perso-desc">Digite as skills <b>base, sem itens</b> (na janela de skills do Tibia é o número menor ao lado do total). Com elas o app calcula o <b>Attack Value</b>,
+      o <b>Defence Value</b> e o <b>auto-attack</b>, já com o set e a postura. Ficam salvas para este personagem.</div>
+    <div class="skills-form">${SKILL_ROTULO.map(([k, r]) => `<label>${r}<input type="number" min="0" max="9999" data-skill="${k}" value="${sk[k] ?? ''}"></label>`).join('')}
+      <label>Modo de combate<select data-skill-modo>${[['offensive', 'Offensive'], ['balanced', 'Balanced'], ['defensive', 'Defensive']].map(([v, r]) => `<option value="${v}" ${modo === v ? 'selected' : ''}>${r}</option>`).join('')}</select></label></div>`;
+}
+$('h-res').addEventListener('change', async (e) => {
+  if (!e.target.closest('.skills-form')) return;
+  const p = acharMeu(H.entrada.personagem);
+  if (!p) return;
+  const skills = {};
+  document.querySelectorAll('.skills-form [data-skill]').forEach((i) => { if (i.value !== '') skills[i.dataset.skill] = +i.value; });
+  const d = await api.personagem_skills(p.nome, skills, document.querySelector('.skills-form [data-skill-modo]').value);
+  if (d) MEUS = d;
+  atualizarCombatHunt();
+});
+
 // ---------- a postura (stance spell) da hunt ----------
 // H.entrada.postura: "Master of Decay"... = escolhida; '' = sem postura; null = hunt antiga com postura não informada (não é enviada ao salvar)
 let POSTURAS = [];
@@ -487,6 +511,7 @@ function htmlSetHunt() {
       ${SETS.length ? '' : '<span class="dica">Nenhum set cadastrado: cadastre em Configurações.</span>'}</div>
     ${s && s.itens ? `<div class="set-hunt-foto">${htmlFotoSet(s, { mini: true })}</div>` : ''}
     ${htmlPosturaHunt()}
+    ${htmlSkillsHunt()}
     <div id="h-combat"></div>${(setTimeout(atualizarCombatHunt, 0), '')}`;
 }
 $('h-res').addEventListener('change', (e) => {

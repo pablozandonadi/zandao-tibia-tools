@@ -156,7 +156,14 @@ Proficiência, Roda, Nível). As **resistências do mesmo elemento se combinam m
 mostra (ex.: Physical 5%, 5%, 2% e 5% dão +15,98%). O **crítico** soma o bônus fixo do personagem (+5% de chance e +10% de extra damage, conferido
 no Tibia), embuimentos e proficiência. O **Flat Damage and Healing** é o level ÷ 5 mais o "Damage and Healing" da roda. O que o Tibia
 mostra na aba Misc (perks de proficiência de uma spell específica e os augments da roda, como "Front Sweep +40% Base Damage") fica junto do
-ataque, marcado com o selo **misc**. Não entram ainda: o Attack e o Defence que vêm das skills, e a Mitigation.
+ataque, marcado com o selo **misc**.
+
+**Skills do personagem:** em "Seu personagem nesta hunt", digite as skills **base, sem itens** do personagem (Sword, Axe, Club, Fist,
+Distance, Shielding, Magic Level) e o modo de combate; ficam salvas por personagem. Com elas o Combat Stats mostra o **total de cada skill**
+(base + itens + a % da postura, ex.: Blood Rage dá +25% de sword/axe/club/fist), o **Attack Value**, o **Defence Value** e o **Auto-Attack
+Extra Damage**, usando as fórmulas da TibiaWiki (conferidas com os prints do jogo: Attack = flat + floor(floor(1,2 × ataque da arma) ×
+(skill + 4) / 28) no modo Offensive; Defence = floor(Def × (skill + 10) / 40), com o escudo e o Shielding se houver escudo). Trocar a
+postura ou o set muda esses números. Ainda não entram a Mitigation e o Transcendence (perk do tier do item).
 
 **Combat Stats da hunt:** em "Seu personagem nesta hunt" aparece o painel **📊 Combat Stats desta hunt**, somando o set
 com a **prey** (XP, loot, dano causado e dano recebido, contra a criatura marcada), os **charms** (efeito no nível
