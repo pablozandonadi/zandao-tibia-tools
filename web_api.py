@@ -19,12 +19,14 @@ import embuimentos as emb
 import equipamentos
 import historico
 import hunt
+import itens_set
 import monstros
 import organizer
 import personagens
 import precos
 import preys_charms
 import roda
+import sets
 import tibia_info
 from versao import VERSAO_APP
 
@@ -469,7 +471,7 @@ class API:
         return hunt.detectar(texto)
 
     def _entrada(self, entrada):
-        return {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id", "prey", "charms", "duracao", "roda")}
+        return {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id", "prey", "charms", "duracao", "roda", "set")}
 
     def _mesma_hunt(self, id_, a):
         """id_ continua valendo para esta análise? Se a hunt salva é de outro horário, é outra hunt."""
@@ -515,7 +517,7 @@ class API:
             "resumo": a["resumo"], "membros": a.get("personagens", []), "monstros": a.get("kills", [])[:20],
             "pagos": list(pagos or []),
         }
-        for campo in ("prey", "charms", "roda"):  # None = o usuário não mexeu: o historico mantém o gravado
+        for campo in ("prey", "charms", "roda", "set"):  # None = o usuário não mexeu: o historico mantém o gravado
             if entrada.get(campo) is not None:
                 registro[campo] = entrada[campo]
         extra = self._dano_cache.get(ass)  # análise de dano já pronta (monstros com imagem, proteções)
@@ -609,6 +611,7 @@ class API:
                 "charms": preys_charms.rotulo_charms(preys_charms.normalizar_charms(h.get("charms"))),
                 "charms_informados": "charms" in h,
                 "roda": roda.rotulo_roda(roda.normalizar_roda(h.get("roda"))), "roda_informada": "roda" in h,
+                "set": sets.rotulo_set(sets.normalizar_set(h.get("set"))), "set_informado": "set" in h,
             } for h in lista],
         }
 
@@ -633,7 +636,7 @@ class API:
             return None
         e = dict(h.get("entrada") or {})
         e.update({"nome": h.get("nome"), "personagem": h.get("personagem"), "id": h["id"], "pagos": h.get("pagos", []),
-                  "prey": h.get("prey"), "charms": h.get("charms"), "roda": h.get("roda")})
+                  "prey": h.get("prey"), "charms": h.get("charms"), "roda": h.get("roda"), "set": h.get("set")})
         return e
 
     def _ultimo_campo(self, campo, personagem):
@@ -652,6 +655,37 @@ class API:
 
     def hunt_ultima_roda(self, personagem=""):
         return self._ultimo_campo("roda", personagem)
+
+    def hunt_ultimo_set(self, personagem=""):
+        return self._ultimo_campo("set", personagem)
+
+    # ----- Character Sets: cadastro em Configurações; os itens vêm da TibiaWiki (cache por slot) -----
+    def set_listar(self):
+        return sets.listar()
+
+    def set_salvar(self, dados):
+        try:
+            return {"ok": True, "set": sets.salvar(dados)}
+        except ValueError as e:
+            return {"ok": False, "erro": str(e)}
+        except OSError:
+            return {"ok": False, "erro": "Não consegui salvar o set."}
+
+    def set_remover(self, id_):
+        return sets.remover(id_)
+
+    def set_tabelas(self):
+        """Slots e embuimentos que o editor de sets oferece."""
+        try:
+            imbs = emb.carregar_imbuements(IMBUEMENTS_PATH)
+        except (OSError, ValueError):
+            imbs = []
+        return {"slots": [list(s) for s in itens_set.SLOTS],
+                "embuimentos": [{"nome": i["name"], "sub": i.get("subtitle") or ""} for i in imbs]}
+
+    def set_itens(self, slot):
+        """Todos os itens do slot (primeira vez baixa da TibiaWiki; vale alguns segundos), já com a descrição pronta."""
+        return [{**i, "desc": itens_set.descricao(i)} for i in itens_set.itens_do_slot(slot)]
 
     # ----- rodas (Wheel of Destiny): cadastro em Configurações e arquivos do planner do tibia.com -----
     def roda_listar(self):
@@ -890,7 +924,7 @@ class API:
     def _caminhos_backup(self):
         return {"historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
                 "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO,
-                "precos": precos.PRECOS_PATH, "rodas": roda.RODAS_PATH}
+                "precos": precos.PRECOS_PATH, "rodas": roda.RODAS_PATH, "sets": sets.SETS_PATH}
 
     def config_exportar(self):
         pacote = backup.exportar(self._caminhos_backup(), VERSAO_APP)

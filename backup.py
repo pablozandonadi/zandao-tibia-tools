@@ -34,6 +34,7 @@ ITENS = {
     "audio": "Timers de áudio",
     "precos": "Histórico de preços dos embuimentos",
     "rodas": "Minhas rodas (Wheel of Destiny)",
+    "sets": "Meus sets de equipamento",
 }
 
 

@@ -22,6 +22,9 @@ cache_charms.json
 rodas.json
 rodas.json.tmp
 cache_roda/
+sets.json
+sets.json.tmp
+cache_itens_set.json
 audio_timers.json
 sons/
 sons_usuario/

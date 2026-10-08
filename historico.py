@@ -28,6 +28,7 @@ import uuid
 
 import preys_charms
 import roda as _roda
+import sets as _sets
 from datetime import datetime
 
 if getattr(sys, "frozen", False):
@@ -82,7 +83,7 @@ def salvar(registro, caminho=None):
                 preservar["dano"] = atual["dano"]
             if "pagos" in registro:
                 preservar["pagos"] = registro["pagos"]
-            for campo in ("prey", "charms", "roda"):  # sem o campo no registro = o usuário não mexeu: mantém o gravado
+            for campo in ("prey", "charms", "roda", "set"):  # sem o campo no registro = o usuário não mexeu: mantém o gravado
                 if campo not in registro and campo in atual:
                     preservar[campo] = atual[campo]
             atual.clear()
@@ -331,7 +332,7 @@ def normalizar_prey(valor):
 
 def _com_prey_normalizada(registro):
     """Normaliza "prey" e "charms" do registro; um None vira "sem o campo" (não informado)."""
-    for campo, normalizar in (("prey", normalizar_prey), ("charms", preys_charms.normalizar_charms), ("roda", _roda.normalizar_roda)):
+    for campo, normalizar in (("prey", normalizar_prey), ("charms", preys_charms.normalizar_charms), ("roda", _roda.normalizar_roda), ("set", _sets.normalizar_set)):
         if campo not in registro:
             continue
         registro = dict(registro)
@@ -383,6 +384,23 @@ def _aviso_roda(hunts, cab):
     return f"Roda diferente: {quem}. O dano e a cura podem não ser comparáveis diretamente."
 
 
+def _aviso_set(hunts, cab):
+    """Só avisa quando todas as hunts têm o set informado e algum item/embuimento/consumível muda (o título não conta)."""
+    if not all("set" in h for h in hunts):
+        return None
+    conjuntos = [_sets.normalizar_set(h["set"]) or {} for h in hunts]
+    base = conjuntos[0]
+    mudou = []
+    for outro in conjuntos[1:]:
+        for rotulo in _sets.diferencas(base, outro):
+            if rotulo not in mudou:
+                mudou.append(rotulo)
+    if not mudou:
+        return None
+    quem = ", ".join(f"\"{c['nome']}\" " + ("sem set" if not s else "com " + _sets.rotulo_set(s)) for c, s in zip(cab, conjuntos))
+    return f"Set diferente: {quem} (muda: {', '.join(mudou)}). O dano, a cura e o lucro podem não ser comparáveis diretamente."
+
+
 def _fmt_dur(minutos):
     return f"{minutos // 60}h{minutos % 60:02d}" if minutos else "?"
 
@@ -401,6 +419,7 @@ def comparar(hunts):
             "monstros": (h.get("monstros") or [])[:4], "prey": rotulo_prey(normalizar_prey(h.get("prey"))),
             "charms": preys_charms.rotulo_charms(preys_charms.normalizar_charms(h.get("charms"))),
             "roda": _roda.rotulo_roda(_roda.normalizar_roda(h.get("roda"))),
+            "set": _sets.rotulo_set(_sets.normalizar_set(h.get("set"))),
             "protecoes": [p["rotulo"] for p in ((h.get("dano") or {}).get("protecoes") or [])[:3]]}
            for h, m in zip(hunts, ms)]
 
@@ -439,6 +458,9 @@ def comparar(hunts):
     aviso_roda = _aviso_roda(hunts, cab)
     if aviso_roda:
         avisos.append(aviso_roda)
+    aviso_set = _aviso_set(hunts, cab)
+    if aviso_set:
+        avisos.append(aviso_set)
 
     veredito = []
     for chave, rotulo in (("lucro_membro_h", "lucro por membro por hora"), ("xp_h", "XP por hora"),

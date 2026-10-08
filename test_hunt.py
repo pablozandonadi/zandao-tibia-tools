@@ -437,6 +437,33 @@ class TestPrey(unittest.TestCase):
         self.assertFalse(any("Roda" in x for x in r["avisos"]))
         self.assertEqual(r["hunts"][1]["roda"], "Roda não informada")
 
+    def test_set_salvo_preservado_e_no_comparativo(self):
+        reg = TestHistorico._reg(self)
+        st = {"titulo": " Tokyo ", "itens": {"arma": {"nome": "Wand of Defiance", "imbue": 3, "imbues": ["Powerful Void"]}}, "lixo": 1}
+        h = historico.salvar({**reg, "set": st}, self.arq)
+        self.assertEqual(historico.obter(h["id"], self.arq)["set"]["titulo"], "Tokyo")
+        historico.salvar({**reg, "id": h["id"]}, self.arq)               # re-salvar sem o campo mantém o gravado
+        self.assertEqual(historico.obter(h["id"], self.arq)["set"]["titulo"], "Tokyo")
+        historico.salvar({**reg, "id": h["id"], "set": "lixo"}, self.arq)  # inválido = "sem set"
+        self.assertEqual(historico.obter(h["id"], self.arq)["set"], {})
+        antiga = historico.salvar(TestHistorico._reg(self, party=PARTY + "\nW", nome="antiga"), self.arq)
+        self.assertNotIn("set", historico.obter(antiga["id"], self.arq))   # nunca inventa set
+
+    def test_aviso_set_diferente(self):
+        a, b = TestComparar._h(self, "a", "A", 4, 60, 1, 4), TestComparar._h(self, "b", "B", 4, 60, 1, 4)
+        cap = {"nome": "Gnome Helmet", "imbue": 2}
+        a["set"] = {"titulo": "Tokyo", "itens": {"cabeca": cap, "arma": {"nome": "Wand of Defiance"}}}
+        b["set"] = {"titulo": "Ingol", "itens": {"cabeca": cap, "arma": {"nome": "Wand of Starstorm"}}}
+        r = historico.comparar([a, b])
+        self.assertIn('Set diferente: "A" com Set: Tokyo, "B" com Set: Ingol (muda: Arma). O dano, a cura e o lucro podem não ser comparáveis diretamente.', r["avisos"])
+        self.assertEqual([h["set"] for h in r["hunts"]], ["Set: Tokyo", "Set: Ingol"])
+        b["set"] = {"titulo": "Outro nome", "itens": a["set"]["itens"]}      # mesmos itens: sem aviso
+        self.assertFalse(any("Set" in x for x in historico.comparar([a, b])["avisos"]))
+        del b["set"]                                                         # não informado: sem aviso
+        r = historico.comparar([a, b])
+        self.assertFalse(any("Set" in x for x in r["avisos"]))
+        self.assertEqual(r["hunts"][1]["set"], "Set não informado")
+
     def test_charms_salvos_e_preservados(self):
         reg = TestHistorico._reg(self)
         h = historico.salvar({**reg, "charms": [{"nome": "Carnage", "criatura": "Varg", "nivel": "3"}, {"nome": "X", "nivel": 1}]}, self.arq)
@@ -512,6 +539,40 @@ class TestApiPrey(unittest.TestCase):
         antiga = self.api.hunt_salvar({"party": PARTY + "\nZ", "personagem": "Zandao"})
         self.assertEqual(self.api.hunt_abrir(antiga["id"]).get("duracao") or "", "")
         self.assertEqual(historico.obter(antiga["id"])["resumo"]["minutos"], 167)
+
+    def test_set_pela_api(self):
+        import sets
+        self.assertIsNone(self.api.hunt_ultimo_set("Zandao"))
+        st = {"titulo": "Tokyo", "itens": {"arma": {"nome": "Wand of Defiance", "imbue": 3, "imbues": ["Powerful Void"]}}, "consumiveis": []}
+        r = self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "set": st})
+        self.assertEqual(self.api.hunt_abrir(r["id"])["set"], sets.normalizar_set(st))
+        self.assertEqual(self.api.hunt_ultimo_set("Zandao")["titulo"], "Tokyo")
+        h = self.api.hunt_historico()["hunts"][0]
+        self.assertEqual((h["set"], h["set_informado"]), ("Set: Tokyo", True))
+        self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "id": r["id"], "set": None})
+        self.assertEqual(historico.obter(r["id"])["set"]["titulo"], "Tokyo")
+
+    def test_cadastro_de_sets_pela_api(self):
+        from unittest import mock
+        import sets
+        with mock.patch.object(sets, "SETS_PATH", os.path.join(self.tmp.name, "sets.json")):
+            self.assertEqual(self.api.set_listar(), [])
+            self.assertFalse(self.api.set_salvar({"titulo": "x", "itens": {}})["ok"])
+            r = self.api.set_salvar({"titulo": "Tokyo", "itens": {"arma": {"nome": "Wand of Defiance"}}})
+            self.assertTrue(r["ok"])
+            self.assertEqual(self.api.set_listar()[0]["titulo"], "Tokyo")
+            self.assertTrue(self.api.set_remover(r["set"]["id"]))
+            self.assertEqual(self.api.set_listar(), [])
+
+    def test_itens_do_set_pela_api(self):
+        from unittest import mock
+        import itens_set
+        with mock.patch.object(itens_set, "itens_do_slot", return_value=[{"nome": "Gnome Helmet", "slot": "cabeca", "armor": 8, "attrib": "magic level +2"}]):
+            r = self.api.set_itens("cabeca")
+        self.assertEqual((r[0]["nome"], r[0]["desc"]), ("Gnome Helmet", "Arm: 8, Magic Level +2"))   # a descrição já vem pronta
+        t = self.api.set_tabelas()
+        self.assertEqual(t["slots"][0], ["cabeca", "Capacete"])
+        self.assertIn("Powerful Void", [e["nome"] for e in t["embuimentos"]])
 
     def test_roda_pela_api(self):
         self.assertIsNone(self.api.hunt_ultima_roda("Zandao"))
