@@ -206,7 +206,7 @@ function htmlProfArma(it) {
     <div class="roda-linha"><label>Nível de proficiência <select data-prof-nivel>${Array.from({ length: 8 }, (_, n) => `<option value="${n}" ${n === nivel ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       <label><input type="checkbox" data-prof-maestria ${p.maestria ? 'checked' : ''}> Maestria</label>
       <span class="dica">Reshapes: ${usados}/${max}${max < 2 ? (max === 0 ? ' (precisa de 1 nível)' : ' (o 2º precisa de Maestria)') : ''}</span></div>
-    <div class="prof-tab"><div class="prof-lado">Nível</div>${topo}<div class="prof-lado">Perks</div>${celulas}</div>
+    <div class="prof-tab" style="grid-template-columns:62px repeat(${it.perks.length}, minmax(112px, 1fr))"><div class="prof-lado">Nível</div>${topo}<div class="prof-lado">Perks</div>${celulas}</div>
     <p class="dica" style="margin:6px 0 0">Clique no perk que você usa em cada nível (o primeiro é o padrão). O "⚒ reshape" de baixo troca justamente aquele perk por outra opção, no mesmo lugar.</p></div>`;
 }
 
