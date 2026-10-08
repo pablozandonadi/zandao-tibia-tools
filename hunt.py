@@ -9,6 +9,7 @@ Qualquer um dos três pode faltar. Sem internet nem IA: é só parsing e conta.
 
 import hashlib
 import re
+from datetime import datetime
 
 import damage_core
 import embuimentos as emb
@@ -121,6 +122,17 @@ def montar(entrada):
 
     duracao = (party.duration if party else "") or (solo.duration if solo else "")
     out["sessoes"] = {"party": party.duration if party else "", "solo": solo.duration if solo else ""}
+    # quando cada contador começou: o Hunting Analyser conta desde o login e o Party desde que o líder inicia, então
+    # a diferença é normal. Só informamos (solo_antes_min > 0: o seu Hunting Analyser começou antes do Party).
+    ini_party = lc.hunt_start_iso(party.period) if party else None
+    ini_solo = solo.hunt_start if solo else None
+    antes = None
+    if ini_party and ini_solo:
+        try:
+            antes = round((datetime.fromisoformat(ini_party) - datetime.fromisoformat(ini_solo)).total_seconds() / 60)
+        except ValueError:
+            antes = None
+    out["inicios"] = {"party": (ini_party or "")[11:16], "solo": (ini_solo or "")[11:16], "solo_antes_min": antes}
     # tempo real digitado pelo usuário (esqueceu de zerar o contador do Tibia): vale no lugar do "Session" colado,
     # e todos os "/h" são refeitos a partir dos totais (o /h que o Tibia colado traz é da sessão errada)
     real = parse_duracao(entrada.get("duracao"))

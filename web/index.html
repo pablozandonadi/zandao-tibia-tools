@@ -262,8 +262,13 @@
   .banner-mini .banner-svg { filter: none; }
   @media (max-width: 1100px) { .prey-grid { grid-template-columns: 1fr; } .escolha-lista.grade { grid-template-columns: 1fr; } }
   /* card "Tempo da hunt" */
-  .tempo-card { margin-top: 14px; padding: 12px 14px; border: 2px solid var(--ink-dim); border-radius: 12px; background: var(--surface-2);
-    display: flex; flex-direction: column; gap: 8px; }
+  .tempo-card { margin-top: 14px; border: 2px solid var(--ink-dim); border-radius: 12px; background: var(--surface-2); }
+  .tempo-card > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+  .tempo-card > summary::-webkit-details-marker { display: none; }
+  .tempo-card > summary::after { content: '▼'; font-size: .75rem; color: var(--ink-dim); margin-left: auto; }
+  .tempo-card[open] > summary::after { content: '▲'; }
+  .tempo-card > summary:hover b { color: var(--accent); }
+  .tempo-corpo { display: flex; flex-direction: column; gap: 8px; padding: 0 14px 12px; }
   .tempo-sessoes { font-size: .84rem; }
   .tempo-linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .tempo-linha .campo-label { margin: 0; }
@@ -598,15 +603,16 @@
             <div class="caixa-rod"><span class="dica">dano recebido, para as proteções</span><button class="btn btn-sm" data-limpar="dano">Limpar</button></div>
           </div>
         </div>
-        <div class="tempo-card" id="h-tempo" style="display:none">
-          <div class="h-titulo" style="margin:0"><b>⏱ Tempo da hunt</b>
-            <span class="dica">confira antes da análise: se você esqueceu de zerar o contador do Tibia, digite o tempo real</span></div>
-          <div class="tempo-sessoes" id="h-tempo-sessoes"></div>
-          <div class="tempo-linha"><label class="campo-label" for="h-duracao">Tempo real da hunt</label>
-            <input type="text" id="h-duracao" placeholder="ex.: 1:33 ou 1h33" autocomplete="off" spellcheck="false">
-            <span id="h-tempo-botoes"></span></div>
-          <div class="dica" id="h-tempo-status"></div>
-        </div>
+        <details class="tempo-card" id="h-tempo" style="display:none">
+          <summary><b>⏱ Tempo da hunt</b><span class="dica" id="h-tempo-resumo"></span></summary>
+          <div class="tempo-corpo">
+            <div class="tempo-sessoes" id="h-tempo-sessoes"></div>
+            <div class="tempo-linha"><label class="campo-label" for="h-duracao">Tempo real da hunt</label>
+              <input type="text" id="h-duracao" placeholder="ex.: 1:33 ou 1h33" autocomplete="off" spellcheck="false">
+              <span id="h-tempo-botoes"></span></div>
+            <div class="dica" id="h-tempo-status"></div>
+          </div>
+        </details>
         <div class="card-titulo" style="margin:16px 0 8px"><b>Despesas extras</b><button class="btn btn-sm" id="h-add-despesa">+ Despesa</button></div>
         <div id="h-despesas"><div class="dica">Boat, hireling, montaria alugada... quem pagou é reembolsado na divisão.</div></div>
       </div>
@@ -1118,15 +1124,26 @@ function preencherHunt() {
 // O campo nunca é redesenhado (senão perderia o foco enquanto você digita): só os textos em volta mudam.
 function atualizarTempo(a) {
   const box = $('h-tempo');
-  const ses = (a && a.sessoes) || {};
+  const ses = (a && a.sessoes) || {}, ini = (a && a.inicios) || {};
   if (!a || a.vazio || (!ses.party && !ses.solo)) { box.style.display = 'none'; return; }
   box.style.display = '';
+  const hm = (m) => `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+  const comInicio = (dur, hora) => `<b>${esc(dur)}</b>${hora ? ` (começou às ${esc(hora)})` : ''}`;
   const partes = [];
-  if (ses.party) partes.push(`Party Hunt Analyser: <b>${esc(ses.party)}</b>`);
-  if (ses.solo) partes.push(`Hunting Analyser: <b>${esc(ses.solo)}</b>`);
-  const difere = ses.party && ses.solo && ses.party !== ses.solo;
-  $('h-tempo-sessoes').innerHTML = partes.join(' · ')
-    + (difere ? '<div class="avisos" style="margin:8px 0 0"><div>⚠ Os dois têm tempos diferentes: provavelmente o contador de um deles não foi zerado. Digite abaixo o tempo real da hunt.</div></div>' : '');
+  if (ses.party) partes.push(`Party Hunt Analyser: ${comInicio(ses.party, ini.party)}`);
+  if (ses.solo) partes.push(`Hunting Analyser: ${comInicio(ses.solo, ini.solo)}`);
+  // diferença é normal: o Hunting Analyser conta desde o login e o Party desde que o líder inicia. Só informamos o que ela significa.
+  let nota = '';
+  const antes = ini.solo_antes_min;
+  if (antes > 0) {
+    nota = `O seu Hunting Analyser começou ${hm(antes)} antes do Party: os totais dele (XP, dano e cura) incluem esse tempo extra. Normal se ele conta desde o login. `
+      + 'Digitar o tempo abaixo só muda o divisor do "/h"; para números exatos, zere o Hunting Analyser quando entrar na hunt.';
+  } else if (antes < 0) {
+    nota = `O seu Hunting Analyser começou ${hm(-antes)} depois do Party: os totais dele (XP, dano e cura) não cobrem a hunt inteira.`;
+  } else if (ses.party && ses.solo && ses.party !== ses.solo) {
+    nota = 'Os dois contadores têm tempos diferentes. Digite abaixo o tempo real da hunt, se quiser.';
+  }
+  $('h-tempo-sessoes').innerHTML = partes.join('<br>') + (nota ? `<div class="dica" style="margin-top:6px">${nota}</div>` : '');
   const botoes = [];
   if (ses.party) botoes.push(`<button class="btn btn-sm" data-tempo="${esc(ses.party)}">Usar ${esc(ses.party)} (Party)</button>`);
   if (ses.solo && ses.solo !== ses.party) botoes.push(`<button class="btn btn-sm" data-tempo="${esc(ses.solo)}">Usar ${esc(ses.solo)} (Hunting)</button>`);
@@ -1135,16 +1152,21 @@ function atualizarTempo(a) {
   const r = a.resumo || {};
   const digitado = (H.entrada.duracao || '').trim();
   const st = $('h-tempo-status');
+  let resumo = [ses.party && `Party ${ses.party}`, ses.solo && `Hunting ${ses.solo}`].filter(Boolean).join(' · ');
   if (digitado && !r.duracao_original) {
     st.className = 'dica tempo-erro';
     st.textContent = 'Não entendi esse tempo. Use 1:33, 1h33 ou 45min.';
+    resumo += ' · tempo digitado inválido';
   } else if (digitado) {
     st.className = 'dica';
     st.textContent = `Usando ${r.duracao} (o Session colado era ${r.duracao_original}). XP/h, balance/h, dano/h e cura/h foram refeitos com esse tempo.`;
+    resumo += ` · usando ${r.duracao}`;
   } else {
     st.className = 'dica';
     st.textContent = `Usando o Session colado: ${r.duracao || '—'}.`;
+    resumo += ' · usando o do Tibia';
   }
+  $('h-tempo-resumo').textContent = resumo;
 }
 $('h-duracao').addEventListener('input', () => {
   H.entrada.duracao = $('h-duracao').value;

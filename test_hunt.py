@@ -153,6 +153,16 @@ class TestParty(unittest.TestCase):
         self.assertEqual(a["sessoes"], {"party": "02:47h", "solo": "02:53h"})
         self.assertEqual(hunt.montar({"party": PARTY})["sessoes"], {"party": "02:47h", "solo": ""})
 
+    def test_inicios_das_sessoes(self):
+        # o Hunting Analyser conta desde o login; o Party começa quando o líder inicia: diferença é normal, só mostramos
+        a = hunt.montar({"party": PARTY, "solo": SOLO.replace("From 2026-10-05, 10:19:15", "From 2026-10-05, 09:00:15")})
+        self.assertEqual(a["inicios"], {"party": "10:19", "solo": "09:00", "solo_antes_min": 79})
+        self.assertEqual(hunt.montar({"party": PARTY, "solo": SOLO})["inicios"]["solo_antes_min"], 0)
+        depois = hunt.montar({"party": PARTY, "solo": SOLO.replace("From 2026-10-05, 10:19:15", "From 2026-10-05, 10:29:15")})
+        self.assertEqual(depois["inicios"]["solo_antes_min"], -10)   # o Hunting Analyser começou depois do Party
+        so_party = hunt.montar({"party": PARTY})["inicios"]
+        self.assertEqual((so_party["party"], so_party["solo"], so_party["solo_antes_min"]), ("10:19", "", None))
+
     def test_por_hora_sem_duracao(self):
         a = hunt.montar({"party": PARTY.replace("Session: 02:47h", "Session: 00:00h")})
         self.assertTrue(all(m["dano_h"] is None and m["cura_h"] is None and m["balance_h"] is None for m in a["membros"]))
