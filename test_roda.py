@@ -86,6 +86,38 @@ class TestCadastro(unittest.TestCase):
         self.assertEqual(roda.rotulo_roda({"titulo": "Beam", "codigo": "S0Y2AgDP4jAQA"}), "Roda: Beam")
 
 
+class TestResumo(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.arq = os.path.join(self.tmp.name, "resumo.json")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_guarda_e_devolve_o_resumo_por_codigo(self):
+        secoes = [{"titulo": "Dedication", "linhas": ["+10 HP", " +5 Mana "]}, {"titulo": "Gems", "linhas": []}]
+        self.assertIsNone(roda.resumo_obter("S0Y2AgDP4jAQA", self.arq))
+        self.assertTrue(roda.resumo_guardar("S0Y2AgDP4jAQA", secoes, self.arq))
+        self.assertEqual(roda.resumo_obter("S0Y2AgDP4jAQA", self.arq),
+                         [{"titulo": "Dedication", "linhas": ["+10 HP", "+5 Mana"]}, {"titulo": "Gems", "linhas": []}])
+        roda.resumo_guardar("S0Y2AgDP4jAQA", [{"titulo": "Novo", "linhas": ["x"]}], self.arq)     # o mesmo código é substituído
+        self.assertEqual(roda.resumo_obter("S0Y2AgDP4jAQA", self.arq)[0]["titulo"], "Novo")
+
+    def test_resumo_de_formato_antigo_e_descartado(self):
+        with open(self.arq, "w", encoding="utf-8") as f:
+            json.dump({"S0Y2AgDP4jAQA": {"secoes": [{"titulo": "x", "linhas": ["texto colado"]}], "t": 1}}, f)   # sem "v": formato velho
+        self.assertIsNone(roda.resumo_obter("S0Y2AgDP4jAQA", self.arq))                                        # será recalculado pelo planner
+
+    def test_recusa_o_que_nao_presta(self):
+        self.assertFalse(roda.resumo_guardar("lixo", [{"titulo": "x", "linhas": ["y"]}], self.arq))      # código inválido
+        self.assertFalse(roda.resumo_guardar("S0Y2AgDP4jAQA", "nao e lista", self.arq))
+        self.assertFalse(roda.resumo_guardar("S0Y2AgDP4jAQA", [], self.arq))
+        roda.resumo_guardar("S0Y2AgDP4jAQA", [{"titulo": "t" * 500, "linhas": ["l" * 500] * 100}, "lixo", {"linhas": 3}], self.arq)
+        r = roda.resumo_obter("S0Y2AgDP4jAQA", self.arq)
+        self.assertEqual(len(r), 1)
+        self.assertEqual((len(r[0]["titulo"]), len(r[0]["linhas"]), len(r[0]["linhas"][0])), (80, 60, 200))   # limites de tamanho
+
+
 class TestArquivosDoPlanner(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

@@ -25,6 +25,8 @@ else:
 
 RODAS_PATH = os.path.join(BASE_DIR, "rodas.json")
 PASTA_CACHE = os.path.join(BASE_DIR, "cache_roda")
+RESUMO_PATH = os.path.join(BASE_DIR, "cache_roda_resumo.json")
+VERSAO_RESUMO = 2   # 2: uma linha por elemento do planner (nome, valor, nome, valor...)
 FORMATO = "zandao-tibia-tools-rodas"
 
 STATIC = "https://static.tibia.com/"
@@ -144,6 +146,48 @@ def remover(id_, caminho=None):
             return False
         _gravar(resto, caminho)
         return True
+
+
+# ---------------------------------------------------------------------------
+# resumo da roda (os perks que o planner oficial calcula), guardado por código para o Combat Stats
+# ---------------------------------------------------------------------------
+def resumo_guardar(codigo, secoes, caminho=None):
+    """Guarda as seções do resumo ([{"titulo", "linhas"}]) do código. False se o código ou o resumo não prestar."""
+    cod = validar_codigo(codigo)
+    if not cod or not isinstance(secoes, list):
+        return False
+    limpas = []
+    for s in secoes[:8]:
+        if not isinstance(s, dict) or not isinstance(s.get("linhas"), list):
+            continue
+        linhas = [x.strip()[:200] for x in s["linhas"][:60] if isinstance(x, str) and x.strip()]
+        limpas.append({"titulo": (s.get("titulo") or "").strip()[:80] if isinstance(s.get("titulo"), str) else "", "linhas": linhas})
+    if not limpas:
+        return False
+    caminho = caminho or RESUMO_PATH
+    with _trava:
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            dados = {}
+        if not isinstance(dados, dict):
+            dados = {}
+        dados[cod] = {"v": VERSAO_RESUMO, "secoes": limpas, "t": time.time()}
+        tmp = caminho + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(dados, f, ensure_ascii=False)
+        os.replace(tmp, caminho)
+    return True
+
+
+def resumo_obter(codigo, caminho=None):
+    try:
+        with open(caminho or RESUMO_PATH, "r", encoding="utf-8") as f:
+            item = json.load(f).get(validar_codigo(codigo) or "") or {}
+        return item.get("secoes") if item.get("v") == VERSAO_RESUMO else None
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
 
 
 # ---------------------------------------------------------------------------

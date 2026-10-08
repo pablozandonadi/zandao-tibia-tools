@@ -96,6 +96,50 @@ class TestProficiencia(unittest.TestCase):
         self.assertNotIn("chance", s["crit"])                                # a coluna 3 foi trocada
 
 
+class TestHunt(unittest.TestCase):
+    def _l(self, set_=None, prey=None, charms=None, roda=None):
+        return {l["chave"]: l for l in ss.linhas_hunt(set_, prey, charms, roda)}
+
+    def test_prey(self):
+        l = self._l(prey=[{"tipo": "ataque", "estrelas": 10, "criatura": "Gloom Maw"}, {"tipo": "xp", "estrelas": 7}, {"tipo": "defesa", "estrelas": 1}])
+        self.assertEqual((l["prey:ataque"]["valor"], l["prey:ataque"]["texto"], l["prey:ataque"]["grupo"]), (25, "+25%", "Prey"))
+        self.assertIn("Gloom Maw", l["prey:ataque"]["detalhe"])
+        self.assertEqual((l["prey:xp"]["valor"], l["prey:defesa"]["valor"]), (31, 12))
+        self.assertEqual(l["prey:defesa"]["texto"], "-12%")                    # defesa: menos dano recebido
+        self.assertNotIn("prey:loot", l)
+
+    def test_charms(self):
+        l = self._l(charms=[{"nome": "Low Blow", "criatura": "Varg", "nivel": 3}, {"nome": "Wound", "criatura": "Gloom Maw", "nivel": 1}, {"nome": "Inexistente", "nivel": 1}])
+        self.assertEqual((l["charm:Low Blow"]["valor"], l["charm:Low Blow"]["texto"], l["charm:Low Blow"]["grupo"]), (9, "9%", "Charms"))
+        self.assertIn("Varg", l["charm:Low Blow"]["detalhe"])
+        self.assertIn("nível 3", l["charm:Low Blow"]["detalhe"])
+        self.assertEqual(l["charm:Wound"]["valor"], 5)
+        self.assertNotIn("charm:Inexistente", l)
+
+    def test_roda_a_partir_do_resumo_do_planner(self):
+        secoes = [{"titulo": "Dedication Perks", "linhas": ["Hit Points", "+1,500", "Mana", "+350", "Mitigation Multiplier", "22.50%"]},
+                  {"titulo": "Conviction Perks", "linhas": ["Battle Instinct", "Weapon Skill Boost", "+1", "Life Leech", "+0.75%", "Augmented Shield Slam", "I", "Mana Leech", "+0.25%"]},
+                  {"titulo": "Revelation Perks", "linhas": ["Damage and Healing", "+20", "Avatar of Steel", "Locked", "Gift of Life", "Stage 3"]},
+                  {"titulo": "Vessels", "linhas": ["none"]}]
+        l = self._l(roda=secoes)
+        self.assertEqual((l["roda:Hit Points"]["valor"], l["roda:Hit Points"]["texto"], l["roda:Hit Points"]["grupo"]), (1500, "+1,500", "Roda"))
+        self.assertEqual((l["roda:Mitigation Multiplier"]["valor"], l["roda:Mitigation Multiplier"]["texto"]), (22.5, "22.50%"))
+        self.assertEqual((l["roda:Weapon Skill Boost"]["valor"], l["roda:Life Leech"]["valor"]), (1, 0.75))
+        self.assertEqual(l["roda:Damage and Healing"]["valor"], 20)
+        self.assertEqual((l["roda:Augmented Shield Slam"]["valor"], l["roda:Augmented Shield Slam"]["texto"]), (None, "I"))   # só texto
+        self.assertEqual((l["roda:Battle Instinct"]["valor"], l["roda:Battle Instinct"]["texto"]), (None, "ativo"))
+        self.assertEqual(l["roda:Gift of Life"]["texto"], "Stage 3")
+        self.assertNotIn("roda:Avatar of Steel", l)                           # "Locked" = não liberado: sem efeito
+        self.assertNotIn("roda:none", l)
+
+    def test_junta_com_o_set(self):
+        s = sets.normalizar_set({"titulo": "x", "itens": {"cabeca": {"nome": "H", "armor": 8}}})
+        l = self._l(set_=s, prey=[{"tipo": "xp", "estrelas": 1}])
+        self.assertEqual((l["armor"]["valor"], l["prey:xp"]["valor"]), (8, 13))
+        grupos = [x["grupo"] for x in ss.linhas_hunt(s, [{"tipo": "xp", "estrelas": 1}], [{"nome": "Wound", "nivel": 1}], [{"titulo": "t", "linhas": ["Mana", "+1"]}])]
+        self.assertEqual(grupos, sorted(grupos, key=["Defesa", "Ataque", "Skills", "Perks da arma", "Prey", "Charms", "Roda", "Outros"].index))
+
+
 class TestLinhas(unittest.TestCase):
     def test_linhas_para_a_tela(self):
         linhas = {l["chave"]: l for l in ss.linhas(ss.somar(SET))}

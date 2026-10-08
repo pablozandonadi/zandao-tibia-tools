@@ -140,7 +140,19 @@ O painel **📊 Combat Stats** (no editor e em "Ver o set") soma tudo do set: Ar
 resistências por elemento, skills (magic level, sword fighting, speed...), leech, crítico, conversão elemental, capacidade
 e o que só vem em texto (ex.: Faster Regeneration). Os embuimentos entram com os valores dos **Powerful** da TibiaWiki
 (`stats_set.py`; ex.: Void = 8% de mana leech, Vampirism = 25% de life leech, Lich Shroud = +10% de proteção Death). No
-comparativo, a tabela **🛡 Stats do set** mostra cada stat lado a lado, com ★ no melhor valor de cada linha.
+comparativo, a tabela **📊 Combat Stats (set, prey, charms e roda)** mostra cada stat lado a lado, com ★ no melhor valor de cada linha.
+
+**Proficiência da arma e Perk Shaping:** ao escolher a arma no set, o app busca na TibiaWiki em português os perks dela
+(7 níveis, 1 a 3 opções por nível). Você marca o **nível de proficiência** que tem (começa no 7, sem Maestria), escolhe
+**uma opção por nível** (a primeira é o padrão) e, no **Perk Shaping**, troca perks por outras opções com rank de 0 a 10:
+a **Troca 1** precisa de 1 nível de proficiência e a **Troca 2** precisa de Maestria. Os perks que valem sempre (critical
+extra damage, critical hit chance, magic level, leech, attack) entram nas linhas normais; os que valem só numa condição
+(ex.: "para Death spells e runes") ficam em **Perks da arma**. Os dados ficam em `cache_proficiencia.json` (30 dias).
+
+**Combat Stats da hunt:** em "Seu personagem nesta hunt" aparece o painel **📊 Combat Stats desta hunt**, somando o set
+com a **prey** (XP, loot, dano causado e dano recebido, contra a criatura marcada), os **charms** (efeito no nível
+escolhido) e a **roda** (o resumo que o próprio planner oficial calcula, guardado por código em `cache_roda_resumo.json`;
+na primeira vez o planner abre escondido para calcular).
 
 ## Embuimentos
 

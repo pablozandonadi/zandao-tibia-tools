@@ -6,6 +6,7 @@ Quem usa: web_api (set_stats), historico.comparar (tabela "Stats do set"), web/s
 
 import re
 
+import preys_charms
 import proficiencia
 
 # efeitos dos embuimentos (só os Powerful, os 24 que o app oferece): nome -> [(tipo, chave, valor)]
@@ -30,7 +31,7 @@ IMBUEMENTS = {
 _ELEMENTO = {"physical": "Physical", "fire": "Fire", "earth": "Earth", "energy": "Energy", "ice": "Ice", "holy": "Holy", "death": "Death",
              "lifedrain": "Life Drain", "manadrain": "Mana Drain", "drown": "Drown"}
 _ATRIBUTO = re.compile(r"^(?P<nome>[a-z][a-z ]*?)\s*(?P<valor>[+-]?\d+)(?P<pct>%?)$")
-_GRUPOS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Outros"]
+_GRUPOS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Prey", "Charms", "Roda", "Outros"]
 # perk da arma que vira uma linha normal (o resto fica em "Perks da arma", somado por rótulo): (rótulo em minúsculas, unidade) -> (campo, chave)
 _PERK_GLOBAL = {("critical extra damage", "%"): ("crit", "dano"), ("critical hit chance", "%"): ("crit", "chance"),
                 ("life leech", "%"): ("leech", "life"), ("mana leech", "%"): ("leech", "mana"), ("attack", ""): ("attack", None), ("defence", ""): ("defense", None)}
@@ -175,3 +176,105 @@ def linhas(s):
     for texto in s["extras"]:
         saida.append(lin(f"extra:{texto.lower()}", "Outros", texto, None, texto))
     return saida
+
+
+# ---------------------------------------------------------------------------
+# Combat Stats da HUNT: o set + prey + charms + roda (prey e charms valem só contra a criatura escolhida)
+# ---------------------------------------------------------------------------
+_PREY_ROTULO = {"xp": "Prey XP (bônus de XP)", "loot": "Prey Loot (chance de loot)", "ataque": "Prey Ataque (dano causado)", "defesa": "Prey Defesa (dano recebido)"}
+_EFEITO_CHARM = {
+    "Carnage": "ao matar, {p}% de chance de dano físico = 15% da vida máx. do monstro, em área",
+    "Curse": "{p}% de chance por ataque: dano Death = 5% da vida máx. do monstro", "Divine Wrath": "{p}% de chance por ataque: dano Holy = 5% da vida máx. do monstro",
+    "Enflame": "{p}% de chance por ataque: dano Fire = 5% da vida máx. do monstro", "Freeze": "{p}% de chance por ataque: dano Ice = 5% da vida máx. do monstro",
+    "Poison": "{p}% de chance por ataque: dano Earth = 5% da vida máx. do monstro", "Wound": "{p}% de chance por ataque: dano físico = 5% da vida máx. do monstro",
+    "Zap": "{p}% de chance por ataque: dano Energy = 5% da vida máx. do monstro", "Dodge": "{p}% de chance de desviar do ataque (sem dano)",
+    "Low Blow": "+{p}% de chance de crítico", "Savage Blow": "+{p}% de critical extra damage",
+    "Overflux": "{p}% de chance por ataque: dano = 2,5% da sua mana máx.", "Overpower": "{p}% de chance por ataque: dano = 5% da sua vida máx.",
+    "Parry": "{p}% de chance de refletir o dano recebido", "Adrenaline Burst": "{p}% de chance, ao ser atingido, de ficar bem mais rápido por 10 s",
+    "Bless": "-{p}% de perda de XP e skills ao morrer para ela", "Cleanse": "{p}% de chance, ao ser atingido, de remover uma condição negativa",
+    "Cripple": "{p}% de chance de paralisar a criatura por 10 s", "Fatal Hold": "{p}% de chance de impedir a fuga da criatura",
+    "Gut": "+{p}% de creature products", "Numb": "{p}% de chance, após o ataque dela, de paralisá-la por 10 s", "Scavenge": "+{p}% de chance de skinning/dust",
+    "Vampiric Embrace": "+{p}% de life leech (com equipamento que dê life leech)", "Void Inversion": "{p}% de chance de ganhar mana em vez de perder (Mana Drain)",
+    "Void's Call": "+{p}% de mana leech (com equipamento que dê mana leech)",
+}
+_VALOR_RODA = re.compile(r"^[+-]?[0-9][0-9,]*(?:[.][0-9]+)?%?$")
+_NIVEL_RODA = re.compile(r"^(?:[IVX]+|Stage [0-9]+)$")
+
+
+def _g(v):
+    return f"{v:g}"
+
+
+def _linhas_prey(prey):
+    por_tipo = {}
+    for p in prey or []:
+        b = preys_charms.bonus_prey(p.get("tipo"), p.get("estrelas"))
+        if b is None:
+            continue
+        acc = por_tipo.setdefault(p["tipo"], {"valor": 0, "detalhes": []})
+        acc["valor"] += b
+        acc["detalhes"].append(f"★{p['estrelas']}" + (f" · {p['criatura']}" if p.get("criatura") else ""))
+    saida = []
+    for tipo in ("xp", "loot", "ataque", "defesa"):
+        if tipo in por_tipo:
+            v = por_tipo[tipo]["valor"]
+            saida.append({"chave": f"prey:{tipo}", "grupo": "Prey", "rotulo": _PREY_ROTULO[tipo], "valor": v,
+                          "texto": f"-{v}%" if tipo == "defesa" else f"+{v}%", "detalhe": "; ".join(por_tipo[tipo]["detalhes"])})
+    return saida
+
+
+def _linhas_charms(charms):
+    saida = []
+    for c in charms or []:
+        nome, nivel = c.get("nome"), c.get("nivel")
+        pct = preys_charms.porcentagem_charm(nome, nivel)
+        if pct is None:
+            continue
+        efeito = _EFEITO_CHARM.get(nome, "").format(p=_g(pct))
+        contra = f"contra {c['criatura']}" if c.get("criatura") else "sem criatura escolhida"
+        saida.append({"chave": f"charm:{nome}", "grupo": "Charms", "rotulo": nome, "valor": pct, "texto": f"{_g(pct)}%",
+                      "detalhe": f"nível {nivel} · {contra}: {efeito}".rstrip(": ")})
+    return saida
+
+
+def _linhas_roda(secoes):
+    """Itens do resumo do planner da roda: nome + valor em elementos seguidos (ex.: "Hit Points", "+1,500")."""
+    ocorrencias = {}
+    ordem = []
+    for sec in secoes or []:
+        itens = [x for x in (sec.get("linhas") or []) if isinstance(x, str) and x.strip() and x.strip().lower() != "none"]
+        i = 0
+        while i < len(itens):
+            nome = itens[i].strip()
+            val = itens[i + 1].strip() if i + 1 < len(itens) else None
+            if val is not None and val == "Locked":
+                i += 2
+                continue                                  # perk ainda não liberado: sem efeito
+            if val is not None and (_VALOR_RODA.match(val) or _NIVEL_RODA.match(val)) and not _VALOR_RODA.match(nome):
+                ocorrencias.setdefault(nome, []).append(val)
+                i += 2
+            else:
+                ocorrencias.setdefault(nome, []).append(None)
+                i += 1
+            if nome not in ordem:
+                ordem.append(nome)
+    saida = []
+    for nome in ordem:
+        vals = ocorrencias[nome]
+        numericos = [v for v in vals if v and _VALOR_RODA.match(v)]
+        if numericos:
+            soma = sum(float(v.replace(",", "").rstrip("%")) for v in numericos)
+            soma = int(soma) if float(soma).is_integer() else round(soma, 4)
+            texto = numericos[0] if len(numericos) == 1 else f"{soma:+g}{'%' if numericos[0].endswith('%') else ''}"
+            saida.append({"chave": f"roda:{nome}", "grupo": "Roda", "rotulo": nome, "valor": soma, "texto": texto})
+        else:
+            texto = next((v for v in vals if v), "ativo")
+            saida.append({"chave": f"roda:{nome}", "grupo": "Roda", "rotulo": nome, "valor": None, "texto": texto})
+    return saida
+
+
+def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None):
+    """Combat Stats de uma hunt: as linhas do set mais Prey, Charms e Roda (resumo do planner), agrupadas na ordem da tela."""
+    todas = linhas(somar(set_, opcoes)) + _linhas_prey(prey) + _linhas_charms(charms) + _linhas_roda(roda)
+    return sorted(todas, key=lambda l: _GRUPOS.index(l["grupo"]))
+

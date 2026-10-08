@@ -55,14 +55,50 @@ function htmlFotoSet(s, { editavel = false, sel = '', mini = false } = {}) {
 }
 
 // ---------- Combat Stats: a soma dos itens e dos embuimentos (calculada em stats_set.py) ----------
-function htmlStatsSet(linhas) {
+function htmlStatsSet(linhas, titulo = '📊 Combat Stats', nota = 'Soma dos itens, dos embuimentos Powerful e dos perks da arma (valores da TibiaWiki).') {
   if (!linhas || !linhas.length) return '<p class="dica" style="margin:0">Escolha itens para ver a soma dos stats.</p>';
   const grupo = (nome) => {
     const l = linhas.filter((x) => x.grupo === nome);
-    return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin"><span>${esc(x.rotulo)}</span><b>${esc(x.texto)}</b></div>`).join('')}</div>` : '';
+    return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin" ${x.detalhe ? `title="${esc(x.detalhe)}"` : ''}><span>${esc(x.rotulo)}</span><b>${esc(x.texto)}</b></div>${x.detalhe ? `<small class="stat-det">${esc(x.detalhe)}</small>` : ''}`).join('')}</div>` : '';
   };
-  return `<div class="stats-set"><h4>📊 Combat Stats</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Perks da arma', 'Outros'].map(grupo).join('')}</div>
-    <p class="dica" style="margin:6px 0 0">Soma dos itens e dos embuimentos Powerful (valores da TibiaWiki).</p></div>`;
+  return `<div class="stats-set"><h4>${titulo}</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Perks da arma', 'Prey', 'Charms', 'Roda', 'Outros'].map(grupo).join('')}</div>
+    <p class="dica" style="margin:6px 0 0">${nota}</p></div>`;
+}
+
+// ---------- Combat Stats da hunt (set + prey + charms + roda) ----------
+const RODA_PEND = {};
+// o resumo da roda vem do planner oficial: se ainda não foi guardado, abre o planner escondido uma vez para calcular
+function garantirResumoRoda(codigo) {
+  if (RODA_PEND[codigo]) return RODA_PEND[codigo];
+  RODA_PEND[codigo] = (async () => {
+    if (RODA_RESUMO[codigo] || await api.roda_resumo(codigo)) return;
+    let caixa = $('roda-oculta');
+    if (!caixa) {
+      caixa = document.createElement('div');
+      caixa.id = 'roda-oculta';
+      caixa.style.cssText = 'position:fixed;left:-3000px;top:0;width:1100px;height:800px;overflow:hidden;opacity:0;pointer-events:none';
+      document.body.appendChild(caixa);
+    }
+    const alvo = document.createElement('div');
+    caixa.appendChild(alvo);
+    await new Promise((fim) => {
+      const limite = setTimeout(fim, 25000);
+      mostrarRoda(alvo, codigo, { aoResumo: (c, s) => { guardarResumoRoda(c, s); clearTimeout(limite); fim(); } }).then((ok) => { if (!ok) fim(); });
+    });
+    alvo.remove();
+  })();
+  return RODA_PEND[codigo];
+}
+async function atualizarCombatHunt() {
+  if (!$('h-combat')) return;
+  const e = H.entrada, codigo = e.roda && e.roda.codigo;
+  let linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null);
+  if ($('h-combat')) $('h-combat').innerHTML = linhas.length ? htmlStatsSet(linhas, '📊 Combat Stats desta hunt', 'Set + prey + charms + roda. Prey e charms valem só contra a criatura escolhida (passe o mouse para ver).') : '';
+  if (codigo && !RODA_RESUMO[codigo] && !(await api.roda_resumo(codigo))) {   // roda sem resumo guardado: calcula e atualiza o painel
+    await garantirResumoRoda(codigo);
+    linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null);
+    if ($('h-combat')) $('h-combat').innerHTML = linhas.length ? htmlStatsSet(linhas, '📊 Combat Stats desta hunt', 'Set + prey + charms + roda. Prey e charms valem só contra a criatura escolhida (passe o mouse para ver).') : '';
+  }
 }
 async function preencherStats(alvoId, set) {
   const linhas = await api.set_stats(set);
@@ -319,7 +355,8 @@ function htmlSetHunt() {
       <option value="__nenhum" ${s && !s.itens ? 'selected' : ''}>Sem set</option>${opcoes}${guardado}</select>
       ${s && s.itens ? '<button class="btn btn-sm" data-set-hunt-ver>👁 Ver o set</button>' : ''}
       ${SETS.length ? '' : '<span class="dica">Nenhum set cadastrado: cadastre em Configurações.</span>'}</div>
-    ${s && s.itens ? `<div class="set-hunt-foto">${htmlFotoSet(s, { mini: true })}</div>` : ''}`;
+    ${s && s.itens ? `<div class="set-hunt-foto">${htmlFotoSet(s, { mini: true })}</div>` : ''}
+    <div id="h-combat"></div>${(setTimeout(atualizarCombatHunt, 0), '')}`;
 }
 $('h-res').addEventListener('change', (e) => {
   if (e.target.id !== 'h-set-sel') return;

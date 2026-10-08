@@ -308,6 +308,7 @@
   .stats-set h4 { margin: 0 0 8px; font-family: var(--font-display); }
   .stats-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 18px; }
   .stats-grupo h5 { margin: 0 0 4px; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-dim); }
+  .stat-det { display: block; color: var(--ink-dim); font-size: .7rem; margin: 0 0 3px; }
   .stat-lin { display: flex; justify-content: space-between; gap: 10px; font-size: .84rem; padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
   #set-voc { width: auto; min-width: 180px; }
   .set-item { display: flex; gap: 10px; align-items: center; }
@@ -2248,10 +2249,10 @@ function renderComparacao(r, rolar = true) {
       <p class="dica" style="margin:8px 0 18px">/h = projeção para 1 hora: uma hunt de 1h17 é dividida por 1,28 (puxa para baixo), uma de 40 min é multiplicada por 1,5 (puxa para cima). Cada jogador conta só o tempo das hunts em que estava. Clique numa coluna para ordenar.</p>` : ''}
     <div class="tabela-wrap"><table class="tab comp"><tr><th></th>${cab}</tr>${linhas}${prot}</table></div>
     <p class="dica" style="margin:10px 0 0">★ = melhor valor da linha. As linhas "/ hora" e "por membro" corrigem durações e tamanhos de party diferentes.</p>
-    ${(r.stats_set || []).length ? `<h2 class="sub" style="margin-top:20px">🛡 Stats do set</h2>
+    ${(r.stats_set || []).length ? `<h2 class="sub" style="margin-top:20px">📊 Combat Stats (set, prey, charms e roda)</h2>
       <div class="tabela-wrap"><table class="tab comp"><tr><th></th>${r.hunts.map((h) => `<th class="hunt"><b>${esc(h.nome)}</b><span>${esc(h.set && h.set !== 'Set não informado' ? h.set : 'sem set')}</span></th>`).join('')}</tr>
-      ${r.stats_set.map((l) => `<tr><td>${esc(l.rotulo)} <span class="pct">${esc(l.grupo)}</span></td>${l.valores.map((v, i) => `<td class="r ${l.melhor === i ? 'melhor' : ''}">${v === null ? '<span class="dim">—</span>' : n(v)}</td>`).join('')}</tr>`).join('')}</table></div>
-      <p class="dica" style="margin:8px 0 0">Soma dos itens e embuimentos de cada set. "—" = hunt sem set informado.</p>` : ''}
+      ${r.stats_set.map((l) => `<tr><td>${esc(l.rotulo)} <span class="pct">${esc(l.grupo)}</span></td>${l.valores.map((v, i) => `<td class="r ${l.melhor === i ? 'melhor' : ''}">${v === null ? '<span class="dim">—</span>' : Number.isInteger(v) ? n(v) : String(v).replace('.', ',')}</td>`).join('')}</tr>`).join('')}</table></div>
+      <p class="dica" style="margin:8px 0 0">Soma do set (itens, embuimentos e perks da arma), prey, charms e roda. "—" = hunt sem esses dados.</p>` : ''}
     ${r.jogadores.length ? `<h2 class="sub" style="margin-top:20px">🔎 Detalhe por hunt</h2>
       <div class="abas" id="comp-abas">${r.metricas_jogador.map((m) => `<span class="pilula ${m.chave === compMetrica ? 'on' : ''}" data-met="${m.chave}">${esc(m.rotulo)}</span>`).join('')}</div>
       <div class="tabela-wrap" id="comp-jogadores"></div>` : ''}

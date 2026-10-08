@@ -29,3 +29,5 @@ audio_timers.json
 sons/
 sons_usuario/
 cache_proficiencia.json
+cache_roda_resumo.json
+cache_roda_resumo.json.tmp

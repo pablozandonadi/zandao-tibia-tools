@@ -143,10 +143,25 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
           clearInterval(espera);
           document.getElementById('wod-code-input').value = d.codigo;
           document.getElementById('wod-code-import').click();
+          // lê os 4 painéis de resumo do planner (Dedication, Conviction, Revelation e Gems) para o Combat Stats
+          var lerResumo = function () {
+            return ['dedication', 'conviction', 'revelation', 'gem'].map(function (k) {
+              var t = document.getElementById('wod-' + k + '-perks-header'), c = document.getElementById('wod-' + k + '-perks');
+              var linhas = [];   // um item por elemento-folha (nome e valor vêm em elementos separados)
+              if (c) {
+                var folhas = c.querySelectorAll('*');
+                for (var i = 0; i < folhas.length; i++) {
+                  if (folhas[i].children.length === 0) { var tx = (folhas[i].textContent || '').trim(); if (tx) linhas.push(tx); }
+                }
+                if (!folhas.length && (c.textContent || '').trim()) linhas.push(c.textContent.trim());
+              }
+              return { titulo: (t ? t.innerText : k).trim(), linhas: linhas };
+            });
+          };
           var ultimo = '';   // avisa o app do código atual sempre que ele muda (montar/editar a roda)
           setInterval(function () {
             var c = (document.getElementById('wod-code').textContent || document.getElementById('wod-code-mobile').textContent || '').trim();
-            if (c && c !== ultimo) { ultimo = c; avisar({ tipo: 'codigo', codigo: c }); }
+            if (c && c !== ultimo) { ultimo = c; avisar({ tipo: 'codigo', codigo: c }); setTimeout(function () { avisar({ tipo: 'resumo', codigo: c, secoes: lerResumo() }); }, 900); }
           }, 400);
           setTimeout(function () { avisar({ tipo: 'pronto', codigo: (document.getElementById('wod-code').textContent || '').trim(), altura: alturaConteudo() }); }, 400);
         } else if (tentativas > 80) {
@@ -161,7 +176,7 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
 </script></body></html>`;
 
 // cria o visualizador dentro de `alvo` (um elemento). Resolve true quando a roda aparece, false se caiu no plano B.
-async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null } = {}) {
+async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoResumo = guardarResumoRoda } = {}) {
   alvo.innerHTML = '<div class="dica">Carregando a roda...</div>';
   if (!RODA_ARQ) {
     const r = await api.roda_arquivos();
@@ -191,6 +206,7 @@ async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null } = 
       } else if (d.tipo === 'pronto') { frame.style.height = (d.altura + 8) + 'px'; fim(true); }
       else if (d.tipo === 'altura') frame.style.height = (d.altura + 8) + 'px';
       else if (d.tipo === 'codigo') { if (aoMudar) aoMudar(d.codigo); }
+      else if (d.tipo === 'resumo') { if (aoResumo) aoResumo(d.codigo, d.secoes); }
       else if (d.tipo === 'erro') { console.warn('roda:', d.msg); fim(false, 'O planner da Tibia não abriu aqui (' + d.msg + ').'); }
     };
     window.addEventListener('message', ouvir);
@@ -198,6 +214,14 @@ async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null } = 
     alvo.innerHTML = '';
     alvo.appendChild(frame);
   });
+}
+
+// o resumo que o planner calcula (perks de cada seção) fica guardado por código, para o Combat Stats e o comparativo
+const RODA_RESUMO = {};
+function guardarResumoRoda(codigo, secoes) {
+  if (!codigo || !Array.isArray(secoes)) return;
+  RODA_RESUMO[codigo] = secoes;
+  api.roda_guardar_resumo(codigo, secoes);
 }
 
 // plano B: sem visualização, mas com o código e o link do planner oficial

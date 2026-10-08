@@ -434,12 +434,22 @@ def _efeito_prey(hunts, cab, ms):
     return saida
 
 
+def _stats_da_hunt(h):
+    """{chave: linha} do Combat Stats da hunt (set + prey + charms + roda), só as numéricas; None se a hunt não tem nenhum desses dados."""
+    s = _sets.normalizar_set(h.get("set"))
+    prey = normalizar_prey(h.get("prey")) or []
+    charms = preys_charms.normalizar_charms(h.get("charms")) or []
+    r = _roda.normalizar_roda(h.get("roda"))
+    resumo = _roda.resumo_obter(r["codigo"]) if r else None
+    if not ((s and s.get("itens")) or prey or charms or resumo):
+        return None
+    return {l["chave"]: l for l in _stats_set.linhas_hunt(s, prey, charms, resumo) if l["valor"] is not None}
+
+
 def _stats_do_set(hunts):
     """Tabela "Stats do set": uma linha por stat (armor, resistências, skills...), um valor por hunt (None = hunt sem set;
     0 = tem set mas não tem esse stat). Vazia se nenhuma hunt tem set. O que só vem em texto (Faster Regeneration...) fica de fora."""
-    sets_ = [_sets.normalizar_set(h.get("set")) for h in hunts]
-    por_hunt = [{l["chave"]: l for l in _stats_set.linhas(_stats_set.somar(s)) if l["valor"] is not None} if s and s.get("itens") else None
-                for s in sets_]
+    por_hunt = [_stats_da_hunt(h) for h in hunts]
     ordem = {}
     for linhas in por_hunt:
         for chave, l in (linhas or {}).items():
@@ -453,7 +463,7 @@ def _stats_do_set(hunts):
     return saida
 
 
-_GRUPOS_STATS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Outros"]
+_GRUPOS_STATS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Prey", "Charms", "Roda", "Outros"]
 
 
 def _aviso_roda(hunts, cab):

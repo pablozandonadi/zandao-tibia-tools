@@ -426,6 +426,22 @@ class TestComparar(unittest.TestCase):
         self.assertEqual((linha["resist:energy"]["valores"], linha["resist:energy"]["melhor"]), ([8, 0, None], 0))   # B tem set sem energy: 0; C não tem set: None
         self.assertEqual([l["grupo"] for l in r["stats_set"]], ["Defesa", "Defesa"])
 
+    def test_stats_da_hunt_inclui_prey_charms_e_roda(self):
+        from unittest import mock
+        import roda
+        a, b = self._h("a", "A", 1, 60, 1, 1), self._h("b", "B", 1, 60, 1, 1)
+        a["prey"] = [{"tipo": "xp", "estrelas": 7, "criatura": "Varg"}]
+        b["prey"] = []
+        a["charms"] = [{"nome": "Low Blow", "criatura": "Varg", "nivel": 3}]
+        a["roda"] = {"titulo": "Beam", "codigo": "S0Y2AgDP4jAQA"}
+        resumo = [{"titulo": "Dedication Perks", "linhas": ["Hit Points", "+1,500"]}]
+        with mock.patch.object(roda, "resumo_obter", return_value=resumo):
+            linha = {l["chave"]: l for l in historico.comparar([a, b])["stats_set"]}
+        self.assertEqual((linha["prey:xp"]["valores"], linha["prey:xp"]["melhor"]), ([31, None], None))   # B informou "sem prey", mas não tem nenhum dado de stats
+        self.assertEqual(linha["charm:Low Blow"]["valores"][0], 9)
+        self.assertEqual(linha["roda:Hit Points"]["valores"][0], 1500)
+        self.assertEqual({l["grupo"] for l in linha.values()}, {"Prey", "Charms", "Roda"})
+
     def test_filtro_tamanho(self):
         self.assertTrue(historico.do_tamanho(self._h("a", "A", 4, 60, 1, 1), "4"))
         self.assertFalse(historico.do_tamanho(self._h("a", "A", 3, 60, 1, 1), "4"))
@@ -634,6 +650,12 @@ class TestApiPrey(unittest.TestCase):
         historico.atualizar(r["id"], set=h["set"])
         self.assertEqual(self.api.hunt_abrir(r["id"])["set"]["consumiveis"], [{"nome": "Mana Potion"}])
         self.assertEqual(self.api.hunt_ultimo_set("Zandao")["consumiveis"], [{"nome": "Mana Potion"}])
+
+    def test_stats_da_hunt_pela_api(self):
+        st = {"titulo": "x", "itens": {"cabeca": {"nome": "H", "armor": 8}}}
+        linhas = self.api.hunt_stats(st, [{"tipo": "ataque", "estrelas": 10, "criatura": "Varg"}], [{"nome": "Wound", "criatura": "Varg", "nivel": 1}], None)
+        self.assertEqual({l["chave"]: l["valor"] for l in linhas}, {"armor": 8, "prey:ataque": 25, "charm:Wound": 5})
+        self.assertEqual(self.api.hunt_stats(None, None, None, None), [])
 
     def test_stats_do_set_pela_api(self):
         linhas = self.api.set_stats({"titulo": "x", "itens": {"cabeca": {"nome": "H", "armor": 8, "imbue": 1, "imbues": ["Powerful Void"]}}})

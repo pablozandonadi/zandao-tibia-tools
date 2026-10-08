@@ -27,6 +27,7 @@ import proficiencia
 import precos
 import preys_charms
 import roda
+import roda as roda_mod
 import sets
 import stats_set
 import tibia_info
@@ -695,6 +696,13 @@ class API:
         """Opções do Perk Shaping: as de todas as vocações e as da vocação pedida (todas, se voc vazio)."""
         return [o for o in proficiencia.carregar().get("opcoes", []) if not voc or o.get("voc") in ("", voc)]
 
+    def hunt_stats(self, set_, prey, charms, roda):
+        """Combat Stats da hunt (set + prey + charms + roda) para o painel da tela; a roda entra pelo resumo do planner já guardado."""
+        r = roda_mod.normalizar_roda(roda) if roda else None
+        resumo = roda_mod.resumo_obter(r["codigo"]) if r else None
+        return stats_set.linhas_hunt(sets.normalizar_set(set_), historico.normalizar_prey(prey) or [],
+                                     preys_charms.normalizar_charms(charms) or [], resumo)
+
     def set_stats(self, valor):
         """Combat Stats (soma dos itens e embuimentos) do set pedido: lista de linhas para a tela."""
         return stats_set.linhas(stats_set.somar(sets.normalizar_set(valor)))
@@ -735,6 +743,16 @@ class API:
 
     def roda_remover(self, id_):
         return roda.remover(id_)
+
+    def roda_guardar_resumo(self, codigo, secoes):
+        """O planner da roda manda o resumo dele (perks por seção); fica guardado por código para o Combat Stats."""
+        try:
+            return roda.resumo_guardar(codigo, secoes)
+        except OSError:
+            return False
+
+    def roda_resumo(self, codigo):
+        return roda.resumo_obter(codigo)
 
     def roda_arquivos(self):
         """Os arquivos do planner da roda (baixados do tibia.com na primeira vez; ver roda.py)."""
