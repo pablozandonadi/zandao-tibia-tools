@@ -261,6 +261,14 @@
   .banner-mini { flex: none; width: 34px; height: 64px; }
   .banner-mini .banner-svg { filter: none; }
   @media (max-width: 1100px) { .prey-grid { grid-template-columns: 1fr; } .escolha-lista.grade { grid-template-columns: 1fr; } }
+  /* card "Tempo da hunt" */
+  .tempo-card { margin-top: 14px; padding: 12px 14px; border: 2px solid var(--ink-dim); border-radius: 12px; background: var(--surface-2);
+    display: flex; flex-direction: column; gap: 8px; }
+  .tempo-sessoes { font-size: .84rem; }
+  .tempo-linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .tempo-linha .campo-label { margin: 0; }
+  #h-duracao { width: 150px; }
+  .tempo-erro { color: var(--bad); }
   .hunt-topo { display: grid; grid-template-columns: minmax(180px, 1.3fr) minmax(150px, 1fr) auto; gap: 14px; align-items: start; }
   .caixas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
   .caixa-cab { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -589,6 +597,15 @@
             <textarea id="h-dano" data-tipo="dano" spellcheck="false" placeholder="Received Damage&#10;Total: ...&#10;Damage Types&#10;  Physical 120,000 (60.0%)&#10;Damage Sources&#10;  Gloom Maw 90,000 (45.0%)"></textarea>
             <div class="caixa-rod"><span class="dica">dano recebido, para as proteções</span><button class="btn btn-sm" data-limpar="dano">Limpar</button></div>
           </div>
+        </div>
+        <div class="tempo-card" id="h-tempo" style="display:none">
+          <div class="h-titulo" style="margin:0"><b>⏱ Tempo da hunt</b>
+            <span class="dica">confira antes da análise: se você esqueceu de zerar o contador do Tibia, digite o tempo real</span></div>
+          <div class="tempo-sessoes" id="h-tempo-sessoes"></div>
+          <div class="tempo-linha"><label class="campo-label" for="h-duracao">Tempo real da hunt</label>
+            <input type="text" id="h-duracao" placeholder="ex.: 1:33 ou 1h33" autocomplete="off" spellcheck="false">
+            <span id="h-tempo-botoes"></span></div>
+          <div class="dica" id="h-tempo-status"></div>
         </div>
         <div class="card-titulo" style="margin:16px 0 8px"><b>Despesas extras</b><button class="btn btn-sm" id="h-add-despesa">+ Despesa</button></div>
         <div id="h-despesas"><div class="dica">Boat, hireling, montaria alugada... quem pagou é reembolsado na divisão.</div></div>
@@ -1081,7 +1098,7 @@ const ouro = (v) => `<span class="${cls(v)}">${n(v)}</span>`;
 const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div></div>`;
 
 const H = {
-  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [], charms: [] },
+  entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [], charms: [], duracao: '' },
   id: null, assinatura: null, a: null, pagos: [], texto: '', dano: null, aba: null, seq: 0,
 };
 
@@ -1093,7 +1110,53 @@ function preencherHunt() {
   montarSeletorPersonagem();
   TIPOS.forEach((t) => { $('h-' + t).value = H.entrada[t] || ''; });
   montarDespesas();
+  $('h-duracao').value = H.entrada.duracao || '';
+  atualizarTempo(null);
 }
+
+// ---------- card "Tempo da hunt": o Session colado do Tibia pode estar errado (contador não zerado) ----------
+// O campo nunca é redesenhado (senão perderia o foco enquanto você digita): só os textos em volta mudam.
+function atualizarTempo(a) {
+  const box = $('h-tempo');
+  const ses = (a && a.sessoes) || {};
+  if (!a || a.vazio || (!ses.party && !ses.solo)) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const partes = [];
+  if (ses.party) partes.push(`Party Hunt Analyser: <b>${esc(ses.party)}</b>`);
+  if (ses.solo) partes.push(`Hunting Analyser: <b>${esc(ses.solo)}</b>`);
+  const difere = ses.party && ses.solo && ses.party !== ses.solo;
+  $('h-tempo-sessoes').innerHTML = partes.join(' · ')
+    + (difere ? '<div class="avisos" style="margin:8px 0 0"><div>⚠ Os dois têm tempos diferentes: provavelmente o contador de um deles não foi zerado. Digite abaixo o tempo real da hunt.</div></div>' : '');
+  const botoes = [];
+  if (ses.party) botoes.push(`<button class="btn btn-sm" data-tempo="${esc(ses.party)}">Usar ${esc(ses.party)} (Party)</button>`);
+  if (ses.solo && ses.solo !== ses.party) botoes.push(`<button class="btn btn-sm" data-tempo="${esc(ses.solo)}">Usar ${esc(ses.solo)} (Hunting)</button>`);
+  if ((H.entrada.duracao || '').trim()) botoes.push('<button class="btn btn-sm" data-tempo="">Usar o do Tibia</button>');
+  $('h-tempo-botoes').innerHTML = botoes.join(' ');
+  const r = a.resumo || {};
+  const digitado = (H.entrada.duracao || '').trim();
+  const st = $('h-tempo-status');
+  if (digitado && !r.duracao_original) {
+    st.className = 'dica tempo-erro';
+    st.textContent = 'Não entendi esse tempo. Use 1:33, 1h33 ou 45min.';
+  } else if (digitado) {
+    st.className = 'dica';
+    st.textContent = `Usando ${r.duracao} (o Session colado era ${r.duracao_original}). XP/h, balance/h, dano/h e cura/h foram refeitos com esse tempo.`;
+  } else {
+    st.className = 'dica';
+    st.textContent = `Usando o Session colado: ${r.duracao || '—'}.`;
+  }
+}
+$('h-duracao').addEventListener('input', () => {
+  H.entrada.duracao = $('h-duracao').value;
+  agendarAnalise(400);
+});
+$('h-tempo-botoes').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-tempo]');
+  if (!b) return;
+  H.entrada.duracao = b.dataset.tempo.replace(/h$/, '');  // "02:47h" -> "02:47"
+  $('h-duracao').value = H.entrada.duracao;
+  agendarAnalise(0);
+});
 
 // ---------- seu personagem nesta hunt: preys e charms ----------
 // Só marcam o que estava ativo (os números colados do Tibia já vêm com o efeito deles).
@@ -1358,7 +1421,7 @@ $('h-nome').addEventListener('input', () => {
 // ---------- salvar no Histórico (só quando o usuário clica) ----------
 // "retrato" = tudo o que vai para o Histórico; se mudou desde o último Salvar, há alterações não salvas
 const retrato = () => JSON.stringify([H.entrada.nome, H.entrada.party, H.entrada.solo, H.entrada.dano,
-  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort(), H.entrada.prey ?? null, H.entrada.charms ?? null]);
+  H.entrada.despesas, H.entrada.excluidos, H.entrada.personagem, [...H.pagos].sort(), H.entrada.prey ?? null, H.entrada.charms ?? null, H.entrada.duracao || '']);
 const temAlteracao = () => !!H.a && (!H.id || retrato() !== H.salvoRetrato);
 function atualizarSalvar() {
   const b = $('h-salvar');
@@ -1485,7 +1548,7 @@ $('h-nova').addEventListener('click', async () => {
   if (temAlteracao() && !confirm(H.id ? 'As alterações desta hunt não foram salvas. Descartar e começar outra?'
     : 'Esta hunt não foi salva no Histórico. Descartar e começar outra?')) return;
   const personagem = H.entrada.personagem;
-  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem), charms: await charmsInicial(personagem) };
+  H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem), charms: await charmsInicial(personagem), duracao: '' };
   H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null;
   preencherHunt();
   analisarHunt();
@@ -1528,6 +1591,7 @@ async function analisarHunt() {
   if (seq !== H.seq) return;  // chegou uma análise mais nova no meio
   const a = r.analise;
   statusCaixas(a);
+  atualizarTempo(a);
   if (a.vazio) {
     H.a = null; H.dano = null;
     $('h-res').innerHTML = '';
@@ -1838,7 +1902,7 @@ async function abrirHunt(id) {
     const e = await api.hunt_abrir(id);
     if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
     H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
-      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null, charms: e.charms ?? null };
+      despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null, charms: e.charms ?? null, duracao: e.duracao || '' };
     H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || [];
     H.salvoRetrato = retrato();
     preencherHunt();
