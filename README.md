@@ -42,7 +42,8 @@ funcionando separados. Esta pasta tem as suas próprias cópias.
      TibiaWiki, baixados na primeira vez e guardados em `cache_itens.json`.
 4. **Despesas extras** (boat, hireling...): quem pagou é reembolsado na divisão. **Copiar resumo** gera o texto para o Discord.
 5. **Seu personagem nesta hunt** (seção que abre e fecha): marque as **preys** (até 3: tipo, estrelas com o bônus
-   calculado e a criatura) e os **charms** (majors e minors, nível 1, 2 ou 3 e a criatura). Não muda nenhum número
+   calculado e a criatura), os **charms** (majors e minors, nível 1, 2 ou 3 e a criatura) e a **roda** (Wheel of Destiny)
+   que você usou, escolhida entre as que você cadastrou em Configurações. Não muda nenhum número
    (o que você cola do Tibia já vem com prey e charms); serve para lembrar, ao comparar hunts, por que uma rendeu
    mais. Uma hunt nova começa com as preys e charms da sua última hunt. Hunts antigas ficam como "não informado"
    (diferente de "sem prey") até você marcar.
@@ -75,7 +76,8 @@ clicar em **💾 Salvar alterações**. O Hunt Analyser abre sempre limpo; só o
   dano e cura) e o **Detalhe por hunt** (cada jogador em cada hunt, abrindo em "Dano / hora"). ★ marca o melhor valor;
   o veredito diz qual hunt rendeu mais, e os avisos dizem quando a party, a duração, o personagem, o spawn ou a
   prey são diferentes.
-- Cada hunt mostra a **prey** e os **charms** marcados (ou "não informado").
+- Cada hunt mostra a **prey**, os **charms** e a **roda** marcados (ou "não informado"); rodas diferentes entre as hunts
+  comparadas geram um aviso.
 - **Abrir** recarrega a hunt no Hunt Analyser (com as transferências já marcadas como pagas).
 - **Exportar** gera um `.json` com todas as hunts (ou só as do personagem filtrado).
 - **Importar (somar)** traz as hunts de um arquivo exportado, seu ou de um amigo, sem repetir as que você já tem.
@@ -112,6 +114,16 @@ No fim do menu lateral:
 
 Diminua a janela e coloque num canto: com menos de ~760 px de largura, o menu vira só ícones.
 As duas opções ficam salvas em `preferencias.json`. Funciona com o Tibia em janela ou em tela cheia sem bordas.
+
+## Rodas (Wheel of Destiny)
+
+Em **Configurações → Minhas rodas** você cadastra cada roda com um nome e o **código do planner** do tibia.com (ou o link
+dele, ex.: `K0Y2AgDP4jAQA`); a primeira letra do código é a vocação. **👁 Ver** mostra a roda desenhada pelo **planner
+oficial da Tibia**: o app baixa os arquivos dele do tibia.com na primeira vez (precisa de internet; ficam em `cache_roda/`,
+no seu PC, e não vão para o GitHub nem para o instalador) e roda tudo numa caixa isolada, sem acesso aos seus arquivos.
+Se não houver internet ou o planner mudar, aparece o código e um botão que abre o planner no navegador. As rodas ficam em
+`rodas.json` e entram no backup. Na hunt, a roda escolhida fica salva junto (nome e código), mesmo que você apague a roda
+depois.
 
 ## Embuimentos
 
