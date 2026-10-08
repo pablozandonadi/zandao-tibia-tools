@@ -59,7 +59,7 @@ function htmlStatsSet(linhas, titulo = '📊 Combat Stats', nota = 'Soma dos ite
   if (!linhas || !linhas.length) return '<p class="dica" style="margin:0">Escolha itens para ver a soma dos stats.</p>';
   const grupo = (nome) => {
     const l = linhas.filter((x) => x.grupo === nome);
-    return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin" ${x.detalhe ? `title="${esc(x.detalhe)}"` : ''}><span>${esc(x.rotulo)}</span><b>${esc(x.texto)}</b></div>${x.detalhe ? `<small class="stat-det">${esc(x.detalhe)}</small>` : ''}`).join('')}</div>` : '';
+    return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin" ${x.detalhe ? `title="${esc(x.detalhe)}"` : ''}><span>${esc(x.rotulo)}</span>${x.pontos ? `<b class="pt-bol ${x.pontos.tipo}" title="${esc(x.texto)}">${bolinhas(x.pontos)}</b>` : `<b>${esc(x.texto)}</b>`}</div>${x.detalhe ? `<small class="stat-det">${esc(x.detalhe)}</small>` : ''}`).join('')}</div>` : '';
   };
   return `<div class="stats-set"><h4>${titulo}</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Perks da arma', 'Prey', 'Charms', 'Roda', 'Postura', 'Outros'].map(grupo).join('')}</div>
     <p class="dica" style="margin:6px 0 0">${nota}</p></div>`;
@@ -420,6 +420,19 @@ $('cfg-sets').addEventListener('change', async (e) => {
   if (e.target.value && imbues.filter((x) => x === e.target.value).length > 1) { imbues[+i] = ''; toast('Esse embuimento já está neste item.', true); }
   it.imbues = imbues.filter(Boolean);
   desenharEditorSet();
+});
+
+// ---------- classificador de dano (página da comunidade, embutida: carrega só na primeira vez que a seção é aberta) ----------
+$('h-classificador').addEventListener('toggle', () => {
+  const quadro = $('h-class-quadro');
+  if (!$('h-classificador').open || quadro.firstChild) return;
+  const f = document.createElement('iframe');
+  f.className = 'class-frame';
+  f.src = 'https://lucasporfz.github.io/classificador/';
+  f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-downloads allow-popups');   // roda na origem dele, sem acesso ao app
+  f.setAttribute('referrerpolicy', 'no-referrer');
+  f.title = 'Classificador de dano';
+  quadro.appendChild(f);
 });
 
 // ---------- a postura (stance spell) da hunt ----------

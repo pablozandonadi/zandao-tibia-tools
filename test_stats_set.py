@@ -118,7 +118,7 @@ class TestHunt(unittest.TestCase):
 
     def test_roda_a_partir_do_resumo_do_planner(self):
         secoes = [{"titulo": "Dedication Perks", "linhas": ["Hit Points", "+1,500", "Mana", "+350", "Mitigation Multiplier", "22.50%"]},
-                  {"titulo": "Conviction Perks", "linhas": ["Battle Instinct", "Weapon Skill Boost", "+1", "Life Leech", "+0.75%", "Augmented Shield Slam", "I", "Mana Leech", "+0.25%"]},
+                  {"titulo": "Conviction Perks", "linhas": ["Battle Instinct", "Weapon Skill Boost", "+1", "Life Leech", "+0.75%", "Augmented Shield Slam", "I", "Mana Leech", "+0.25%", "Vessel Resonance Top Left", "III"]},
                   {"titulo": "Revelation Perks", "linhas": ["Damage and Healing", "+20", "Avatar of Steel", "Locked", "Gift of Life", "Stage 3"]},
                   {"titulo": "Vessels", "linhas": ["none"]}]
         l = self._l(roda=secoes)
@@ -129,7 +129,11 @@ class TestHunt(unittest.TestCase):
         self.assertEqual((l["roda:Augmented Shield Slam"]["valor"], l["roda:Augmented Shield Slam"]["texto"]), (None, "I"))   # só texto
         self.assertEqual((l["roda:Battle Instinct"]["valor"], l["roda:Battle Instinct"]["texto"]), (None, "ativo"))
         self.assertEqual(l["roda:Gift of Life"]["texto"], "Stage 3")
-        self.assertNotIn("roda:Avatar of Steel", l)                           # "Locked" = não liberado: sem efeito
+        self.assertEqual((l["roda:Avatar of Steel"]["valor"], l["roda:Avatar of Steel"]["pontos"]), (None, {"tipo": "revelacao", "n": 0, "de": 3}))   # "Locked": aparece com as bolinhas vazias
+        self.assertEqual(l["roda:Gift of Life"]["pontos"], {"tipo": "revelacao", "n": 3, "de": 3})               # "Stage 3": 3 de 3
+        self.assertEqual(l["roda:Augmented Shield Slam"]["pontos"], {"tipo": "aumento", "n": 1, "de": 3})        # "I": 1 de 3 losangos
+        self.assertEqual(l["roda:Vessel Resonance Top Left"]["pontos"], {"tipo": "gema", "n": 3, "de": 3})
+        self.assertNotIn("pontos", l["roda:Hit Points"])
         self.assertNotIn("roda:none", l)
 
     def test_junta_com_o_set(self):

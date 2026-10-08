@@ -176,7 +176,9 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
 </script></body></html>`;
 
 // cria o visualizador dentro de `alvo` (um elemento). Resolve true quando a roda aparece, false se caiu no plano B.
-async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoResumo = guardarResumoRoda } = {}) {
+async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoResumo = null } = {}) {
+  // por padrão guarda o resumo do planner e mostra embaixo da roda as revelações, augments e gemas com as bolinhas
+  if (!aoResumo) aoResumo = (c, s) => { guardarResumoRoda(c, s); mostrarPontosRoda(alvo, s); };
   alvo.innerHTML = '<div class="dica">Carregando a roda...</div>';
   if (!RODA_ARQ) {
     const r = await api.roda_arquivos();
@@ -222,6 +224,25 @@ function guardarResumoRoda(codigo, secoes) {
   if (!codigo || !Array.isArray(secoes)) return;
   RODA_RESUMO[codigo] = secoes;
   api.roda_guardar_resumo(codigo, secoes);
+}
+
+// bolinhas das revelações (●), augments e gemas (◆) embaixo da roda: o que o planner já liberou com os pontos escolhidos
+const bolinhas = (p) => (p.tipo === 'revelacao' ? '●' : '◆').repeat(p.n) + (p.tipo === 'revelacao' ? '○' : '◇').repeat(Math.max(0, p.de - p.n));
+function htmlPontosRoda(pontos) {
+  if (!pontos || !pontos.length) return '';
+  const grupo = (titulo, tipos) => {
+    const l = pontos.filter((p) => tipos.includes(p.tipo));
+    return l.length ? `<div class="pt-grupo"><h5>${titulo}</h5>${l.map((p) => `<div class="pt-lin ${p.n ? '' : 'zero'}"><span>${esc(p.rotulo)}</span><b class="pt-bol ${p.tipo}" title="${esc(p.texto)}">${bolinhas(p)}</b></div>`).join('')}</div>` : '';
+  };
+  return `<div class="pt-box"><h4>Revelações e gemas</h4><div class="pt-grade">${grupo('Revelações (estágios)', ['revelacao'])}${grupo('Augments', ['aumento'])}${grupo('Gemas (ressonância)', ['gema'])}</div>
+    <p class="dica" style="margin:6px 0 0">● estágio liberado de uma revelação · ◆ nível de um augment ou da ressonância das gemas · ○ ◇ ainda não liberado</p></div>`;
+}
+async function mostrarPontosRoda(alvo, secoes) {
+  if (!alvo || !alvo.isConnected) return;
+  const pontos = await api.roda_pontos(secoes);
+  let caixa = alvo.querySelector('.roda-pontos');
+  if (!caixa) { caixa = document.createElement('div'); caixa.className = 'roda-pontos'; alvo.appendChild(caixa); }
+  caixa.innerHTML = htmlPontosRoda(pontos);
 }
 
 // plano B: sem visualização, mas com o código e o link do planner oficial

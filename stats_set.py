@@ -248,10 +248,7 @@ def _linhas_roda(secoes):
         while i < len(itens):
             nome = itens[i].strip()
             val = itens[i + 1].strip() if i + 1 < len(itens) else None
-            if val is not None and val == "Locked":
-                i += 2
-                continue                                  # perk ainda não liberado: sem efeito
-            if val is not None and (_VALOR_RODA.match(val) or _NIVEL_RODA.match(val)) and not _VALOR_RODA.match(nome):
+            if val is not None and (val == "Locked" or _VALOR_RODA.match(val) or _NIVEL_RODA.match(val)) and not _VALOR_RODA.match(nome):
                 ocorrencias.setdefault(nome, []).append(val)
                 i += 2
             else:
@@ -270,8 +267,32 @@ def _linhas_roda(secoes):
             saida.append({"chave": f"roda:{nome}", "grupo": "Roda", "rotulo": nome, "valor": soma, "texto": texto})
         else:
             texto = next((v for v in vals if v), "ativo")
-            saida.append({"chave": f"roda:{nome}", "grupo": "Roda", "rotulo": nome, "valor": None, "texto": texto})
+            linha = {"chave": f"roda:{nome}", "grupo": "Roda", "rotulo": nome, "valor": None, "texto": texto}
+            pontos = _pontos_roda(nome, texto)
+            if pontos:
+                linha["pontos"] = pontos
+            saida.append(linha)
     return saida
+
+
+_ROMANOS = {"I": 1, "II": 2, "III": 3}
+
+
+def _pontos_roda(nome, texto):
+    """Bolinhas do resumo: revelação ("Locked" = 0, "Stage N" = N de 3), augment ("Augmented X I/II/III") e ressonância das gemas."""
+    if texto == "Locked":
+        return {"tipo": "revelacao", "n": 0, "de": 3}
+    m = re.match(r"^Stage ([0-9]+)$", texto)
+    if m:
+        return {"tipo": "revelacao", "n": min(3, int(m.group(1))), "de": 3}
+    if texto in _ROMANOS:
+        return {"tipo": "aumento" if nome.startswith("Augmented") else "gema", "n": _ROMANOS[texto], "de": 3}
+    return None
+
+
+def pontos_roda(secoes):
+    """Só o que tem bolinhas (revelações, augments, gemas): [{"rotulo", "texto", "tipo", "n", "de"}], para mostrar embaixo da roda."""
+    return [{"rotulo": l["rotulo"], "texto": l["texto"], **l["pontos"]} for l in _linhas_roda(secoes) if l.get("pontos")]
 
 
 def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None, postura=None):

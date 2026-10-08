@@ -154,7 +154,17 @@ extra damage, critical hit chance, magic level, leech, attack) entram nas linhas
 **Combat Stats da hunt:** em "Seu personagem nesta hunt" aparece o painel **📊 Combat Stats desta hunt**, somando o set
 com a **prey** (XP, loot, dano causado e dano recebido, contra a criatura marcada), os **charms** (efeito no nível
 escolhido) e a **roda** (o resumo que o próprio planner oficial calcula, guardado por código em `cache_roda_resumo.json`;
-na primeira vez o planner abre escondido para calcular).
+na primeira vez o planner abre escondido para calcular). Embaixo da roda (e no painel) aparecem as **bolinhas**: ● o estágio liberado
+de cada revelação (Avatar of Storm, Gift of Life...), ◆ o nível de cada augment e da ressonância das gemas, e ○ ◇ o que ainda não foi liberado.
+
+**Postura (stance):** em "Seu personagem nesta hunt" você marca a postura usada (ex.: Master of Decay para Sorcerer, Blood Rage para
+Knight; as da sua vocação aparecem primeiro). O efeito entra no Combat Stats, e o Histórico e o comparativo mostram a postura (e avisam
+quando ela muda). Os dados vêm da TibiaWiki (`posturas.py`).
+
+**Classificador de dano:** no Hunt Analyser há a seção **🔎 Classificador de dano**, que abre dentro do app a página da comunidade
+([lucasporfz](https://github.com/lucasporfz/classificador)): você cola o server log e o local chat da mesma hunt e vê quanto cada spell fez. É a página
+dele ao vivo (precisa de internet); o código não é copiado para o app. O Tibia guarda só as últimas linhas desses logs, então copie
+logo depois da hunt.
 
 ## Embuimentos
 

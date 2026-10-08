@@ -765,6 +765,10 @@ class API:
         except OSError:
             return False
 
+    def roda_pontos(self, secoes):
+        """Revelações, augments e gemas (com as bolinhas) a partir do resumo do planner, para mostrar embaixo da roda."""
+        return stats_set.pontos_roda(secoes)
+
     def roda_resumo(self, codigo):
         return roda.resumo_obter(codigo)
 
