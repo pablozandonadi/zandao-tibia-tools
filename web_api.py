@@ -709,13 +709,13 @@ class API:
         """Opções do Perk Shaping: as de todas as vocações e as da vocação pedida (todas, se voc vazio)."""
         return [o for o in proficiencia.carregar().get("opcoes", []) if not voc or o.get("voc") in ("", voc)]
 
-    def hunt_stats(self, set_, prey, charms, roda, postura=None):
+    def hunt_stats(self, set_, prey, charms, roda, postura=None, nivel=None):
         """Combat Stats da hunt (set + prey + charms + roda) para o painel da tela; a roda entra pelo resumo do planner já guardado."""
         r = roda_mod.normalizar_roda(roda) if roda else None
         resumo = roda_mod.resumo_obter(r["codigo"]) if r else None
         return stats_set.linhas_hunt(sets.normalizar_set(set_), historico.normalizar_prey(prey) or [],
                                      preys_charms.normalizar_charms(charms) or [], resumo,
-                                     postura=posturas.normalizar_postura(postura) or "")
+                                     postura=posturas.normalizar_postura(postura) or "", nivel=nivel if isinstance(nivel, int) else None)
 
     def set_stats(self, valor):
         """Combat Stats (soma dos itens e embuimentos) do set pedido: lista de linhas para a tela."""

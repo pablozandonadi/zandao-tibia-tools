@@ -151,6 +151,13 @@ está usando aquele perk. Os perks que valem sempre (critical
 extra damage, critical hit chance, magic level, leech, attack) entram nas linhas normais; os que valem só numa condição
 (ex.: "para Death spells e runes") ficam em **Perks da arma**. Os dados ficam em `cache_proficiencia.json` (30 dias).
 
+**Como o Combat Stats calcula (igual ao Tibia):** cada linha mostra de onde vem o valor (Bônus fixo, Equipamento, Embuimento,
+Proficiência, Roda, Nível). As **resistências do mesmo elemento se combinam multiplicando** (1 − produto de 1 − cada uma), como o Tibia
+mostra (ex.: Physical 5%, 5%, 2% e 5% dão +15,98%). O **crítico** soma o bônus fixo do personagem (+5% de chance e +10% de extra damage, conferido
+no Tibia), embuimentos e proficiência. O **Flat Damage and Healing** é o level ÷ 5 mais o "Damage and Healing" da roda. O que o Tibia
+mostra na aba Misc (perks de proficiência de uma spell específica e os augments da roda, como "Front Sweep +40% Base Damage") fica junto do
+ataque, marcado com o selo **misc**. Não entram ainda: o Attack e o Defence que vêm das skills, e a Mitigation.
+
 **Combat Stats da hunt:** em "Seu personagem nesta hunt" aparece o painel **📊 Combat Stats desta hunt**, somando o set
 com a **prey** (XP, loot, dano causado e dano recebido, contra a criatura marcada), os **charms** (efeito no nível
 escolhido) e a **roda** (o resumo que o próprio planner oficial calcula, guardado por código em `cache_roda_resumo.json`;

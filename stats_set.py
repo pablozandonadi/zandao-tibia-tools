@@ -32,19 +32,40 @@ IMBUEMENTS = {
 _ELEMENTO = {"physical": "Physical", "fire": "Fire", "earth": "Earth", "energy": "Energy", "ice": "Ice", "holy": "Holy", "death": "Death",
              "lifedrain": "Life Drain", "manadrain": "Mana Drain", "drown": "Drown"}
 _ATRIBUTO = re.compile(r"^(?P<nome>[a-z][a-z ]*?)\s*(?P<valor>[+-]?\d+)(?P<pct>%?)$")
-_GRUPOS = ["Defesa", "Ataque", "Skills", "Perks da arma", "Prey", "Charms", "Roda", "Postura", "Outros"]
+_GRUPOS = ["Defesa", "Ataque", "Skills", "Prey", "Charms", "Roda", "Postura", "Outros"]
 # perk da arma que vira uma linha normal (o resto fica em "Perks da arma", somado por rótulo): (rótulo em minúsculas, unidade) -> (campo, chave)
 _PERK_GLOBAL = {("critical extra damage", "%"): ("crit", "dano"), ("critical hit chance", "%"): ("crit", "chance"),
                 ("life leech", "%"): ("leech", "life"), ("mana leech", "%"): ("leech", "mana"), ("attack", ""): ("attack", None), ("defence", ""): ("defense", None)}
 
 
+_PREFIXO = {"leech": "leech", "crit": "crit", "skills": "skill", "conversao": "conv", "atk_elem": "atk_elem", "resist": "resist"}
+
+
 def _vazio():
     return {"armor": 0, "defense": 0, "attack": 0, "atk_elem": {}, "resist": {}, "skills": {}, "leech": {}, "crit": {},
-            "conversao": {}, "capacidade": 0, "paralisia": 0, "perks": {}, "extras": []}
+            "conversao": {}, "capacidade": 0, "paralisia": 0, "perks": {}, "extras": [], "fontes": {}}
 
 
 def _soma(d, chave, v):
     d[chave] = d.get(chave, 0) + v
+
+
+def _fonte(s, chave, origem, valor):
+    """Guarda de onde veio uma parte do valor da linha (Equipamento, Embuimento, Proficiência, Roda...)."""
+    if valor:
+        s["fontes"].setdefault(chave, []).append({"origem": origem, "valor": valor})
+
+
+def _acc(s, campo, chave, v, origem):
+    """Soma em s[campo][chave] (leech, crit, skills...) e guarda a origem. As resistências são fechadas depois (multiplicam)."""
+    _soma(s[campo], chave, v)
+    _fonte(s, f"{_PREFIXO[campo]}:{chave}", origem, v)
+
+
+def _acc_n(s, campo, v, origem):
+    """Mesma coisa para os números soltos (armor, defense, attack, capacidade, paralisia)."""
+    s[campo] += v
+    _fonte(s, campo, origem, v)
 
 
 def _titulo(texto):
@@ -56,7 +77,7 @@ def _extra(s, texto):
         s["extras"].append(_titulo(texto))
 
 
-def _atributo(s, texto):
+def _atributo(s, texto, origem):
     """Uma parte do campo attrib do item ("magic level +2", "life leech +2%"...). O que não for número soma como texto."""
     m = _ATRIBUTO.match(texto)
     if not m:
@@ -64,71 +85,96 @@ def _atributo(s, texto):
         return
     nome, valor = m.group("nome").strip(), int(m.group("valor"))
     if nome == "life leech":
-        _soma(s["leech"], "life", valor)
+        _acc(s, "leech", "life", valor, origem)
     elif nome == "mana leech":
-        _soma(s["leech"], "mana", valor)
+        _acc(s, "leech", "mana", valor, origem)
     elif nome == "critical hit chance":
-        _soma(s["crit"], "chance", valor)
+        _acc(s, "crit", "chance", valor, origem)
     elif nome in ("critical extra damage", "critical hit damage"):
-        _soma(s["crit"], "dano", valor)
+        _acc(s, "crit", "dano", valor, origem)
     elif not m.group("pct") and nome.endswith(("level", "fighting", "shielding", "speed")):
-        _soma(s["skills"], nome, valor)
+        _acc(s, "skills", nome, valor, origem)
     else:
         _extra(s, texto)
 
 
-def _perk(s, e):
-    """Um efeito de perk da arma ({"rotulo", "valor", "unidade"}): linha normal se for global, senão fica em s["perks"]."""
+def _perk(s, e, origem):
+    """Um efeito de perk da arma ({"rotulo", "valor", "unidade"}): linha normal se for global, senão fica em s["perks"] (misc)."""
     rotulo, valor, unidade = e["rotulo"], e["valor"], e["unidade"]
     destino = _PERK_GLOBAL.get((rotulo.lower(), unidade))
     if destino and destino[1]:
-        _soma(s[destino[0]], destino[1], valor)
+        _acc(s, destino[0], destino[1], valor, origem)
     elif destino:
-        s[destino[0]] += valor
+        _acc_n(s, destino[0], valor, origem)
     elif not unidade and rotulo.lower().endswith(("level", "fighting", "shielding")):
-        _soma(s["skills"], rotulo.lower(), valor)
+        _acc(s, "skills", rotulo.lower(), valor, origem)
     else:
         atual = s["perks"].setdefault(rotulo, {"valor": 0, "unidade": unidade})
         atual["valor"] = round(atual["valor"] + valor, 4)
+        _fonte(s, f"perk:{rotulo}", origem, valor)
 
 
-def somar(valor, opcoes=None):
+def _mesclar(s, parcial, origem):
+    """Junta valores que vêm de fora do set (a roda, o bônus fixo): {"resist": {...}, "leech": {...}, "crit": {...}, "skills": {...}}."""
+    for campo in ("resist", "leech", "crit", "skills", "conversao", "atk_elem"):
+        for chave, v in (parcial.get(campo) or {}).items():
+            _acc(s, campo, chave, v, origem)
+
+
+def _fechar(s):
+    """Resistências do mesmo elemento se combinam multiplicando (como o Tibia mostra): total = 1 - produto de (1 - cada)."""
+    for chave, partes in s["fontes"].items():
+        if chave.startswith("resist:"):
+            produto = 1.0
+            for f in partes:
+                produto *= 1 - f["valor"] / 100
+            total = round((1 - produto) * 100, 2)
+            s["resist"][chave[len("resist:"):]] = int(total) if float(total).is_integer() else total
+
+
+def somar(valor, opcoes=None, extras=None, antes=None):
     """Soma o set ({"itens": {slot: item}}) e devolve o dicionário de stats (todos zerados se o set for vazio).
-    opcoes: lista do Perk Shaping (só é lida do cache de proficiência se alguma arma tiver troca)."""
+    Cada linha guarda em s["fontes"] de onde veio (Equipamento, Embuimento, Proficiência, ...).
+    opcoes: lista do Perk Shaping (só é lida do cache de proficiência se alguma arma tiver troca).
+    extras: [(origem, parcial)] com o que vem de fora do set e entra depois dele (roda); antes: o que entra antes (bônus fixo)."""
     s = _vazio()
+    for origem, parcial in antes or []:
+        _mesclar(s, parcial, origem)
     for item in ((valor or {}).get("itens") or {}).values():
+        for campo in ("armor", "defense", "attack"):
+            _acc_n(s, campo, item.get(campo) or 0, "Equipamento")
+        for el, v in (item.get("atk_elem") or {}).items():
+            _acc(s, "atk_elem", el, v, "Equipamento")
+        for el, v in (item.get("resist") or {}).items():
+            _acc(s, "resist", el, v, "Equipamento")
+        for parte in (item.get("attrib") or "").lower().split(","):
+            if parte.strip():
+                _atributo(s, parte.strip(), "Equipamento")
+        for nome in item.get("imbues") or []:
+            for tipo, chave, v in IMBUEMENTS.get(nome, []):
+                if tipo == "conv":
+                    _acc(s, "conversao", chave, v, "Embuimento")
+                elif tipo == "leech":
+                    _acc(s, "leech", chave, v, "Embuimento")
+                elif tipo == "crit":
+                    _acc(s, "crit", chave, v, "Embuimento")
+                elif tipo == "resist":
+                    _acc(s, "resist", chave, v, "Embuimento")
+                elif tipo == "skill":
+                    _acc(s, "skills", chave, v, "Embuimento")
+                else:
+                    _acc_n(s, tipo, v, "Embuimento")
         if item.get("perks"):
             if opcoes is None and (item.get("prof") or {}).get("trocas"):
                 opcoes = proficiencia.carregar().get("opcoes", [])
             ef = proficiencia.efeitos(item, opcoes or ())
             for e in ef["lista"]:
-                _perk(s, e)
+                _perk(s, e, "Proficiência")
             for t in ef["textos"]:
                 _extra(s, t)
-        s["armor"] += item.get("armor") or 0
-        s["defense"] += item.get("defense") or 0
-        s["attack"] += item.get("attack") or 0
-        for el, v in (item.get("atk_elem") or {}).items():
-            _soma(s["atk_elem"], el, v)
-        for el, v in (item.get("resist") or {}).items():
-            _soma(s["resist"], el, v)
-        for parte in (item.get("attrib") or "").lower().split(","):
-            if parte.strip():
-                _atributo(s, parte.strip())
-        for nome in item.get("imbues") or []:
-            for tipo, chave, v in IMBUEMENTS.get(nome, []):
-                if tipo == "conv":
-                    _soma(s["conversao"], chave, v)
-                elif tipo == "leech":
-                    _soma(s["leech"], chave, v)
-                elif tipo == "crit":
-                    _soma(s["crit"], chave, v)
-                elif tipo == "resist":
-                    _soma(s["resist"], chave, v)
-                elif tipo == "skill":
-                    _soma(s["skills"], chave, v)
-                else:
-                    s[tipo] += v
+    for origem, parcial in extras or []:
+        _mesclar(s, parcial, origem)
+    _fechar(s)
     return s
 
 
@@ -141,39 +187,64 @@ def _sinal_num(v):
     return f"{v:+g}"
 
 
+def _num(v):
+    """Número sem casas inúteis: 50 -> "50", 15.98 -> "15.98"."""
+    return f"{v:g}"
+
+
+def _fontes_agrupadas(chave, partes):
+    """Junta as partes da mesma origem (como o Tibia: "+20% do Equipamento"); nas resistências a mesma origem também combina multiplicando."""
+    porigem = {}
+    for f in partes:
+        porigem.setdefault(f["origem"], []).append(f["valor"])
+    saida = []
+    for origem, vals in porigem.items():
+        if chave.startswith("resist:"):
+            produto = 1.0
+            for v in vals:
+                produto *= 1 - v / 100
+            v = round((1 - produto) * 100, 2)
+        else:
+            v = round(sum(vals), 4)
+        saida.append({"origem": origem, "valor": int(v) if float(v).is_integer() else v})
+    return saida
+
+
 def linhas(s):
-    """O que aparece na tela: [{chave, grupo, rotulo, valor, texto}], só o que não é zero, agrupado (Defesa, Ataque, Skills, Outros)."""
-    def lin(chave, grupo, rotulo, valor, texto):
-        return {"chave": chave, "grupo": grupo, "rotulo": rotulo, "valor": valor, "texto": texto}
+    """O que aparece na tela: [{chave, grupo, rotulo, valor, texto, fontes, misc}], só o que não é zero.
+    "fontes" diz de onde vem cada parte do valor; "misc" marca o que o Tibia mostra na aba Misc (perks de spell específica),
+    que aqui fica junto do ataque, mas marcado."""
+    def lin(chave, grupo, rotulo, valor, texto, misc=False):
+        return {"chave": chave, "grupo": grupo, "rotulo": rotulo, "valor": valor, "texto": texto, "misc": misc, "fontes": _fontes_agrupadas(chave, s["fontes"].get(chave, []))}
     saida = []
     for chave, rotulo in (("armor", "Armor"), ("defense", "Defense")):
         if s[chave]:
             saida.append(lin(chave, "Defesa", rotulo, s[chave], str(s[chave])))
     for el, v in sorted(s["resist"].items(), key=lambda x: (-x[1], x[0])):
         if v:
-            saida.append(lin(f"resist:{el}", "Defesa", _ELEMENTO.get(el, el.capitalize()), v, f"{_sinal(v)}%"))
+            saida.append(lin(f"resist:{el}", "Defesa", _ELEMENTO.get(el, el.capitalize()), v, f"{_sinal_num(v)}%"))
     if s["paralisia"]:
-        saida.append(lin("paralisia", "Defesa", "Paralysis deflection", s["paralisia"], f"{s['paralisia']}%"))
+        saida.append(lin("paralisia", "Defesa", "Paralysis deflection", s["paralisia"], f"{_num(s['paralisia'])}%"))
     if s["attack"]:
         saida.append(lin("attack", "Ataque", "Attack", s["attack"], str(s["attack"])))
     for el, v in s["atk_elem"].items():
         saida.append(lin(f"atk_elem:{el}", "Ataque", f"{_ELEMENTO.get(el, el.capitalize())} attack", v, str(v)))
     for el, v in s["conversao"].items():
-        saida.append(lin(f"conv:{el}", "Ataque", f"{_ELEMENTO.get(el, el.capitalize())} damage conversion", v, f"{v}%"))
+        saida.append(lin(f"conv:{el}", "Ataque", f"{_ELEMENTO.get(el, el.capitalize())} damage conversion", v, f"{_num(v)}%"))
     for chave, rotulo in (("life", "Life leech"), ("mana", "Mana leech")):
         if s["leech"].get(chave):
-            saida.append(lin(f"leech:{chave}", "Ataque", rotulo, s["leech"][chave], f"{s['leech'][chave]}%"))
+            saida.append(lin(f"leech:{chave}", "Ataque", rotulo, s["leech"][chave], f"{_num(s['leech'][chave])}%"))
     for chave, rotulo in (("chance", "Critical chance"), ("dano", "Critical extra damage")):
         if s["crit"].get(chave):
-            saida.append(lin(f"crit:{chave}", "Ataque", rotulo, s["crit"][chave], f"{s['crit'][chave]}%"))
-    for nome, v in sorted(s["skills"].items(), key=lambda x: (-x[1], x[0])):
-        if v:
-            saida.append(lin(f"skill:{nome}", "Skills", _titulo(nome), v, _sinal(v)))
+            saida.append(lin(f"crit:{chave}", "Ataque", rotulo, s["crit"][chave], f"{_num(s['crit'][chave])}%"))
     for rotulo, e in s["perks"].items():
         if e["valor"]:
-            saida.append(lin(f"perk:{rotulo}", "Perks da arma", rotulo[:1].upper() + rotulo[1:], e["valor"], f"{_sinal_num(e['valor'])}{e['unidade']}"))
+            saida.append(lin(f"perk:{rotulo}", "Ataque", rotulo[:1].upper() + rotulo[1:], e["valor"], f"{_sinal_num(e['valor'])}{e['unidade']}", misc=True))
+    for nome, v in sorted(s["skills"].items(), key=lambda x: (-x[1], x[0])):
+        if v:
+            saida.append(lin(f"skill:{nome}", "Skills", _titulo(nome), v, _sinal_num(v)))
     if s["capacidade"]:
-        saida.append(lin("capacidade", "Outros", "Capacity", s["capacidade"], f"+{s['capacidade']}%"))
+        saida.append(lin("capacidade", "Outros", "Capacity", s["capacidade"], f"+{_num(s['capacidade'])}%"))
     for texto in s["extras"]:
         saida.append(lin(f"extra:{texto.lower()}", "Outros", texto, None, texto))
     return saida
@@ -295,8 +366,95 @@ def pontos_roda(secoes):
     return [{"rotulo": l["rotulo"], "texto": l["texto"], **l["pontos"]} for l in _linhas_roda(secoes) if l.get("pontos")]
 
 
-def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None, postura=None):
-    """Combat Stats de uma hunt: as linhas do set mais Prey, Charms e Roda (resumo do planner), agrupadas na ordem da tela."""
-    todas = linhas(somar(set_, opcoes)) + _linhas_prey(prey) + _linhas_charms(charms) + _linhas_roda(roda) + posturas.linhas(postura)
-    return sorted(todas, key=lambda l: _GRUPOS.index(l["grupo"]))
+# Bônus fixo que o personagem tem no Tibia (conferido na aba Offence Stats de um Elite Knight level 170): +5% de chance e +10% de extra damage de crítico
+BONUS_FIXO = {"crit": {"chance": 5, "dano": 10}}
+_RES_RODA = re.compile(r"^(Physical|Fire|Earth|Energy|Ice|Holy|Death) Resistance$")
+_STRINGS = {}
+
+
+def _strings_roda():
+    """Textos do planner da roda (arquivo baixado do tibia.com para o cache da roda); {} se ainda não existe."""
+    if not _STRINGS:
+        try:
+            import json
+            import os
+            import roda as _r
+            with open(os.path.join(_r.PASTA_CACHE, "strings.json"), "r", encoding="utf-8-sig") as f:
+                _STRINGS.update(json.load(f))
+        except (OSError, ValueError, ImportError):
+            return {}
+    return _STRINGS
+
+
+def _efeitos_augment(nome, nivel):
+    """Efeitos de "Augmented <Spell>" no nível I (1º efeito) ou II e III (os dois), segundo o planner."""
+    spell = nome[len("Augmented "):].strip()
+    for info in (_strings_roda().get("MediumPerkInfos") or {}).values():
+        if isinstance(info, dict) and (info.get("Name") or "").split("|")[0].strip() == nome:
+            textos = [info.get("Aug1Info")] + ([info.get("Aug2Info")] if nivel >= 2 else [])
+            return spell, [x for x in textos if x]
+    return spell, []
+
+
+_AUG_NUM = re.compile(r"^([+-][0-9.]+)% (.+)$")
+
+
+def _roda_nos_totais(roda):
+    """Separa o que o resumo da roda já soma nos totais (resistências, leech, damage and healing) do que continua no grupo Roda."""
+    parcial, flat, resto = {"resist": {}, "leech": {}}, 0, []
+    for sec in roda or []:
+        itens = [x for x in (sec.get("linhas") or []) if isinstance(x, str) and x.strip() and x.strip().lower() != "none"]
+        livre, i = [], 0
+        while i < len(itens):
+            nome, val = itens[i].strip(), (itens[i + 1].strip() if i + 1 < len(itens) else "")
+            numerico = bool(_VALOR_RODA.match(val)) and not _VALOR_RODA.match(nome)
+            valor = float(val.replace(",", "").rstrip("%")) if numerico else None
+            m = _RES_RODA.match(nome)
+            if numerico and m:
+                parcial["resist"][m.group(1).lower()] = parcial["resist"].get(m.group(1).lower(), 0) + valor
+            elif numerico and nome in ("Life Leech", "Mana Leech"):
+                parcial["leech"][nome.split()[0].lower()] = parcial["leech"].get(nome.split()[0].lower(), 0) + valor
+            elif numerico and nome == "Damage and Healing":
+                flat += valor
+            else:
+                livre += [nome] + ([val] if numerico or val == "Locked" or _NIVEL_RODA.match(val) else [])
+                i += 2 if (numerico or val == "Locked" or _NIVEL_RODA.match(val)) else 1
+                continue
+            i += 2
+        resto.append({"titulo": sec.get("titulo"), "linhas": livre})
+    return parcial, flat, resto
+
+
+def _linhas_augments(roda):
+    saida = []
+    for l in _linhas_roda(roda):
+        pt = l.get("pontos")
+        if not pt or pt["tipo"] != "aumento" or not pt["n"]:
+            continue
+        spell, textos = _efeitos_augment(l["rotulo"], pt["n"])
+        for tx in textos:
+            m = _AUG_NUM.match(tx)
+            valor, texto, rotulo = (float(m.group(1)), f"{m.group(1)}%", m.group(2)) if m else (None, tx, tx)
+            valor = int(valor) if valor is not None and valor.is_integer() else valor
+            chave = f"aug:{spell}:{rotulo}"
+            saida.append({"chave": chave, "grupo": "Ataque", "rotulo": f"{spell}: {rotulo}", "valor": valor, "texto": texto, "misc": True,
+                          "fontes": [{"origem": "Roda (augment)", "valor": valor}] if valor else []})
+    return saida
+
+
+def linhas_hunt(set_, prey=None, charms=None, roda=None, opcoes=None, postura=None, nivel=None):
+    """Combat Stats de uma hunt, no formato do Tibia: o set (com bônus fixo e a roda somados nos totais, cada valor com a sua origem),
+    mais Prey, Charms, Roda, Postura e os augments da roda (misc). nivel = level do personagem (Flat Damage and Healing = nível / 5)."""
+    if not ((set_ and set_.get("itens")) or prey or charms or roda or postura):
+        return []                              # nada informado: o bônus fixo sozinho não diz nada
+    parcial_roda, flat_roda, roda_resto = _roda_nos_totais(roda)
+    s = somar(set_, opcoes, extras=[("Roda", parcial_roda)], antes=[("Bônus fixo", BONUS_FIXO)])
+    todas = linhas(s)
+    flat_fontes = ([{"origem": "Nível", "valor": nivel // 5}] if nivel else []) + ([{"origem": "Roda", "valor": flat_roda}] if flat_roda else [])
+    if flat_fontes:
+        total = sum(f["valor"] for f in flat_fontes)
+        todas.append({"chave": "flat", "grupo": "Ataque", "rotulo": "Flat Damage and Healing", "valor": total, "texto": _num(total), "misc": False, "fontes": flat_fontes})
+    todas += _linhas_prey(prey) + _linhas_charms(charms) + _linhas_roda(roda_resto) + _linhas_augments(roda) + posturas.linhas(postura)
+    ordem = {g: i for i, g in enumerate(_GRUPOS)}
+    return sorted(todas, key=lambda l: (ordem[l["grupo"]], bool(l.get("misc"))))
 

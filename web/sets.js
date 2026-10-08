@@ -59,9 +59,14 @@ function htmlStatsSet(linhas, titulo = '📊 Combat Stats', nota = 'Soma dos ite
   if (!linhas || !linhas.length) return '<p class="dica" style="margin:0">Escolha itens para ver a soma dos stats.</p>';
   const grupo = (nome) => {
     const l = linhas.filter((x) => x.grupo === nome);
-    return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin" ${x.detalhe ? `title="${esc(x.detalhe)}"` : ''}><span>${esc(x.rotulo)}</span>${x.pontos ? `<b class="pt-bol ${x.pontos.tipo}" title="${esc(x.texto)}">${bolinhas(x.pontos)}</b>` : `<b>${esc(x.texto)}</b>`}</div>${x.detalhe ? `<small class="stat-det">${esc(x.detalhe)}</small>` : ''}`).join('')}</div>` : '';
+    const origens = (x) => {   // de onde vem cada parte do valor (como o Tibia: bônus fixo, equipamento, embuimento...); omite o caso trivial "só equipamento"
+      const f = x.fontes || [], un = (x.texto || '').endsWith('%') ? '%' : '';
+      if (!f.length || (f.length === 1 && f[0].origem === 'Equipamento')) return '';
+      return `<small class="stat-fon">${f.map((p) => `${p.valor > 0 ? '+' : ''}${p.valor}${un} ${esc(p.origem)}`).join(' · ')}</small>`;
+    };
+    return l.length ? `<div class="stats-grupo"><h5>${nome}</h5>${l.map((x) => `<div class="stat-lin" ${x.detalhe ? `title="${esc(x.detalhe)}"` : ''}><span>${esc(x.rotulo)}${x.misc ? ' <em class="misc-tag" title="No Tibia fica na aba Misc">misc</em>' : ''}</span>${x.pontos ? `<b class="pt-bol ${x.pontos.tipo}" title="${esc(x.texto)}">${bolinhas(x.pontos)}</b>` : `<b>${esc(x.texto)}</b>`}</div>${origens(x)}${x.detalhe ? `<small class="stat-det">${esc(x.detalhe)}</small>` : ''}`).join('')}</div>` : '';
   };
-  return `<div class="stats-set"><h4>${titulo}</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Perks da arma', 'Prey', 'Charms', 'Roda', 'Postura', 'Outros'].map(grupo).join('')}</div>
+  return `<div class="stats-set"><h4>${titulo}</h4><div class="stats-grade">${['Defesa', 'Ataque', 'Skills', 'Prey', 'Charms', 'Roda', 'Postura', 'Outros'].map(grupo).join('')}</div>
     <p class="dica" style="margin:6px 0 0">${nota}</p></div>`;
 }
 
@@ -92,11 +97,11 @@ function garantirResumoRoda(codigo) {
 async function atualizarCombatHunt() {
   if (!$('h-combat')) return;
   const e = H.entrada, codigo = e.roda && e.roda.codigo;
-  let linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '');
+  let linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '', (acharMeu(e.personagem) || {}).level || null);
   if ($('h-combat')) $('h-combat').innerHTML = linhas.length ? htmlStatsSet(linhas, '📊 Combat Stats desta hunt', 'Set + prey + charms + roda. Prey e charms valem só contra a criatura escolhida (passe o mouse para ver).') : '';
   if (codigo && !RODA_RESUMO[codigo] && !(await api.roda_resumo(codigo))) {   // roda sem resumo guardado: calcula e atualiza o painel
     await garantirResumoRoda(codigo);
-    linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '');
+    linhas = await api.hunt_stats(e.set || null, e.prey || [], e.charms || [], e.roda || null, e.postura || '', (acharMeu(e.personagem) || {}).level || null);
     if ($('h-combat')) $('h-combat').innerHTML = linhas.length ? htmlStatsSet(linhas, '📊 Combat Stats desta hunt', 'Set + prey + charms + roda. Prey e charms valem só contra a criatura escolhida (passe o mouse para ver).') : '';
   }
 }

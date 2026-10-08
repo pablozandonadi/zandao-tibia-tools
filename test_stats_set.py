@@ -25,7 +25,7 @@ class TestSomar(unittest.TestCase):
     def test_numeros_dos_itens(self):
         self.assertEqual((self.s["armor"], self.s["defense"], self.s["attack"]), (23, 55, 40))
         self.assertEqual(self.s["atk_elem"], {"ice": 46})
-        self.assertEqual(self.s["resist"], {"energy": 8, "physical": 3, "ice": -2, "fire": 5, "death": 15})   # 5 do trinket + 10 do Lich Shroud
+        self.assertEqual(self.s["resist"], {"energy": 8, "physical": 3, "ice": -2, "fire": 5, "death": 14.5})   # trinket 5 e Lich Shroud 10 combinam multiplicando: 1 - (0,95 x 0,90)
         self.assertEqual(self.s["skills"], {"magic level": 2, "axe fighting": 3, "shielding": 4, "speed": 40})  # speed 10 do item + 30 do Swiftness
 
     def test_efeitos_dos_embuimentos_powerful(self):
@@ -86,7 +86,7 @@ class TestProficiencia(unittest.TestCase):
         self.assertEqual(s["skills"], {"magic level": 5})                    # escolheu a opção 2 da coluna 2: sem o +1 Magic Level
         linhas = {l["chave"]: l for l in ss.linhas(s)}
         l = linhas["perk:critical extra damage para Death spells e runes"]
-        self.assertEqual((l["grupo"], l["rotulo"], l["texto"]), ("Perks da arma", "Critical extra damage para Death spells e runes", "+7.5%"))
+        self.assertEqual((l["grupo"], l["misc"], l["rotulo"], l["texto"]), ("Ataque", True, "Critical extra damage para Death spells e runes", "+7.5%"))
 
     def test_nivel_e_trocas_mudam_a_soma(self):
         self.assertEqual(ss.somar(self._set({"nivel": 1}))["crit"], {"dano": 5})
@@ -124,8 +124,11 @@ class TestHunt(unittest.TestCase):
         l = self._l(roda=secoes)
         self.assertEqual((l["roda:Hit Points"]["valor"], l["roda:Hit Points"]["texto"], l["roda:Hit Points"]["grupo"]), (1500, "+1,500", "Roda"))
         self.assertEqual((l["roda:Mitigation Multiplier"]["valor"], l["roda:Mitigation Multiplier"]["texto"]), (22.5, "22.50%"))
-        self.assertEqual((l["roda:Weapon Skill Boost"]["valor"], l["roda:Life Leech"]["valor"]), (1, 0.75))
-        self.assertEqual(l["roda:Damage and Healing"]["valor"], 20)
+        self.assertEqual(l["roda:Weapon Skill Boost"]["valor"], 1)
+        self.assertEqual(l["leech:life"]["valor"], 0.75)                       # leech e "Damage and Healing" da roda vão para os totais
+        self.assertEqual(l["flat"]["valor"], 20)
+        self.assertNotIn("roda:Life Leech", l)
+        self.assertNotIn("roda:Damage and Healing", l)
         self.assertEqual((l["roda:Augmented Shield Slam"]["valor"], l["roda:Augmented Shield Slam"]["texto"]), (None, "I"))   # só texto
         self.assertEqual((l["roda:Battle Instinct"]["valor"], l["roda:Battle Instinct"]["texto"]), (None, "ativo"))
         self.assertEqual(l["roda:Gift of Life"]["texto"], "Stage 3")

@@ -424,7 +424,7 @@ class TestComparar(unittest.TestCase):
         linha = {l["chave"]: l for l in r["stats_set"]}
         self.assertEqual((linha["armor"]["rotulo"], linha["armor"]["valores"], linha["armor"]["melhor"]), ("Armor", [8, 10, None], 1))
         self.assertEqual((linha["resist:energy"]["valores"], linha["resist:energy"]["melhor"]), ([8, 0, None], 0))   # B tem set sem energy: 0; C não tem set: None
-        self.assertEqual([l["grupo"] for l in r["stats_set"]], ["Defesa", "Defesa"])
+        self.assertEqual([l["grupo"] for l in r["stats_set"]], ["Defesa", "Defesa", "Ataque", "Ataque"])   # + crítico do bônus fixo (igual nas duas)
 
     def test_stats_da_hunt_inclui_prey_charms_e_roda(self):
         from unittest import mock
@@ -440,7 +440,8 @@ class TestComparar(unittest.TestCase):
         self.assertEqual((linha["prey:xp"]["valores"], linha["prey:xp"]["melhor"]), ([31, None], None))   # B informou "sem prey", mas não tem nenhum dado de stats
         self.assertEqual(linha["charm:Low Blow"]["valores"][0], 9)
         self.assertEqual(linha["roda:Hit Points"]["valores"][0], 1500)
-        self.assertEqual({l["grupo"] for l in linha.values()}, {"Prey", "Charms", "Roda"})
+        self.assertEqual({l["grupo"] for l in linha.values()}, {"Prey", "Charms", "Roda", "Ataque"})
+        self.assertEqual(linha["crit:chance"]["valores"], [5, None])              # o bônus fixo de crítico só aparece em hunt com dados
 
     def test_filtro_tamanho(self):
         self.assertTrue(historico.do_tamanho(self._h("a", "A", 4, 60, 1, 1), "4"))
@@ -682,12 +683,25 @@ class TestApiPrey(unittest.TestCase):
         self.assertEqual(historico.obter(r["id"])["postura"], "Blood Rage")
         self.assertEqual([p["nome"] for p in self.api.hunt_posturas("knight")], ["Blood Rage", "Protector"])
         linhas = self.api.hunt_stats(None, None, None, None, "Protector")
-        self.assertEqual({l["chave"]: l["valor"] for l in linhas}, {"postura:shielding": 30, "postura:dano_recebido": -15, "postura:dano_causado": -15})
+        self.assertEqual({l["chave"]: l["valor"] for l in linhas if l["chave"].startswith("postura:")}, {"postura:shielding": 30, "postura:dano_recebido": -15, "postura:dano_causado": -15})
+
+    def test_flat_damage_pelo_nivel_do_personagem(self):
+        st = {"titulo": "x", "itens": {"cabeca": {"nome": "H", "armor": 8}}}
+        l = {x["chave"]: x for x in self.api.hunt_stats(st, [], [], None, "", 170)}
+        self.assertEqual((l["flat"]["valor"], l["flat"]["fontes"]), (34, [{"origem": "Nível", "valor": 34}]))
+        from unittest import mock
+        import personagens
+        a, b = TestComparar._h(self, "a", "A", 1, 60, 1, 1), TestComparar._h(self, "b", "B", 1, 60, 1, 1)
+        a["set"] = b["set"] = st
+        a["personagem"], b["personagem"] = "Zandao", "Outro"
+        with mock.patch.object(personagens, "carregar", return_value={"lista": [{"nome": "Zandao", "level": 170}, {"nome": "Outro", "level": 500}], "atual": ""}):
+            linha = {x["chave"]: x for x in historico.comparar([a, b])["stats_set"]}
+        self.assertEqual(linha["flat"]["valores"], [34, 100])                  # cada hunt usa o level do próprio personagem
 
     def test_stats_da_hunt_pela_api(self):
         st = {"titulo": "x", "itens": {"cabeca": {"nome": "H", "armor": 8}}}
         linhas = self.api.hunt_stats(st, [{"tipo": "ataque", "estrelas": 10, "criatura": "Varg"}], [{"nome": "Wound", "criatura": "Varg", "nivel": 1}], None)
-        self.assertEqual({l["chave"]: l["valor"] for l in linhas}, {"armor": 8, "prey:ataque": 25, "charm:Wound": 5})
+        self.assertEqual({l["chave"]: l["valor"] for l in linhas}, {"armor": 8, "crit:chance": 5, "crit:dano": 10, "prey:ataque": 25, "charm:Wound": 5})   # crit = bônus fixo do personagem
         self.assertEqual(self.api.hunt_stats(None, None, None, None), [])
 
     def test_stats_do_set_pela_api(self):

@@ -26,6 +26,7 @@ import sys
 import threading
 import uuid
 
+import personagens as _personagens
 import posturas as _posturas
 import preys_charms
 import roda as _roda
@@ -435,6 +436,15 @@ def _efeito_prey(hunts, cab, ms):
     return saida
 
 
+def _nivel_do_personagem(h):
+    """Level atual do personagem da hunt (de Meus personagens), para o Flat Damage and Healing; None se não cadastrado."""
+    nome = (h.get("personagem") or "").lower()
+    for p in _personagens.carregar().get("lista", []):
+        if p.get("nome", "").lower() == nome and isinstance(p.get("level"), int):
+            return p["level"]
+    return None
+
+
 def _stats_da_hunt(h):
     """{chave: linha} do Combat Stats da hunt (set + prey + charms + roda), só as numéricas; None se a hunt não tem nenhum desses dados."""
     s = _sets.normalizar_set(h.get("set"))
@@ -445,7 +455,7 @@ def _stats_da_hunt(h):
     postura = _posturas.normalizar_postura(h.get("postura")) or ""
     if not ((s and s.get("itens")) or prey or charms or resumo or postura):
         return None
-    return {l["chave"]: l for l in _stats_set.linhas_hunt(s, prey, charms, resumo, postura=postura) if l["valor"] is not None}
+    return {l["chave"]: l for l in _stats_set.linhas_hunt(s, prey, charms, resumo, postura=postura, nivel=_nivel_do_personagem(h)) if l["valor"] is not None}
 
 
 def _stats_do_set(hunts):
@@ -461,7 +471,7 @@ def _stats_do_set(hunts):
         valores = [None if linhas is None else (linhas.get(chave) or {}).get("valor", 0) for linhas in por_hunt]
         numeros = [(i, v) for i, v in enumerate(valores) if v is not None]
         melhor = max(numeros, key=lambda x: x[1])[0] if len(numeros) >= 2 and len({v for _, v in numeros}) > 1 else None
-        saida.append({"chave": chave, "grupo": l["grupo"], "rotulo": l["rotulo"], "valores": valores, "melhor": melhor})
+        saida.append({"chave": chave, "grupo": l["grupo"], "rotulo": l["rotulo"], "valores": valores, "melhor": melhor, "misc": bool(l.get("misc"))})
     return saida
 
 

@@ -39,6 +39,9 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
   .painel h4 { margin: 0 0 4px; font-size: 13px; color: #f5b301; }
   table { border-collapse: collapse; width: 100%; } td { padding: 1px 4px; vertical-align: top; } td:last-child { text-align: right; white-space: nowrap; }
   .nota { color: #9aa1b0; font-size: 11px; }
+  .popup-dica { position: fixed; z-index: 9999; max-width: 300px; background: #0b0d12; border: 2px solid #e7b73c; border-radius: 8px; padding: 8px 10px;
+    font-size: 12px; line-height: 1.4; color: #e8eaf0; box-shadow: 0 4px 14px rgba(0,0,0,.65); pointer-events: none; }
+  .popup-dica b { color: #e7b73c; display: block; margin-bottom: 3px; }
   /* duas colunas: o desenho (522 px, tamanho real) à esquerda; seleção/gemas, informação e resumos à direita */
   #wod-wrapper { display: grid; grid-template-columns: 540px minmax(300px, 1fr); gap: 14px; align-items: start; }
   .col-info { min-width: 0; }
@@ -80,8 +83,21 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
   // o que o planner espera encontrar na página do tibia.com
   var JS_DIR_IMAGES = 'https://static.tibia.com/images/';
   function CopyTextOfElement() {}
-  function ActivateHelperDiv() {}
-  function DeactivateHelperDiv() {}
+  // popup simples dos "?" (no tibia.com é o HelperDiv): título e texto aparecem ao passar o mouse e somem ao sair
+  var popupDica = null;
+  function DeactivateHelperDiv() { if (popupDica) { popupDica.remove(); popupDica = null; } }
+  function ActivateHelperDiv(el, titulo, texto) {
+    DeactivateHelperDiv();
+    if (!titulo && !texto) return;
+    popupDica = document.createElement('div');
+    popupDica.className = 'popup-dica';
+    popupDica.innerHTML = (titulo ? '<b>' + titulo + '</b>' : '') + (texto ? '<div>' + texto + '</div>' : '');
+    document.body.appendChild(popupDica);
+    var alvo = el && el[0] ? el[0] : el;   // o planner passa um objeto jQuery
+    var r = alvo.getBoundingClientRect(), w = popupDica.offsetWidth, h = popupDica.offsetHeight, vw = document.documentElement.clientWidth;
+    popupDica.style.left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), Math.max(8, vw - w - 8)) + 'px';
+    popupDica.style.top = ((r.bottom + 6 + h > window.innerHeight && r.top - h - 6 > 0) ? r.top - h - 6 : r.bottom + 6) + 'px';
+  }
   // 1 -> I, 4 -> IV, 12 -> XII (o planner usa para escrever os níveis dos perks)
   function toRomanNumeral(n) {
     if (isNaN(n) || n < 0 || parseInt(n) !== n) return n;
