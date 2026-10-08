@@ -288,6 +288,8 @@
   button.set-cel:hover { border-color: var(--accent); }
   .set-cel.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
   .set-cel img { max-width: 78%; max-height: 78%; image-rendering: pixelated; }
+  .set-cel img.set-sil { filter: brightness(0) invert(1); opacity: .16; }
+  .set-cel:hover img.set-sil { opacity: .3; }
   .set-cel-ini { font-size: .7rem; font-weight: 700; color: #3a4150; }
   .set-editor-corpo { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; margin: 14px 0; }
   .set-painel { flex: 1; min-width: 240px; max-width: 420px; display: flex; flex-direction: column; gap: 6px; }

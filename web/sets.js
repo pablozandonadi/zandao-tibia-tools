@@ -6,6 +6,18 @@
 const SET_POS = { amuleto: [1, 1], cabeca: [2, 1], arma: [1, 2], armadura: [2, 2], mao: [3, 2], anel: [1, 3], pernas: [2, 3], trinket: [3, 3], botas: [2, 4] };
 const SET_GRUPOS = [['Ataque', ['arma', 'anel', 'amuleto']], ['Defesa', ['cabeca', 'armadura', 'pernas', 'botas', 'mao', 'trinket']]];
 const SET_MAX_CONS = 12;
+// silhueta de cada espaço vazio (como no inventário do Tibia): o sprite de um item típico do espaço, escurecido pelo CSS
+const SET_SIL = {
+  amuleto: 'https://static.wikia.nocookie.net/tibia/images/4/42/Platinum_Amulet.gif/revision/latest?cb=20050531085148&path-prefix=en',
+  cabeca: 'https://static.wikia.nocookie.net/tibia/images/c/cd/Steel_Helmet.gif/revision/latest?cb=20050531085331&path-prefix=en',
+  arma: 'https://static.wikia.nocookie.net/tibia/images/1/1f/Sword.gif/revision/latest?cb=20120411043434&path-prefix=en',
+  armadura: 'https://static.wikia.nocookie.net/tibia/images/2/2e/Plate_Armor.gif/revision/latest?cb=20171214210907&path-prefix=en',
+  mao: 'https://static.wikia.nocookie.net/tibia/images/1/17/Steel_Shield.gif/revision/latest?cb=20050614194907&path-prefix=en',
+  anel: 'https://static.wikia.nocookie.net/tibia/images/3/3b/Gold_Ring.gif/revision/latest?cb=20060423182854&path-prefix=en',
+  pernas: 'https://static.wikia.nocookie.net/tibia/images/6/6f/Plate_Legs.gif/revision/latest?cb=20050524135924&path-prefix=en',
+  botas: 'https://static.wikia.nocookie.net/tibia/images/9/94/Leather_Boots.gif/revision/latest?cb=20050523051338&path-prefix=en',
+  trinket: 'https://static.wikia.nocookie.net/tibia/images/0/02/Cursed_Coin.gif/revision/latest?cb=20260805120441&path-prefix=en',
+};
 let SETS = [];                 // sets cadastrados: [{id, titulo, itens, consumiveis}]
 let SET_TAB = null;            // {slots: [[chave, rótulo]], embuimentos: [{nome, sub}]}
 const SET_ITENS = {};          // itens da TibiaWiki por slot (baixados na 1ª vez que o slot é aberto)
@@ -29,7 +41,7 @@ function htmlFotoSet(s, { editavel = false, sel = '', mini = false } = {}) {
     const it = itens[k], [c, l] = SET_POS[k];
     const dica = it ? [`${rotuloSlot(k)}: ${it.nome}`, it.desc, (it.imbues || []).join(', ')].filter(Boolean).join(' — ') : rotuloSlot(k);
     return `<${tag} class="set-cel ${it ? 'cheia' : 'vazia'} ${sel === k ? 'sel' : ''}" style="grid-column:${c};grid-row:${l}" title="${esc(dica)}"
-      ${editavel ? `data-set-cel="${k}"` : ''}>${it ? imgCel(it) : ''}</${tag}>`;
+      ${editavel ? `data-set-cel="${k}"` : ''}>${it ? imgCel(it) : `<img class="set-sil" src="${SET_SIL[k]}" alt="" onerror="this.style.display='none'">`}</${tag}>`;
   };
   const consHtml = cons.map((c, i) => `<${tag} class="set-cel cheia" title="${esc(c.nome)}${editavel ? ' (clique para tirar)' : ''}" ${editavel ? `data-set-cons-tirar="${i}"` : ''}>${imgCel(c)}</${tag}>`).join('')
     + (editavel && cons.length < SET_MAX_CONS ? '<button class="set-cel mais" data-set-cons-add title="Adicionar consumível">+</button>' : '');
