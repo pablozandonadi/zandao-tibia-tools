@@ -1,7 +1,11 @@
-// Character Sets: cadastro em Configurações (editor com os itens da TibiaWiki), escolha na hunt e janela "Ver set".
+// Character Sets: o set é uma "foto" no layout do inventário do Tibia (espaços vazios até você escolher o item).
+// Cadastro em Configurações, escolha na hunt e janela "Ver set".
 // Depende de index.html: $, esc, toast, api, H, escolher, redesenharPerso. Carregado depois do roda.js.
 
-const SET_GRUPOS = [['Ataque', ['arma', 'anel', 'amuleto']], ['Defesa', ['cabeca', 'armadura', 'pernas', 'botas', 'mao']]];
+// posição de cada espaço na foto: [coluna, linha]
+const SET_POS = { amuleto: [1, 1], cabeca: [2, 1], arma: [1, 2], armadura: [2, 2], mao: [3, 2], anel: [1, 3], pernas: [2, 3], trinket: [3, 3], botas: [2, 4] };
+const SET_GRUPOS = [['Ataque', ['arma', 'anel', 'amuleto']], ['Defesa', ['cabeca', 'armadura', 'pernas', 'botas', 'mao', 'trinket']]];
+const SET_MAX_CONS = 12;
 let SETS = [];                 // sets cadastrados: [{id, titulo, itens, consumiveis}]
 let SET_TAB = null;            // {slots: [[chave, rótulo]], embuimentos: [{nome, sub}]}
 const SET_ITENS = {};          // itens da TibiaWiki por slot (baixados na 1ª vez que o slot é aberto)
@@ -15,11 +19,28 @@ async function carregarSets() {
 // set da última hunt desse personagem (valor inicial de uma hunt nova); {} = sem set
 const setInicial = async (personagem) => (await api.hunt_ultimo_set(personagem || '')) || {};
 
-// ---------- a vista de um set (usada na janela "Ver set") ----------
-const imgItem = (it) => (it.imagem ? `<img class="set-img" src="${esc(it.imagem)}" alt="" onerror="this.style.visibility='hidden'">` : '<span class="set-img"></span>');
+// ---------- a foto do set ----------
+const imgCel = (it) => (it.imagem ? `<img src="${esc(it.imagem)}" alt="" onerror="this.style.visibility='hidden'">` : `<span class="set-cel-ini">${esc(it.nome.slice(0, 2))}</span>`);
+// s: {itens, consumiveis}; editavel: as células viram botões; sel: espaço em destaque; mini: tamanho pequeno
+function htmlFotoSet(s, { editavel = false, sel = '', mini = false } = {}) {
+  const itens = (s && s.itens) || {}, cons = (s && s.consumiveis) || [];
+  const tag = editavel ? 'button' : 'div';
+  const cel = (k) => {
+    const it = itens[k], [c, l] = SET_POS[k];
+    const dica = it ? [`${rotuloSlot(k)}: ${it.nome}`, it.desc, (it.imbues || []).join(', ')].filter(Boolean).join(' — ') : rotuloSlot(k);
+    return `<${tag} class="set-cel ${it ? 'cheia' : 'vazia'} ${sel === k ? 'sel' : ''}" style="grid-column:${c};grid-row:${l}" title="${esc(dica)}"
+      ${editavel ? `data-set-cel="${k}"` : ''}>${it ? imgCel(it) : ''}</${tag}>`;
+  };
+  const consHtml = cons.map((c, i) => `<${tag} class="set-cel cheia" title="${esc(c.nome)}${editavel ? ' (clique para tirar)' : ''}" ${editavel ? `data-set-cons-tirar="${i}"` : ''}>${imgCel(c)}</${tag}>`).join('')
+    + (editavel && cons.length < SET_MAX_CONS ? '<button class="set-cel mais" data-set-cons-add title="Adicionar consumível">+</button>' : '');
+  return `<div class="set-foto ${mini ? 'mini' : ''}"><div class="set-grade-eq">${Object.keys(SET_POS).map(cel).join('')}</div>
+    ${consHtml ? `<div class="set-cons-rotulo">Consumíveis</div><div class="set-cons">${consHtml}</div>` : ''}</div>`;
+}
+
+// ---------- a vista de um set (janela "Ver set": a foto e, embaixo, o detalhe por grupo) ----------
 function htmlItemSet(slot, it) {
   const imb = (it.imbues || []).map((e) => `<span class="chip chip-neutro" style="font-size:.64rem">${esc(e)}</span>`).join(' ');
-  return `<div class="set-item">${imgItem(it)}<div class="set-item-txt"><small class="dim">${esc(rotuloSlot(slot))}</small><b>${esc(it.nome)}</b>
+  return `<div class="set-item"><span class="set-img">${it.imagem ? `<img src="${esc(it.imagem)}" alt="" onerror="this.style.visibility='hidden'">` : ''}</span><div class="set-item-txt"><small class="dim">${esc(rotuloSlot(slot))}</small><b>${esc(it.nome)}</b>
     ${it.desc ? `<span class="dica">${esc(it.desc)}</span>` : ''}${imb ? `<div>${imb}</div>` : ''}</div></div>`;
 }
 function htmlSetVista(s) {
@@ -28,8 +49,8 @@ function htmlSetVista(s) {
     const itens = slots.filter((k) => s.itens[k]);
     return `<div class="set-grupo"><h4>${nome}</h4>${itens.length ? itens.map((k) => htmlItemSet(k, s.itens[k])).join('') : '<p class="dica">Nada escolhido.</p>'}</div>`;
   };
-  const cons = (s.consumiveis || []).length ? `<div class="set-grupo"><h4>Consumíveis</h4><div>${s.consumiveis.map((c) => `<span class="chip chip-neutro">${esc(c)}</span>`).join(' ')}</div></div>` : '';
-  return `<div class="set-vista">${SET_GRUPOS.map(grupo).join('')}${cons}</div>`;
+  const cons = (s.consumiveis || []).length ? `<div class="set-grupo"><h4>Consumíveis</h4><div>${s.consumiveis.map((c) => `<span class="chip chip-neutro">${esc(c.nome)}</span>`).join(' ')}</div></div>` : '';
+  return `${htmlFotoSet(s)}<div class="set-vista">${SET_GRUPOS.map(grupo).join('')}${cons}</div>`;
 }
 function abrirVistaSet(s) {
   $('set-vista-titulo').textContent = s && s.titulo ? s.titulo : 'Set';
@@ -40,7 +61,7 @@ $('set-vista-fechar').addEventListener('click', () => { $('modal-set').style.dis
 $('modal-set').addEventListener('click', (e) => { if (e.target === $('modal-set')) $('modal-set').style.display = 'none'; });
 
 // ---------- Configurações: lista e editor ----------
-let SETED = null;   // set em edição: {id|null, titulo, itens, consumiveis, voc}
+let SETED = null;   // set em edição: {id|null, titulo, itens, consumiveis, voc, sel}
 const qtdItens = (s) => Object.keys(s.itens || {}).length;
 function desenharSetsConfig() {
   $('sets-lista').innerHTML = SETS.length ? SETS.map((s) => `<div class="roda-item">
@@ -51,28 +72,28 @@ function desenharSetsConfig() {
 }
 async function montarSetsConfig() { await carregarSets(); desenharSetsConfig(); }
 
+// o painel ao lado da foto: detalhe do espaço escolhido (embuimentos, trocar, tirar)
+function htmlPainelSet() {
+  const k = SETED.sel, it = k && SETED.itens[k];
+  if (!it) return '<p class="dica" style="margin:0">Clique num espaço da foto para escolher o item. Espaço vazio = nada usado ali. Clique num item escolhido para ver os embuimentos, trocar ou tirar.</p>';
+  const emb = SET_TAB.embuimentos;
+  const sel = Array.from({ length: it.imbue || 0 }, (_, i) => `<select data-set-imb="${k}:${i}"><option value="">— embuimento ${i + 1} —</option>
+    ${emb.map((e) => `<option value="${esc(e.nome)}" ${(it.imbues || [])[i] === e.nome ? 'selected' : ''}>${esc(e.nome)}${e.sub ? ' (' + esc(e.sub) + ')' : ''}</option>`).join('')}</select>`).join('');
+  return `<small class="dim">${esc(rotuloSlot(k))}</small>
+    <div class="set-item" style="margin:4px 0 8px"><span class="set-img">${it.imagem ? `<img src="${esc(it.imagem)}" alt="">` : ''}</span><div class="set-item-txt"><b>${esc(it.nome)}</b>${it.desc ? `<span class="dica">${esc(it.desc)}</span>` : ''}</div></div>
+    ${sel || '<span class="dica">Este item não tem vaga de embuimento.</span>'}
+    <div class="acoes" style="margin-top:8px"><button class="btn btn-sm" data-set-trocar="${k}">⇄ Trocar item</button><button class="btn btn-sm btn-danger" data-set-tirar="${k}">✕ Tirar</button></div>`;
+}
 function desenharEditorSet() {
-  const s = SETED, emb = SET_TAB.embuimentos;
-  const slotHtml = ([k, rot]) => {
-    const it = s.itens[k];
-    if (!it) return `<div class="set-slot"><small class="dim">${esc(rot)}</small><button class="btn btn-sm" data-set-esc="${k}">+ Escolher item</button></div>`;
-    const sel = Array.from({ length: it.imbue || 0 }, (_, i) => `<select data-set-imb="${k}:${i}"><option value="">— embuimento ${i + 1} —</option>
-      ${emb.map((e) => `<option value="${esc(e.nome)}" ${(it.imbues || [])[i] === e.nome ? 'selected' : ''}>${esc(e.nome)}${e.sub ? ' (' + esc(e.sub) + ')' : ''}</option>`).join('')}</select>`).join('');
-    return `<div class="set-slot ocupado"><div class="set-slot-topo"><small class="dim">${esc(rot)}</small>
-        <span><button class="btn btn-sm" data-set-esc="${k}" title="Trocar o item">⇄</button><button class="btn btn-sm" data-set-tirar="${k}" title="Tirar o item">✕</button></span></div>
-      <div class="set-item">${imgItem(it)}<div class="set-item-txt"><b>${esc(it.nome)}</b>${it.desc ? `<span class="dica">${esc(it.desc)}</span>` : ''}</div></div>
-      ${sel || '<span class="dica">Este item não tem vaga de embuimento.</span>'}</div>`;
-  };
+  const s = SETED;
   $('sets-editor').innerHTML = `<div class="roda-barra"><input type="text" id="set-titulo" placeholder="Nome do set (ex.: Tokyo - Elite Knight)" maxlength="60" value="${esc(s.titulo)}">
       <select id="set-voc" title="Mostra só os itens dessa vocação ao escolher"><option value="">Todas as vocações</option>
       ${['knight', 'paladin', 'sorcerer', 'druid', 'monk'].map((v) => `<option value="${v}" ${s.voc === v ? 'selected' : ''}>${v[0].toUpperCase() + v.slice(1)}</option>`).join('')}</select></div>
-    <div class="set-grade">${SET_TAB.slots.map(slotHtml).join('')}</div>
-    <label class="campo-label" for="set-cons">Consumíveis (separe por vírgula)</label>
-    <input type="text" id="set-cons" placeholder="ex.: Ultimate Mana Potion, Supreme Health Potion" value="${esc((s.consumiveis || []).join(', '))}">
+    <div class="set-editor-corpo"><div>${htmlFotoSet(s, { editavel: true, sel: s.sel })}</div><div class="set-painel">${htmlPainelSet()}</div></div>
     <div class="acoes" style="margin-top:10px"><button class="btn btn-sm btn-primary" id="set-salvar">Salvar set</button><button class="btn btn-sm" id="set-cancelar">Cancelar</button><span class="dica" id="set-msg"></span></div>`;
 }
 function abrirEditorSet(s) {
-  SETED = { id: s ? s.id : null, titulo: s ? s.titulo : '', itens: s ? JSON.parse(JSON.stringify(s.itens)) : {}, consumiveis: s ? [...s.consumiveis] : [], voc: '' };
+  SETED = { id: s ? s.id : null, titulo: s ? s.titulo : '', itens: s ? JSON.parse(JSON.stringify(s.itens)) : {}, consumiveis: s ? JSON.parse(JSON.stringify(s.consumiveis)) : [], voc: '', sel: '' };
   $('sets-editor-box').style.display = '';
   desenharEditorSet();
   $('sets-editor-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -81,31 +102,44 @@ function lerCamposSet() {   // guarda o que foi digitado antes de redesenhar
   if (!$('set-titulo')) return;
   SETED.titulo = $('set-titulo').value;
   SETED.voc = $('set-voc').value;
-  SETED.consumiveis = $('set-cons').value.split(',').map((x) => x.trim()).filter(Boolean);
 }
-async function escolherItemSet(slot) {
+// abre a lista de itens do espaço (slot "consumivel" = consumíveis) e devolve o item escolhido ou null
+async function pedirItemSet(slot) {
   lerCamposSet();
   if (!SET_ITENS[slot]) {
     toast('Baixando a lista de itens da TibiaWiki (só na primeira vez, pode levar alguns segundos)...');
     SET_ITENS[slot] = (await api.set_itens(slot)) || [];
   }
-  const voc = SETED.voc;
+  const voc = slot === 'consumivel' ? '' : SETED.voc;
   const lista = SET_ITENS[slot].filter((i) => !voc || (i.vocs || []).includes(voc));
   const opcoes = lista.map((i) => ({ valor: i, busca: i.nome,
     html: `${i.imagem ? `<img src="${esc(i.imagem)}" alt="" onerror="this.style.visibility='hidden'">` : ''}<span class="escolha-txt"><b>${esc(i.nome)}</b>
       <span class="dica">${esc(i.desc || '')}${i.level ? ` · level ${i.level}` : ''}${i.imbue ? ` · ${i.imbue} embuimento${i.imbue > 1 ? 's' : ''}` : ''}</span></span>` }));
-  const it = await escolher(`Escolha: ${rotuloSlot(slot)}`, opcoes, { filtro: true,
+  const it = await escolher(slot === 'consumivel' ? 'Escolha o consumível' : `Escolha: ${rotuloSlot(slot)}`, opcoes, { filtro: true,
     vazio: SET_ITENS[slot].length ? 'Nenhum item dessa vocação.' : 'Não consegui baixar a lista de itens. Confira a internet e tente de novo.' });
   if (!SET_ITENS[slot].length) delete SET_ITENS[slot];   // lista vazia = falhou: tenta de novo da próxima vez
+  return it || null;
+}
+async function escolherItemSet(slot) {
+  const it = await pedirItemSet(slot);
   if (!it) return;
   const anterior = SETED.itens[slot];
   SETED.itens[slot] = { nome: it.nome, imagem: it.imagem, desc: it.desc, imbue: it.imbue || 0, imbues: anterior && anterior.nome === it.nome ? anterior.imbues : [],
     armor: it.armor, defense: it.defense, attack: it.attack, attrib: it.attrib, resist: it.resist, atk_elem: it.atk_elem };
+  SETED.sel = slot;
+  desenharEditorSet();
+}
+async function adicionarConsumivel() {
+  if (SETED.consumiveis.length >= SET_MAX_CONS) return toast(`No máximo ${SET_MAX_CONS} consumíveis.`, true);
+  const it = await pedirItemSet('consumivel');
+  if (!it) return;
+  if (SETED.consumiveis.some((c) => c.nome === it.nome)) return toast('Esse consumível já está no set.', true);
+  SETED.consumiveis.push({ nome: it.nome, imagem: it.imagem });
   desenharEditorSet();
 }
 $('sets-novo').addEventListener('click', () => { if (SET_TAB) abrirEditorSet(null); });
 $('cfg-sets').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-set-ver],[data-set-editar],[data-set-apagar],[data-set-esc],[data-set-tirar],#set-salvar,#set-cancelar');
+  const b = e.target.closest('[data-set-ver],[data-set-editar],[data-set-apagar],[data-set-cel],[data-set-trocar],[data-set-tirar],[data-set-cons-add],[data-set-cons-tirar],#set-salvar,#set-cancelar');
   if (!b) return;
   const d = b.dataset, achar = (id) => SETS.find((s) => s.id === id);
   if (d.setVer) return abrirVistaSet(achar(d.setVer));
@@ -117,8 +151,14 @@ $('cfg-sets').addEventListener('click', async (e) => {
     await montarSetsConfig();
     return;
   }
-  if (d.setEsc) return escolherItemSet(d.setEsc);
-  if (d.setTirar) { lerCamposSet(); delete SETED.itens[d.setTirar]; return desenharEditorSet(); }
+  if (d.setCel) {
+    if (SETED.itens[d.setCel]) { lerCamposSet(); SETED.sel = d.setCel; return desenharEditorSet(); }
+    return escolherItemSet(d.setCel);
+  }
+  if (d.setTrocar) return escolherItemSet(d.setTrocar);
+  if (d.setTirar) { lerCamposSet(); delete SETED.itens[d.setTirar]; SETED.sel = ''; return desenharEditorSet(); }
+  if (d.setConsAdd !== undefined) return adicionarConsumivel();
+  if (d.setConsTirar !== undefined) { lerCamposSet(); SETED.consumiveis.splice(+d.setConsTirar, 1); return desenharEditorSet(); }
   if (b.id === 'set-cancelar') { SETED = null; $('sets-editor').innerHTML = ''; $('sets-editor-box').style.display = 'none'; return; }
   if (b.id === 'set-salvar') {
     lerCamposSet();
@@ -150,7 +190,8 @@ function resumoSet() {
 }
 function htmlSetHunt() {
   const s = H.entrada.set;
-  const sel = s && s.itens ? SETS.find((x) => x.titulo === s.titulo && JSON.stringify(x.itens) === JSON.stringify(s.itens)) : null;
+  const mesmo = (x) => x.titulo === s.titulo && JSON.stringify(x.itens) === JSON.stringify(s.itens) && JSON.stringify(x.consumiveis) === JSON.stringify(s.consumiveis);
+  const sel = s && s.itens ? SETS.find(mesmo) : null;
   const opcoes = SETS.map((x) => `<option value="${esc(x.id)}" ${sel && sel.id === x.id ? 'selected' : ''}>${esc(x.titulo)}</option>`).join('');
   const guardado = s && s.itens && !sel ? `<option value="__hunt" selected>${esc(s.titulo)} (guardado nesta hunt)</option>` : '';
   return `<h3 class="sub3" style="margin-top:18px">Set de equipamento</h3>
@@ -159,7 +200,8 @@ function htmlSetHunt() {
     <div class="roda-linha"><select id="h-set-sel">${s == null ? '<option value="" selected disabled>Escolher o set...</option>' : ''}
       <option value="__nenhum" ${s && !s.itens ? 'selected' : ''}>Sem set</option>${opcoes}${guardado}</select>
       ${s && s.itens ? '<button class="btn btn-sm" data-set-hunt-ver>👁 Ver o set</button>' : ''}
-      ${SETS.length ? '' : '<span class="dica">Nenhum set cadastrado: cadastre em Configurações.</span>'}</div>`;
+      ${SETS.length ? '' : '<span class="dica">Nenhum set cadastrado: cadastre em Configurações.</span>'}</div>
+    ${s && s.itens ? `<div class="set-hunt-foto">${htmlFotoSet(s, { mini: true })}</div>` : ''}`;
 }
 $('h-res').addEventListener('change', (e) => {
   if (e.target.id !== 'h-set-sel') return;

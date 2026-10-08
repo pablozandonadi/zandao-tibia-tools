@@ -23,7 +23,7 @@ else:
 
 SETS_PATH = os.path.join(BASE_DIR, "sets.json")
 FORMATO = "zandao-tibia-tools-sets"
-MAX_CONSUMIVEIS = 12
+MAX_CONSUMIVEIS = 12   # na foto do set cabem em duas fileiras
 _ROTULO_SLOT = dict(itens_set.SLOTS)
 _trava = threading.Lock()
 
@@ -84,11 +84,17 @@ def normalizar_set(valor):
         item = _normalizar_item(brutos.get(slot))
         if item:
             itens[slot] = item
-    consumiveis = []
+    consumiveis, nomes = [], set()
     for c in valor.get("consumiveis") if isinstance(valor.get("consumiveis"), list) else []:
-        c = _texto(c, 60)
-        if c and c not in consumiveis:
-            consumiveis.append(c)
+        c = {"nome": c} if isinstance(c, str) else c    # versão antiga guardava só o texto
+        nome = _texto(c.get("nome"), 60) if isinstance(c, dict) else ""
+        if nome and nome.lower() not in nomes:
+            nomes.add(nome.lower())
+            novo = {"nome": nome}
+            imagem = _texto(c.get("imagem"), 400)
+            if imagem.startswith(("https://", "http://")):
+                novo["imagem"] = imagem
+            consumiveis.append(novo)
     consumiveis = consumiveis[:MAX_CONSUMIVEIS]
     if not itens and not consumiveis:
         return {}
@@ -121,7 +127,7 @@ def diferencas(a, b):
         x, y = ia.get(slot), ib.get(slot)
         if (x and _assinatura_item(x)) != (y and _assinatura_item(y)):
             saida.append(rotulo)
-    if sorted(a.get("consumiveis") or []) != sorted(b.get("consumiveis") or []):
+    if sorted(c["nome"] for c in a.get("consumiveis") or []) != sorted(c["nome"] for c in b.get("consumiveis") or []):
         saida.append("Consumíveis")
     return saida
 

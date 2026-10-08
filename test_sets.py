@@ -19,7 +19,14 @@ class TestNormalizar(unittest.TestCase):
         self.assertEqual(set(s["itens"]), {"cabeca", "arma"})
         self.assertEqual(s["itens"]["cabeca"]["nome"], "Gnome Helmet")
         self.assertEqual(s["itens"]["cabeca"]["resist"], {"energy": 8})        # os stats ficam (a soma da fase D2 usa)
-        self.assertEqual(s["consumiveis"], ["Mana Potion"])                   # sem vazio e sem repetido
+        self.assertEqual(s["consumiveis"], [{"nome": "Mana Potion"}])         # sem vazio e sem repetido (texto antigo vira {"nome"})
+
+    def test_consumiveis_com_icone_e_trinket(self):
+        s = sets.normalizar_set({"titulo": "x", "itens": {"trinket": {"nome": "Ink Blade", "resist": {"energy": 2}}},
+                                 "consumiveis": [{"nome": "Mana Potion", "imagem": "https://static.wikia.nocookie.net/m.gif", "lixo": 1},
+                                                 {"nome": "Health Potion", "imagem": "javascript:x"}, {"imagem": "https://x/y.gif"}, 7]})
+        self.assertEqual(s["itens"]["trinket"]["nome"], "Ink Blade")
+        self.assertEqual(s["consumiveis"], [{"nome": "Mana Potion", "imagem": "https://static.wikia.nocookie.net/m.gif"}, {"nome": "Health Potion"}])
         self.assertNotIn("lixo", s)
 
     def test_embuimentos_limitados_as_vagas_do_item(self):
@@ -94,6 +101,8 @@ class TestDiferencas(unittest.TestCase):
         outro = sets.normalizar_set({"titulo": "C", "itens": {"cabeca": dict(CAPACETE, imbues=["Powerful Void"]), "arma": VARINHA, "botas": {"nome": "Boots of Haste"}},
                                      "consumiveis": ["Mana Potion", "Health Potion"]})
         self.assertEqual(sets.diferencas(a, outro), ["Capacete", "Botas", "Consumíveis"])   # na ordem dos slots
+        com_trinket = sets.normalizar_set({"titulo": "D", "itens": {"cabeca": CAPACETE, "arma": VARINHA, "trinket": {"nome": "Moon Mirror"}}, "consumiveis": ["Mana Potion"]})
+        self.assertEqual(sets.diferencas(a, com_trinket), ["Trinket"])
 
     def test_item_trocado_conta(self):
         a = sets.normalizar_set({"titulo": "A", "itens": {"arma": VARINHA}})

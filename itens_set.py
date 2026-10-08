@@ -32,16 +32,39 @@ VOCACOES = equipamentos.VOCACOES
 CATEGORIAS = {
     "cabeca": ["Helmets"], "amuleto": ["Amulets and Necklaces"], "armadura": ["Armors"], "arma": ["Weapons"],
     "mao": ["Shields", "Spellbooks", "Quivers"], "pernas": ["Legs"], "botas": ["Boots"], "anel": ["Rings"],
+    "trinket": [],                       # só os trinkets de TRINKETS (lista fechada, não vem de categoria)
+    "consumivel": ["Potions", "Runes"],  # não é espaço de equipamento: só nome + ícone
 }
 SLOTS = [("cabeca", "Capacete"), ("amuleto", "Amuleto"), ("armadura", "Armadura"), ("arma", "Arma"),
-         ("mao", "Escudo / Spellbook / Quiver"), ("pernas", "Calça"), ("botas", "Botas"), ("anel", "Anel")]
+         ("mao", "Escudo / Spellbook / Quiver"), ("pernas", "Calça"), ("botas", "Botas"), ("anel", "Anel"), ("trinket", "Trinket")]
 # o campo "slot" da página da wiki -> slot do app
 _SLOT_WIKI = {"head": "cabeca", "neck": "amuleto", "body": "armadura", "legs": "pernas", "feet": "botas", "finger": "anel",
               "weapon hand": "arma", "two-handed": "arma", "shield hand": "mao", "shield": "mao"}
 _NOME_ELEMENTO = {"lifedrain": "Life Drain", "manadrain": "Mana Drain"}
 ELEMENTOS_ATAQUE = ("physical", "fire", "ice", "earth", "energy", "death", "holy")
 
+# Trinkets (Extra Slot): só estes, os que o usuário escolheu na TibiaWiki. nome -> (resistências, atributo)
+TRINKETS = {
+    "Bone Fiddle": ({"lifedrain": 5}, None), "Conch Shell Horn": ({"ice": 2}, None), "Cursed Coin": ({"physical": -20}, "critical hit chance 1%"),
+    "Ink Blade": ({"energy": 2}, None), "Ink Brush": ({"energy": 2}, None), "Ink Claw": ({"energy": 2}, None),
+    "Ink Quill": ({"energy": 2}, None), "Ink Vine": ({"energy": 2}, None), "Lit Torch": ({"holy": 2}, None),
+    "Mariner's Anchor": ({}, "hard drinking"), "Moon Mirror": ({"death": 5}, None), "Scarab Ocarina": ({"earth": 2}, None),
+    "Starlight Vial": ({"manadrain": 5}, None), "Sun Catcher": ({"fire": 5}, None),
+}
 _trava = threading.Lock()
+
+
+def _item_simples(nome, slot):
+    return {"nome": nome, "slot": slot, "level": None, "vocs": list(VOCACOES), "imbue": 0, "atk_elem": {}, "armor": None, "defense": None,
+            "attack": None, "attrib": None, "resist": {}, "temporario": False, "imagem": None}
+
+
+def trinkets():
+    """Os trinkets liberados no app (sem imagem; a imagem vem do download do slot)."""
+    saida = []
+    for nome, (resist, attrib) in TRINKETS.items():
+        saida.append({**_item_simples(nome, "trinket"), "resist": dict(resist), "attrib": attrib})
+    return saida
 
 
 def _inteiro(v):
@@ -99,16 +122,43 @@ def _get(params):
         return json.load(r)
 
 
+def _imagens(nomes):
+    """nome -> endereço direto da imagem (a wiki bloqueia Special:FilePath fora do site; lotes de 50)."""
+    urls = {}
+    nomes = sorted(set(nomes))
+    for i in range(0, len(nomes), 50):
+        r = _get({"action": "query", "prop": "imageinfo", "iiprop": "url", "titles": "|".join(f"File:{n}.gif" for n in nomes[i:i + 50])})
+        normal = {x["to"]: x["from"] for x in r["query"].get("normalized", [])}
+        for p in r["query"]["pages"].values():
+            info = (p.get("imageinfo") or [{}])[0]
+            if info.get("url"):
+                urls[normal.get(p["title"], p["title"])[len("File:"):-len(".gif")]] = info["url"]
+    return urls
+
+
+def _titulos_da_categoria(cat):
+    titulos, cont = [], {}
+    while True:
+        r = _get({"action": "query", "list": "categorymembers", "cmtitle": "Category:" + cat, "cmlimit": "500", "cmtype": "page", **cont})
+        titulos += [m["title"] for m in r["query"]["categorymembers"]]
+        if "continue" not in r:
+            return titulos
+        cont = r["continue"]
+
+
 def _baixar_slot(slot):
+    if slot in ("trinket", "consumivel"):
+        if slot == "trinket":
+            itens = trinkets()
+        else:
+            itens = [_item_simples(t, "consumivel") for cat in CATEGORIAS[slot] for t in _titulos_da_categoria(cat)]
+        urls = _imagens(i["nome"] for i in itens)
+        for item in itens:
+            item["imagem"] = urls.get(item["nome"])
+        return [i for i in itens if i["imagem"]]   # páginas de categoria ("Runes", "Area Runes"...) não têm imagem
     itens = []
     for cat in CATEGORIAS[slot]:
-        titulos, cont = [], {}
-        while True:
-            r = _get({"action": "query", "list": "categorymembers", "cmtitle": "Category:" + cat, "cmlimit": "500", "cmtype": "page", **cont})
-            titulos += [m["title"] for m in r["query"]["categorymembers"]]
-            if "continue" not in r:
-                break
-            cont = r["continue"]
+        titulos = _titulos_da_categoria(cat)
         for i in range(0, len(titulos), 50):
             r = _get({"action": "query", "prop": "revisions", "rvprop": "content", "rvslots": "main", "titles": "|".join(titulos[i:i + 50])})
             for p in r["query"]["pages"].values():
@@ -119,15 +169,7 @@ def _baixar_slot(slot):
                 item = item_do_wikitext(p["title"], texto, slot)
                 if item and item["slot"] == slot:
                     itens.append(item)
-    nomes = sorted({i["nome"] for i in itens})
-    urls = {}
-    for i in range(0, len(nomes), 50):  # a wiki bloqueia Special:FilePath fora do site: pega o endereço direto (lotes de 50)
-        r = _get({"action": "query", "prop": "imageinfo", "iiprop": "url", "titles": "|".join(f"File:{n}.gif" for n in nomes[i:i + 50])})
-        normal = {x["to"]: x["from"] for x in r["query"].get("normalized", [])}
-        for p in r["query"]["pages"].values():
-            info = (p.get("imageinfo") or [{}])[0]
-            if info.get("url"):
-                urls[normal.get(p["title"], p["title"])[len("File:"):-len(".gif")]] = info["url"]
+    urls = _imagens(i["nome"] for i in itens)
     for item in itens:
         item["imagem"] = urls.get(item["nome"])
     return itens

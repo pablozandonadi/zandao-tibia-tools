@@ -616,6 +616,14 @@ class TestApiPrey(unittest.TestCase):
         self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "id": r["id"], "set": None})
         self.assertEqual(historico.obter(r["id"])["set"]["titulo"], "Tokyo")
 
+    def test_hunt_salva_com_consumiveis_no_formato_antigo(self):
+        r = self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "set": {"titulo": "Velho", "itens": {"arma": {"nome": "Wand of Defiance"}}}})
+        h = historico.obter(r["id"])
+        h["set"]["consumiveis"] = ["Mana Potion"]                     # como a v1.0.8 gravava: só o texto
+        historico.atualizar(r["id"], set=h["set"])
+        self.assertEqual(self.api.hunt_abrir(r["id"])["set"]["consumiveis"], [{"nome": "Mana Potion"}])
+        self.assertEqual(self.api.hunt_ultimo_set("Zandao")["consumiveis"], [{"nome": "Mana Potion"}])
+
     def test_cadastro_de_sets_pela_api(self):
         from unittest import mock
         import sets

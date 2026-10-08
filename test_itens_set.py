@@ -105,6 +105,26 @@ class TestItemDoWikitext(unittest.TestCase):
         self.assertIsNone(it.item_do_wikitext("Lixo", "texto qualquer sem infobox", "cabeca"))
 
 
+class TestTrinkets(unittest.TestCase):
+    def test_so_os_14_das_fotos_com_os_efeitos_da_wiki(self):
+        nomes = {t["nome"] for t in it.trinkets()}
+        self.assertEqual(nomes, {"Cursed Coin", "Moon Mirror", "Scarab Ocarina", "Ink Blade", "Ink Brush", "Ink Claw", "Ink Quill", "Ink Vine",
+                                 "Sun Catcher", "Mariner's Anchor", "Lit Torch", "Conch Shell Horn", "Bone Fiddle", "Starlight Vial"})
+        t = {x["nome"]: x for x in it.trinkets()}
+        self.assertEqual(it.descricao(t["Ink Blade"]), "Energy +2%")
+        self.assertEqual(it.descricao(t["Bone Fiddle"]), "Life Drain +5%")
+        self.assertEqual(it.descricao(t["Starlight Vial"]), "Mana Drain +5%")
+        self.assertEqual(it.descricao(t["Lit Torch"]), "Holy +2%")
+        self.assertEqual(it.descricao(t["Mariner's Anchor"]), "Hard Drinking")
+        self.assertEqual(it.descricao(t["Cursed Coin"]), "Critical Hit Chance 1%, Physical -20%")
+        self.assertTrue(all(x["slot"] == "trinket" and x["imbue"] == 0 and x["vocs"] == list(it.VOCACOES) for x in t.values()))
+
+    def test_trinket_e_consumivel_sao_slots_do_cache(self):
+        self.assertIn(("trinket", "Trinket"), it.SLOTS)
+        self.assertIn("consumivel", it.CATEGORIAS)
+        self.assertNotIn("consumivel", [s for s, _ in it.SLOTS])     # consumível não é espaço de equipamento
+
+
 class TestCache(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

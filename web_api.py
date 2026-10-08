@@ -636,7 +636,7 @@ class API:
             return None
         e = dict(h.get("entrada") or {})
         e.update({"nome": h.get("nome"), "personagem": h.get("personagem"), "id": h["id"], "pagos": h.get("pagos", []),
-                  "prey": h.get("prey"), "charms": h.get("charms"), "roda": h.get("roda"), "set": h.get("set")})
+                  "prey": h.get("prey"), "charms": h.get("charms"), "roda": h.get("roda"), "set": sets.normalizar_set(h.get("set"))})
         return e
 
     def _ultimo_campo(self, campo, personagem):
@@ -657,7 +657,7 @@ class API:
         return self._ultimo_campo("roda", personagem)
 
     def hunt_ultimo_set(self, personagem=""):
-        return self._ultimo_campo("set", personagem)
+        return sets.normalizar_set(self._ultimo_campo("set", personagem))   # hunts antigas guardavam os consumíveis como texto
 
     # ----- Character Sets: cadastro em Configurações; os itens vêm da TibiaWiki (cache por slot) -----
     def set_listar(self):
