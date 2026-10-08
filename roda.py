@@ -109,6 +109,22 @@ def adicionar(titulo, codigo, caminho=None):
     return r
 
 
+def atualizar_codigo(id_, codigo, caminho=None):
+    """Troca o código de uma roda já cadastrada (depois de editá-la no planner). Devolve a roda nova, None se não existir,
+    e levanta ValueError se o código não for válido (a roda fica como estava)."""
+    cod = validar_codigo(codigo)
+    if not cod:
+        raise ValueError("Esse código não parece ser de uma roda.")
+    with _trava:
+        rodas = _ler(caminho)
+        r = next((x for x in rodas if x["id"] == id_), None)
+        if not r:
+            return None
+        r["codigo"], r["vocacao"] = cod, vocacao_do_codigo(cod)
+        _gravar(rodas, caminho)
+        return r
+
+
 def renomear(id_, titulo, caminho=None):
     with _trava:
         rodas = _ler(caminho)

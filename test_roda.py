@@ -57,6 +57,18 @@ class TestCadastro(unittest.TestCase):
         self.assertEqual(roda.obter(r["id"], self.arq)["titulo"], "Novo")
         self.assertFalse(roda.renomear("nao-existe", "Y", self.arq))
 
+    def test_atualizar_codigo_da_roda(self):
+        r = roda.adicionar("Beam", "S0Y2AgDP4jAQA", self.arq)
+        novo = roda.atualizar_codigo(r["id"], "S0OzEthYGBYVqKN5BM8TZiwAb-IwEA", self.arq)
+        self.assertEqual((novo["id"], novo["titulo"], novo["codigo"], novo["vocacao"]), (r["id"], "Beam", "S0OzEthYGBYVqKN5BM8TZiwAb-IwEA", "Sorcerer"))
+        self.assertEqual(roda.obter(r["id"], self.arq)["codigo"], "S0OzEthYGBYVqKN5BM8TZiwAb-IwEA")
+        trocou = roda.atualizar_codigo(r["id"], "https://www.tibia.com/community/?subtopic=wheelofdestinyplanner&code=K0Y2AgDP4jAQA", self.arq)
+        self.assertEqual(trocou["vocacao"], "Knight")                       # a vocação acompanha o código
+        with self.assertRaises(ValueError):
+            roda.atualizar_codigo(r["id"], "lixo", self.arq)
+        self.assertEqual(roda.obter(r["id"], self.arq)["codigo"], "K0Y2AgDP4jAQA")   # o inválido não estragou nada
+        self.assertIsNone(roda.atualizar_codigo("nao-existe", "K0Y2AgDP4jAQA", self.arq))
+
     def test_arquivo_corrompido(self):
         with open(self.arq, "w") as f:
             f.write("{quebrado")

@@ -265,6 +265,8 @@
   .roda-item { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
   .roda-nome { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
   .roda-form { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(160px, 2fr) auto; gap: 8px; align-items: end; margin-top: 12px; }
+  .roda-barra { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+  .roda-barra input { width: 220px; }
   .roda-linha { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .roda-linha select { width: auto; min-width: 220px; }
   @media (max-width: 700px) { .roda-form { grid-template-columns: 1fr; } }
@@ -771,9 +773,16 @@
             <div><label class="campo-label" for="roda-codigo">Código ou link do planner</label><input type="text" id="roda-codigo" placeholder="ex.: K0Y2AgDP4jAQA" autocomplete="off" spellcheck="false"></div>
             <button class="btn btn-sm btn-primary" id="roda-add">Adicionar</button>
           </div>
+          <div class="acoes" style="margin-top:8px"><button class="btn btn-sm" id="roda-montar" title="Abre o planner da Tibia com a roda vazia para você montar aqui mesmo">➕ Montar uma roda aqui</button></div>
           <p class="dica" id="roda-msg" style="margin:8px 0 0"></p>
           <div id="roda-view-box" style="display:none;margin-top:12px">
             <div class="h-titulo"><b id="roda-view-titulo"></b><button class="btn btn-sm" id="roda-view-fechar">Fechar</button></div>
+            <div id="roda-editor-barra" class="roda-barra" style="display:none">
+              <input type="text" id="roda-ed-nome" placeholder="Nome da roda" maxlength="60">
+              <button class="btn btn-sm btn-primary" id="roda-ed-atualizar" style="display:none">Salvar alterações</button>
+              <button class="btn btn-sm btn-primary" id="roda-ed-salvar">Salvar roda</button>
+              <span class="dica" id="roda-ed-status"></span>
+            </div>
             <div id="roda-view"></div>
           </div>
         </div>
@@ -1134,6 +1143,7 @@ const stat = (k, v) => `<div class="stat"><div class="k">${k}</div><div class="v
 const H = {
   entrada: { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem: '', prey: [], charms: [], duracao: '', roda: {} },
   id: null, assinatura: null, a: null, pagos: [], texto: '', dano: null, aba: null, seq: 0,
+  herdado: { prey: false, charms: false },   // veio da hunt anterior e você ainda não mexeu (ver podarHeranca)
 };
 
 let tAnalise = null;
@@ -1335,11 +1345,34 @@ function alvoCriatura(alvo) {
   return ch;
 }
 
+// Prey e charm só valem na criatura a que estão ligados. Numa hunt NOVA, o que veio da hunt anterior e você ainda não mexeu
+// é conferido quando a lista de monstros chega: sai o que está ligado a uma criatura que não existe nesta hunt.
+function marcarHerdado() { H.herdado = { prey: (H.entrada.prey || []).length > 0, charms: (H.entrada.charms || []).length > 0 }; }
+function podarHeranca() {
+  if (H.id || !H.dano || !H.dano.kills || !H.dano.kills.length || (!H.herdado.prey && !H.herdado.charms)) return;
+  const nomes = new Set(H.dano.kills.map((k) => (k.nome || '').toLowerCase()));
+  const serve = (x) => !x.criatura || nomes.has(x.criatura.toLowerCase());
+  const tirados = [];
+  if (H.herdado.prey && Array.isArray(H.entrada.prey)) {
+    H.entrada.prey.filter((x) => !serve(x)).forEach((x) => tirados.push(`prey ${x.criatura}`));
+    H.entrada.prey = H.entrada.prey.filter(serve);
+  }
+  if (H.herdado.charms && Array.isArray(H.entrada.charms)) {
+    H.entrada.charms.filter((x) => !serve(x)).forEach((x) => tirados.push(`${x.nome} (${x.criatura})`));
+    H.entrada.charms = H.entrada.charms.filter(serve);
+  }
+  H.herdado = { prey: false, charms: false };   // só uma vez
+  if (tirados.length) { toast(`Tirei da hunt anterior o que não tem nesta hunt: ${tirados.join(', ')}.`); redesenharPerso(false); }
+}
+
 async function persoClique(e) {
   const b = e.target.closest('[data-prey-tipo],[data-prey-tirar],[data-estrela],[data-criatura-tirar],[data-criatura],[data-charm-nivel],[data-charm-aba],[data-marcar-vazio]');
   if (!b || !b.closest('#h-perso')) return;
   e.preventDefault();
   const d = b.dataset;
+  const alvoCr = d.criatura || d.criaturaTirar || '';
+  if (d.preyTirar !== undefined || d.preyTipo !== undefined || d.estrela || alvoCr.startsWith('prey:') || d.marcarVazio === 'prey') H.herdado.prey = false;
+  if (d.charmNivel || alvoCr.startsWith('charm:') || d.marcarVazio === 'charms') H.herdado.charms = false;
   if (d.charmAba) { persoAba = d.charmAba; return redesenharPerso(false); }
   if (d.marcarVazio) { H.entrada[d.marcarVazio] = d.marcarVazio === 'roda' ? {} : []; return redesenharPerso(); }
   if (d.preyTirar !== undefined) { (H.entrada.prey || []).splice(+d.preyTirar, 1); return redesenharPerso(); }
@@ -1498,7 +1531,7 @@ $('h-salvar').addEventListener('click', async () => {
 $('h-personagem').addEventListener('change', async () => {
   H.entrada.personagem = $('h-personagem').value;
   H.equip = null;
-  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); H.entrada.charms = await charmsInicial(H.entrada.personagem); H.entrada.roda = await rodaInicial(H.entrada.personagem); }
+  if (!H.id) { H.entrada.prey = await preyInicial(H.entrada.personagem); H.entrada.charms = await charmsInicial(H.entrada.personagem); H.entrada.roda = await rodaInicial(H.entrada.personagem); marcarHerdado(); }
   if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) MEUS = await api.personagem_usar(H.entrada.personagem);
   montarSeletorPersonagem();
   analisarHunt();
@@ -1601,6 +1634,7 @@ $('h-nova').addEventListener('click', async () => {
     : 'Esta hunt não foi salva no Histórico. Descartar e começar outra?')) return;
   const personagem = H.entrada.personagem;
   H.entrada = { nome: '', party: '', solo: '', dano: '', despesas: [], excluidos: [], personagem, prey: await preyInicial(personagem), charms: await charmsInicial(personagem), duracao: '', roda: await rodaInicial(personagem) };
+  marcarHerdado();
   H.id = null; H.a = null; H.dano = null; H.aba = null; H.pagos = []; H.salvoRetrato = null;
   preencherHunt();
   analisarHunt();
@@ -1665,6 +1699,7 @@ window.huntDano = (d) => {
   if (d.id !== H.id || d.assinatura !== H.assinatura) return;  // resposta de uma análise antiga
   H.dano = d;
   if (d.texto) H.texto = d.texto;
+  podarHeranca();
   renderHunt();
 };
 
@@ -1891,6 +1926,7 @@ async function huntIniciar() {
   H.entrada.charms = await charmsInicial(H.entrada.personagem);
   await carregarRodas();
   H.entrada.roda = await rodaInicial(H.entrada.personagem);
+  marcarHerdado();
   H.id = null;
   preencherHunt();
   api.meus_personagens(true).then((d) => { MEUS = d; montarSeletorPersonagem(); });  // atualiza levels sem travar
@@ -1957,6 +1993,7 @@ async function abrirHunt(id) {
     if (!e) { toast('Essa hunt não existe mais.', true); carregarHistorico(); return; }
     H.entrada = { nome: e.nome || '', party: e.party || '', solo: e.solo || '', dano: e.dano || '',
       despesas: e.despesas || [], excluidos: e.excluidos || [], personagem: e.personagem || '', prey: e.prey ?? null, charms: e.charms ?? null, duracao: e.duracao || '', roda: e.roda ?? null };
+    H.herdado = { prey: false, charms: false };   // hunt salva: nada é herança
     H.id = e.id; H.dano = null; H.aba = null; H.assinatura = null; H.pagos = e.pagos || [];
     H.salvoRetrato = retrato();
     preencherHunt();

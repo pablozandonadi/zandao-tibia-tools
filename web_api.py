@@ -665,6 +665,21 @@ class API:
         except OSError:
             return {"ok": False, "erro": "Não consegui salvar a roda."}
 
+    def roda_atualizar(self, id_, codigo, titulo=None):
+        """Guarda o código novo de uma roda (e o novo nome, se vier) depois de editada no planner."""
+        try:
+            r = roda.atualizar_codigo(id_, codigo)
+            if r is None:
+                return {"ok": False, "erro": "Essa roda não existe mais."}
+            if titulo is not None and titulo.strip():
+                roda.renomear(id_, titulo)
+                r = roda.obter(id_)
+            return {"ok": True, "roda": r}
+        except ValueError as e:
+            return {"ok": False, "erro": str(e)}
+        except OSError:
+            return {"ok": False, "erro": "Não consegui salvar a roda."}
+
     def roda_renomear(self, id_, titulo):
         return roda.renomear(id_, titulo)
 

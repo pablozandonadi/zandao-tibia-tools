@@ -11,10 +11,15 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
   html, body { margin: 0; background: #14171c; color: #e8e4d9; font: 13px/1.45 Arial, Helvetica, sans-serif; }
   body { padding: 6px 8px 10px; }
   .hide { display: none !important; }
-  #wod-canvas { display: block; width: 100%; max-width: 560px; height: auto; margin: 6px auto; }
+  #wod-canvas { display: block; width: 522px; height: 522px; max-width: none; margin: 6px auto; }  /* sem esticar: o planner calcula o clique assumindo tamanho real */
   .cabecalho { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; padding: 4px 0 6px; }
   input[type=text] { background: #1c2027; color: #e8e4d9; border: 1px solid #555; border-radius: 4px; padding: 2px 4px; width: 54px; }
   .oculto-leitura { display: none !important; }
+  .editor-vocacao { display: flex; gap: 12px; flex-wrap: wrap; }
+  .editor-vocacao label { text-transform: capitalize; cursor: pointer; }
+  #botoes-pontos { display: flex; gap: 6px; margin: 4px 0; }
+  #botoes-pontos button { background: #2a303b; color: #e8e4d9; border: 1px solid #555; border-radius: 4px; padding: 3px 10px; cursor: pointer; }
+  #botoes-pontos button::before { content: attr(data-rot); }
   .painel { border: 1px solid #3a4150; border-radius: 8px; padding: 6px 10px; margin: 6px 0; background: #1a1e25; }
   .painel h4 { margin: 0 0 4px; font-size: 13px; color: #f5b301; }
   table { border-collapse: collapse; width: 100%; } td { padding: 1px 4px; vertical-align: top; } td:last-child { text-align: right; white-space: nowrap; }
@@ -23,7 +28,7 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
 <p id="wod-warning" class="nota">Carregando a roda...</p>
 <div id="wod-wrapper" class="hide">
   <div class="cabecalho">
-    <span id="vocacoes" class="oculto-leitura"></span>
+    <span id="vocacoes" class="oculto-leitura editor-vocacao"></span>
     <span>Pontos de promoção: <span id="wod-reqpoints">0</span> / <input id="wod-limitpoints" type="text" maxlength="4" inputmode="numeric"></span>
   </div>
   <div class="oculto-leitura">
@@ -35,7 +40,7 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
   <canvas id="wod-canvas" width="522" height="522"></canvas>
   <div id="wod-selection-box" class="painel"></div>
   <div id="wod-information-box" class="painel"></div>
-  <div class="oculto-leitura"><button id="wod-maxminus-button"></button><button id="wod-minus-button"></button><button id="wod-plus-button"></button><button id="wod-maxplus-button"></button></div>
+  <div id="botoes-pontos" class="oculto-leitura"><button id="wod-maxminus-button" data-rot="−−"></button><button id="wod-minus-button" data-rot="−"></button><button id="wod-plus-button" data-rot="+"></button><button id="wod-maxplus-button" data-rot="++"></button></div>
   <div class="painel"><h4 id="wod-dedication-perks-header"></h4><div id="wod-dedication-perks"></div></div>
   <div class="painel"><h4 id="wod-conviction-perks-header"></h4><div id="wod-conviction-perks"></div></div>
   <div class="painel"><h4 id="wod-revelation-perks-header"></h4><div id="wod-revelation-perks"></div></div>
@@ -47,6 +52,15 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
   var JS_DIR_IMAGES = 'https://static.tibia.com/images/';
   function CopyTextOfElement() {}
   function ActivateHelperDiv() {}
+  function DeactivateHelperDiv() {}
+  // 1 -> I, 4 -> IV, 12 -> XII (o planner usa para escrever os níveis dos perks)
+  function toRomanNumeral(n) {
+    if (isNaN(n) || n < 0 || parseInt(n) !== n) return n;
+    var d = String(+n).split(''), k = ['', 'C', 'CC', 'CCC', 'CD', 'D', 'DC', 'DCC', 'DCCC', 'CM', '', 'X', 'XX', 'XXX', 'XL', 'L', 'LX', 'LXX', 'LXXX', 'XC',
+      '', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX'], r = '', i = 3;
+    while (i--) r = (k[+d.pop() + (i * 10)] || '') + r;
+    return Array(+d.join('') + 1).join('M') + r;
+  }
   history.replaceState = function () {};
   function alturaConteudo() { return Math.ceil(document.body.getBoundingClientRect().height) + 16; }
   function avisar(o) { parent.postMessage(Object.assign({ fonte: 'roda' }, o), '*'); }
@@ -61,6 +75,10 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
         vocs += '<label for="wod-vocation_' + v + '"><input id="wod-vocation_' + v + '" type="radio" name="wod-vocation" value="' + v + '">' + v + '</label>';
       });
       document.getElementById('vocacoes').innerHTML = vocs;
+      if (d.editavel) {   // modo "montar a roda": libera a vocação e os botões de pontos (a seleção/preenchimento é no desenho)
+        document.getElementById('vocacoes').classList.remove('oculto-leitura');
+        document.getElementById('botoes-pontos').classList.remove('oculto-leitura');
+      }
       injetar(d.jquery); injetar(d.skillgrid); injetar(d.planner);
       var textos = 'data:application/json;charset=utf-8;base64,' + btoa(unescape(encodeURIComponent(d.strings)));
       runWodPlanner(textos, { warning: 'wod-warning', wrapper: 'wod-wrapper', vocationRadio: 'wod-vocation', reqPoints: 'wod-reqpoints', limitPoints: 'wod-limitpoints',
@@ -77,6 +95,11 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
           clearInterval(espera);
           document.getElementById('wod-code-input').value = d.codigo;
           document.getElementById('wod-code-import').click();
+          var ultimo = '';   // avisa o app do código atual sempre que ele muda (montar/editar a roda)
+          setInterval(function () {
+            var c = (document.getElementById('wod-code').textContent || document.getElementById('wod-code-mobile').textContent || '').trim();
+            if (c && c !== ultimo) { ultimo = c; avisar({ tipo: 'codigo', codigo: c }); }
+          }, 400);
           setTimeout(function () { avisar({ tipo: 'pronto', codigo: (document.getElementById('wod-code').textContent || '').trim(), altura: alturaConteudo() }); }, 400);
         } else if (tentativas > 80) {
           clearInterval(espera);
@@ -90,7 +113,7 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
 </script></body></html>`;
 
 // cria o visualizador dentro de `alvo` (um elemento). Resolve true quando a roda aparece, false se caiu no plano B.
-async function mostrarRoda(alvo, codigo) {
+async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null } = {}) {
   alvo.innerHTML = '<div class="dica">Carregando a roda...</div>';
   if (!RODA_ARQ) {
     const r = await api.roda_arquivos();
@@ -115,10 +138,11 @@ async function mostrarRoda(alvo, codigo) {
       if (e.source !== frame.contentWindow || !e.data || e.data.fonte !== 'roda') return;
       const d = e.data;
       if (d.tipo === 'carregado') {
-        frame.contentWindow.postMessage({ tipo: 'iniciar', codigo, jquery: RODA_ARQ['jquery.js'], skillgrid: RODA_ARQ['skillgrid.js'],
+        frame.contentWindow.postMessage({ tipo: 'iniciar', codigo, editavel, jquery: RODA_ARQ['jquery.js'], skillgrid: RODA_ARQ['skillgrid.js'],
           planner: RODA_ARQ['planner.js'], strings: RODA_ARQ['strings.json'] }, '*');
       } else if (d.tipo === 'pronto') { frame.style.height = (d.altura + 8) + 'px'; fim(true); }
       else if (d.tipo === 'altura') frame.style.height = (d.altura + 8) + 'px';
+      else if (d.tipo === 'codigo') { if (aoMudar) aoMudar(d.codigo); }
       else if (d.tipo === 'erro') { console.warn('roda:', d.msg); fim(false, 'O planner da Tibia não abriu aqui (' + d.msg + ').'); }
     };
     window.addEventListener('message', ouvir);
@@ -145,7 +169,7 @@ const codigoCurto = (c) => (c.length > 16 ? c.slice(0, 16) + '…' : c);
 function desenharRodasConfig() {
   $('rodas-lista').innerHTML = RODAS.length ? RODAS.map((r) => `<div class="roda-item">
       <div class="roda-nome"><b>${esc(r.titulo)}</b> <span class="chip chip-neutro">${esc(r.vocacao)}</span> <code class="dim" title="${esc(r.codigo)}">${esc(codigoCurto(r.codigo))}</code></div>
-      <div class="acoes"><button class="btn btn-sm" data-roda-ver="${esc(r.id)}">👁 Ver</button><button class="btn btn-sm" data-roda-renomear="${esc(r.id)}" title="Renomear">✎</button>
+      <div class="acoes"><button class="btn btn-sm" data-roda-ver="${esc(r.id)}">👁 Ver</button><button class="btn btn-sm" data-roda-editar="${esc(r.id)}" title="Abrir a roda para editar">🛠 Editar</button><button class="btn btn-sm" data-roda-renomear="${esc(r.id)}" title="Renomear">✎</button>
         <button class="btn btn-sm btn-danger" data-roda-apagar="${esc(r.id)}" title="Apagar">✕</button></div></div>`).join('')
     : '<div class="dica">Nenhuma roda cadastrada ainda.</div>';
 }
@@ -161,15 +185,19 @@ async function adicionarRoda() {
 $('roda-add').addEventListener('click', adicionarRoda);
 $('roda-codigo').addEventListener('keydown', (e) => { if (e.key === 'Enter') adicionarRoda(); });
 $('cfg-rodas').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-roda-ver],[data-roda-renomear],[data-roda-apagar]');
+  const b = e.target.closest('[data-roda-ver],[data-roda-editar],[data-roda-renomear],[data-roda-apagar]');
   if (!b) return;
-  const d = b.dataset, roda = RODAS.find((r) => r.id === (d.rodaVer || d.rodaRenomear || d.rodaApagar));
+  const d = b.dataset, roda = RODAS.find((r) => r.id === (d.rodaVer || d.rodaEditar || d.rodaRenomear || d.rodaApagar));
   if (!roda) return;
   if (d.rodaVer) {
+    rodaEdicao = null;
+    $('roda-editor-barra').style.display = 'none';
     $('roda-view-titulo').textContent = `${roda.titulo} (${roda.vocacao})`;
     $('roda-view-box').style.display = '';
     await mostrarRoda($('roda-view'), roda.codigo);
     $('roda-view-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else if (d.rodaEditar) {
+    abrirEditorRoda(roda);
   } else if (d.rodaRenomear) {
     const novo = prompt('Novo nome da roda:', roda.titulo);
     if (novo === null) return;
@@ -181,7 +209,44 @@ $('cfg-rodas').addEventListener('click', async (e) => {
     await montarRodasConfig();
   }
 });
-$('roda-view-fechar').addEventListener('click', () => { $('roda-view').innerHTML = ''; $('roda-view-box').style.display = 'none'; });
+$('roda-view-fechar').addEventListener('click', () => { rodaEdicao = null; $('roda-view').innerHTML = ''; $('roda-view-box').style.display = 'none'; });
+
+// ---------- montar / editar uma roda: o planner com os controles liberados; o app acompanha o código que ele gera ----------
+let rodaEdicao = null;   // {id: da roda sendo editada (ou null = roda nova), codigo: o código atual no planner}
+const RODA_VAZIA = 'K0Y2AgDP4jAQA';   // roda vazia de Knight; a vocação se troca nos botões do próprio planner
+async function abrirEditorRoda(roda) {
+  rodaEdicao = { id: roda ? roda.id : null, codigo: roda ? roda.codigo : RODA_VAZIA };
+  $('roda-view-titulo').textContent = roda ? `Editando: ${roda.titulo}` : 'Montar uma roda nova';
+  $('roda-ed-nome').value = roda ? roda.titulo : '';
+  $('roda-ed-atualizar').style.display = roda ? '' : 'none';
+  $('roda-ed-salvar').textContent = roda ? 'Salvar como nova' : 'Salvar roda';
+  $('roda-ed-status').textContent = 'Monte a roda abaixo (clique na fatia e use os botões, ou botão direito para preencher). O código é acompanhado sozinho.';
+  $('roda-editor-barra').style.display = '';
+  $('roda-view-box').style.display = '';
+  $('roda-view-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  await mostrarRoda($('roda-view'), rodaEdicao.codigo, { editavel: true, aoMudar: (c) => {
+    if (!rodaEdicao) return;
+    rodaEdicao.codigo = c;
+    $('roda-ed-status').textContent = `Código atual: ${codigoCurto(c)}`;
+  } });
+}
+$('roda-montar').addEventListener('click', () => abrirEditorRoda(null));
+$('roda-ed-salvar').addEventListener('click', async () => {
+  if (!rodaEdicao) return;
+  const r = await api.roda_adicionar($('roda-ed-nome').value, rodaEdicao.codigo);
+  if (!r.ok) { $('roda-ed-status').textContent = r.erro; return; }
+  $('roda-msg').textContent = `✔ "${r.roda.titulo}" salva (${r.roda.vocacao}).`;
+  $('roda-ed-status').textContent = `✔ Salva como "${r.roda.titulo}".`;
+  await montarRodasConfig();
+});
+$('roda-ed-atualizar').addEventListener('click', async () => {
+  if (!rodaEdicao || !rodaEdicao.id) return;
+  const r = await api.roda_atualizar(rodaEdicao.id, rodaEdicao.codigo, $('roda-ed-nome').value);
+  if (!r.ok) { $('roda-ed-status').textContent = r.erro; return; }
+  $('roda-msg').textContent = `✔ "${r.roda.titulo}" atualizada.`;
+  $('roda-ed-status').textContent = `✔ Alterações salvas em "${r.roda.titulo}".`;
+  await montarRodasConfig();
+});
 
 // ---------- a roda dentro da hunt (seção "Seu personagem nesta hunt") ----------
 // H.entrada.roda: {titulo, codigo} = escolhida; {} = sem roda; null = hunt antiga com roda não informada (não é enviada ao salvar)
