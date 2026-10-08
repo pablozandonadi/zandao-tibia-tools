@@ -468,7 +468,7 @@ class API:
         return hunt.detectar(texto)
 
     def _entrada(self, entrada):
-        return {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id", "prey", "charms")}
+        return {k: entrada.get(k) for k in ("nome", "party", "solo", "dano", "despesas", "excluidos", "personagem", "id", "prey", "charms", "duracao")}
 
     def _mesma_hunt(self, id_, a):
         """id_ continua valendo para esta análise? Se a hunt salva é de outro horário, é outra hunt."""
@@ -509,8 +509,8 @@ class API:
         registro = {
             "id": id_, "assinatura": ass, "nome": nome, "data_hunt": a.get("data"),
             "personagem": (entrada.get("personagem") or "").strip(),
-            "entrada": {k: entrada.get(k) or ("" if k in ("party", "solo", "dano") else [])
-                        for k in ("party", "solo", "dano", "despesas", "excluidos")},
+            "entrada": {k: entrada.get(k) or ("" if k in ("party", "solo", "dano", "duracao") else [])
+                        for k in ("party", "solo", "dano", "despesas", "excluidos", "duracao")},  # duracao: tempo real digitado
             "resumo": a["resumo"], "membros": a.get("personagens", []), "monstros": a.get("kills", [])[:20],
             "pagos": list(pagos or []),
         }

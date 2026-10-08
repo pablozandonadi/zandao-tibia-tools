@@ -51,6 +51,33 @@ def _por_hora(valor, minutos):
     return (valor * 60) // minutos if (valor is not None and minutos) else None
 
 
+_DURACAO_REGEXES = (
+    re.compile(r"^(\d{1,3}):(\d{1,2})(?::\d{1,2})?\s*h?$", re.I),          # 1:33  01:33h  2:05:40
+    re.compile(r"^(\d{1,3})\s*h\s*(?:(\d{1,2})\s*(?:min|m)?)?$", re.I),     # 1h33  1h  1h 33min
+    re.compile(r"^()(\d{1,4})\s*(?:min|m)$", re.I),                           # 45min  93m
+)
+
+
+def parse_duracao(txt):
+    """Tempo digitado pelo usuário -> minutos (> 0), ou None se não der para entender.
+    Aceita 1:33, 01:33h, 1h33, 1h, 1h 33min, 45min. Número solto ("2") é ambíguo (horas ou minutos?) e é recusado."""
+    texto = (txt or "").strip() if isinstance(txt, str) else ""
+    for rx in _DURACAO_REGEXES:
+        m = rx.match(texto)
+        if m:
+            horas, minutos = int(m.group(1) or 0), int(m.group(2) or 0)
+            if rx is not _DURACAO_REGEXES[2] and minutos >= 60:
+                return None
+            total = horas * 60 + minutos
+            return total if total > 0 else None
+    return None
+
+
+def formatar_duracao(minutos):
+    """93 -> "01:33h" (o mesmo formato do Session do Tibia)."""
+    return f"{minutos // 60:02d}:{minutos % 60:02d}h"
+
+
 def _data_hunt(periodo):
     iso = lc.hunt_start_iso(periodo or "")
     return iso[:16].replace("T", " ") if iso else None
@@ -93,15 +120,25 @@ def montar(entrada):
     out = {"vazio": False, "erros": erros, "tem": {"party": bool(party), "solo": bool(solo), "dano": bool(dano)}}
 
     duracao = (party.duration if party else "") or (solo.duration if solo else "")
-    minutos = lc.duration_to_minutes(duracao)
+    out["sessoes"] = {"party": party.duration if party else "", "solo": solo.duration if solo else ""}
+    # tempo real digitado pelo usuário (esqueceu de zerar o contador do Tibia): vale no lugar do "Session" colado,
+    # e todos os "/h" são refeitos a partir dos totais (o /h que o Tibia colado traz é da sessão errada)
+    real = parse_duracao(entrada.get("duracao"))
+    duracao_colada = duracao
+    if real:
+        duracao, minutos = formatar_duracao(real), real
+    else:
+        minutos = lc.duration_to_minutes(duracao)
     out["data"] = _data_hunt(party.period if party else "") or (solo.hunt_start[:16].replace("T", " ") if solo and solo.hunt_start else None)
 
     resumo = {"duracao": duracao or "—", "minutos": minutos}
+    if real:
+        resumo["duracao_original"] = duracao_colada or "—"
     if solo:
         resumo.update({
             "xp": solo.xp_gain, "xp_raw": solo.raw_xp_gain,
-            "xp_h": solo.xp_per_hour or _por_hora(solo.xp_gain, minutos),
-            "xp_raw_h": solo.raw_xp_per_hour or _por_hora(solo.raw_xp_gain, minutos),
+            "xp_h": _por_hora(solo.xp_gain, minutos) if real else (solo.xp_per_hour or _por_hora(solo.xp_gain, minutos)),
+            "xp_raw_h": _por_hora(solo.raw_xp_gain, minutos) if real else (solo.raw_xp_per_hour or _por_hora(solo.raw_xp_gain, minutos)),
         })
 
     # ---------- loot split ----------
@@ -156,13 +193,14 @@ def montar(entrada):
     elif solo:
         resumo.update({
             "balance": solo.balance, "loot": solo.loot, "supplies": solo.supplies, "lucro": solo.balance,
-            "balance_h": solo.balance_per_hour, "loot_h": _por_hora(solo.loot, minutos),
+            "balance_h": _por_hora(solo.balance, minutos) if real else solo.balance_per_hour, "loot_h": _por_hora(solo.loot, minutos),
             "top_dano_nome": personagem or None, "top_dano": solo.damage, "despesas": 0, "membros": 1,
         })
 
     if solo:
         out["solo"] = {
-            "dano": solo.damage, "dano_h": solo.damage_per_hour, "cura": solo.healing, "cura_h": solo.healing_per_hour,
+            "dano": solo.damage, "dano_h": _por_hora(solo.damage, minutos) if real else solo.damage_per_hour,
+            "cura": solo.healing, "cura_h": _por_hora(solo.healing, minutos) if real else solo.healing_per_hour,
             "loot": solo.loot, "supplies": solo.supplies, "balance": solo.balance,
             "xp": solo.xp_gain, "xp_raw": solo.raw_xp_gain, "bonus": solo.bonus_xp,
             "kills_total": solo.total_kills, "itens_total": solo.total_looted,

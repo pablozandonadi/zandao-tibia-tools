@@ -112,6 +112,47 @@ class TestParty(unittest.TestCase):
         self.assertEqual(knight["balance_h"], -866_581 * 60 // 167)
         self.assertEqual(a["resumo"]["lucro_h"], 1_400_580 * 60 // 167)
 
+    def test_parse_duracao(self):
+        for txt, esperado in (("1:33", 93), ("01:33h", 93), ("1h33", 93), ("1h", 60), ("1h 33min", 93), ("45min", 45), ("93m", 93),
+                              ("2:05:40", 125), (" 1:33 ", 93), ("2", None), ("abc", None), ("", None), (None, None),
+                              ("1:75", None), ("0:00", None), ("0h", None)):
+            self.assertEqual(hunt.parse_duracao(txt), esperado, txt)
+        self.assertEqual(hunt.formatar_duracao(93), "01:33h")
+        self.assertEqual(hunt.formatar_duracao(600), "10:00h")
+
+    def test_tempo_real_corrige_tudo_por_hora(self):
+        # as sessões coladas têm 02:47h; o tempo real foi 1h: todos os "/h" passam a ser o total
+        a = hunt.montar({"party": PARTY, "solo": SOLO, "personagem": "Zandao", "duracao": "1:00"})
+        r = a["resumo"]
+        self.assertEqual((r["minutos"], r["duracao"], r["duracao_original"]), (60, "01:00h", "02:47h"))
+        self.assertEqual(r["xp_h"], 43_166_751)             # em vez do XP/h de 02:47h colado do Tibia
+        self.assertEqual(r["xp_raw_h"], 20_487_822)
+        self.assertEqual(r["balance_h"], 5_602_320)
+        self.assertEqual(r["lucro_h"], 1_400_580)
+        self.assertEqual(a["solo"]["dano_h"], 11_706_807)
+        self.assertEqual(a["solo"]["cura_h"], 2_180_574)
+        knight = next(m for m in a["membros"] if m["nome"] == "Knight Alfa")
+        self.assertEqual((knight["dano_h"], knight["cura_h"]), (12_846_796, 3_120_299))
+        self.assertEqual(a["sessoes"], {"party": "02:47h", "solo": "02:47h"})
+        # só o hunting analyser (solo): o balance/h também é recalculado
+        b = hunt.montar({"solo": SOLO, "duracao": "1h"})
+        self.assertEqual((b["resumo"]["balance_h"], b["resumo"]["minutos"]), (-731_042, 60))
+
+    def test_sem_tempo_real_ou_invalido_usa_o_colado(self):
+        sem = hunt.montar({"party": PARTY, "solo": SOLO})
+        for ruim in ("", "   ", "abc", "2", "1:75"):
+            com = hunt.montar({"party": PARTY, "solo": SOLO, "duracao": ruim})
+            self.assertEqual(com["resumo"], sem["resumo"], ruim)
+        self.assertEqual(sem["resumo"]["xp_h"], 15_509_012)          # o do Tibia, como sempre foi
+        self.assertEqual(sem["resumo"]["duracao"], "02:47h")
+        self.assertNotIn("duracao_original", sem["resumo"])
+
+    def test_sessoes_diferentes_aparecem(self):
+        solo_longo = SOLO.replace("Session: 02:47h", "Session: 02:53h")
+        a = hunt.montar({"party": PARTY, "solo": solo_longo})
+        self.assertEqual(a["sessoes"], {"party": "02:47h", "solo": "02:53h"})
+        self.assertEqual(hunt.montar({"party": PARTY})["sessoes"], {"party": "02:47h", "solo": ""})
+
     def test_por_hora_sem_duracao(self):
         a = hunt.montar({"party": PARTY.replace("Session: 02:47h", "Session: 00:00h")})
         self.assertTrue(all(m["dano_h"] is None and m["cura_h"] is None and m["balance_h"] is None for m in a["membros"]))
@@ -403,6 +444,7 @@ class TestApiPrey(unittest.TestCase):
         self.trocar.start()
         self.api = object.__new__(web_api.API)
         self.api._dano_cache = {}
+        self.api._emit = lambda *a, **k: None  # a análise de dano roda em segundo plano e avisaria a janela
 
     def tearDown(self):
         self.trocar.stop()
@@ -417,6 +459,20 @@ class TestApiPrey(unittest.TestCase):
         self.assertEqual(self.api.hunt_ultima_prey("Zandao"), [{"tipo": "xp", "estrelas": 7}])
         lista = self.api.hunt_historico()["hunts"]
         self.assertEqual((lista[0]["prey"], lista[0]["prey_informada"]), ("Prey XP ★7", True))
+
+    def test_tempo_real_vai_e_volta_pela_api(self):
+        a = self.api.hunt_analisar({"party": PARTY, "duracao": "1:00"})
+        self.assertEqual(a["analise"]["resumo"]["minutos"], 60)
+        r = self.api.hunt_salvar({"party": PARTY, "personagem": "Zandao", "duracao": "1:00"})
+        self.assertEqual(self.api.hunt_abrir(r["id"])["duracao"], "1:00")
+        self.assertEqual((historico.obter(r["id"])["resumo"]["minutos"], historico.obter(r["id"])["resumo"]["duracao"]), (60, "01:00h"))
+        # a análise por jogador (comparativo/ranking) também usa o tempo real
+        knight = next(j for j in historico.ranking_jogadores([historico.obter(r["id"])]) if j["nome"] == "Knight Alfa")
+        self.assertEqual((knight["minutos"], knight["dano_h"]), (60, 12_846_796))
+        # hunt sem tempo digitado continua com o Session colado
+        antiga = self.api.hunt_salvar({"party": PARTY + "\nZ", "personagem": "Zandao"})
+        self.assertEqual(self.api.hunt_abrir(antiga["id"]).get("duracao") or "", "")
+        self.assertEqual(historico.obter(antiga["id"])["resumo"]["minutos"], 167)
 
     def test_charms_pela_api(self):
         self.assertIsNone(self.api.hunt_ultimos_charms("Zandao"))
