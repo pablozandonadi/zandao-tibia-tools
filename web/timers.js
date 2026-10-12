@@ -15,14 +15,15 @@ function organizarFormAudio(t) {
   visual.style.borderBottom = 'none';
   const groups = visual.querySelectorAll(':scope > .campos');
   const [alert, bar, color] = [...groups[0].children];
-  const text = sec('3. Alerta escrito · deste timer', [alert, groups[1]], true);
+  const text = sec('Aviso de texto — mensagem e aparência deste timer', [alert, groups[1]], true);
+  text.id = 'au-aviso-editor';
   text.insertAdjacentHTML('beforeend', `<div class="campos au-visual-options">
     <div><label class="campo-label" for="auf-estilo">Formato da escrita</label><select id="auf-estilo">${[['glow','Brilho (glow)'],['contorno','Contorno preto'],['sombra','Sombra'],['simples','Simples']].map(([v,n])=>`<option value="${v}">${n}</option>`).join('')}</select></div>
     <div><label class="campo-label" for="auf-familia">Fonte</label><select id="auf-familia">${['Segoe UI','Verdana','Tahoma','Arial'].map(n=>`<option>${n}</option>`).join('')}</select></div>
     <div><label class="campo-label" for="auf-intensidade">Raio do brilho: <b id="auf-intensidade-v"></b></label><input type="range" id="auf-intensidade" min="1" max="30" value="${t.visual.intensidade}"></div>
   </div>`);
   groups[0].remove();
-  visual.append(sec('Cor e barra · deste timer', [color, bar]), text);
+  visual.append(text, sec('Cor e barra · deste timer', [color, bar]));
   $('auf-estilo').value=t.visual.estilo; $('auf-familia').value=t.visual.familia;
   function update() {
     t.visual={estilo:$('auf-estilo').value,familia:$('auf-familia').value,intensidade:+$('auf-intensidade').value};
@@ -50,4 +51,26 @@ function atualizarPreviaAudio() {
         <div class="au-preview-fill" style="background:${b.cor_tempo?'#b3e63c':cor};border-radius:inherit;box-shadow:${b.estilo==='glow'?`0 0 8px ${cor}`:'none'}"></div>
       </div>
     </div>`;
+}
+
+function abrirAvisoAudio(id) {
+  if (auEditando && (auEditando.id || null)!==id && !confirm('Trocar de timer? As alterações ainda não salvas do timer aberto serão descartadas.')) {
+    atualizarEscolhaAviso(); return;
+  }
+  if (!auEditando || (auEditando.id || null)!==id) abrirFormAudio(id);
+  const editor=document.getElementById('au-aviso-editor');
+  if (editor) {
+    editor.open=true;
+    editor.scrollIntoView({behavior:'smooth',block:'center'});
+    document.getElementById('auf-msg').focus({preventScroll:true});
+  }
+}
+
+function atualizarEscolhaAviso() {
+  if (!AU) return;
+  const escolha=document.getElementById('au-aviso-timer');
+  if (escolha) {
+    escolha.innerHTML='<option value="">Escolha um timer…</option>'+AU.cfg.timers.map(t=>`<option value="${esc(t.id)}">${esc(t.nome)}${t.personagem ? ' · '+esc(t.personagem) : ''}</option>`).join('');
+    escolha.value=auEditando?.id || '';
+  }
 }

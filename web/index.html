@@ -920,6 +920,12 @@
           <button class="btn btn-sm" id="au-alerta-testar" title="Mostra a mensagem e a barra do jeito que estão configuradas">👁 Testar alerta</button></div>
         <div id="au-preview" class="au-preview"></div>
         <p class="au-preview-note">Prévia ilustrativa. Use Testar para conferir o resultado real sobre o Tibia.</p>
+        <div class="au-section au-aviso-escolha">
+          <h3>Aviso de texto na tela</h3>
+          <p class="dica">Este aviso é independente do nome e do tempo mostrados na barra. Escolha um timer para editar a mensagem, fonte, tamanho, brilho e comportamento do aviso.</p>
+          <label class="campo-label" for="au-aviso-timer">Editar o aviso deste timer</label>
+          <div class="linha-pasta"><select id="au-aviso-timer"><option value="">Escolha um timer…</option></select><button class="btn btn-sm" id="au-aviso-novo">+ Novo timer</button></div>
+        </div>
         <div id="au-form-visual"></div>
         <details class="au-section" open><summary>Barras — aparência e tamanho · todos os timers</summary>
         <div class="au-global-campos au-visual-options">
@@ -2687,6 +2693,7 @@ function renderAudio() {
   $('au-vol').value = c.volume; $('au-vol-val').textContent = c.volume + '%';
   $('au-sotibia').checked = !!c.so_tibia;
   mostrarCfgBarra();
+  atualizarEscolhaAviso();
   const meus = doPers(c.timers, MEUS.atual);   // os timers são do personagem em uso; os outros ficam escondidos e parados
   $('au-lista').innerHTML = htmlDonoDaLista(c.timers, MEUS.atual, 'os timers') + (meus.length ? meus.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
       <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDurMs(t.duracao)}${t.antes ? ` · avisa ${fmtDurMs(t.antes)} antes` : ''} · 🔊 ${esc(nomeSom(t.som))} ${t.volume}%${t.alerta ? ' · 📢 alerta' : ''}${t.barra ? ' · ▬ barra' : ''}</div></div>
@@ -2734,6 +2741,7 @@ function abrirFormAudio(id) {
 }
 function desenharFormAudio() {
   const t = auEditando;
+  atualizarEscolhaAviso();
   if (!t) { $('au-form').innerHTML = ''; $('au-form-visual').innerHTML = ''; $('au-form-acoes').innerHTML = ''; atualizarPreviaAudio(); return; }
   $('au-form').innerHTML = `<div class="card au-form" style="margin-top:16px">
     <h2 class="sub">${t.id ? 'Editar timer' : 'Novo timer'}</h2>
@@ -2938,6 +2946,10 @@ function mudouBarra() {
 ['aub-nome','aub-estilo','aub-texto-estilo','aub-familia','aub-cor-tempo'].forEach(id => $(id).addEventListener('change', mudouBarra));
 
 $('au-novo').addEventListener('click', () => abrirFormAudio(null));
+$('au-aviso-timer').addEventListener('change', () => {
+  if ($('au-aviso-timer').value) abrirAvisoAudio($('au-aviso-timer').value);
+});
+$('au-aviso-novo').addEventListener('click', () => abrirAvisoAudio(null));
 $('au-ligado').addEventListener('click', () => { AU.cfg.ligado = !AU.cfg.ligado; salvarAudio(); });
 $('au-sotibia').addEventListener('change', () => { AU.cfg.so_tibia = $('au-sotibia').checked; salvarAudio(); });
 let tAuVol = null;
