@@ -8,7 +8,18 @@
 ; settings.json, preferencias.json, meus_personagens.json). Cada pessoa começa do zero, e numa
 ; atualização esses arquivos ficam intactos, porque o instalador nunca os cria nem apaga.
 
-#define MyAppName "Zandao Tibia Tools"
+#ifndef MyAppChannel
+  #define MyAppChannel "stable"
+#endif
+#if MyAppChannel == "beta"
+  #define MyAppName "Zandao Tibia Tools Beta"
+  #define MyAppId "{{851692E8-4DF1-4D0E-A224-48671A165A75}"
+  #define InstallerName "ZandaoTibiaToolsBetaSetup"
+#else
+  #define MyAppName "Zandao Tibia Tools"
+  #define MyAppId "{{5C7E2B91-3A4F-4D6B-8E1C-9F2A7B3D4E60}"
+  #define InstallerName "ZandaoTibiaToolsSetup"
+#endif
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.0"
 #endif
@@ -23,9 +34,12 @@
 #define ProjDir ".."
 
 [Setup]
-AppId={{5C7E2B91-3A4F-4D6B-8E1C-9F2A7B3D4E60}
+AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+#ifdef MyAppNumericVersion
+VersionInfoVersion={#MyAppNumericVersion}
+#endif
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={localappdata}\Programs\{#MyAppName}
@@ -33,7 +47,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir={#OutputDir}
-OutputBaseFilename=ZandaoTibiaToolsSetup
+OutputBaseFilename={#InstallerName}
 SetupIconFile={#ProjDir}\icon.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2
@@ -52,8 +66,10 @@ Name: "desktopicon"; Description: "Criar um ícone na área de trabalho"; GroupD
 [InstallDelete]
 Type: filesandordirs; Name: "{app}\_internal"
 ; o Simulated Keys saiu do app na v1.0.5: apaga o .exe dele e o atalho de iniciar com o Windows
+#if MyAppChannel == "stable"
 Type: files; Name: "{app}\macro\SimulatedKeys.exe"
 Type: files; Name: "{userstartup}\ZandaoSimulatedKeys.lnk"
+#endif
 
 [Files]
 Source: "{#SourceDistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -86,7 +102,9 @@ var
 begin
   Result := '';
   // versões até a 1.0.4 tinham o Simulated Keys: fecha se estiver rodando, para o instalador poder apagá-lo
+#if MyAppChannel == "stable"
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/IM SimulatedKeys.exe /F', '', SW_HIDE, ewWaitUntilTerminated, CodigoSaida);
+#endif
   if WebView2Instalado then
     Exit;
   try

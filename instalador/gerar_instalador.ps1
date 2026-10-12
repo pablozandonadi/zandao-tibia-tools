@@ -7,7 +7,11 @@
 # Uso:  powershell -ExecutionPolicy Bypass -File .\instalador\gerar_instalador.ps1
 # A versão vem de VERSAO_APP em versao.py (a mesma que o app compara com a última Release do GitHub).
 
-param([string]$PastaBuild = (Join-Path $env:TEMP "zandao_tibia_tools_build"))
+param(
+    [string]$PastaBuild = (Join-Path $env:TEMP "zandao_tibia_tools_build"),
+    [ValidateSet("stable", "beta")][string]$Canal = "stable",
+    [string]$BetaBuild = ""
+)
 
 # "Continue" de propósito: PyInstaller e ISCC escrevem progresso no stderr. O sucesso é checado em $LASTEXITCODE.
 $ErrorActionPreference = "Continue"
@@ -16,7 +20,12 @@ $raiz = Split-Path -Parent $PSScriptRoot
 $linhaVersao = Select-String -Path (Join-Path $raiz "versao.py") -Pattern '^VERSAO_APP\s*=\s*"([^"]+)"'
 if (-not $linhaVersao) { throw "Nao achei VERSAO_APP em versao.py" }
 $versao = $linhaVersao.Matches[0].Groups[1].Value
-Write-Host "Versao: $versao"
+$versaoInstalador = $versao
+if ($Canal -eq "beta") {
+    if ($BetaBuild -notmatch '^\d+\.\d+$') { throw "BetaBuild deve ser numero.tentativa" }
+    $versao = "$versao-beta.$BetaBuild"
+}
+Write-Host "Versao: $versao ($Canal)"
 
 $iscc = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
@@ -41,7 +50,11 @@ if ($ok -ne 0) { throw "Testes falharam, instalador nao gerado." }
 
 Write-Host "2/3  PyInstaller..."
 $spec = Join-Path $PastaBuild "spec"
+New-Item -ItemType Directory -Force $PastaBuild | Out-Null
+$metadata = Join-Path $PastaBuild "canal_build.json"
+@{canal=$Canal; versao=$versao} | ConvertTo-Json | Set-Content -LiteralPath $metadata -Encoding utf8
 python -m PyInstaller --noconfirm --clean --windowed --name "ZandaoTibiaTools" `
+    --add-data "$metadata;." `
     --icon (Join-Path $raiz "icon.ico") `
     --add-data "$(Join-Path $raiz 'web');web" --add-data "$(Join-Path $raiz 'sons_padrao');sons_padrao" --add-data "$(Join-Path $raiz 'icon.ico');." `
     --distpath (Join-Path $PastaBuild "dist") --workpath (Join-Path $PastaBuild "work") --specpath $spec `
@@ -55,9 +68,10 @@ Copy-Item (Join-Path $raiz "data\task_items.json") (Join-Path $app "data") -Forc
 Copy-Item (Join-Path $raiz "data\creature_knowledge.json") (Join-Path $app "data") -Force
 
 Write-Host "3/3  Inno Setup..."
-& $iscc "/DMyAppVersion=$versao" "/DSourceDistDir=$app" "/DOutputDir=$(Join-Path $PastaBuild 'output')" `
+& $iscc "/DMyAppVersion=$versao" "/DMyAppNumericVersion=$versaoInstalador" "/DMyAppChannel=$Canal" "/DSourceDistDir=$app" "/DOutputDir=$(Join-Path $PastaBuild 'output')" `
     (Join-Path $PSScriptRoot "ZandaoTibiaToolsSetup.iss")
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup falhou" }
 
 Write-Host ""
-Write-Host "Pronto: $(Join-Path $PastaBuild 'output\ZandaoTibiaToolsSetup.exe')"
+$installerName = if ($Canal -eq "beta") { "ZandaoTibiaToolsBetaSetup.exe" } else { "ZandaoTibiaToolsSetup.exe" }
+Write-Host "Pronto: $(Join-Path $PastaBuild "output\$installerName")"

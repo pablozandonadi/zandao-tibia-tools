@@ -18,6 +18,7 @@ if getattr(sys, "frozen", False):
 import webview
 
 from web_api import API
+from versao import CANAL_APP, NOME_APP
 
 # web/ e icon.ico: no .exe ficam dentro do pacote (sys._MEIPASS); no código-fonte, ao lado deste arquivo.
 if getattr(sys, "frozen", False):
@@ -29,7 +30,7 @@ if sys.platform == "win32":
     # Sem isso a barra de tarefas mostra o ícone do Python em vez do ícone do app.
     try:
         import ctypes
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ZandaoTibiaTools.App")
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ZandaoTibiaTools." + CANAL_APP)
     except Exception:
         pass
 
@@ -37,7 +38,7 @@ if sys.platform == "win32":
 def main():
     api = API()
     janela = webview.create_window(
-        "Zandao Tibia Tools",
+        NOME_APP,
         os.path.join(PASTA_RECURSOS, "web", "index.html"),
         js_api=api,
         width=1320,

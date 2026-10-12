@@ -6,3 +6,22 @@ e publique uma Release no GitHub com a tag vX.Y.Z e o ZandaoTibiaToolsSetup.exe 
 
 VERSAO_APP = "1.0.19"
 REPO_GITHUB = "pablozandonadi/zandao-tibia-tools"
+
+
+# Metadados gerados pelo build; o código compartilhado continua estável.
+import json
+import os
+import sys
+
+VERSAO_BASE = VERSAO_APP
+CANAL_APP = "stable"
+if getattr(sys, "frozen", False):
+    _metadata = os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(sys.executable)), "canal_build.json")
+    if os.path.isfile(_metadata):
+        with open(_metadata, encoding="utf-8-sig") as _f:
+            _build = json.load(_f)
+        if _build.get("canal") == "beta":
+            CANAL_APP = "beta"
+            VERSAO_APP = _build["versao"]
+NOME_APP = "Zandao Tibia Tools" + (" Beta" if CANAL_APP == "beta" else "")
+NOME_INSTALADOR = "ZandaoTibiaToolsBetaSetup.exe" if CANAL_APP == "beta" else "ZandaoTibiaToolsSetup.exe"

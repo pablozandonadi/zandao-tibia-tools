@@ -1,0 +1,45 @@
+name: Publicar Beta
+on:
+  push:
+    branches: [develop]
+    paths-ignore: ['docs/**', '*.md']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: beta-zandao-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  beta:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Instalar dependências
+        run: python -m pip install pywebview==6.2.1 pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8 pythonnet==3.2.0
+      - name: Instalar Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Testar e gerar Beta
+        shell: pwsh
+        run: ./instalador/gerar_instalador.ps1 -Canal beta -BetaBuild "${{ github.run_number }}.${{ github.run_attempt }}" -PastaBuild "$env:RUNNER_TEMP/zandao-beta"
+      - name: Publicar instalador e portátil Beta
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $base = python -c "from versao import VERSAO_BASE; print(VERSAO_BASE)"
+          $version = "$base-beta.${{ github.run_number }}.${{ github.run_attempt }}"
+          $app = "$env:RUNNER_TEMP/zandao-beta/dist/ZandaoTibiaTools"
+          $installer = "$env:RUNNER_TEMP/zandao-beta/output/ZandaoTibiaToolsBetaSetup.exe"
+          if (!(Test-Path -LiteralPath $installer)) { throw 'Instalador ausente' }
+          foreach ($name in @('historico_hunts.json','meus_personagens.json','settings.json','preferencias.json','hunt_atual.json','sets.json','rodas.json','audio_timers.json')) {
+            if (Test-Path -LiteralPath (Join-Path $app $name)) { throw "Dado pessoal no pacote: $name" }
+          }
+          $zip = "$env:RUNNER_TEMP/ZandaoTibiaToolsBeta-v$version.zip"
+          Compress-Archive -Path "$app/*" -DestinationPath $zip
+          gh release create "v$version" $installer $zip --prerelease --latest=false --target "$env:GITHUB_SHA" --title "Zandao Tibia Tools Beta $version" --notes "Versão de testes. Dados separados da instalação estável. Código: $env:GITHUB_SHA."
+          if ($LASTEXITCODE -ne 0) { throw 'Falha na publicação Beta' }
