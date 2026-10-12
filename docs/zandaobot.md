@@ -37,3 +37,15 @@ A publicação Beta usa cópia temporária de develop conforme docs/pipeline-bet
 Validação final antes da publicação: 302 testes passaram em cópia limpa de develop com as dependências do projeto. Testes de navegador confirmaram busca por mundo, personagem padrão, descarte de respostas atrasadas e escape de texto remoto.
 
 Avisos por mundo consultam /v4/news/id/{id} para obter texto completo e link, pois o ticker é truncado. Anúncios explícitos de compensação Double XP/skill no formato conhecido between the server saves of Month D and D, YYYY são incorporados ao calendário apenas no mundo citado e com datas válidas. Outros formatos continuam como aviso textual; não são inferidos. Ferobra 16→19/10/2026 foi validado ao vivo. A suíte final tem 303 testes.
+
+## Publicação confirmada
+
+Beta 1.0.19-beta.3.1 publicada em 12/10/2026. Código: 418c159569f52d6771f135ec27d8f5915b90903b. Pipeline concluído com sucesso: https://github.com/pablozandonadi/zandao-tibia-tools/actions/runs/38308012358 . Instalador e portátil: https://github.com/pablozandonadi/zandao-tibia-tools/releases/tag/v1.0.19-beta.3.1 . Atualizar pelo menu Configurações > Procurar atualização agora na instalação Beta. A estável continua v1.0.19.
+
+## GIFs, novo painel e conferência das fontes
+
+Rashid, Yasir e Dream Court têm GIFs locais animados; criatura e boss boostados usam GIFs oficiais do TibiaData. Os cards foram reorganizados em informações globais e dados do mundo, com detalhes das fontes recolhidos. Mundos com Yasir podem ser pesquisados por botões sem trocar o personagem em uso.
+
+Dream Court agora confere também a expansão direta dos templates MediaWiki. Yasir compara duas rotas da mesma fonte e tem fallback; divergência não é ausência. A rotação continua sujeita a server saves extras, e a cidade de Yasir não é informada pela fonte. Investigação REA, documentação indicada pelo usuário e limites registrados em docs/rea-nabbot-zandaobot.md.
+
+325 testes passaram em develop sincronizada. Cinco GIFs carregados no navegador, layouts 1400/1100/850/380/320px sem overflow, busca rápida e concorrência verificados. Prévias locais: zandaobot-gifs-preview.png e zandaobot-gifs-mobile-preview.png.

@@ -70,6 +70,24 @@ def _trade_worlds():
     return {w['name'].lower(): w['id'] for w in worlds}
 
 
+def _yasir_worlds():
+    def catalog():
+        changes = trade('miniWorldChange.list').get('mini_world_changes')
+        if not isinstance(changes, list):
+            raise ValueError('Catálogo de Mini World Changes inválido')
+        matches = [c.get('id') for c in changes if isinstance(c, dict) and c.get('name') == 'Oriental Trader']
+        if len(matches) != 1 or not isinstance(matches[0], int):
+            raise ValueError('Oriental Trader não identificado')
+        return matches[0]
+    entry = cached('yasir-catalog', catalog, ttl=86400, daily=False)
+    if entry['dados'] is None or entry['velho']:
+        raise ValueError('Catálogo indisponível')
+    worlds = trade('miniWorldChange.listActiveWorlds', {'mini_world_change_id': entry['dados']}).get('active_worlds')
+    if not isinstance(worlds, list) or any(not isinstance(w, dict) or not re.fullmatch(r'[A-Za-z]{2,40}', w.get('world_name', '')) for w in worlds):
+        raise ValueError('Lista de mundos com Yasir inválida')
+    return sorted({w['world_name'] for w in worlds})
+
+
 def mini_changes(world, force=False):
     source = TRADE + '/mini-world-changes'
     unavailable = {'estado': 'indisponivel', 'motivo': 'Não foi possível consultar as Mini World Changes deste mundo.', 'fonte': source, 'consulta': None, 'mudancas': []}
@@ -77,7 +95,7 @@ def mini_changes(world, force=False):
         return {**unavailable, 'motivo': 'Selecione um mundo para consultar Yasir.'}
     worlds = cached('trade-worlds', _trade_worlds, force, 3600, daily=False)
     world_id = (worlds['dados'] or {}).get(world.lower())
-    if world_id is None or worlds['velho']:
+    if world_id is None:
         return unavailable
     def fetch():
         changes = trade('miniWorldChange.listActive', {'world_id': world_id}).get('active_mini_world_changes')
@@ -85,14 +103,33 @@ def mini_changes(world, force=False):
             raise ValueError('Mini World Changes inválidas')
         return sorted({c['mini_world_change_name'] for c in changes})
     r = cached('changes:' + world.lower(), fetch, force)
-    if r['dados'] is None:
+    global_list = cached('yasir-worlds', _yasir_worlds, force)
+    known_worlds = global_list['dados'] or []
+    global_present = world.lower() in {w.lower() for w in known_worlds}
+    specific_present = r['dados'] is not None and 'Oriental Trader' in r['dados']
+    specific_ok = r['dados'] is not None and not r['velho']
+    global_ok = global_list['dados'] is not None and not global_list['velho']
+    if specific_ok and global_ok and specific_present != global_present:
+        return {**unavailable, 'estado': 'inconsistente', 'motivo': 'A lista de mundos e a consulta deste mundo divergem. Atualize para conferir.',
+                'mundos_com_yasir': known_worlds, 'consulta': min(r['consulta'], global_list['consulta'])}
+    if specific_ok:
+        selected, present = r, specific_present
+    elif global_ok:
+        selected, present = global_list, global_present
+    elif r['dados'] is not None:
+        selected, present = r, specific_present
+    elif global_list['dados'] is not None:
+        selected, present = global_list, global_present
+    else:
         return unavailable
-    present = 'Oriental Trader' in r['dados']
-    return {'estado': 'desatualizado' if r['velho'] else ('presente' if present else 'ausente'),
-            'presente': present, 'dia': r['dia'], 'consulta': r['consulta'], 'fonte': source,
-            'mudancas': r['dados'], 'cidade': None,
-            'motivo': 'Cidade não informada pela fonte. Verifique Carlin, Ankrahmun ou Liberty Bay.' if present else 'Oriental Trader não aparece na lista de mudanças ativas consultada.',
-            'velho': r['velho'], 'atualizacao_fonte': None}
+    stale = selected['velho']
+    return {'estado': 'desatualizado' if stale else ('presente' if present else 'ausente'),
+            'presente': present, 'dia': selected['dia'], 'consulta': selected['consulta'], 'fonte': source,
+            'mudancas': r['dados'] or [], 'mudancas_velhas': r['velho'], 'cidade': None,
+            'mundos_com_yasir': known_worlds, 'mundos_velhos': global_list['velho'],
+            'conferido': specific_ok and global_ok,
+            'motivo': 'Cidade não informada pela fonte. Verifique Carlin, Ankrahmun ou Liberty Bay.' if present else 'Yasir não consta entre as mudanças ativas deste mundo.',
+            'velho': stale, 'atualizacao_fonte': None}
 
 
 def parse_dream_rules(data):
@@ -128,6 +165,17 @@ def dream_rules():
     return parse_dream_rules(get_json(WIKI + '?' + urlencode(params)))
 
 
+
+def expand_dream(world):
+    if not re.fullmatch(r'[A-Za-z]{2,40}', world):
+        raise ValueError('Mundo inválido')
+    params = {'action': 'expandtemplates', 'text': '{{Dream Scar Boss|{{Dream Scar Boss/Offsets|' + world + '}}}}',
+              'prop': 'wikitext', 'format': 'json', 'maxage': 0, 'smaxage': 0}
+    name = get_json(WIKI + '?' + urlencode(params)).get('expandtemplates', {}).get('wikitext', '').strip()
+    if name not in BOSSES:
+        raise ValueError('Boss não reconhecido na resposta da Wiki')
+    return name
+
 def dream_court(world, force=False):
     r = cached('dream-rules', dream_rules, force, 3600, daily=False)
     rule = ((r['dados'] or {}).get('mundos') or {}).get(world.lower())
@@ -136,8 +184,13 @@ def dream_court(world, force=False):
     day = tibia_info.dia_tibia()
     # ceil da fórmula Wiki equivale ao dia do Tibia desde epoch + 1.
     cycle = (day - date(1970, 1, 1)).days + 1 + r['dados']['global'] + rule['offset']
-    return {'estado': 'desatualizado' if r['velho'] else 'previsto', 'nome': BOSSES[cycle % 5],
-            'dia': day.isoformat(), 'consulta': r['consulta'], 'fonte': DREAM_SOURCE,
+    calculated = BOSSES[cycle % 5]
+    expanded = cached('dream-expanded:' + world.lower(), lambda: expand_dream(world.title()), force)
+    checked = expanded['dados'] is not None and not expanded['velho']
+    if checked and expanded['dados'] != calculated:
+        return {'estado': 'inconsistente', 'motivo': 'A rotação calculada e a resposta da TibiaWiki divergem. Atualize para conferir.', 'fonte': DREAM_SOURCE, 'consulta': expanded['consulta']}
+    return {'estado': 'desatualizado' if r['velho'] else 'previsto', 'nome': calculated, 'conferido': checked,
+            'dia': day.isoformat(), 'consulta': expanded['consulta'] if checked else r['consulta'], 'fonte': DREAM_SOURCE,
             'atualizacao_fonte': r['dados']['atualizado'], 'incerto': rule['incerto'],
             'motivo': ('A própria TibiaWiki marca a rotação deste mundo como incerta. ' if rule['incerto'] else '') +
                       'Previsão pela rotação deste mundo na TibiaWiki. Um server save extra pode mudar o boss.', 'velho': r['velho']}

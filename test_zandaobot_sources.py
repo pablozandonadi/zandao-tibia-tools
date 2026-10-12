@@ -23,6 +23,9 @@ def wiki_fixture():
 class TestSources(unittest.TestCase):
     def setUp(self):
         s._cache.clear()
+        network = patch.object(s, 'get_json', side_effect=OSError('rede não usada nos testes'))
+        network.start()
+        self.addCleanup(network.stop)
 
     def test_yasir_presente_e_ausente_por_mundo(self):
         def api(method, args=None):
@@ -46,6 +49,55 @@ class TestSources(unittest.TestCase):
         self.assertEqual(r['estado'],'desatualizado')
         self.assertEqual(r['dia'],'2026-10-11')
         self.assertEqual(r['consulta'],1)
+
+    def test_yasir_confere_duas_consultas_e_lista_mundos(self):
+        def api(method, args=None):
+            if method=='world.list': return {'worlds':[{'name':'Lobera','id':40}]}
+            if method=='miniWorldChange.list': return {'mini_world_changes':[{'id':20,'name':'Oriental Trader'}]}
+            if method=='miniWorldChange.listActive': return {'active_mini_world_changes':[{'mini_world_change_name':'Oriental Trader'}]}
+            if method=='miniWorldChange.listActiveWorlds': return {'active_worlds':[{'world_name':'Lobera'}]}
+            raise AssertionError(method)
+        with patch.object(s,'trade',side_effect=api):
+            r=s.mini_changes('Lobera')
+        self.assertTrue(r['conferido'])
+        self.assertEqual(r['estado'],'presente')
+        self.assertEqual(r['mundos_com_yasir'],['Lobera'])
+
+    def test_yasir_divergencia_nao_confirma_ausencia(self):
+        def api(method, args=None):
+            if method=='world.list': return {'worlds':[{'name':'Lobera','id':40}]}
+            if method=='miniWorldChange.list': return {'mini_world_changes':[{'id':20,'name':'Oriental Trader'}]}
+            if method=='miniWorldChange.listActive': return {'active_mini_world_changes':[]}
+            if method=='miniWorldChange.listActiveWorlds': return {'active_worlds':[{'world_name':'Lobera'}]}
+            raise AssertionError(method)
+        with patch.object(s,'trade',side_effect=api):
+            self.assertEqual(s.mini_changes('Lobera')['estado'],'inconsistente')
+
+    def test_yasir_fallback_lista_completa_quando_consulta_mundo_falha(self):
+        def api(method, args=None):
+            if method=='world.list': return {'worlds':[{'name':'Lobera','id':40}]}
+            if method=='miniWorldChange.list': return {'mini_world_changes':[{'id':20,'name':'Oriental Trader'}]}
+            if method=='miniWorldChange.listActive': raise OSError()
+            if method=='miniWorldChange.listActiveWorlds': return {'active_worlds':[{'world_name':'Lobera'}]}
+            raise AssertionError(method)
+        with patch.object(s,'trade',side_effect=api):
+            r=s.mini_changes('Lobera')
+        self.assertEqual(r['estado'],'presente')
+        self.assertFalse(r['velho'])
+
+    def test_dream_conferido_na_resposta_da_wiki(self):
+        rules=s.parse_dream_rules(wiki_fixture())
+        with patch.object(s,'dream_rules',return_value=rules), patch.object(s,'expand_dream',return_value='Izcandar the Banished'), patch.object(s.tibia_info,'dia_tibia',return_value=date(2026,10,12)):
+            r=s.dream_court('Rasteibra')
+        self.assertTrue(r['conferido'])
+        self.assertEqual(r['nome'],'Izcandar the Banished')
+
+    def test_dream_respostas_divergentes_nao_afirmam_boss(self):
+        rules=s.parse_dream_rules(wiki_fixture())
+        with patch.object(s,'dream_rules',return_value=rules), patch.object(s,'expand_dream',return_value='Plagueroot'), patch.object(s.tibia_info,'dia_tibia',return_value=date(2026,10,12)):
+            r=s.dream_court('Rasteibra')
+        self.assertEqual(r['estado'],'inconsistente')
+        self.assertNotIn('nome',r)
 
     def test_dream_world_offsets_e_server_save(self):
         rules=s.parse_dream_rules(wiki_fixture())

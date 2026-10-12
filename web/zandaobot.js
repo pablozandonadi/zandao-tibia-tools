@@ -1,45 +1,75 @@
 const ZB = {follow:true, world:'', serial:0};
-const zbStamp = v => v ? new Date(v*1000).toLocaleString('pt-BR') : 'sem consulta disponível';
+const zbStamp = v => v ? new Date(v*1000).toLocaleString('pt-BR') : 'Não disponível';
 const zbDate = v => /^\d{4}-\d{2}-\d{2}$/.test(v||'') ? v.split('-').reverse().join('/') : '—';
 const zbLinks = {dream:'https://tibia.fandom.com/wiki/Dream_Scar/Boss_of_the_Day',yasir:'https://tibiatrade.gg/mini-world-changes',calendar:'https://tibiacalendar.com/en/calendar'};
-const zbLink = key => `<a href="${zbLinks[key]}" target="_blank" rel="noopener noreferrer">Ver fonte ↗</a>`;
-function zbCard(title, value, detail='', color='var(--accent)', footer='') {
-  return `<div class="card calmo zb-card" style="border-left-color:${color}"><h2 class="sub">${esc(title)}</h2><strong>${esc(value)}</strong><p class="dica">${esc(detail)}</p>${footer?`<p class="dica">${footer}</p>`:''}</div>`;
+const zbLink = key => `<a href="${zbLinks[key]}" target="_blank" rel="noopener noreferrer">Abrir fonte ↗</a>`;
+const zbDreamGifs = {'Maxxenius':'maxxenius','Alptramun':'alptramun','Izcandar the Banished':'izcandar-the-banished','Plagueroot':'plagueroot','Malofur Mangrinder':'malofur-mangrinder'};
+function zbImageSrc(raw) {
+  if(/^assets\/zandaobot\/[a-z-]+\.gif$/.test(raw||'')) return raw;
+  try {
+    const u=new URL(raw);
+    if(u.protocol==='https:' && u.hostname==='static.tibia.com' && !u.username && !u.password && !u.search && !u.hash && /^\/images\/global\/header\/monsters\/[a-z0-9-]+\.gif$/.test(u.pathname)) return u.href;
+  } catch(e) {}
+  return '';
+}
+function zbSprite(src, label, icon) {
+  const safe=zbImageSrc(src);
+  return `<div class="zb-sprite"><span class="zb-sprite-fallback" ${safe?'hidden':''} aria-hidden="true">${icon}</span>${safe?`<img src="${esc(safe)}" alt="${esc(label)}" width="64" height="64" loading="eager">`:''}</div>`;
+}
+function zbDetails(key, data, text) {
+  return `<details class="zb-source"><summary>Fonte e detalhes</summary><div><p>${esc(text||'')}</p><p>Consulta: ${esc(zbStamp(data.consulta))}${data.dia?' · '+esc(zbDate(data.dia)):''}</p>${key?zbLink(key):''}</div></details>`;
+}
+function zbCard(title, value, options={}) {
+  const {kind='neutral', badge='', note='', sprite='', icon='•', details=''}=options;
+  return `<article class="zb-tile zb-${kind}"><div class="zb-tile-heading"><h3>${esc(title)}</h3>${badge?`<span class="zb-badge">${esc(badge)}</span>`:''}</div><div class="zb-tile-content"><div class="zb-tile-text"><strong>${esc(value)}</strong>${note?`<p>${esc(note)}</p>`:''}</div>${zbSprite(sprite,value,icon)}</div>${details}</article>`;
 }
 function zbCalendar(c={}) {
   const stale=c.estado==='desatualizado';
-  const events=c.eventos||[];
   const groups=[['ativo','Em andamento'],['proximo','Próximos 60 dias']];
-  return `<div class="card calmo zb-calendar"><div class="zb-heading"><h2 class="sub">Calendário de eventos</h2>${zbLink('calendar')}</div><p class="dica">${esc(c.nota||'Não foi possível consultar o calendário. Tente atualizar novamente.')}</p><p class="dica">Consulta: ${esc(zbStamp(c.consulta))}${stale?' · Falha ao atualizar: exibindo o calendário anterior.':''}</p>${groups.map(([key,title])=>`<h3>${title}</h3><div class="zb-events">${events.filter(e=>e.estado===key).map(e=>`<div class="zb-event"><span class="zb-chip ${key==='ativo'&&!stale?'zb-chip-active':''}">${stale?'Cache anterior':key==='ativo'?'Em andamento':'Próximo'}</span><b>${esc(e.titulo)}</b><span>${esc(zbDate(e.inicio))} → ${esc(zbDate(e.fim))}${e.server_save?' · server save':''}</span><span class="dica">${esc(e.escopo)}</span></div>`).join('')||`<p class="dica">${c.estado==='indisponivel'?'Calendário geral indisponível. Avisos oficiais consultados aparecem quando disponíveis.':'Nenhum evento listado neste período.'}</p>`}</div>`).join('')}<p class="dica">O dia do Tibia muda no server save. Eventos que terminam hoje no server save já não aparecem como ativos.</p></div>`;
+  return `<section class="zb-panel zb-calendar"><div class="zb-section-heading"><h2>Calendário de eventos</h2>${stale?'<span class="zb-badge zb-warning">Dados anteriores</span>':''}</div>${c.estado==='indisponivel'?'<p class="zb-warning-text">Calendário geral indisponível. Atualize para tentar novamente.</p>':''}<div class="zb-calendar-columns">${groups.map(([key,title])=>`<div><h3 class="zb-list-title">${title}</h3><div class="zb-event-list">${(c.eventos||[]).filter(e=>e.estado===key).map(e=>`<div class="zb-event"><span class="zb-event-dot ${key==='ativo'&&!stale?'zb-event-active':''}"></span><div><b>${esc(e.titulo)}</b><span>${esc(zbDate(e.inicio))} → ${esc(zbDate(e.fim))}</span><small>${esc(e.escopo)}${e.server_save?' · no server save':''}</small></div></div>`).join('')||`<p class="zb-empty">${c.estado==='indisponivel'?'Informação indisponível.':'Nenhum evento listado.'}</p>`}</div></div>`).join('')}</div><div class="zb-panel-footer"><span>Os eventos terminam no server save da data indicada.</span><details class="zb-source"><summary>Fonte do calendário</summary><div><p>Consulta: ${esc(zbStamp(c.consulta))}</p><p>${esc(c.nota||'')}</p>${zbLink('calendar')}</div></details></div></section>`;
 }
 function zbRender(r) {
-  if(r.erro) { $('zb-result').innerHTML=zbCard('Consulta',r.erro); return; }
-  const b=r.boostados||{}, server=r.servidor||{}, dream=r.dream_court||{}, yasir=r.yasir||{};
-  const boosted=(title, value)=>zbCard(title,value?.nome||'Indisponível',b.velho?`Dados anteriores · ${b.dia}. Falha ao atualizar.`:b.aguardando?'Aguardando a fonte atualizar após o server save.':'Global · igual para todos os mundos.');
-  let cards=zbCard('Rashid',r.rashid,'Global · localização muda no server save.','#e3b45b')+boosted('Criatura boostada',b.criatura)+boosted('Boss boostado',b.boss);
-  const dreamValue=dream.nome?`${dream.nome} · ${dream.velho?'regras em cache':'previsto'}`:'Indisponível';
-  const dreamDetail=[dream.motivo,dream.atualizacao_fonte?`Regras atualizadas na fonte: ${new Date(dream.atualizacao_fonte).toLocaleString('pt-BR')}.`:'',dream.velho?'Falha ao atualizar a rotação.':''].filter(Boolean).join(' ');
-  cards+=zbCard('Dream Court · '+(r.mundo||'selecione um mundo'),dreamValue,dreamDetail,'#ad85ed',`${zbLink('dream')} · Consulta: ${esc(zbStamp(dream.consulta))}`);
-  const yasirValue=yasir.estado==='presente'?'Presente no mundo':yasir.estado==='ausente'?'Ausente na consulta':yasir.estado==='desatualizado'?`Última consulta: ${yasir.presente?'presente':'ausente'}`:'Indisponível';
-  const yasirDetail=[yasir.motivo,yasir.estado==='desatualizado'?`Dados anteriores de ${zbDate(yasir.dia)}; presença atual não confirmada.`:'',yasir.consulta?'A fonte não informa o horário de coleta no jogo.':''].filter(Boolean).join(' ');
-  cards+=zbCard('Yasir · '+(r.mundo||'selecione um mundo'),yasirValue,yasirDetail,'#46c9bb',`${zbLink('yasir')} · Consulta: ${esc(zbStamp(yasir.consulta))}`);
-  cards+=zbCard('Próximo server save',new Date(r.server_save_ms).toLocaleString('pt-BR'),'Horário local deste computador.');
-  if(r.mundo) cards+=zbCard('Mundo · '+r.mundo,server.name?`${server.status==='online'?'Online':server.status||'Status indisponível'} · ${server.players_online??'—'} jogadores`:'Informações indisponíveis',`${server.location||''} · ${server.pvp_type||''} · Consulta: ${zbStamp(r.servidor_consulta)}${r.servidor_velho?' · Cache anterior / falha ao atualizar':''}`);
+  if(r.erro) { $('zb-result').innerHTML=`<div class="zb-panel zb-warning-text">${esc(r.erro)}</div>`; return; }
+  const b=r.boostados||{}, server=r.servidor||{}, dream=r.dream_court||{}, yasir=r.yasir||{}, world=r.mundo||'selecione um mundo';
+  const boosted=(title,value,kind,icon)=>zbCard(title,value?.nome||'Indisponível',{kind,icon,sprite:value?.imagem,
+    badge:b.velho?'Cache anterior':b.aguardando?'Aguardando fonte':'Hoje',note:b.velho?`Último dado: ${zbDate(b.dia)}`:b.aguardando?'Atualização após o server save pendente.':'Mesmo boost em todos os mundos.'});
+  const globalCards=zbCard('Rashid',r.rashid||'Indisponível',{kind:'rashid',badge:'Hoje',note:'Localização do NPC neste dia.',sprite:'assets/zandaobot/rashid.gif',icon:'🐪'})
+    +boosted('Criatura boostada',b.criatura,'creature','🐉')+boosted('Boss boostado',b.boss,'boss','⚔');
+  const dreamBadge=dream.estado==='inconsistente'?'Consulta divergente':dream.velho?'Regras em cache':dream.incerto?'Rotação incerta':dream.conferido?'Rotação conferida':'Rotação prevista';
+  const dreamText=[dream.motivo,dream.conferido?'O boss foi conferido diretamente na resposta da TibiaWiki.':'',dream.atualizacao_fonte?`Revisão das regras: ${new Date(dream.atualizacao_fonte).toLocaleDateString('pt-BR')}.`:''].filter(Boolean).join(' ');
+  const dreamSprite=zbDreamGifs[dream.nome]?'assets/zandaobot/'+zbDreamGifs[dream.nome]+'.gif':'';
+  const dreamCard=zbCard('Dream Court',dream.nome||'Indisponível',{kind:'dream',badge:dreamBadge,icon:'🌙',sprite:dreamSprite,
+    note:dream.nome?`Rotação de hoje para ${world}.`:dream.motivo||'Atualize para consultar.',details:zbDetails('dream',dream,dreamText)});
+  const yasirValue=yasir.estado==='presente'?'Presente':yasir.estado==='ausente'?'Ausente':yasir.estado==='desatualizado'?`Último registro: ${yasir.presente?'presente':'ausente'}`:yasir.estado==='inconsistente'?'Consulta divergente':'Indisponível';
+  const yasirBadge=yasir.velho?'Dados anteriores':yasir.estado==='presente'||yasir.estado==='ausente'?'Consulta atual':'Verificar';
+  const yasirNote=yasir.estado==='presente'?(yasir.cidade||'Carlin, Ankrahmun ou Liberty Bay · cidade não informada.')
+    :yasir.estado==='ausente'?`Não está listado em ${world} nesta consulta.`:yasir.motivo||'Atualize para consultar.';
+  const yasirText=[yasir.motivo,yasir.conferido?'A lista de mundos e a consulta deste mundo concordam.':'',yasir.velho?`Registro anterior de ${zbDate(yasir.dia)}; situação atual não confirmada.`:'','A fonte não informa o horário de coleta no jogo.'].filter(Boolean).join(' ');
+  const yasirCard=zbCard('Yasir',yasirValue,{kind:'yasir',badge:yasirBadge,note:yasirNote,icon:'⛵',sprite:'assets/zandaobot/yasir.gif',details:zbDetails('yasir',yasir,yasirText)});
+  const worlds=yasir.mundos_com_yasir||[];
+  const yasirWorlds=worlds.length?`<details class="zb-panel zb-worlds"><summary>Yasir em outros mundos <span>${worlds.length}${yasir.mundos_velhos?' · dados anteriores':''}</span></summary><div class="zb-world-buttons">${worlds.map(w=>`<button class="zb-world-button" data-zb-world="${esc(w)}">${esc(w)} ↗</button>`).join('')}</div></details>`:'';
   const changes=(yasir.mudancas||[]).filter(name=>name!=='Oriental Trader');
-  const mini=changes.length?`<div class="card calmo zb-calendar"><h2 class="sub">Outras Mini World Changes · ${esc(r.mundo)}</h2><p class="dica">${yasir.velho?'Consulta anterior · ':''}${esc(zbStamp(yasir.consulta))}</p><div class="zb-tags">${changes.map(name=>`<span class="zb-chip">${esc(name)}</span>`).join('')}</div></div>`:'';
+  const mini=changes.length?`<details class="zb-panel zb-extra"><summary>Mini World Changes em ${esc(world)} <span>${changes.length}${yasir.mudancas_velhas?' · consulta anterior':''}</span></summary><div class="zb-tags">${changes.map(name=>`<span class="zb-tag">${esc(name)}</span>`).join('')}</div></details>`:'';
   const alerts=r.avisos_mundo||[];
-  const notice=alerts.length?`<div class="card calmo zb-calendar"><h2 class="sub">Avisos oficiais · ${esc(r.mundo)}</h2><p class="dica">Anúncios específicos deste mundo podem incluir eventos de compensação. ${r.avisos_mundo_velhos?'Falha ao atualizar os avisos.':''}</p>${alerts.map(x=>`<p><span class="dica">${esc(x.data)}</span> · ${esc(x.texto)}${Number.isInteger(x.id)?` <a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler anúncio ↗</a>`:''}</p>`).join('')}</div>`:'';
-  const announcements=`<details class="card calmo zb-calendar"><summary>Últimos anúncios oficiais</summary><p class="dica">A data é a publicação. ${r.anuncios_velhos?'Falha ao atualizar os anúncios. ':''}Consulta: ${esc(zbStamp(r.anuncios_consulta))}</p>${(r.anuncios||[]).map(x=>`<p><span class="dica">${esc(x.data)}</span> · ${esc(x.titulo)}${Number.isInteger(x.id)?` <a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler anúncio ↗</a>`:''}</p>`).join('')||'<p class="dica">Nenhum anúncio disponível nesta consulta.</p>'}<a href="https://www.tibia.com/news/?subtopic=eventcalendar" target="_blank" rel="noopener noreferrer">Calendário oficial ↗</a></details>`;
-  $('zb-result').innerHTML=`<div class="zb-heading"><h2 class="sub">Dia do Tibia · ${esc(zbDate(r.dia))}</h2><span class="dica">Consulta: ${esc(new Date(r.consulta).toLocaleString('pt-BR'))}</span></div><div class="zb-grid">${cards}</div>${zbCalendar(r.calendario)}${notice}${mini}${announcements}`;
+  const notice=alerts.length?`<section class="zb-panel zb-notice"><h2>Avisos de ${esc(world)}</h2>${r.avisos_mundo_velhos?'<p class="zb-warning-text">Alguns avisos não foram atualizados.</p>':''}${alerts.map(x=>`<p><small>${esc(zbDate(x.data))}</small> ${esc(x.texto)}${Number.isInteger(x.id)?` <a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler anúncio ↗</a>`:''}</p>`).join('')}</section>`:'';
+  const announcements=`<details class="zb-panel zb-extra"><summary>Últimos anúncios oficiais</summary><p class="zb-muted">${r.anuncios_velhos?'Falha ao atualizar. ':''}Consulta: ${esc(zbStamp(r.anuncios_consulta))}</p>${(r.anuncios||[]).map(x=>`<p><small>${esc(zbDate(x.data))}</small> ${esc(x.titulo)}${Number.isInteger(x.id)?` <a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler ↗</a>`:''}</p>`).join('')||'<p class="zb-muted">Nenhum anúncio disponível.</p>'}</details>`;
+  const online=server.name?`${server.players_online??'—'} jogadores · ${server.status==='online'?'online':server.status||'status desconhecido'}`:'Status indisponível';
+  const save=new Date(r.server_save_ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>Hoje em ${esc(world)}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div><div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta"><div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div><div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}${zbCalendar(r.calendario)}${notice}${mini}${announcements}`;
+  $('zb-result').querySelectorAll('.zb-sprite img').forEach(img=>img.addEventListener('error',()=>{img.hidden=true;img.previousElementSibling.hidden=false;},{once:true}));
+  $('zb-result').querySelectorAll('[data-zb-world]').forEach(btn=>btn.onclick=()=>{ZB.follow=false;ZB.world=btn.dataset.zbWorld;zbLoad();});
 }
 async function zbLoad(force=false) {
   if(!api) return;
   const world=ZB.follow?mundoAtual():ZB.world, serial=++ZB.serial;
   $('zb-world').value=world||'';
-  $('zb-follow').textContent=ZB.follow?`Personagem em uso: ${MEUS.atual||'nenhum'} · Mundo: ${world||'não definido'}`:`Consultando o mundo ${world}.`;
-  $('zb-result').innerHTML='<div class="card dica">Consultando informações do dia…</div>';
+  $('zb-follow').textContent=ZB.follow?`Personagem em uso: ${MEUS.atual||'nenhum'} · ${world||'mundo não definido'}`:`Consulta independente: ${world}.`;
+  $('zb-result').setAttribute('aria-busy','true');
+  $('zb-refresh').disabled=true;
+  $('zb-result').innerHTML='<div class="zb-panel zb-loading">Consultando informações de hoje…</div>';
   try {const r=await api.zandaobot_buscar(ZB.follow?'':world,force); if(serial===ZB.serial)zbRender(r);}
-  catch(e) {if(serial===ZB.serial)$('zb-result').innerHTML=zbCard('Consulta','Falha ao consultar. Tente atualizar.');}
+  catch(e) {if(serial===ZB.serial)$('zb-result').innerHTML='<div class="zb-panel zb-warning-text">Falha na consulta. Use Atualizar para tentar novamente.</div>';}
+  finally {if(serial===ZB.serial){$('zb-result').setAttribute('aria-busy','false');$('zb-refresh').disabled=false;}}
 }
 $('zb-find').onclick=()=>{const world=$('zb-world').value.trim();if(!world){toast('Digite o mundo que deseja consultar.',true);return;}ZB.follow=false;ZB.world=world;zbLoad();};
 $('zb-world').onkeydown=e=>{if(e.key==='Enter')$('zb-find').click();};
