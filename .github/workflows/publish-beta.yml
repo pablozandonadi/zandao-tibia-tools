@@ -50,7 +50,7 @@ jobs:
           $app = "$env:RUNNER_TEMP/zandao-beta/dist/ZandaoTibiaTools"
           $installer = "$env:RUNNER_TEMP/zandao-beta/output/ZandaoTibiaToolsBetaSetup.exe"
           if (!(Test-Path -LiteralPath $installer)) { throw 'Instalador ausente' }
-          foreach ($name in @('historico_hunts.json','meus_personagens.json','settings.json','preferencias.json','hunt_atual.json','sets.json','rodas.json','audio_timers.json')) {
+          foreach ($name in @('historico_hunts.json','meus_personagens.json','settings.json','preferencias.json','hunt_atual.json','sets.json','rodas.json','audio_timers.json','world_board_registros.json')) {
             if (Test-Path -LiteralPath (Join-Path $app $name)) { throw "Dado pessoal no pacote: $name" }
           }
           $zip = "$env:RUNNER_TEMP/ZandaoTibiaToolsBeta-v$version.zip"
@@ -92,7 +92,7 @@ jobs:
           $app = "$env:RUNNER_TEMP/zandao-original/dist/ZandaoTibiaTools"
           $installer = "$env:RUNNER_TEMP/zandao-original/output/ZandaoTibiaToolsSetup.exe"
           if (!(Test-Path -LiteralPath $installer)) { throw 'Instalador ausente' }
-          foreach ($name in @('historico_hunts.json','meus_personagens.json','settings.json','preferencias.json','hunt_atual.json','sets.json','rodas.json','audio_timers.json')) {
+          foreach ($name in @('historico_hunts.json','meus_personagens.json','settings.json','preferencias.json','hunt_atual.json','sets.json','rodas.json','audio_timers.json','world_board_registros.json')) {
             if (Test-Path -LiteralPath (Join-Path $app $name)) { throw "Dado pessoal no pacote: $name" }
           }
           Compress-Archive -Path "$app/*" -DestinationPath "$env:RUNNER_TEMP/ZandaoTibiaTools-v${{ steps.promover.outputs.version }}.zip"

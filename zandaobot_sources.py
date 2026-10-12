@@ -259,7 +259,7 @@ def parse_calendar(data, world='', today=None):
         seen.add(key)
         events.append({'titulo': e['title'], 'inicio': start.isoformat(), 'fim': end.isoformat(),
                        'estado': 'ativo' if start <= today else 'proximo', 'server_save': save,
-                       'escopo': world if scoped else 'Todos os mundos', 'fonte': CALENDAR})
+                       'escopo': world if scoped else 'Todos os mundos', 'fonte': CALENDAR, 'descricao': str(e.get('description') or '')})
     events.sort(key=lambda e: (e['inicio'], e['titulo']))
     return events
 
@@ -272,7 +272,8 @@ def calendar(world='', force=False):
         events = parse_calendar(r['dados'], world)
     except (KeyError, ValueError, TypeError):
         return {'estado': 'indisponivel', 'eventos': [], 'consulta': r['consulta'], 'fonte': CALENDAR}
+    drome = sorted(calendar_date(e['endDate']).isoformat() for e in r['dados']['events'] if isinstance(e, dict) and e.get('type') == 'tibiadrome' and e.get('serverSaveEvent') is True and calendar_date(e['endDate']) > tibia_info.dia_tibia())
     generated = datetime.fromtimestamp(r['dados']['generatedAt'] / 1000, timezone.utc)
     return {'estado': 'desatualizado' if r['velho'] else 'disponivel', 'eventos': events, 'consulta': r['consulta'],
-            'atualizacao_fonte': r['dados'].get('delta_consulta') or generated.isoformat(), 'snapshot': generated.isoformat(), 'fonte': CALENDAR, 'velho': r['velho'],
+            'atualizacao_fonte': r['dados'].get('delta_consulta') or generated.isoformat(), 'snapshot': generated.isoformat(), 'drome_fim': drome[0] if drome and not r['velho'] else None, 'fonte': CALENDAR, 'velho': r['velho'],
             'nota': 'Calendário TibiaCalendar com correções consultadas online. Compensações exclusivas anunciadas em notícias podem não constar aqui. O fim ocorre no server save da data indicada.'}

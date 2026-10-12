@@ -1,7 +1,7 @@
 const ZB = {follow:true, world:'', serial:0};
 const zbStamp = v => v ? new Date(v*1000).toLocaleString('pt-BR') : 'Não disponível';
 const zbDate = v => /^\d{4}-\d{2}-\d{2}$/.test(v||'') ? v.split('-').reverse().join('/') : '—';
-const zbLinks = {dream:'https://tibia.fandom.com/wiki/Dream_Scar/Boss_of_the_Day',yasir:'https://tibiatrade.gg/mini-world-changes',calendar:'https://tibiacalendar.com/en/calendar'};
+const zbLinks = {dream:'https://tibia.fandom.com/wiki/Dream_Scar/Boss_of_the_Day',yasir:'https://tibiatrade.gg/mini-world-changes',board:'https://www.tibiawiki.com.br/wiki/World_Board',calendar:'https://tibiacalendar.com/en/calendar'};
 const zbLink = key => `<a href="${zbLinks[key]}" target="_blank" rel="noopener noreferrer">Abrir fonte ↗</a>`;
 const zbDreamGifs = {'Maxxenius':'maxxenius','Alptramun':'alptramun','Izcandar the Banished':'izcandar-the-banished','Plagueroot':'plagueroot','Malofur Mangrinder':'malofur-mangrinder'};
 function zbImageSrc(raw) {
@@ -41,11 +41,11 @@ function zbRender(r) {
   const dreamCard=zbCard('Dream Court',dream.nome||(dream.estado==='selecionar_mundo'?'Escolha um mundo':'Indisponível'),{kind:'dream',badge:dreamBadge,icon:'🌙',sprite:dreamSprite,
     note:dream.nome?`Rotação de hoje para ${world}.`:dream.motivo||'Atualize para consultar.',details:zbDetails('dream',dream,dreamText)});
   const yasirValue=yasir.estado==='presente'?'Presente':yasir.estado==='ausente'?'Ausente':yasir.estado==='desatualizado'?`Último registro: ${yasir.presente?'presente':'ausente'}`:yasir.estado==='inconsistente'?'Consulta divergente':yasir.estado==='selecionar_mundo'?'Escolha um mundo':'Indisponível';
-  const yasirBadge=yasir.velho?'Dados anteriores':yasir.estado==='presente'||yasir.estado==='ausente'?'Consulta atual':'Verificar';
+  const yasirBadge=yasir.origem==='world_board_manual'?'World Board manual':yasir.velho?'Dados anteriores':yasir.estado==='presente'||yasir.estado==='ausente'?'Consulta atual':'Verificar';
   const yasirNote=yasir.estado==='presente'?(yasir.cidade||'Carlin, Ankrahmun ou Liberty Bay · cidade não informada.')
     :yasir.estado==='ausente'?`Não está listado em ${world} nesta consulta.`:yasir.motivo||'Atualize para consultar.';
-  const yasirText=[yasir.motivo,yasir.conferido?'A lista de mundos e a consulta deste mundo concordam.':'',yasir.velho?`Registro anterior de ${zbDate(yasir.dia)}; situação atual não confirmada.`:'','A fonte não informa o horário de coleta no jogo.'].filter(Boolean).join(' ');
-  const yasirCard=zbCard('Yasir',yasirValue,{kind:'yasir',badge:yasirBadge,note:yasirNote,icon:'⛵',sprite:'assets/zandaobot/yasir.gif',details:zbDetails('yasir',yasir,yasirText)});
+  const yasirText=[yasir.motivo,yasir.conferido?'A lista de mundos e a consulta deste mundo concordam.':'',yasir.velho?`Registro anterior de ${zbDate(yasir.dia)}; situação atual não confirmada.`:'',yasir.origem==='world_board_manual'?'Observação manual do perfil. Pode mudar depois da consulta.':'A fonte não informa o horário de coleta no jogo.'].filter(Boolean).join(' ');
+  const yasirCard=zbCard('Yasir',yasirValue,{kind:'yasir',badge:yasirBadge,note:yasirNote,icon:'⛵',sprite:'assets/zandaobot/yasir.gif',details:zbDetails(yasir.origem==='world_board_manual'?'board':'yasir',yasir,yasirText)});
   const worlds=yasir.mundos_com_yasir||[];
   const yasirWorlds=worlds.length?`<details class="zb-panel zb-worlds" ${!r.mundo?'open':''}><summary>Yasir em outros mundos <span>${worlds.length}${yasir.mundos_velhos?' · dados anteriores':''}</span></summary><div class="zb-world-buttons">${worlds.map(w=>`<button class="zb-world-button" data-zb-world="${esc(w)}">${esc(w)} ↗</button>`).join('')}</div></details>`:'';
   const changes=(yasir.mudancas||[]).filter(name=>name!=='Oriental Trader');
@@ -56,7 +56,8 @@ function zbRender(r) {
   const online=server.name?`${server.players_online??'—'} jogadores · ${server.status==='online'?'online':server.status||'status desconhecido'}`:'Status indisponível';
   const save=new Date(r.server_save_ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const selectWorld=!r.mundo?`<div class="zb-panel zb-selection"><h2>Selecione o mundo de Tibia</h2><p>Yasir e Dream Court variam por mundo. Escolha abaixo ou pesquise no campo acima.</p><div class="zb-select-actions"><select id="zb-world-pick" aria-label="Selecionar mundo para Yasir e Dream Court"><option value="">Carregando mundos…</option></select><button class="zb-world-button" id="zb-config-world">Cadastrar personagem</button></div><small>Para usar o mundo automaticamente, cadastre e escolha seu personagem nas configurações desta instalação.</small></div>`:'';
-  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>${r.mundo?'Hoje em '+esc(world):'Resumo de hoje'}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div>${selectWorld}<div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta">${r.mundo?`<div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div>`:''}<div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}${zbCalendar(r.calendario)}${notice}${mini}${announcements}`;
+  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>${r.mundo?'Hoje em '+esc(world):'Resumo de hoje'}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div>${selectWorld}<div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta">${r.mundo?`<div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div>`:''}<div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}${wbPanel(r)}${zbCalendar(r.calendario)}${notice}${mini}${announcements}`;
+  wbBind(r);
   const picker=$('zb-world-pick');
   if(picker) {
     picker.onchange=()=>{if(picker.value){ZB.follow=false;ZB.world=picker.value;zbLoad();}};
@@ -89,4 +90,4 @@ $('zb-active').onclick=()=>{ZB.follow=true;zbLoad();};
 $('zb-refresh').onclick=()=>zbLoad(true);
 $('zb-world').onfocus=async()=>{if(!api||$('zb-worlds').children.length)return;try{const r=await api.zandaobot_mundos();$('zb-worlds').innerHTML=(r.mundos||[]).map(w=>`<option value="${esc(w)}"></option>`).join('');}catch(e){}};
 PERS_OUVINTES.push(()=>{if(!ZB.follow)return;ZB.serial++;if($('page-zandaobot').classList.contains('shown'))zbLoad();});
-setInterval(()=>{if(api&&$('page-zandaobot').classList.contains('shown'))zbLoad();},300000);
+setInterval(()=>{if(api&&$('page-zandaobot').classList.contains('shown')&&!WB.dirty)zbLoad();},300000);

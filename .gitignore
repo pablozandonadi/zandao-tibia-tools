@@ -44,3 +44,7 @@ cache_task_images/
 # Prévias locais usam caminhos deste computador
 docs/*-preview.html
 docs/qa-*.cjs
+
+world_board_registros.json
+world_board_registros.json.tmp
+world_board_registros.json.antes-do-backup

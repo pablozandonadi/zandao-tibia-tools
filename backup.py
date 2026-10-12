@@ -26,6 +26,7 @@ VERSAO_FORMATO = 1
 
 # chave -> rótulo para a tela (todos os arquivos são .json)
 ITENS = {
+    "world_board": "Checagens do World Board por personagem e mundo",
     "historico": "Histórico de hunts",
     "personagens": "Meus personagens",
     "embuimentos": "Preços e escolhas dos embuimentos",

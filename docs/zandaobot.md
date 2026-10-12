@@ -57,3 +57,10 @@ Atualização com GIFs e novo layout publicada na Beta 1.0.19-beta.5.1 em 12/10/
 Quando a instalação não tem personagem/mundo escolhido, Dream Court e Yasir retornam selecionar_mundo, em vez de apresentar falta de seleção como fonte indisponível. O painel oferece seletor de mundos, busca textual e cadastro de personagem. A lista de mundos com Yasir é consultada mesmo sem personagem e fica aberta para permitir busca rápida. Não escolhemos um mundo arbitrário nem copiamos dados da instalação estável para a Beta.
 
 Validado com 326 testes, fluxo de seleção inicial no navegador e consulta pública real sem mundo (dez mundos com Yasir) e em Lobera (presente, duas consultas concordantes), em 12/10/2026.
+
+
+## World Board manual e mensagem do dia
+
+Cole o Server Log obtido ao usar a placa na Adventurers’ Guild. Analise antes de salvar no personagem em uso e mundo selecionado. O registro é local, participa do backup e expira no próximo server save. Não há compartilhamento automático entre instalações. Linhas desconhecidas não são armazenadas e impedem confirmar ausência de Yasir. Confirme a cópia completa apenas quando todas as mensagens estiverem presentes.
+
+Gerar mensagem do dia combina dados atuais, calendário e observação manual válida. Comunidade, assinatura, Deeplings, região, Roshamuul e preços de TC são editáveis; campos desconhecidos ficam com ❓. O fim de Tibia Drome vem do calendário quando disponível. Revise e copie a mensagem; nenhum envio externo é feito.

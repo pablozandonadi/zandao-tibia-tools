@@ -39,6 +39,8 @@ import sets
 import stats_set
 import tibia_info
 import zandaobot
+import world_board
+import zandaobot_report
 from versao import VERSAO_APP
 
 if getattr(sys, "frozen", False):
@@ -986,11 +988,35 @@ class API:
 
     # ================= ferramentas: boss/criatura do dia, Rashid, server save, shared, "quando eu upo?" =================
     def zandaobot_buscar(self, mundo="", forcar=False):
-        if not (mundo or "").strip():
-            d = personagens.carregar()
-            p = next((p for p in d["lista"] if p["nome"] == d["atual"]), {})
-            mundo = p.get("mundo", "")
-        return zandaobot.buscar(mundo, bool(forcar))
+        d = personagens.carregar()
+        p = next((p for p in d["lista"] if p["nome"] == d["atual"]), {})
+        mundo = (mundo or "").strip() or p.get("mundo", "")
+        return world_board.aplicar(zandaobot.buscar(mundo, bool(forcar)), d["atual"])
+
+    def world_board_analisar(self, texto, mundo="", dia="", completo=False):
+        personagem, mundo = world_board.contexto(personagens.carregar(), mundo)
+        return world_board.preparar(texto, personagem, mundo, dia, bool(completo))
+
+    def world_board_salvar(self, texto, mundo="", dia="", completo=False, personagem_esperado=""):
+        personagem, mundo = world_board.contexto(personagens.carregar(), mundo)
+        if personagem.casefold() != (personagem_esperado or "").casefold():
+            return {"erro": "O personagem em uso mudou. Analise o texto novamente antes de salvar."}
+        return world_board.salvar(texto, personagem, mundo, dia, bool(completo))
+
+    def world_board_remover(self, mundo, dia, personagem_esperado=""):
+        personagem, mundo = world_board.contexto(personagens.carregar(), mundo)
+        if not personagem or personagem.casefold() != (personagem_esperado or "").casefold():
+            return {"erro": "O personagem em uso mudou. Abra o ZandaoBot novamente."}
+        try:
+            return world_board.remover(personagem, mundo, dia)
+        except OSError:
+            return {"erro": "Não foi possível remover o registro do perfil."}
+
+    def zandaobot_mensagem(self, mundo="", campos=None):
+        resumo = self.zandaobot_buscar(mundo)
+        if resumo.get("erro"):
+            return resumo
+        return {"mensagem": zandaobot_report.gerar(resumo, campos)}
 
     def zandaobot_mundos(self):
         return zandaobot.mundos()
@@ -1157,7 +1183,7 @@ class API:
 
     # ================= configurações: backup de tudo =================
     def _caminhos_backup(self):
-        return {"historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
+        return {"world_board": world_board.ARQUIVO, "historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
                 "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO,
                 "precos": precos.PRECOS_PATH, "rodas": roda.RODAS_PATH, "sets": sets.SETS_PATH, "classificador": classificador.SESSOES_PATH}
 

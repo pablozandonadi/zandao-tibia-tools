@@ -185,14 +185,14 @@ class TestApiDefaultWorld(unittest.TestCase):
         characters=Mock()
         characters.carregar.return_value={'atual':'Char B','lista':[{'nome':'Char A','mundo':'Antica'},{'nome':'Char B','mundo':'Lobera'}]}
         bot=Mock()
-        namespace={'personagens':characters,'zandaobot':bot}
+        namespace={'personagens':characters,'zandaobot':bot,'world_board':Mock()}
         exec(compile(module,'api-test','exec'),namespace)
         namespace['zandaobot_buscar'](None)
         bot.buscar.assert_called_with('Lobera',False)
         characters.carregar.reset_mock()
         namespace['zandaobot_buscar'](None,'Antica',True)
         bot.buscar.assert_called_with('Antica',True)
-        characters.carregar.assert_not_called()
+        characters.carregar.assert_called_once()
 
 
 if __name__=='__main__': unittest.main()
