@@ -30,7 +30,7 @@ if sys.platform == "win32":
     # Sem isso a barra de tarefas mostra o ícone do Python em vez do ícone do app.
     try:
         import ctypes
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ZandaoTibiaTools." + CANAL_APP)
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("ZandaoTibiaTools.Beta" if CANAL_APP == "beta" else "ZandaoTibiaTools.App")
     except Exception:
         pass
 
