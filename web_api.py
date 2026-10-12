@@ -1083,13 +1083,13 @@ class API:
             self._audio.tocar(som, volume)
         return True
 
-    def audio_testar_alerta(self, cor="amarelo", texto="", fonte=34, alerta=None, segundos=4, piscar=False):
+    def audio_testar_alerta(self, cor="amarelo", texto="", fonte=34, alerta=None, segundos=4, piscar=False, visual=None):
         """Mostra o alerta por 4 s (com a posição da tela, mesmo antes de salvar)."""
         if not self._audio:
             return False
         if alerta:
             self._audio.cfg["alerta"] = audio_timers.overlay.normalizar_alerta(alerta)
-        return bool(self._audio.testar_alerta(cor, texto, fonte, segundos, bool(piscar)))
+        return bool(self._audio.testar_alerta(cor, texto, fonte, segundos, bool(piscar), visual))
 
     def audio_parar_teste(self):
         if self._audio:

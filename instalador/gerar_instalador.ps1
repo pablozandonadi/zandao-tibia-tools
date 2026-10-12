@@ -28,6 +28,10 @@ $iscc = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 nao encontrado." }
 
+# Também é usado pelo workflow de publicação; fixa o rasterizador incluído no executável.
+python -m pip install Pillow==12.3.0
+if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar o rasterizador dos timers." }
+
 Write-Host "1/3  Testes..."
 Push-Location $raiz
 python -m unittest

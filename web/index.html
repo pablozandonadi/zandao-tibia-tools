@@ -663,6 +663,8 @@
   @media(max-width:700px) { #gs-hover { left:65px; max-width:250px; } }
 </style>
 <link rel="stylesheet" href="task_items.css">
+<link rel="stylesheet" href="timers.css">
+<script src="timers.js"></script>
 </head>
 <body>
 <div id="gadget-topo" title="Arraste para mover a janela · duplo clique volta ao tamanho normal"><span class="gt-grip">• • •</span><button id="gadget-fechar" title="Fechar o app">✕</button></div>
@@ -912,26 +914,37 @@
         <p class="dica" style="margin:12px 0 0;line-height:1.5">Aperte a tecla do timer no Tibia e ele começa a contar; quando acaba, toca o som. Funciona com o app minimizado.
           O app só confere as teclas que você cadastrou aqui: não grava o que você digita e não manda tecla nenhuma para o jogo.</p>
       </div>
-      <div id="au-form"></div>
+      <div class="au-editor-layout"><div class="au-editor-main"><div id="au-form"></div><div id="au-lista" style="margin-top:16px"></div></div>
       <div class="card calmo" style="margin-top:16px" id="au-visual">
-        <div class="h-titulo" style="margin-bottom:8px"><h2 class="sub" style="margin:0">📍 Barra e alerta no Tibia</h2>
+        <div class="h-titulo" style="margin-bottom:8px"><h2 class="sub" style="margin:0">Aparência no Tibia</h2>
           <button class="btn btn-sm" id="au-alerta-testar" title="Mostra a mensagem e a barra do jeito que estão configuradas">👁 Testar alerta</button></div>
+        <div id="au-preview" class="au-preview"></div>
+        <p class="au-preview-note">Prévia ilustrativa. Use Testar para conferir o resultado real sobre o Tibia.</p>
         <div id="au-form-visual"></div>
-        <div class="campos" style="grid-template-columns:repeat(4,minmax(0,1fr))">
+        <details class="au-section" open><summary>Barras — aparência e tamanho · todos os timers</summary>
+        <div class="au-global-campos au-visual-options">
+          <div><label class="campo-label" for="aub-estilo">Formato da barra</label><select id="aub-estilo"><option value="classica">Clássica com borda</option><option value="arredondada">Arredondada</option><option value="minimalista">Minimalista</option><option value="glow">Com brilho</option></select></div>
+          <div><label class="campo-label" for="aub-texto-estilo">Formato do nome e tempo</label><select id="aub-texto-estilo"><option value="contorno">Contorno</option><option value="glow">Brilho (glow)</option><option value="sombra">Sombra</option><option value="simples">Simples</option></select></div>
+          <div><label class="campo-label" for="aub-familia">Fonte da barra</label><select id="aub-familia"><option>Verdana</option><option>Segoe UI</option><option>Tahoma</option><option>Arial</option></select></div>
+          <label class="check"><input type="checkbox" id="aub-cor-tempo"> Cor pelo tempo: verde → amarelo → vermelho</label>
+        </div>
+        <div class="campos" style="grid-template-columns:repeat(2,minmax(0,1fr))">
           <div><label class="campo-label" for="aub-larg">Largura: <b id="aub-larg-v"></b></label><input type="range" id="aub-larg" min="80" max="1200" step="10"></div>
           <div><label class="campo-label" for="aub-esp">Espessura: <b id="aub-esp-v"></b></label><input type="range" id="aub-esp" min="4" max="48" step="1"></div>
-          <div><label class="campo-label" for="aub-x">Posição horizontal: <b id="aub-x-v"></b></label><input type="range" id="aub-x" min="0" max="100" step="1"></div>
-          <div><label class="campo-label" for="aub-y">Posição vertical: <b id="aub-y-v"></b></label><input type="range" id="aub-y" min="0" max="100" step="1"></div>
+
+
         </div>
         <label class="check" style="margin-top:8px"><input type="checkbox" id="aub-nome"> Mostrar nome e tempo em cima da barra</label>
-        <div class="campos" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:12px">
+        </details><details class="au-section"><summary>Posições na janela do Tibia · todos os timers</summary>
+        <p class="dica">Posição em porcentagem da janela; o alerta e as barras têm posições independentes.</p>
+        <div class="campos au-global-campos" style="margin-top:12px">          <div><label class="campo-label" for="aub-y">Barras: posição vertical: <b id="aub-y-v"></b></label><input type="range" id="aub-y" min="0" max="100" step="1"></div>          <div><label class="campo-label" for="aub-x">Barras: posição horizontal: <b id="aub-x-v"></b></label><input type="range" id="aub-x" min="0" max="100" step="1"></div>
           <div><label class="campo-label" for="aua-x">Alerta: posição horizontal <b id="aua-x-v"></b></label><input type="range" id="aua-x" min="0" max="100" step="1"></div>
           <div><label class="campo-label" for="aua-y">Alerta: posição vertical <b id="aua-y-v"></b></label><input type="range" id="aua-y" min="0" max="100" step="1"></div>
         </div>
-        <p class="dica" style="margin:8px 0 0">Vale para os timers com "Barra no Tibia" ligada. Mexa nos controles com o Tibia aberto: as barras de exemplo aparecem em cima dele para você ajustar. A posição é em % da janela do Tibia.</p>
-        <div id="au-form-acoes"></div>
+        <p class="dica" style="margin:8px 0 0">Vale para os timers com "Barra no Tibia" ligada. Mexa nos controles com o Tibia aberto: as barras de exemplo aparecem em cima dele para você ajustar. A posição é em % da janela do Tibia.</p></details>
+        <div id="au-form-acoes" class="au-form-acoes"></div>
       </div>
-      <div id="au-lista" style="margin-top:16px"></div>
+      </div>
     </section>
 
     <!-- ================= CONFIGURAÇÕES ================= -->
@@ -2714,14 +2727,14 @@ window.audioEstado = (est) => { if (AU) { AU.estado = est; mostrarEstadoAudio(es
 
 function abrirFormAudio(id) {
   const base = id ? AU.cfg.timers.find((t) => t.id === id) : null;
-  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'padrao:Potion.mp3', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo', mensagem: '', fonte: 34, fixo: false, piscar: 0 }));
+  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'padrao:Potion.mp3', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo', mensagem: '', fonte: 34, visual: {estilo: 'glow', familia: 'Segoe UI', intensidade: 22}, fixo: false, piscar: 0 }));
   auEditando._teclaTexto = id ? AU.teclas[id] : '';
   desenharFormAudio();
   $('au-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function desenharFormAudio() {
   const t = auEditando;
-  if (!t) { $('au-form').innerHTML = ''; $('au-form-visual').innerHTML = ''; $('au-form-acoes').innerHTML = ''; return; }
+  if (!t) { $('au-form').innerHTML = ''; $('au-form-visual').innerHTML = ''; $('au-form-acoes').innerHTML = ''; atualizarPreviaAudio(); return; }
   $('au-form').innerHTML = `<div class="card au-form" style="margin-top:16px">
     <h2 class="sub">${t.id ? 'Editar timer' : 'Novo timer'}</h2>
     <div class="campos">
@@ -2764,6 +2777,7 @@ function desenharFormAudio() {
     </div>
   </div>`;
   $('au-form-acoes').innerHTML = `<div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>`;
+  organizarFormAudio(t);
   $('auf-nome').addEventListener('input', () => { t.nome = $('auf-nome').value; });
   ['m', 's', 'ms'].forEach((k) => {
     $('auf-dur-' + k).addEventListener('input', () => { const d = lerMs('auf-dur'); if (d > 0) t.duracao = d; });
@@ -2825,6 +2839,9 @@ function mostrarCfgBarra() {
   $('aub-x').value = b.x; $('aub-x-v').textContent = Math.round(b.x) + '%';
   $('aub-y').value = b.y; $('aub-y-v').textContent = Math.round(b.y) + '%';
   $('aub-nome').checked = !!b.nome;
+  $('aub-estilo').value = b.estilo || 'classica'; $('aub-texto-estilo').value = b.texto_estilo || 'contorno';
+  $('aub-familia').value = b.familia || 'Verdana'; $('aub-cor-tempo').checked = !!b.cor_tempo;
+  atualizarPreviaAudio();
   const a = AU.cfg.alerta;
   $('aua-x').value = a.x; $('aua-x-v').textContent = Math.round(a.x) + '%';
   $('aua-y').value = a.y; $('aua-y-v').textContent = Math.round(a.y) + '%';
@@ -2841,7 +2858,7 @@ function mudouAlertaPos() {
 function testarMsg(t, vivo) {
   const antes = Math.min(t.antes || 0, t.duracao || 60);
   const auto = antes ? `${t.nome || 'Poção'} acaba em ${antes}s` : `${t.nome || 'Poção'} acabou!`;
-  api.audio_testar_alerta(t.cor || 'amarelo', (t.mensagem || '').trim() || auto, t.fonte || 34, AU.cfg.alerta, vivo ? 0 : 4, !!t.piscar);
+  api.audio_testar_alerta(t.cor || 'amarelo', (t.mensagem || '').trim() || auto, t.fonte || 34, AU.cfg.alerta, vivo ? 0 : 4, !!t.piscar, t.visual);
 }
 function testarBarra(t, vivo) { api.audio_testar_barras(AU.cfg.barra, t.nome || 'Timer', t.cor || 'amarelo', !!vivo); }
 
@@ -2878,6 +2895,7 @@ $('au-alerta-testar').addEventListener('click', () => {
 });
 // qualquer mudança no timer ou no card atualiza o teste (os campos já se atualizaram antes de o evento chegar aqui)
 ['au-form', 'au-visual'].forEach((id) => ['input', 'change', 'click'].forEach((ev) => $(id).addEventListener(ev, (e) => {
+  atualizarPreviaAudio();
   if (e.target.id !== 'au-alerta-testar') agendarTesteVivo();
 })));
 // saiu da aba Timers: para o teste
@@ -2911,12 +2929,13 @@ function mudouBarra() {
   const b = AU.cfg.barra;
   b.largura = +$('aub-larg').value; b.espessura = +$('aub-esp').value;
   b.x = +$('aub-x').value; b.y = +$('aub-y').value; b.nome = $('aub-nome').checked;
+  b.estilo = $('aub-estilo').value; b.texto_estilo = $('aub-texto-estilo').value; b.familia = $('aub-familia').value; b.cor_tempo = $('aub-cor-tempo').checked;
   mostrarCfgBarra();
   if (!auVivo) api.audio_testar_barras(b);   // mostra o exemplo na hora, em cima do Tibia (no teste ligado, ele mesmo atualiza)
   clearTimeout(tBarra); tBarra = setTimeout(salvarAudio, 600);
 }
 ['aub-larg', 'aub-esp', 'aub-x', 'aub-y'].forEach((id) => $(id).addEventListener('input', mudouBarra));
-$('aub-nome').addEventListener('change', mudouBarra);
+['aub-nome','aub-estilo','aub-texto-estilo','aub-familia','aub-cor-tempo'].forEach(id => $(id).addEventListener('change', mudouBarra));
 
 $('au-novo').addEventListener('click', () => abrirFormAudio(null));
 $('au-ligado').addEventListener('click', () => { AU.cfg.ligado = !AU.cfg.ligado; salvarAudio(); });

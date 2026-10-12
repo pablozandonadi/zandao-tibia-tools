@@ -107,6 +107,7 @@ def normalizar(t):
         "cor": _cor(t.get("cor")),
         "mensagem": str(t.get("mensagem") or "").strip()[:60],   # texto do alerta (vazio = automático)
         "fonte": max(14, min(96, int(t.get("fonte") or 34))),    # tamanho da letra do alerta
+        "visual": overlay.timer_visual.aparencia(t.get("visual")),
         "fixo": bool(t.get("fixo", False)),                      # alerta fica na tela até apertar a tecla de novo
         "piscar": _piscar(t.get("piscar")),                       # alerta pisca nos últimos N segundos (0 = não)
         "personagem": str(t.get("personagem") or "").strip()[:40],   # só dispara quando este personagem está em uso ("" = antigo, sem vínculo: parado)
@@ -458,10 +459,10 @@ class Motor:
     def tocar(self, som_id, volume_timer=100):
         self.tocador.tocar(caminho_do_som(som_id), volume_timer * self.cfg["volume"] / 100)
 
-    def testar_alerta(self, cor="amarelo", texto="Poção acaba em 3s", fonte=34, segundos=4, piscar=False):
+    def testar_alerta(self, cor="amarelo", texto="Poção acaba em 3s", fonte=34, segundos=4, piscar=False, visual=None):
         """segundos=0: o alerta fica na tela até parar_teste() (teste ao vivo)."""
         return self.alerta.mostrar(texto or "Poção acaba em 3s", cor, segundos, so_tibia=False, tamanho=fonte,
-                                   pos=self.cfg["alerta"], piscar=piscar)
+                                   pos=self.cfg["alerta"], piscar=piscar, visual=visual)
 
     def _talvez_piscar(self, e, agora):
         """Nos últimos N s da volta o alerta pisca até acabar. Devolve True se está piscando nesta volta."""
@@ -478,7 +479,7 @@ class Motor:
         if c["fixo"]:
             self._alerta_fixo = c["id"]
         self.alerta.mostrar(texto_piscando(c), c["cor"], 0 if c["fixo"] else resta,
-                            tamanho=c["fonte"], pos=self.cfg["alerta"], piscar=True)
+                            tamanho=c["fonte"], pos=self.cfg["alerta"], piscar=True, visual=c.get("visual"))
         return True
 
     def parar_teste(self):
@@ -558,7 +559,7 @@ class Motor:
                         if self._pisca_dono == e.cfg["id"]:
                             self._pisca_dono = None
                         self.alerta.mostrar(texto_alerta(e.cfg), e.cfg["cor"], 0 if fixo else 3,
-                                            tamanho=e.cfg["fonte"], pos=self.cfg["alerta"])
+                                            tamanho=e.cfg["fonte"], pos=self.cfg["alerta"], visual=e.cfg.get("visual"))
                         self._alerta_fixo = e.cfg["id"] if fixo else None
                     mudou = True
             rodando = any(e.rodando for e in self.estados.values())
