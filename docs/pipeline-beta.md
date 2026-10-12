@@ -22,6 +22,8 @@ Durante desenvolvimento, executar python zandao_tibia_tools.py evita compilar a 
 
 ## Estado da ativação (12/10/2026)
 
-Implementação validada com 282 testes em cópia limpa. O primeiro push foi recusado pelo GitHub: a credencial OAuth usada pelo Git não tem escopo workflow. Nenhuma branch develop ou Release Beta foi publicada por essa tentativa. Para autorizar a publicação, o usuário pode executar no terminal: gh auth login --hostname github.com --git-protocol https --web --scopes workflow. Após autenticar: gh auth setup-git. Não grave tokens em arquivos do projeto.
+O usuário autorizou GitHub CLI com escopo workflow. A branch develop foi publicada; primeira compilação: https://github.com/pablozandonadi/zandao-tibia-tools/actions/runs/38303390412 (commit 156a96c6ea9ced9c2a770d002e2a3b901ee71f18). A fonte compartilhada continua na branch main local, com estas mudanças disponíveis ao Codex e Claude. A main remota mantém a versão estável 1.0.19.
 
-O commit preparado está na branch develop da cópia temporária %TEMP%\zandao-beta-pipeline-20261012. A fonte compartilhada continua na sua branch original. Antes de retomar, conferir se origin/main ou origin/develop recebeu alterações e integrar sem sobrescrever trabalho de outro agente. Só depois enviar develop e acompanhar o workflow até terminar.
+Para próximas Betas, os assistentes devem publicar somente mudanças aprovadas em develop usando uma cópia sincronizada, sem trocar a branch da pasta compartilhada nem enviar todos os arquivos pendentes indiscriminadamente. A cópia temporária desta ativação está em %TEMP%\zandao-beta-pipeline-20261012. Conferir origin/main e origin/develop antes de reutilizá-la.
+
+282 testes passaram em cópia limpa. Um instalador Beta local de validação também foi compilado; a distribuição aos testadores deve usar o pacote oficial gerado pelo workflow. A instalação e a atualização seguinte no Windows real ainda precisam ser testadas pelo usuário.
