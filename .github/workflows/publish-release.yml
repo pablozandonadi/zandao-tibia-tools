@@ -1,0 +1,54 @@
+name: Publicar atualização do aplicativo
+on:
+  push:
+    branches: [main]
+    paths: [versao.py]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: publicar-zandao-tibia-tools
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Instalar dependências do build
+        run: python -m pip install pywebview==6.2.1 pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8 pythonnet==3.2.0
+      - name: Instalar Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Compilar e testar
+        shell: pwsh
+        run: ./instalador/gerar_instalador.ps1 -PastaBuild "$env:RUNNER_TEMP/zandao-release"
+      - name: Montar versão portátil e verificar pacote limpo
+        shell: pwsh
+        run: |
+          $version = python -c "from versao import VERSAO_APP; print(VERSAO_APP)"
+          $app = "$env:RUNNER_TEMP/zandao-release/dist/ZandaoTibiaTools"
+          $installer = "$env:RUNNER_TEMP/zandao-release/output/ZandaoTibiaToolsSetup.exe"
+          if (!(Test-Path -LiteralPath $installer)) { throw 'Instalador ausente' }
+          foreach ($name in @('historico_hunts.json','meus_personagens.json','settings.json','preferencias.json','hunt_atual.json','sets.json','rodas.json','audio_timers.json')) {
+            if (Test-Path -LiteralPath (Join-Path $app $name)) { throw "Dado pessoal no pacote: $name" }
+          }
+          Compress-Archive -Path "$app/*" -DestinationPath "$env:RUNNER_TEMP/ZandaoTibiaTools-v$version.zip"
+      - name: Publicar release com instalador e versão portátil
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $version = python -c "from versao import VERSAO_APP; print(VERSAO_APP)"
+          $tag = "v$version"
+          $installer = "$env:RUNNER_TEMP/zandao-release/output/ZandaoTibiaToolsSetup.exe"
+          $zip = "$env:RUNNER_TEMP/ZandaoTibiaTools-v$version.zip"
+          $notes = "docs/releases/$tag.md"
+          if (!(Test-Path -LiteralPath $notes)) { throw 'Notas da release ausentes' }
+          gh release view $tag --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) { throw "A release $tag já existe; aumente VERSAO_APP antes de publicar." }
+          gh release create $tag $installer $zip --target "$env:GITHUB_SHA" --title "Zandao Tibia Tools $tag" --notes-file $notes
+          if ($LASTEXITCODE -ne 0) { throw 'Falha na publicação' }
+
