@@ -9,11 +9,14 @@ import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlencode, quote
 import monstros
+import creature_sources
 from damage_core import ROTULO, parse_damage_input
 
 API = 'https://www.tibiawiki.com.br/api.php'
 CACHE = os.path.join(monstros.BASE_DIR, 'cache_planejador.json')
 ELEMENTOS = [e for e in ROTULO if e != 'healing']
+BASE_CONHECIMENTO = os.path.join(monstros.BASE_DIR, 'data', 'creature_knowledge.json')
+_base_conhecimento = None
 
 def _read():
     try:
@@ -74,25 +77,55 @@ def parse_wiki(text, name):
         raw = fields.get(key, '')
         m = re.match(r'\s*(-?\d+)\s*%', raw)
         if m and '?' not in raw: resist[el] = int(m.group(1))
-    return dict(nome=fields.get('name') or name, ataques=attacks, avisos=warnings, resist=resist,
+    out = dict(nome=fields.get('name') or name, ataques=attacks, avisos=warnings, resist=resist,
                 fonte='https://www.tibiawiki.com.br/wiki/'+quote(name.replace(' ', '_'), safe=''), consultado=time.time())
+    for key,target in [('hp','hp'),('exp','xp'),('defense','armor'),('mitigation','mitigation'),('speed','speed')]:
+        raw = fields.get(key, '').strip()
+        if re.fullmatch(r'\d+(?:\.\d+)?',raw): out[target] = float(raw) if '.' in raw else int(raw)
+    return out
+
+def _consultar_fonte(name, key):
+    api = API if key == 'br' else monstros.WIKI
+    r = monstros._get_json(api+'?'+urlencode(dict(action='parse', page=name, prop='wikitext|revid', format='json', redirects=1)))
+    page = r['parse']; text = page['wikitext']['*']
+    if key == 'br':
+        if not monstros._campos_infobox(text, 'Infobox_Criatura'): raise ValueError('Sem ficha BR')
+        out = parse_wiki(text, page['title'])
+    else: out = creature_sources.parse_en(text, page['title'])
+    out['revisao'] = page.get('revid')
+    return out
+
+
+def _base_ficha(name):
+    global _base_conhecimento
+    if _base_conhecimento is None:
+        try:
+            with open(BASE_CONHECIMENTO, encoding='utf-8') as f: _base_conhecimento = json.load(f).get('criaturas', {})
+        except (OSError, ValueError): _base_conhecimento = {}
+    return _base_conhecimento.get(name)
+
 
 def ficha(name, atualizar=False):
-    c = _read(); old = c.get('fichas', {}).get(name)
-    if old and 'resist' in old and not atualizar and time.time()-old.get('consultado', 0) < 7*86400: return old
-    try:
-        r = monstros._get_json(API+'?'+urlencode(dict(action='parse', page=name, prop='wikitext', format='json', redirects=1)))
-        p = r['parse']; text = p['wikitext']['*']
-        if not monstros._campos_infobox(text, 'Infobox_Criatura'): raise ValueError('Sem ficha')
-        out = parse_wiki(text, p['title'])
-        # Merge after network request so concurrent results do not overwrite each other.
+    c = _read(); candidates = [f for f in [c.get('fichas', {}).get(name), _base_ficha(name)] if f]
+    old = max(candidates, key=lambda f:(f.get('schema', 0), f.get('consultado', 0) or 0)) if candidates else None
+    if old and old.get('schema') == creature_sources.SCHEMA and not atualizar and time.time()-old.get('consultado', 0) < old.get('validade', 7*86400): return old
+    sources, errors = {}, []
+    for key in ['br','en']:
+        try: sources[key] = _consultar_fonte(name, key)
+        except Exception:
+            errors.append(('Tibia Wiki BR' if key == 'br' else 'TibiaWiki EN')+': consulta indisponível.')
+            previous = (old or {}).get('dados_fontes', {}).get(key)
+            if previous:
+                sources[key] = previous
+                errors.append(('Tibia Wiki BR' if key == 'br' else 'TibiaWiki EN')+': preservados os dados anteriores em cache.')
+    if not sources and old: return dict(old, avisos=old.get('avisos',[])+errors+['Exibindo a ficha anterior em cache.'])
+    out = creature_sources.merge(name, sources.get('br'), sources.get('en'), errors)
+    if sources:
         with monstros._trava:
             c = _read(); c.setdefault('fichas', {})[name] = out
             with open(CACHE, 'w', encoding='utf-8') as f: json.dump(c, f, ensure_ascii=False)
-        return out
-    except Exception:
-        if old: return dict(old, avisos=old['avisos']+['Falha na atualização: exibindo dados antigos.'])
-        return dict(nome=name, ataques=[], avisos=['Não foi possível consultar esta criatura.'], fonte='https://www.tibiawiki.com.br/wiki/'+quote(name.replace(' ', '_'), safe=''), consultado=None)
+    return out
+
 
 def calcular(rows, dano=None):
     total = sum(r['peso'] for r in rows)

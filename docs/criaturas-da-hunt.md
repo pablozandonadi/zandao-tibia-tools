@@ -36,3 +36,14 @@ A busca foi limitada aos nomes que têm GIF empacotado (967 correspondências no
 Received Damage é opcional e independente do Hunting Analyser. Quando colado, a distribuição medida prevalece sem mistura com as faixas da Wiki. Máximos individuais permanecem reportados pela Wiki. O cenário da comparação enviada retorna físico 59,1%, life drain 21%, morte 14% e energia 5,9% com o log medido. Sem Received Damage não se força o físico a dominar; o teste de Icecold Book mantém a predominância de gelo no perfil estimado. Dano e modificadores de resistência são apresentados em ordem decrescente da esquerda para a direita.
 
 Somente o novo menu foi ajustado. Módulos damage_core.py, hunt.py e solo_hunt_core.py mantidos sem alterações nesta revisão. Foram validados logs medidos, ausência de GIF, ordenação de cartões e layout largo/estreito.
+
+
+## Base BR + TibiaWiki EN (1.0.16)
+
+Snapshot factual de 967 criaturas, armazenado em data/creature_knowledge.json e incluído no instalador. update_creature_knowledge.py atualiza o snapshot com consultas de 50 páginas por requisição às APIs públicas, no máximo três consultas simultâneas. A base inclui faixas confirmadas, resistências, dados básicos e URLs/revisões de origem. Textos descritivos e histórias não são copiados.
+
+Cada ficha consulta as duas Wikis. Dados confirmados em inglês têm prioridade em divergências, que ficam visíveis; campos ausentes na inglesa são completados pela brasileira. Ataques equivalentes entre as fontes são associados para não somar o mesmo golpe duas vezes. Campos marcados como incertos permanecem fora das contas. Resumos Max Damage são preservados em uma seção separada e não viram golpes individuais ou mínimos inventados. Cache antigo é revalidado; falhas de uma fonte preservam seus dados anteriores e permitem nova tentativa após uma hora.
+
+Dworc Shadowstalker: a API brasileira não apresenta faixas; a inglesa declara Life Drain 0–625. O resumo inglês indica físico 250, life drain 625 e morte 100. Os máximos de físico e morte não têm faixas de ataques nesta ficha e não entram na média. Ambas as páginas são ligadas no card, e cada ataque indica a origem. Fonte inglesa: https://tibia.fandom.com/wiki/Dworc_Shadowstalker; brasileira: https://www.tibiawiki.com.br/wiki/Dworc_Shadowstalker.
+
+Botão Limpar lista remove toda a composição, os textos colados e o resultado, para preparar outra hunt. Não altera histórico nem configurações.

@@ -48,6 +48,7 @@ $app = Join-Path $PastaBuild "dist\ZandaoTibiaTools"
 New-Item -ItemType Directory -Force (Join-Path $app "data") | Out-Null
 Copy-Item (Join-Path $raiz "data\imbuements.json") (Join-Path $app "data") -Force
 Copy-Item (Join-Path $raiz "data\task_items.json") (Join-Path $app "data") -Force
+Copy-Item (Join-Path $raiz "data\creature_knowledge.json") (Join-Path $app "data") -Force
 
 Write-Host "3/3  Inno Setup..."
 & $iscc "/DMyAppVersion=$versao" "/DSourceDistDir=$app" "/DOutputDir=$(Join-Path $PastaBuild 'output')" `
