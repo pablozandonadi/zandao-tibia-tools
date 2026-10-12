@@ -35,3 +35,5 @@ Consultas públicas em 12/10/2026: Rasteibra retornou Izcandar the Banished prev
 A publicação Beta usa cópia temporária de develop conforme docs/pipeline-beta.md, sem trocar a branch compartilhada nem levar outras alterações pendentes. A versão estável permanece inalterada.
 
 Validação final antes da publicação: 302 testes passaram em cópia limpa de develop com as dependências do projeto. Testes de navegador confirmaram busca por mundo, personagem padrão, descarte de respostas atrasadas e escape de texto remoto.
+
+Avisos por mundo consultam /v4/news/id/{id} para obter texto completo e link, pois o ticker é truncado. Anúncios explícitos de compensação Double XP/skill no formato conhecido between the server saves of Month D and D, YYYY são incorporados ao calendário apenas no mundo citado e com datas válidas. Outros formatos continuam como aviso textual; não são inferidos. Ferobra 16→19/10/2026 foi validado ao vivo. A suíte final tem 303 testes.

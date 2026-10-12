@@ -52,6 +52,19 @@ class TestZandaoBot(unittest.TestCase):
         with patch.object(tibia_info, '_get_json', return_value={'worlds': {'regular_worlds': [{'name': 'Rasteibra'}, {'name': 'Antica'}]}}):
             self.assertEqual(zandaobot.mundos()['mundos'], ['Antica', 'Rasteibra'])
 
+    def test_compensacao_exclusiva_datas_completas_e_limites(self):
+        text='As compensation for the recent reset of Ferobra, a double XP/skill weekend will take place on the game world between the server saves of October 16 and October 19, 2026.'
+        notice={'texto':text, 'id':9017,'completo':True,'velho':False}
+        from datetime import date
+        result=zandaobot.eventos_compensacao([notice],'Ferobra',date(2026,10,12))
+        self.assertEqual(result[0]['inicio'],'2026-10-16')
+        self.assertEqual(result[0]['fim'],'2026-10-19')
+        self.assertEqual(result[0]['escopo'],'Ferobra')
+        self.assertFalse(zandaobot.eventos_compensacao([notice],'Antica',date(2026,10,12)))
+        self.assertFalse(zandaobot.eventos_compensacao([notice],'Ferobra',date(2026,10,19)))
+        self.assertFalse(zandaobot.eventos_compensacao([{**notice,'velho':True}],'Ferobra',date(2026,10,12)))
+        self.assertFalse(zandaobot.eventos_compensacao([{**notice,'completo':False}],'Ferobra',date(2026,10,12)))
+
     def test_rashid_vira_no_server_save(self):
         antes = datetime(2026, 10, 12, 7, 59, tzinfo=timezone.utc)
         depois = datetime(2026, 10, 12, 8, 0, tzinfo=timezone.utc)
