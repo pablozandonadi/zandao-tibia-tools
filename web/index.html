@@ -665,6 +665,7 @@
 <link rel="stylesheet" href="task_items.css">
 <link rel="stylesheet" href="timers.css">
 <script src="timers.js"></script>
+<script src="beta_publicacao.js"></script>
 <link rel="stylesheet" href="zandaobot.css">
 </head>
 <body>
@@ -1039,6 +1040,13 @@
           <h2 class="sub">ℹ️ Programa</h2>
           <p class="texto" style="margin:0 0 10px">Zandao Tibia Tools <b id="cfg-versao">v—</b>. O programa procura versão nova sozinho toda vez que abre.</p>
           <div class="acoes"><button class="btn" id="cfg-atualizar">🔄 Procurar atualização agora</button><button class="btn" id="cfg-pasta">📂 Abrir pasta dos dados</button></div>
+          <div id="beta-publicacao" style="display:none;margin-top:18px">
+            <h3>Publicar a Beta aprovada</h3>
+            <p class="dica" id="beta-publicacao-info"></p>
+            <div class="acoes"><button class="btn btn-primary" id="beta-publicar-original">Publicar na versão original</button>
+              <a id="beta-publicacao-link" href="#" style="display:none;color:var(--accent)">Acompanhar publicação</a></div>
+            <p class="dica" id="beta-publicacao-status" role="status" aria-live="polite"></p>
+          </div>
           <p class="dica" style="margin:10px 0 0">Na pasta dos dados ficam os seus arquivos (histórico, personagens, preços...). Desinstalar o programa não apaga esses arquivos.</p>
         </div>
       </div>
@@ -3196,6 +3204,7 @@ async function iniciar() {
   $('p-mes').checked = !!d.prints['by-month'];
   $('p-abrir').checked = !!d.prints['open-when-done'];
   huntIniciar();
+  iniciarPublicacaoBeta();
   api.versao_app().then((v) => { $('versao-app').textContent = 'v' + v; $('cfg-versao').textContent = 'v' + v; });
   carregarDia();
   api.audio_iniciar().then((r) => { AU = r; renderAudio(); });

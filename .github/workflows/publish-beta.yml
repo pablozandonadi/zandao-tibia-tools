@@ -1,17 +1,31 @@
 name: Publicar Beta
+run-name: ${{ inputs.publicar_original && format('Publicar original {0}', inputs.beta_tag) || format('Beta {0}', github.sha) }}
 on:
   push:
     branches: [develop]
     paths-ignore: ['docs/**', '*.md']
   workflow_dispatch:
+    inputs:
+      publicar_original:
+        description: Publicar a Beta aprovada no canal estável
+        type: boolean
+        default: false
+      beta_tag:
+        description: Tag exata da Beta instalada
+        type: string
+        default: ''
+      source_sha:
+        description: Commit registrado na Beta instalada
+        type: string
+        default: ''
 permissions:
   contents: write
 concurrency:
-  group: beta-zandao-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ inputs.publicar_original && 'publicar-zandao-tibia-tools' || format('beta-zandao-{0}', github.ref) }}
+  cancel-in-progress: ${{ !inputs.publicar_original }}
 jobs:
   beta:
-    if: github.ref == 'refs/heads/develop'
+    if: github.ref == 'refs/heads/develop' && !inputs.publicar_original
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +38,7 @@ jobs:
         run: choco install innosetup --yes --no-progress
       - name: Testar e gerar Beta
         shell: pwsh
-        run: ./instalador/gerar_instalador.ps1 -Canal beta -BetaBuild "${{ github.run_number }}.${{ github.run_attempt }}" -PastaBuild "$env:RUNNER_TEMP/zandao-beta"
+        run: ./instalador/gerar_instalador.ps1 -Canal beta -SourceCommit "${{ github.sha }}" -BetaBuild "${{ github.run_number }}.${{ github.run_attempt }}" -PastaBuild "$env:RUNNER_TEMP/zandao-beta"
       - name: Publicar instalador e portátil Beta
         shell: pwsh
         env:
@@ -43,3 +57,60 @@ jobs:
           Compress-Archive -Path "$app/*" -DestinationPath $zip
           gh release create "v$version" $installer $zip --prerelease --latest=false --target "$env:GITHUB_SHA" --title "Zandao Tibia Tools Beta $version" --notes "Versão de testes. Dados separados da instalação estável. Código: $env:GITHUB_SHA."
           if ($LASTEXITCODE -ne 0) { throw 'Falha na publicação Beta' }
+
+  original:
+    if: github.event_name == 'workflow_dispatch' && inputs.publicar_original && github.ref == format('refs/tags/{0}', inputs.beta_tag)
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      BETA_TAG: ${{ inputs.beta_tag }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Preparar a Beta exata aprovada
+        id: promover
+        shell: pwsh
+        run: |
+          python instalador/promover_beta.py preparar "$env:BETA_TAG" "$env:SOURCE_SHA"
+          if ($LASTEXITCODE -ne 0) { throw 'Não foi possível preparar a Beta aprovada' }
+      - name: Instalar dependências
+        run: python -m pip install pywebview==6.2.1 pyinstaller==6.22.3 pyinstaller-hooks-contrib==2026.8 pythonnet==3.2.0
+      - name: Instalar Inno Setup
+        run: choco install innosetup --yes --no-progress
+      - name: Testar e gerar instalador estável
+        shell: pwsh
+        run: ./instalador/gerar_instalador.ps1 -PastaBuild "$env:RUNNER_TEMP/zandao-original"
+      - name: Verificar e montar o portátil estável
+        shell: pwsh
+        run: |
+          $app = "$env:RUNNER_TEMP/zandao-original/dist/ZandaoTibiaTools"
+          $installer = "$env:RUNNER_TEMP/zandao-original/output/ZandaoTibiaToolsSetup.exe"
+          if (!(Test-Path -LiteralPath $installer)) { throw 'Instalador ausente' }
+          foreach ($name in @('historico_hunts.json','meus_personagens.json','settings.json','preferencias.json','hunt_atual.json','sets.json','rodas.json','audio_timers.json')) {
+            if (Test-Path -LiteralPath (Join-Path $app $name)) { throw "Dado pessoal no pacote: $name" }
+          }
+          Compress-Archive -Path "$app/*" -DestinationPath "$env:RUNNER_TEMP/ZandaoTibiaTools-v${{ steps.promover.outputs.version }}.zip"
+      - name: Integrar em main somente após testes e compilação
+        shell: pwsh
+        env:
+          MAIN_BASE: ${{ steps.promover.outputs.base }}
+          STABLE_VERSION: ${{ steps.promover.outputs.version }}
+        run: |
+          python instalador/promover_beta.py finalizar "$env:MAIN_BASE" "$env:STABLE_VERSION"
+          if ($LASTEXITCODE -ne 0) { throw 'A main não foi atualizada. Consulte o erro acima' }
+      - name: Publicar instalador e portátil na versão original
+        shell: pwsh
+        env:
+          STABLE_VERSION: ${{ steps.promover.outputs.version }}
+        run: |
+          $installer = "$env:RUNNER_TEMP/zandao-original/output/ZandaoTibiaToolsSetup.exe"
+          $zip = "$env:RUNNER_TEMP/ZandaoTibiaTools-v$env:STABLE_VERSION.zip"
+          $sha = git rev-parse HEAD
+          gh release create "v$env:STABLE_VERSION" $installer $zip --target "$sha" --latest --title "Zandao Tibia Tools v$env:STABLE_VERSION" --notes-file "docs/releases/v$env:STABLE_VERSION.md"
+          if ($LASTEXITCODE -ne 0) { throw 'Falha na publicação dos pacotes estáveis' }

@@ -12,6 +12,7 @@ from datetime import date
 import webview
 
 import atualizacoes
+import publicacao_beta
 import audio_timers
 import backup
 import damage_core
@@ -1213,6 +1214,23 @@ class API:
     # ================= atualização automática (GitHub Releases, ver atualizacoes.py) =================
     def versao_app(self):
         return VERSAO_APP
+
+    def beta_publicacao_abrir(self, url):
+        from versao import REPO_GITHUB
+        import webbrowser
+        base = f"https://github.com/{REPO_GITHUB}/"
+        if not isinstance(url, str) or not url.startswith((base + "actions/", base + "releases/")):
+            return False
+        return webbrowser.open(url)
+
+    def beta_publicacao_info(self):
+        return publicacao_beta.informacoes()
+
+    def beta_publicar_original(self):
+        return publicacao_beta.publicar()
+
+    def beta_publicacao_estado(self):
+        return publicacao_beta.estado()
 
     def verificar_atualizacao(self):
         """Silencioso: None se não tem versão nova, sem internet etc."""

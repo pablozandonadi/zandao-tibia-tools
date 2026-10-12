@@ -10,7 +10,8 @@
 param(
     [string]$PastaBuild = (Join-Path $env:TEMP "zandao_tibia_tools_build"),
     [ValidateSet("stable", "beta")][string]$Canal = "stable",
-    [string]$BetaBuild = ""
+    [string]$BetaBuild = "",
+    [string]$SourceCommit = ""
 )
 
 # "Continue" de propósito: PyInstaller e ISCC escrevem progresso no stderr. O sucesso é checado em $LASTEXITCODE.
@@ -52,7 +53,7 @@ Write-Host "2/3  PyInstaller..."
 $spec = Join-Path $PastaBuild "spec"
 New-Item -ItemType Directory -Force $PastaBuild | Out-Null
 $metadata = Join-Path $PastaBuild "canal_build.json"
-@{canal=$Canal; versao=$versao} | ConvertTo-Json | Set-Content -LiteralPath $metadata -Encoding utf8
+@{canal=$Canal; versao=$versao; source_sha=$SourceCommit} | ConvertTo-Json | Set-Content -LiteralPath $metadata -Encoding utf8
 python -m PyInstaller --noconfirm --clean --windowed --name "ZandaoTibiaTools" `
     --add-data "$metadata;." `
     --icon (Join-Path $raiz "icon.ico") `

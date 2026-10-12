@@ -27,3 +27,10 @@ O usuário autorizou GitHub CLI com escopo workflow. A branch develop foi public
 Para próximas Betas, os assistentes devem publicar somente mudanças aprovadas em develop usando uma cópia sincronizada, sem trocar a branch da pasta compartilhada nem enviar todos os arquivos pendentes indiscriminadamente. A cópia temporária desta ativação está em %TEMP%\zandao-beta-pipeline-20261012. Conferir origin/main e origin/develop antes de reutilizá-la.
 
 282 testes passaram em cópia limpa. Um instalador Beta local de validação também foi compilado; a distribuição aos testadores deve usar o pacote oficial gerado pelo workflow. A instalação e a atualização seguinte no Windows real ainda precisam ser testadas pelo usuário.
+## Fluxo permanente de análise do usuário
+
+Ao terminar uma mudança no aplicativo, validar e publicar automaticamente a Beta oficial em develop. O usuário autorizou commits e push nessa branch como preparação da Beta. Main e a publicação estável aguardam aprovação. Essa orientação substitui a exigência anterior de aprovação prévia para gerar/publicar a Beta de análise.
+
+O botão “Publicar na versão original”, em Configurações da Beta, representa a aprovação do usuário para promover a Beta instalada. Usa o GitHub CLI autenticado do computador, com permissão de escrita no repositório; credenciais nunca entram no executável. O acionamento informa a tag e o commit registrados no build, executando o workflow dessa tag. Não promove automaticamente a develop mais recente.
+
+O pipeline verifica a prerelease e o commit, exige que a main seja ancestral da Beta (divergência exige reconciliação e nova análise), aumenta o patch da versão estável, gera notas, testa, recompila instalador e portátil estáveis, e somente então faz commit/push em main e publica a release. Não troca a branch da pasta compartilhada. A interface acompanha a execução e só informa conclusão após a publicação dos dois artefatos. Beta local sem commit de origem não permite promoção.

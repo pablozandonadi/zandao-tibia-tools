@@ -15,6 +15,7 @@ import sys
 
 VERSAO_BASE = VERSAO_APP
 CANAL_APP = "stable"
+BUILD_SOURCE_SHA = ""
 if getattr(sys, "frozen", False):
     _metadata = os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(sys.executable)), "canal_build.json")
     if os.path.isfile(_metadata):
@@ -22,6 +23,7 @@ if getattr(sys, "frozen", False):
             _build = json.load(_f)
         if _build.get("canal") == "beta":
             CANAL_APP = "beta"
+            BUILD_SOURCE_SHA = _build.get("source_sha", "")
             VERSAO_APP = _build["versao"]
 NOME_APP = "Zandao Tibia Tools" + (" Beta" if CANAL_APP == "beta" else "")
 NOME_INSTALADOR = "ZandaoTibiaToolsBetaSetup.exe" if CANAL_APP == "beta" else "ZandaoTibiaToolsSetup.exe"

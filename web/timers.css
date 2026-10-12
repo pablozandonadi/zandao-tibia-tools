@@ -29,3 +29,40 @@
 #au-bar-preview {min-height:110px}
 @media(max-width:1250px) {#page-audio .au-editor-layout {grid-template-columns:1fr}}
 @media(max-width:650px) {#page-audio .au-form .campos,#page-audio .au-global-campos {grid-template-columns:1fr!important}.au-controles .vol input {width:110px}}
+
+/* Each panel responds to its available width, including a narrow desktop column. */
+#page-audio {container-type:inline-size;container-name:audio;min-width:0}
+#page-audio .au-editor-layout > *,#page-audio .au-form,#page-audio .campos > *,#page-audio .au-global-campos > * {min-width:0}
+#page-audio .au-editor-main {container-type:inline-size;container-name:timer-list}
+#page-audio .au-item {grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"info key" "time time" "actions actions";gap:10px 12px;min-width:0}
+#page-audio .au-item > div:first-child {grid-area:info;min-width:0;overflow-wrap:anywhere}
+#page-audio .au-tecla {grid-area:key;justify-self:end;max-width:100%}
+#page-audio .au-tempo {grid-area:time;min-width:0}
+#page-audio .au-tempo .barra-el {flex:1;min-width:0;width:auto}
+#page-audio .au-tempo b {flex:none}
+#page-audio .au-acoes {grid-area:actions;flex-wrap:wrap;min-width:0}
+#page-audio .au-controles > *,#page-audio .linha-pasta > * {min-width:0;max-width:100%}
+#page-audio .au-controles .vol {flex-wrap:wrap}
+#page-audio .au-controles .acoes {flex-wrap:wrap;margin-left:0!important}
+#page-audio .check {min-width:0}
+#page-audio .check input {flex:none}
+#page-audio select,#page-audio input[type=number] {min-width:0;max-width:100%}
+#page-audio .h-titulo,#page-audio .linha-pasta {flex-wrap:wrap}
+#page-audio .linha-pasta select {flex:1 1 160px;width:0}
+#page-audio .au-alert-section {min-width:0;overflow-wrap:anywhere}
+@container timer-list (min-width:700px) {
+  #page-audio .au-item {grid-template-columns:minmax(0,1.2fr) auto minmax(0,1fr) auto;grid-template-areas:"info key time actions"}
+}
+@container audio (max-width:850px) {
+  #page-audio .au-editor-layout {grid-template-columns:minmax(0,1fr)}
+}
+@container audio (max-width:480px) {
+  #page-audio .au-form .campos,#page-audio .au-global-campos {grid-template-columns:minmax(0,1fr)!important}
+  #page-audio .au-alert-section {padding:12px}
+  #page-audio .au-controles {gap:12px}
+}
+@container timer-list (max-width:240px) {
+  #page-audio .au-item {grid-template-columns:minmax(0,1fr);grid-template-areas:"info" "key" "time" "actions";padding:12px}
+  #page-audio .au-tecla {justify-self:start}
+}
+@media(max-width:760px) {.content {padding:14px 12px}}
