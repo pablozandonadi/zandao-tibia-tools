@@ -139,14 +139,15 @@ def janela_do_tibia():
     return max(achadas, key=lambda r: (r[2] - r[0]) * (r[3] - r[1])) if achadas else None
 
 
-BARRA_PADRAO = {"largura": 320, "espessura": 14, "x": 50, "y": 78, "nome": True,
+BARRA_PADRAO = {"largura": 320, "espessura": 14, "x": 50, "y": 78, "nome": True, "tempo": True,
                 "estilo": "classica", "texto_estilo": "contorno", "familia": "Verdana", "cor_tempo": False}
 
 
 def normalizar_barra(b):
+    tempo = bool((b or {}).get("tempo", (b or {}).get("nome", True)))
     b = {**BARRA_PADRAO, **(b or {})}
     return {"largura": max(80, min(1200, int(b["largura"]))), "espessura": max(4, min(48, int(b["espessura"]))),
-            "x": max(0, min(100, float(b["x"]))), "y": max(0, min(100, float(b["y"]))), "nome": bool(b["nome"]),
+            "x": max(0, min(100, float(b["x"]))), "y": max(0, min(100, float(b["y"]))), "nome": bool(b["nome"]), "tempo": tempo,
             "estilo": b["estilo"] if b["estilo"] in timer_visual.ESTILOS_BARRA else "classica",
             "texto_estilo": b["texto_estilo"] if b["texto_estilo"] in timer_visual.ESTILOS_TEXTO else "contorno",
             "familia": b["familia"] if b["familia"] in timer_visual.FONTES else "Verdana", "cor_tempo": bool(b["cor_tempo"])}
@@ -155,7 +156,7 @@ def normalizar_barra(b):
 def layout_barras(n, cfg, alvo):
     """Onde fica a janela das barras: (x, y, largura, altura, altura_de_cada_linha). x/y em % da janela do Tibia."""
     esq, topo, dir_, base = alvo
-    linha = cfg["espessura"] + (18 if cfg["nome"] else 0) + 6
+    linha = cfg["espessura"] + (18 if cfg["nome"] or cfg.get("tempo", cfg["nome"]) else 0) + 6
     larg, alt = cfg["largura"] + 8, linha * n + 4
     cx = esq + (dir_ - esq) * cfg["x"] / 100
     cy = topo + (base - topo) * cfg["y"] / 100

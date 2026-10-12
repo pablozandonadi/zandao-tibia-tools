@@ -49,6 +49,15 @@ class TimerVisualTests(unittest.TestCase):
             self.assertEqual(image.width,328)
             self.assertEqual(image.getpixel((0,0))[3],0)
 
+    def test_barra_sem_escrita_e_opcoes_independentes(self):
+        self.assertFalse(overlay.normalizar_barra({'nome':False})['tempo'])
+        for nome,tempo in ((False,False),(True,False),(False,True),(True,True)):
+            cfg=overlay.normalizar_barra({'nome':nome,'tempo':tempo})
+            image=visual.barras([('Potion',.6,'0:03','verde')],cfg,overlay.cor_rgb)
+            expected=cfg['espessura']+6+(18 if nome or tempo else 0)+4
+            self.assertEqual(image.height,expected)
+            self.assertEqual(overlay.layout_barras(1,cfg,(0,0,1000,800))[3],expected)
+
     def test_estilo_encaminhado_no_aviso_piscando_e_no_teste(self):
         motor=at.Motor.__new__(at.Motor)
         motor.alerta=Mock(); motor.cfg={'alerta':{'x':50,'y':30}}

@@ -57,7 +57,8 @@ def cor_progresso(frac):
 
 
 def barras(itens, cfg, cores):
-    linha = cfg["espessura"] + (18 if cfg["nome"] else 0) + 6
+    labels = cfg["nome"] or cfg.get("tempo", cfg["nome"])
+    linha = cfg["espessura"] + (18 if labels else 0) + 6
     image = Image.new("RGBA", (cfg["largura"] + 8, linha * len(itens) + 4))
     draw = ImageDraw.Draw(image)
     style = cfg.get("estilo", "classica")
@@ -65,8 +66,9 @@ def barras(itens, cfg, cores):
         frac = max(0, min(1, frac))
         rgb = cor_progresso(frac) if cfg.get("cor_tempo") else cores(cor)
         y = 2 + i * linha
-        if cfg["nome"]:
-            for label, color, right in ((nome, (255,255,255), False), (tempo, rgb, True)):
+        if labels:
+            textos = ([(nome, (255,255,255), False)] if cfg["nome"] else []) + ([(tempo, rgb, True)] if cfg.get("tempo", cfg["nome"]) else [])
+            for label, color, right in textos:
                 im = texto(label, color, 13, {"estilo": cfg.get("texto_estilo", "contorno"), "familia": cfg.get("familia", "Verdana"), "intensidade": 6}, cfg["largura"] // 2)
                 # Recorta a margem do efeito para manter o rótulo na sua linha.
                 box = im.getbbox()

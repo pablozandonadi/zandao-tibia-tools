@@ -23,5 +23,9 @@
 #page-audio .au-editor-layout .h-titulo {align-items:center;gap:10px}
 #page-audio .au-item {box-shadow:none;border-width:1px}
 #page-audio #auf-cor {flex:none!important;width:52px!important}
+.au-alert-section {margin-top:20px;padding:16px;border:1px solid #414956;border-radius:12px}
+.au-alert-section > h3 {font-size:1rem;margin:0 0 12px;color:var(--accent)}
+.au-alert-section h4 {font-size:.86rem;margin:0 0 10px}
+#au-bar-preview {min-height:110px}
 @media(max-width:1250px) {#page-audio .au-editor-layout {grid-template-columns:1fr}}
 @media(max-width:650px) {#page-audio .au-form .campos,#page-audio .au-global-campos {grid-template-columns:1fr!important}.au-controles .vol input {width:110px}}

@@ -918,16 +918,23 @@
       <div class="card calmo" style="margin-top:16px" id="au-visual">
         <div class="h-titulo" style="margin-bottom:8px"><h2 class="sub" style="margin:0">Aparência no Tibia</h2>
           <button class="btn btn-sm" id="au-alerta-testar" title="Mostra a mensagem e a barra do jeito que estão configuradas">👁 Testar alerta</button></div>
-        <div id="au-preview" class="au-preview"></div>
-        <p class="au-preview-note">Prévia ilustrativa. Use Testar para conferir o resultado real sobre o Tibia.</p>
+        <section class="au-alert-section" id="au-text-section"><h3>Aviso de texto na tela</h3>
+        <div id="au-text-preview" class="au-preview"></div>
+        <p class="au-preview-note">Mensagem independente da barra. Você pode ligar um dos avisos ou os dois.</p>
         <div class="au-section au-aviso-escolha">
-          <h3>Aviso de texto na tela</h3>
+          <h4>Escolha o timer para editar</h4>
           <p class="dica">Este aviso é independente do nome e do tempo mostrados na barra. Escolha um timer para editar a mensagem, fonte, tamanho, brilho e comportamento do aviso.</p>
           <label class="campo-label" for="au-aviso-timer">Editar o aviso deste timer</label>
           <div class="linha-pasta"><select id="au-aviso-timer"><option value="">Escolha um timer…</option></select><button class="btn btn-sm" id="au-aviso-novo">+ Novo timer</button></div>
         </div>
         <div id="au-form-visual"></div>
-        <details class="au-section" open><summary>Barras — aparência e tamanho · todos os timers</summary>
+        <div class="au-section"><h4>Posição do aviso de texto · todos os timers</h4><div id="au-text-position" class="au-global-campos">          <div><label class="campo-label" for="aua-y">Alerta: posição vertical <b id="aua-y-v"></b></label><input type="range" id="aua-y" min="0" max="100" step="1"></div>          <div><label class="campo-label" for="aua-x">Alerta: posição horizontal <b id="aua-x-v"></b></label><input type="range" id="aua-x" min="0" max="100" step="1"></div></div></div>
+        </section>
+        <section class="au-alert-section" id="au-bar-section"><h3>Barra de contagem</h3>
+        <p class="dica">Pode ser apenas a barra. Nome e tempo são opcionais e independentes do aviso de texto.</p>
+        <div id="au-bar-preview" class="au-preview"></div>
+        <div id="au-form-bar"></div>
+        <details class="au-section" open><summary>Aparência da barra · todos os timers</summary>
         <div class="au-global-campos au-visual-options">
           <div><label class="campo-label" for="aub-estilo">Formato da barra</label><select id="aub-estilo"><option value="classica">Clássica com borda</option><option value="arredondada">Arredondada</option><option value="minimalista">Minimalista</option><option value="glow">Com brilho</option></select></div>
           <div><label class="campo-label" for="aub-texto-estilo">Formato do nome e tempo</label><select id="aub-texto-estilo"><option value="contorno">Contorno</option><option value="glow">Brilho (glow)</option><option value="sombra">Sombra</option><option value="simples">Simples</option></select></div>
@@ -940,14 +947,16 @@
 
 
         </div>
-        <label class="check" style="margin-top:8px"><input type="checkbox" id="aub-nome"> Mostrar nome e tempo em cima da barra</label>
-        </details><details class="au-section"><summary>Posições na janela do Tibia · todos os timers</summary>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="aub-nome"> Mostrar nome do timer na barra</label>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="aub-tempo"> Mostrar tempo restante na barra</label>
+        </details><details class="au-section"><summary>Posição da barra · todos os timers</summary>
         <p class="dica">Posição em porcentagem da janela; o alerta e as barras têm posições independentes.</p>
         <div class="campos au-global-campos" style="margin-top:12px">          <div><label class="campo-label" for="aub-y">Barras: posição vertical: <b id="aub-y-v"></b></label><input type="range" id="aub-y" min="0" max="100" step="1"></div>          <div><label class="campo-label" for="aub-x">Barras: posição horizontal: <b id="aub-x-v"></b></label><input type="range" id="aub-x" min="0" max="100" step="1"></div>
-          <div><label class="campo-label" for="aua-x">Alerta: posição horizontal <b id="aua-x-v"></b></label><input type="range" id="aua-x" min="0" max="100" step="1"></div>
-          <div><label class="campo-label" for="aua-y">Alerta: posição vertical <b id="aua-y-v"></b></label><input type="range" id="aua-y" min="0" max="100" step="1"></div>
+
+
         </div>
         <p class="dica" style="margin:8px 0 0">Vale para os timers com "Barra no Tibia" ligada. Mexa nos controles com o Tibia aberto: as barras de exemplo aparecem em cima dele para você ajustar. A posição é em % da janela do Tibia.</p></details>
+        </section><div id="au-form-cor"></div>
         <div id="au-form-acoes" class="au-form-acoes"></div>
       </div>
       </div>
@@ -2742,7 +2751,7 @@ function abrirFormAudio(id) {
 function desenharFormAudio() {
   const t = auEditando;
   atualizarEscolhaAviso();
-  if (!t) { $('au-form').innerHTML = ''; $('au-form-visual').innerHTML = ''; $('au-form-acoes').innerHTML = ''; atualizarPreviaAudio(); return; }
+  if (!t) { $('au-form').innerHTML = ''; $('au-form-visual').innerHTML = ''; $('au-form-acoes').innerHTML = ''; $('au-form-bar').innerHTML = ''; $('au-form-cor').innerHTML = ''; atualizarPreviaAudio(); return; }
   $('au-form').innerHTML = `<div class="card au-form" style="margin-top:16px">
     <h2 class="sub">${t.id ? 'Editar timer' : 'Novo timer'}</h2>
     <div class="campos">
@@ -2846,7 +2855,7 @@ function mostrarCfgBarra() {
   $('aub-esp').value = b.espessura; $('aub-esp-v').textContent = b.espessura + ' px';
   $('aub-x').value = b.x; $('aub-x-v').textContent = Math.round(b.x) + '%';
   $('aub-y').value = b.y; $('aub-y-v').textContent = Math.round(b.y) + '%';
-  $('aub-nome').checked = !!b.nome;
+  $('aub-nome').checked = !!b.nome; $('aub-tempo').checked = b.tempo == null ? !!b.nome : !!b.tempo;
   $('aub-estilo').value = b.estilo || 'classica'; $('aub-texto-estilo').value = b.texto_estilo || 'contorno';
   $('aub-familia').value = b.familia || 'Verdana'; $('aub-cor-tempo').checked = !!b.cor_tempo;
   atualizarPreviaAudio();
@@ -2936,14 +2945,14 @@ let tBarra = null;
 function mudouBarra() {
   const b = AU.cfg.barra;
   b.largura = +$('aub-larg').value; b.espessura = +$('aub-esp').value;
-  b.x = +$('aub-x').value; b.y = +$('aub-y').value; b.nome = $('aub-nome').checked;
+  b.x = +$('aub-x').value; b.y = +$('aub-y').value; b.nome = $('aub-nome').checked; b.tempo = $('aub-tempo').checked;
   b.estilo = $('aub-estilo').value; b.texto_estilo = $('aub-texto-estilo').value; b.familia = $('aub-familia').value; b.cor_tempo = $('aub-cor-tempo').checked;
   mostrarCfgBarra();
   if (!auVivo) api.audio_testar_barras(b);   // mostra o exemplo na hora, em cima do Tibia (no teste ligado, ele mesmo atualiza)
   clearTimeout(tBarra); tBarra = setTimeout(salvarAudio, 600);
 }
 ['aub-larg', 'aub-esp', 'aub-x', 'aub-y'].forEach((id) => $(id).addEventListener('input', mudouBarra));
-['aub-nome','aub-estilo','aub-texto-estilo','aub-familia','aub-cor-tempo'].forEach(id => $(id).addEventListener('change', mudouBarra));
+['aub-nome','aub-tempo','aub-estilo','aub-texto-estilo','aub-familia','aub-cor-tempo'].forEach(id => $(id).addEventListener('change', mudouBarra));
 
 $('au-novo').addEventListener('click', () => abrirFormAudio(null));
 $('au-aviso-timer').addEventListener('change', () => {

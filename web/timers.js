@@ -23,7 +23,9 @@ function organizarFormAudio(t) {
     <div><label class="campo-label" for="auf-intensidade">Raio do brilho: <b id="auf-intensidade-v"></b></label><input type="range" id="auf-intensidade" min="1" max="30" value="${t.visual.intensidade}"></div>
   </div>`);
   groups[0].remove();
-  visual.append(text, sec('Cor e barra · deste timer', [color, bar]));
+  visual.append(text);
+  $('au-form-bar').replaceChildren(sec('Ativação da barra · deste timer', [bar]));
+  $('au-form-cor').replaceChildren(sec('Cor deste timer · usada nos dois avisos', [color]));
   $('auf-estilo').value=t.visual.estilo; $('auf-familia').value=t.visual.familia;
   function update() {
     t.visual={estilo:$('auf-estilo').value,familia:$('auf-familia').value,intensidade:+$('auf-intensidade').value};
@@ -36,17 +38,19 @@ function organizarFormAudio(t) {
 }
 
 function atualizarPreviaAudio() {
-  const el=document.getElementById('au-preview');
+  const el=document.getElementById('au-text-preview');
   if (!el || typeof AU==='undefined' || !AU) return;
   const t=auEditando || {nome:'Poção', mensagem:'Poção acaba em 3s', fonte:34, cor:'amarelo', alerta:true, barra:true};
   const v=t.visual || {estilo:'contorno',familia:'Verdana',intensidade:22};
   const b=AU.cfg.barra, cor=corHex(t.cor);
   const shadow=(style,color,radius=22)=>({glow:`0 0 ${radius/3}px ${color},0 0 ${radius}px ${color}`,contorno:'-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000',sombra:'3px 3px 3px #000',simples:'none'}[style] || 'none');
   const msg=(t.mensagem || '').trim() || (t.antes ? `${t.nome || 'Timer'} acaba em ${Math.min(t.antes,t.duracao)}s` : `${t.nome || 'Timer'} acabou!`);
-  el.innerHTML=`<span class="au-preview-caption">Prévia da aparência</span>
-    <div class="au-preview-text" style="color:${cor};font-family:'${v.familia}';font-size:${Math.min(48,t.fonte || 34)}px;text-shadow:${shadow(v.estilo,cor,v.intensidade)};opacity:${t.alerta?1:.3}">${esc(msg)}</div>
-    <div style="opacity:${t.barra?1:.3}">
-      ${b.nome?`<div class="au-preview-bar-label" style="font-family:'${b.familia || 'Verdana'}';text-shadow:${shadow(b.texto_estilo,cor,6)}"><span>${esc(t.nome || 'Timer')}</span><span style="color:${cor}">00:39</span></div>`:''}
+  el.innerHTML=`<span class="au-preview-caption">Prévia do aviso de texto</span>
+    <div class="au-preview-text" style="color:${cor};font-family:'${v.familia}';font-size:${Math.min(48,t.fonte || 34)}px;text-shadow:${shadow(v.estilo,cor,v.intensidade)};opacity:${t.alerta?1:.3}">${esc(msg)}</div>`;
+  const tempo=b.tempo == null ? b.nome : b.tempo;
+  $('au-bar-preview').innerHTML=`<span class="au-preview-caption">Prévia da barra de contagem</span>
+    <div style="opacity:${t.barra?1:.3};margin-top:30px">
+      ${b.nome || tempo ? `<div class="au-preview-bar-label" style="width:${b.largura}px;font-family:'${b.familia || 'Verdana'}';text-shadow:${shadow(b.texto_estilo,cor,6)}"><span>${b.nome?esc(t.nome || 'Timer'):''}</span><span style="color:${cor}">${tempo?'00:39':''}</span></div>`:''}
       <div class="au-preview-track" style="height:${b.espessura}px;width:${b.largura}px;border-radius:${['glow','arredondada'].includes(b.estilo)?6:0}px;border:${b.estilo==='classica'?'2px solid #000':b.estilo==='arredondada'?'1px solid #aab2bd':'none'}">
         <div class="au-preview-fill" style="background:${b.cor_tempo?'#b3e63c':cor};border-radius:inherit;box-shadow:${b.estilo==='glow'?`0 0 8px ${cor}`:'none'}"></div>
       </div>
