@@ -305,6 +305,14 @@ class TestHistorico(unittest.TestCase):
 
 
 class TestComparar(unittest.TestCase):
+    def setUp(self):
+        # Comparativos usam fixtures; não devem ler skills pessoais do computador.
+        from unittest.mock import patch
+        import personagens
+        self.skills_patch = patch.object(personagens, "skills_de", return_value={})
+        self.skills_patch.start()
+        self.addCleanup(self.skills_patch.stop)
+
     def _h(self, id_, nome, membros, minutos, lucro, balance, xp_h=None, mons=("gloom maw",), personagem="Zandao"):
         return {"id": id_, "nome": nome, "personagem": personagem, "data_hunt": "2026-10-05 10:00",
                 "monstros": [{"nome": m, "kills": 100} for m in mons],

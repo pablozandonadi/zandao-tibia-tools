@@ -109,7 +109,13 @@ def normalizar(t):
         "fonte": max(14, min(96, int(t.get("fonte") or 34))),    # tamanho da letra do alerta
         "fixo": bool(t.get("fixo", False)),                      # alerta fica na tela até apertar a tecla de novo
         "piscar": _piscar(t.get("piscar")),                       # alerta pisca nos últimos N segundos (0 = não)
+        "personagem": str(t.get("personagem") or "").strip()[:40],   # só dispara quando este personagem está em uso ("" = antigo, sem vínculo: parado)
     }
+
+
+def ativos(timers, personagem):
+    """Os timers que valem agora: os do personagem em uso. Os antigos (sem personagem) ficam parados até serem vinculados."""
+    return [t for t in timers if personagem and t.get("personagem") == personagem]
 
 
 PISCAR_OPCOES = (0, 1, 2, 3, 5)
@@ -402,8 +408,9 @@ class Tocador:
 class Motor:
     INTERVALO = .015
 
-    def __init__(self, ao_mudar=None):
+    def __init__(self, ao_mudar=None, personagem=""):
         self.cfg = carregar()
+        self.personagem = personagem or ""   # personagem em uso: só os timers dele rodam
         self.estados = {}
         self._apertadas = set()
         self._trava = threading.Lock()
@@ -425,7 +432,7 @@ class Motor:
     def _sincronizar(self):
         """Recria os estados quando a configuração muda, mantendo a contagem de quem continua igual."""
         novos = {}
-        for t in self.cfg["timers"]:
+        for t in ativos(self.cfg["timers"], self.personagem):
             antigo = self.estados.get(t["id"])
             if antigo and antigo.cfg["duracao"] == t["duracao"] and antigo.cfg["modo"] == t["modo"]:
                 antigo.cfg = t
@@ -433,6 +440,14 @@ class Motor:
             else:
                 novos[t["id"]] = EstadoTimer(t)
         self.estados = novos
+
+    def definir_personagem(self, nome):
+        """Troca o personagem em uso: os timers do anterior param e os do novo passam a valer."""
+        with self._trava:
+            if (nome or "") == self.personagem:
+                return
+            self.personagem = nome or ""
+            self._sincronizar()
 
     def atualizar_cfg(self, cfg):
         with self._trava:

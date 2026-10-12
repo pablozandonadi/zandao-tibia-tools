@@ -140,12 +140,14 @@ $('modal-set').addEventListener('click', (e) => { if (e.target === $('modal-set'
 // ---------- Configurações: lista e editor ----------
 let SETED = null;   // set em edição: {id|null, titulo, itens, consumiveis, voc, sel}
 const qtdItens = (s) => Object.keys(s.itens || {}).length;
-function desenharSetsConfig() {
-  $('sets-lista').innerHTML = SETS.length ? SETS.map((s) => `<div class="roda-item">
-      <div class="roda-nome"><b>${esc(s.titulo)}</b> ${s.voc ? `<span class="chip chip-neutro">${nomeVoc(s.voc)}</span>` : ''} <span class="chip chip-neutro">${qtdItens(s)} ite${qtdItens(s) === 1 ? 'm' : 'ns'}</span></div>
+const linhaSetCfg = (s) => `<div class="roda-nome"><b>${esc(s.titulo)}</b> ${s.voc ? `<span class="chip chip-neutro">${nomeVoc(s.voc)}</span>` : ''} <span class="chip chip-neutro">${qtdItens(s)} ite${qtdItens(s) === 1 ? 'm' : 'ns'}</span></div>
       <div class="acoes"><button class="btn btn-sm" data-set-ver="${esc(s.id)}">👁 Ver</button><button class="btn btn-sm" data-set-editar="${esc(s.id)}">🛠 Editar</button>
-        <button class="btn btn-sm btn-danger" data-set-apagar="${esc(s.id)}" title="Apagar">✕</button></div></div>`).join('')
-    : '<div class="dica">Nenhum set cadastrado ainda.</div>';
+        <button class="btn btn-sm btn-danger" data-set-apagar="${esc(s.id)}" title="Apagar">✕</button></div>`;
+function desenharSetsConfig() {
+  const meus = doPers(SETS, MEUS.atual);
+  $('sets-lista').innerHTML = htmlDonoDaLista(SETS, MEUS.atual, 'os sets')
+    + (meus.length ? meus.map((s) => `<div class="roda-item">${linhaSetCfg(s)}</div>`).join('') : '<div class="dica">Nenhum set cadastrado para este personagem ainda.</div>')
+    + htmlAntigos(semDono(SETS), 'set', (s) => `<div class="roda-nome"><b>${esc(s.titulo)}</b> ${s.voc ? `<span class="chip chip-neutro">${nomeVoc(s.voc)}</span>` : ''} <span class="chip chip-neutro">${qtdItens(s)} ite${qtdItens(s) === 1 ? 'm' : 'ns'}</span></div>`, 'os sets');
 }
 async function montarSetsConfig() { await carregarSets(); desenharSetsConfig(); }
 
@@ -388,7 +390,8 @@ $('cfg-sets').addEventListener('click', async (e) => {
   if (b.id === 'set-cancelar') { SETED = null; $('sets-editor').innerHTML = ''; $('sets-editor-box').style.display = 'none'; return; }
   if (b.id === 'set-salvar') {
     lerCamposSet();
-    const r = await api.set_salvar({ id: SETED.id, titulo: SETED.titulo, itens: SETED.itens, consumiveis: SETED.consumiveis, voc: SETED.voc });
+    const r = await api.set_salvar({ id: SETED.id, titulo: SETED.titulo, itens: SETED.itens, consumiveis: SETED.consumiveis, voc: SETED.voc,
+      personagem: SETED.id ? undefined : (MEUS.atual || '') });   // set novo nasce do personagem em uso; editar mantém o dono
     if (!r.ok) { $('set-msg').textContent = r.erro; return; }
     toast(`Set "${r.set.titulo}" salvo!`);
     SETED = null; $('sets-editor').innerHTML = ''; $('sets-editor-box').style.display = 'none';
@@ -490,8 +493,9 @@ function resumoSet() {
 function htmlSetHunt() {
   const s = H.entrada.set;
   const mesmo = (x) => x.titulo === s.titulo && JSON.stringify(x.itens) === JSON.stringify(s.itens) && JSON.stringify(x.consumiveis) === JSON.stringify(s.consumiveis);
-  const sel = s && s.itens ? SETS.find(mesmo) : null;
-  const opcoes = SETS.map((x) => `<option value="${esc(x.id)}" ${sel && sel.id === x.id ? 'selected' : ''}>${esc(x.titulo)}</option>`).join('');
+  const dono = H.entrada.personagem || MEUS.atual, meus = doPers(SETS, dono);
+  const sel = s && s.itens ? meus.find(mesmo) : null;
+  const opcoes = meus.map((x) => `<option value="${esc(x.id)}" ${sel && sel.id === x.id ? 'selected' : ''}>${esc(x.titulo)}</option>`).join('');
   const guardado = s && s.itens && !sel ? `<option value="__hunt" selected>${esc(s.titulo)} (guardado nesta hunt)</option>` : '';
   return `<h3 class="sub3" style="margin-top:18px">Set de equipamento</h3>
     <div class="dica perso-desc">Escolha o conjunto de itens e embuimentos que você usou nesta hunt. Cadastre os seus em Configurações.</div>
@@ -499,7 +503,7 @@ function htmlSetHunt() {
     <div class="roda-linha"><select id="h-set-sel">${s == null ? '<option value="" selected disabled>Escolher o set...</option>' : ''}
       <option value="__nenhum" ${s && !s.itens ? 'selected' : ''}>Sem set</option>${opcoes}${guardado}</select>
       ${s && s.itens ? '<button class="btn btn-sm" data-set-hunt-ver>👁 Ver o set</button>' : ''}
-      ${SETS.length ? '' : '<span class="dica">Nenhum set cadastrado: cadastre em Configurações.</span>'}</div>
+      ${meus.length ? '' : `<span class="dica">Nenhum set de ${esc(dono || 'personagem')}: cadastre em Configurações${semDono(SETS).length ? ' ou vincule os antigos a ele' : ''}.</span>`}</div>
     ${s && s.itens ? `<div class="set-hunt-foto">${htmlFotoSet(s, { mini: true })}</div>` : ''}
     ${htmlPosturaHunt()}
     ${htmlSkillsHunt()}

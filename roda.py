@@ -97,13 +97,14 @@ def obter(id_, caminho=None):
     return next((r for r in _ler(caminho) if r["id"] == id_), None)
 
 
-def adicionar(titulo, codigo, caminho=None):
-    """Cadastra uma roda. Levanta ValueError se o código não for válido. Título vazio vira "Roda <vocação>"."""
+def adicionar(titulo, codigo, caminho=None, personagem=""):
+    """Cadastra uma roda (vinculada ao personagem, se vier). Levanta ValueError se o código não for válido. Título vazio vira "Roda <vocação>"."""
     cod = validar_codigo(codigo)
     if not cod:
         raise ValueError("Esse código não parece ser de uma roda: cole o código do planner (ex.: K0Y2AgDP4jAQA) ou o link dele.")
     voc = vocacao_do_codigo(cod)
-    r = {"id": uuid.uuid4().hex, "titulo": (titulo or "").strip()[:60] or f"Roda {voc}", "codigo": cod, "vocacao": voc}
+    r = {"id": uuid.uuid4().hex, "titulo": (titulo or "").strip()[:60] or f"Roda {voc}", "codigo": cod, "vocacao": voc,
+         "personagem": (personagem or "").strip()[:40]}
     with _trava:
         rodas = _ler(caminho)
         rodas.append(r)
@@ -125,6 +126,18 @@ def atualizar_codigo(id_, codigo, caminho=None):
         r["codigo"], r["vocacao"] = cod, vocacao_do_codigo(cod)
         _gravar(rodas, caminho)
         return r
+
+
+def vincular(id_, personagem, caminho=None):
+    """Liga a roda a um personagem ("" = sem personagem, fica entre as antigas). False se a roda não existe."""
+    with _trava:
+        rodas = _ler(caminho)
+        r = next((x for x in rodas if x["id"] == id_), None)
+        if not r:
+            return False
+        r["personagem"] = (personagem or "").strip()[:40]
+        _gravar(rodas, caminho)
+        return True
 
 
 def renomear(id_, titulo, caminho=None):

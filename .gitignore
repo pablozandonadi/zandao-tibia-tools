@@ -34,3 +34,13 @@ cache_roda_resumo.json.tmp
 cache_classificador/
 sessoes_classificador.json
 sessoes_classificador.json.tmp
+
+# Dados locais do planejador e backups de recuperacao
+cache_planejador.json
+docs/recuperacao-dados-*/
+
+cache_task_images/
+
+# Prévias locais usam caminhos deste computador
+docs/*-preview.html
+docs/qa-*.cjs

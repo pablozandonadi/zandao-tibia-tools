@@ -1,11 +1,14 @@
 # Zandao Tibia Tools
 
-Um programa só para quem joga Tibia, com sete abas:
+Um programa só para quem joga Tibia, com menus para análise e planejamento:
 
 | Aba | O que faz |
 | --- | --- |
 | **Embuimentos** | Calculadora dos embuimentos Powerful (mesmas regras da planilha `calculadora_embuiment`). Você digita os preços, sem IA e sem ler prints. |
 | **Hunt Analyser** | Loot Split + Tibia Damage juntos: cola os textos do Tibia e sai a análise no estilo do hunt-analyser.com. |
+| **Criaturas da hunt** | Composição por quantidade, GIFs, importação do Hunting Analyser, Received Damage opcional, gráficos de elementos e maiores golpes da Wiki. |
+| **Task Itens Analyser** | Classifica o loot em tasks, materiais de embuimentos e outros itens, com imagens e divisão por jogador. |
+| **Guild Stats** | XP, mortes e informações do personagem em uso pelo GuildStats, com busca por outros personagens. |
 | **Histórico** | Toda hunt analisada fica salva neste PC. Dá para filtrar por personagem, exportar e importar. |
 | **Ferramentas** | Boss e criatura do dia, Rashid, server save, calculadora de Shared XP e "Quando eu upo?". |
 | **Timers** | Timers de áudio: uma tecla apertada no Tibia começa a contagem e o app toca um som no fim (funciona minimizado). |
@@ -112,8 +115,14 @@ No fim do menu lateral:
 - **📌 Fixar por cima**: a janela fica na frente do Tibia, mesmo quando você clica no jogo.
 - **Transparência**: deixa a janela de 40% a 100% opaca, para ver o jogo por trás.
 
-Diminua a janela e coloque num canto: com menos de ~760 px de largura, o menu vira só ícones.
-As duas opções ficam salvas em `preferencias.json`. Funciona com o Tibia em janela ou em tela cheia sem bordas.
+- **Tamanho**: de 50% a 130% (também **Ctrl + roda do mouse**, ou **Ctrl +** / **Ctrl -** / **Ctrl 0**). Diminui as letras e tudo
+  junto, e a tela se reorganiza no espaço que sobrar: é o jeito de deixar o app pequeno como um **gadget** no canto do Tibia.
+- **🗔 Modo gadget**: num clique deixa a janela estreita (340×640), com tamanho 70% e por cima do Tibia, **sem a barra de título do
+  Windows**: no topo fica só uma faixa fina (arraste por ela para mover a janela) e o **✕** de fechar aparece quando o mouse chega lá.
+  Duplo clique na faixa (ou o mesmo botão de novo) volta ao normal.
+
+Diminua a janela e coloque num canto: com menos de ~760 px de largura, o menu vira só ícones (a janela pode ir até 280×320).
+As opções ficam salvas em `preferencias.json`. Funciona com o Tibia em janela ou em tela cheia sem bordas.
 
 ## Rodas (Wheel of Destiny)
 
@@ -232,6 +241,14 @@ digitado e não manda tecla nenhuma para o jogo. Configuração em `audio_timers
 ## Configurações
 
 - **Meus personagens**: adicionar (conferido no tibia.com), usar e remover. A ⚙ do Hunt Analyser abre aqui.
+- **Tudo por personagem**: o personagem **em uso** manda no que aparece. **Rodas**, **sets** e **timers** são vinculados a um
+  personagem (campo `personagem` em `rodas.json`, `sets.json` e `audio_timers.json`): o que você cria já nasce do personagem em uso,
+  e ao trocar de personagem só aparece (e só dispara, no caso dos timers) o que é dele. Os que existiam antes do vínculo ficam no grupo
+  **Antigos, sem personagem**, em cada lista, e você escolhe o dono de cada um com **Vincular**; os antigos sem dono ficam parados
+  (timers) e fora dos seletores da hunt até serem vinculados.
+- **Preços por mundo**: o histórico de preços dos embuimentos (`precos_historico.json`) e os preços digitados são separados pelo
+  **mundo** do personagem em uso (os preços mudam de um mundo para outro). Ao trocar para um personagem de outro mundo, os campos e o
+  histórico mudam junto. Os preços antigos (de antes dessa separação) aparecem com o botão **Mover para <mundo>**.
 - **Backup de tudo**: **Exportar tudo** gera um `.json` com histórico de hunts, meus personagens, embuimentos
   (preços, o que já tem, escolhidos), pastas dos prints e fixar por cima/transparência.
   **Restaurar um backup** mostra o que tem no arquivo e, ao confirmar, substitui esses itens (os atuais ficam

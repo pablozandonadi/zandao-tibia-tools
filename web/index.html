@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Zandao Tibia Tools</title>
+<link rel="stylesheet" href="criaturas.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Work+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -62,10 +63,12 @@
     .sobrepor { padding: 10px 0 0; align-items: center; }
     .pino { text-align: center; font-size: 1rem; padding: 7px 0; width: 100%; }
     .sobrepor .campo-label { justify-content: center; font-size: .62rem; }
-    input[type=range] { writing-mode: vertical-lr; direction: rtl; height: 110px; width: 22px; }
+    .sobrepor input[type=range] { writing-mode: vertical-lr; direction: rtl; height: 110px; width: 22px; }   /* só os da barra lateral ficam na vertical */
     .content { padding: 14px 12px; }
     .vars { grid-template-columns: 1fr 1fr; gap: 10px; }
     .grid-emb { grid-template-columns: minmax(0, 1fr); }
+    .sanfona > summary { flex-wrap: wrap; row-gap: 4px; }   /* o resumo da seção vai para baixo do título em vez de espremê-lo */
+    .sanfona > summary > .dica { flex-basis: 100%; order: 5; margin-left: 0 !important; }
   }
 
   .content { flex: 1; min-width: 0; padding: 20px 26px; overflow-y: auto; }
@@ -471,7 +474,19 @@
   .hist-barra > div:first-child { min-width: 200px; }
   .hist-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center; }
   .hist-card + .hist-card { margin-top: 12px; }
-  .hist-nome { font-weight: 800; font-size: .98rem; }
+  .hist-nome { font-weight: 800; font-size: .98rem; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; line-height: 1.25; }   /* os selos quebram de linha sem encostar no título nem na data */
+  .hist-nome .tag, .hist-nome .chip { margin: 0; }
+  /* modo gadget: sem barra de título do Windows; no lugar fica uma faixa fina para arrastar, e o X só aparece com o mouse em cima */
+  #gadget-topo { display: none; }
+  body.gadget #gadget-topo { display: flex; position: fixed; top: 0; left: 0; right: 0; height: 14px; z-index: 9000; align-items: center; justify-content: center;
+    background: rgba(10, 12, 16, .55); cursor: move; user-select: none; touch-action: none; }
+  body.gadget #gadget-topo:hover { background: rgba(10, 12, 16, .9); }
+  .gt-grip { font-size: 8px; letter-spacing: 2px; color: var(--ink-dim); opacity: .55; pointer-events: none; }
+  #gadget-fechar { position: absolute; right: 0; top: 0; height: 14px; min-width: 24px; padding: 0 6px; border: 0; border-radius: 0; background: #c0392b; color: #fff;
+    font-size: 10px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .12s; }
+  #gadget-topo:hover #gadget-fechar { opacity: 1; }
+  #gadget-fechar:hover { background: #e74c3c; }
+  body.gadget .app { margin-top: 14px; height: calc(100% - 14px); }
   .hist-meta { color: var(--ink-dim); font-size: .76rem; margin-top: 2px; }
   .hist-nums { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: .8rem; }
   .hist-nums b { font-family: var(--font-mono); }
@@ -633,9 +648,24 @@
   ::-webkit-scrollbar { width: 11px; height: 11px; }
   ::-webkit-scrollbar-track { background: var(--surface-2); }
   ::-webkit-scrollbar-thumb { background: #3a404c; border-radius: 6px; border: 2px solid var(--surface-2); }
+
+  #gs-menu { position:relative; }
+  #gs-hover { display:none; position:fixed; left:230px; max-width:310px; padding:14px; background:var(--bg); color:var(--ink); border:2px solid var(--ink-dim); border-radius:8px; z-index:999; box-shadow:4px 4px 0 #000; font-size:.8rem; pointer-events:none; }
+  #gs-menu:hover #gs-hover, #gs-menu:focus #gs-hover { display:block; }
+  .gs-scroll { overflow:auto; max-height:520px; }
+  .gs-table { width:100%; border-collapse:collapse; font-size:.82rem; }
+  .gs-table td, .gs-table th { padding:9px; border-bottom:1px solid var(--ink-dim); text-align:left; white-space:nowrap; }
+  .gs-table th { position:sticky; top:0; background:var(--bg); }
+  .gs-tiles { display:flex; gap:12px; flex-wrap:wrap; margin:12px 0; }
+  .gs-tiles .card { flex:1; min-width:140px; }
+  .gs-bars { display:flex; align-items:flex-end; gap:4px; height:110px; padding:10px 0; }
+  .gs-bars > div { flex:1; min-width:3px; background:var(--accent); border-radius:3px; }
+  @media(max-width:700px) { #gs-hover { left:65px; max-width:250px; } }
 </style>
+<link rel="stylesheet" href="task_items.css">
 </head>
 <body>
+<div id="gadget-topo" title="Arraste para mover a janela · duplo clique volta ao tamanho normal"><span class="gt-grip">• • •</span><button id="gadget-fechar" title="Fechar o app">✕</button></div>
 <div class="app">
   <aside class="sidebar">
     <div class="brand">⚔️ Zandao<br><span>Tibia Tools</span></div>
@@ -647,23 +677,56 @@
     </div>
     <div class="nav-item active" data-pagina="emb" title="Embuimentos">💎<span class="txt"> Embuimentos</span></div>
     <div class="nav-item" data-pagina="hunt" title="Hunt Analyser (Loot Split + Dano)">🪓<span class="txt"> Hunt Analyser</span></div>
+    <div class="nav-item" data-pagina="taskitens" title="Task Itens Analyser">📦<span class="txt"> Task Itens Analyser</span></div>
+    <div class="nav-item" data-pagina="criaturas" title="Planejar dano da hunt">🐉<span class="txt"> Criaturas da hunt</span></div>
     <div class="nav-item" data-pagina="hist" title="Histórico de hunts">📜<span class="txt"> Histórico</span></div>
     <div class="nav-item" data-pagina="ferr" title="Ferramentas">🧰<span class="txt"> Ferramentas</span></div>
     <div class="nav-item" data-pagina="audio" title="Timers de áudio">🔔<span class="txt"> Timers</span></div>
     <div class="nav-item" data-pagina="prints" title="Prints">📸<span class="txt"> Prints</span></div>
+    <div class="nav-item" id="gs-menu" data-pagina="guildstats" tabindex="0" title="Guild Stats">📈<span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
     <div class="nav-item" data-pagina="config" title="Configurações">⚙️<span class="txt"> Configurações</span></div>
     <div class="sobrepor">
       <button class="pino" id="j-topo" title="Fixar por cima do Tibia (fica visível mesmo clicando no jogo)">📌<span class="txt"> Fixar por cima</span></button>
       <label class="campo-label" for="j-opac"><span class="txt">Transparência </span><b id="j-opac-val">100%</b></label>
       <input type="range" id="j-opac" min="40" max="100" step="5" value="100" title="Transparência da janela">
+      <label class="campo-label" for="j-esc"><span class="txt">Tamanho </span><b id="j-esc-val">100%</b></label>
+      <input type="range" id="j-esc" min="50" max="130" step="5" value="100" title="Tamanho da interface (letras e tudo): menor para ficar como gadget no canto do Tibia. Também vale Ctrl + roda do mouse.">
+      <button class="pino" id="j-gadget" title="Deixa a janela estreita, num tamanho bom para ficar num canto do Tibia (clique de novo para voltar ao normal)">🗔<span class="txt"> Modo gadget</span></button>
     </div>
     <div class="assinatura">Created by Zandao,<br>the best Master Sorcerer in Tibia<br><span id="versao-app"></span></div>
   </aside>
 
   <main class="content" id="content">
+    <section class="page" id="page-taskitens">
+      <h1 class="titulo">Task Itens Analyser</h1>
+      <div class="card calmo">
+        <p class="dica">Cole o Hunting Analyser do Tibia ou a lista de loot. Veja os itens de task, embuimentos e outros drops.</p>
+        <textarea id="ti-input" rows="10" aria-label="Hunting Analyser" placeholder="Looted Items:&#10;15x werewolf fangs&#10;13x werewolf fur&#10;25x rope belts"></textarea>
+        <div class="acoes" style="margin-top:12px"><button class="btn btn-primary" id="ti-process">Processar dados</button><button class="btn" id="ti-clear">Limpar</button><label>Dividir em <input id="ti-people" type="number" min="1" max="1000" step="1" value="1" style="width:80px"> pessoas</label></div>
+        <p class="dica">Clique no card para copiar o nome. Para copiar outras informações, selecione o texto e use Ctrl+C.</p>
+      </div>
+      <div id="ti-result" aria-live="polite" style="margin-top:16px"></div>
+    </section>
+    <section class="page" id="page-guildstats">
+      <h1 class="titulo">Guild Stats</h1>
+      <div class="card calmo">
+        <div class="acoes"><input type="text" id="gs-search" aria-label="Nome do personagem" placeholder="Nome do personagem" maxlength="60"><button class="btn btn-primary" id="gs-find">Buscar</button><button class="btn" id="gs-active">Personagem em uso</button><button class="btn" id="gs-refresh">Atualizar</button><button class="btn" id="gs-site">Abrir no site ↗</button></div>
+        <p class="dica" id="gs-follow"></p><div class="acoes" id="gs-tabs"></div>
+      </div>
+      <div id="gs-result" aria-live="polite" style="margin-top:16px"></div>
+    </section>
+    <section class="page" id="page-criaturas">
+      <div class="cr-title"><div><span class="cr-eyebrow">PLANEJE SUA PRÓXIMA HUNT</span><h1 class="titulo">Criaturas da hunt</h1><p class="dica">Conheça o dano da composição e os golpes que merecem atenção.</p></div><span class="cr-tag">Tibia Wiki + seus abates</span></div>
+      <details class="cr-import card calmo" open><summary>📋 Importar Hunting Analyser</summary><p class="dica">Cole o texto do Tibia com Killed Monsters. As quantidades de abates preenchem os pesos da composição e podem ser ajustadas depois.</p><textarea id="cr-log" rows="4" aria-label="Hunting Analyser" placeholder="Session data: From ...&#10;XP Gain: ...&#10;Killed Monsters:&#10;  450x flimsy lost soul&#10;  120x freakish lost soul"></textarea><div class="acoes"><button class="btn btn-primary" id="cr-import">Usar criaturas deste log</button><span id="cr-import-status" class="dica" role="status"></span></div></details>
+      <details class="cr-import card calmo"><summary>📊 Usar dano real desta hunt (opcional)</summary><p class="dica">Cole o Input Analyser — Received Damage, com Damage Types. O gráfico passa a usar o dano medido, como na comparação enviada. Os maiores golpes continuam sendo os máximos da Wiki. Sem esse texto, usamos apenas uma estimativa.</p><textarea id="cr-damage" rows="4" aria-label="Received Damage" placeholder="Received Damage&#10;Total: 112,472&#10;Damage Types:&#10;Physical 66,471 (59.1%)"></textarea></details>
+      <div class="cr-builder"><div class="card calmo cr-search-card"><h2 class="sub">Encontre as criaturas</h2><div class="cr-search-line"><input id="cr-search" type="search" placeholder="Buscar criatura..." aria-label="Buscar criatura"><button class="btn btn-sm" id="cr-refresh">Atualizar</button></div><p class="dica" id="cr-status" role="status"></p><div id="cr-options"></div></div>
+      <div class="card calmo cr-active-card"><h2 class="sub">Sua composição <span id="cr-count" class="cr-tag">0 criaturas</span></h2><p class="dica">Informe quantidades ou pesos relativos. O percentual é calculado pelo total.</p><div id="cr-selected"></div><div class="cr-actions"><button class="btn btn-primary" id="cr-calc">Analisar hunt →</button><button class="btn btn-sm" id="cr-data-refresh">Atualizar ataques da Wiki</button></div></div></div>
+      <div id="cr-result" aria-live="polite"></div>
+    </section>
     <!-- ================= EMBUIMENTOS ================= -->
     <section class="page shown" id="page-emb">
       <h1 class="titulo">Embuimentos</h1>
+      <div class="card calmo" id="emb-mundo" style="margin-bottom:12px"></div>
       <div class="card calmo">
         <div class="vars">
           <div><label class="campo-label" for="v-token">Gold Token <button class="btn-grafico" data-grafico-preco="token" data-grafico-nome="Gold Token" title="Ver histórico de preços">📈</button></label><input type="text" class="num" id="v-token" placeholder="ex.: 53.805"><div class="var-preco" data-var="token"></div></div>
@@ -1007,6 +1070,8 @@ function irPara(pagina) {
   document.querySelectorAll('.nav-item').forEach((x) => x.classList.toggle('active', x.dataset.pagina === pagina));
   document.querySelectorAll('.page').forEach((p) => p.classList.toggle('shown', p.id === 'page-' + pagina));
   $('content').scrollTop = 0;
+  if (pagina === 'criaturas') crLoad();
+  if (pagina === 'guildstats') gsLoad();
   if (pagina === 'hist') carregarHistorico();
   if (pagina === 'ferr') abrirFerramentas();
   if (pagina === 'config') abrirConfiguracoes();
@@ -1113,6 +1178,47 @@ $('itens').addEventListener('input', (e) => {
   $(id).addEventListener('input', () => { estado[k] = $(id).value; calcular(); }));
 $('v-scroll').addEventListener('change', () => { estado.fazer_scroll = $('v-scroll').checked; calcular(); });
 
+// ---------- mundo do personagem em uso: o histórico de preços e os preços digitados são por mundo ----------
+const mundoAtual = () => { const p = acharMeu(MEUS.atual); return (p && p.mundo) || ''; };
+let EMB_MUNDO = null;   // mundo a que pertencem os preços que estão nos campos agora (null = ainda não sincronizou)
+async function desenharMundoEmb() {
+  const caixa = $('emb-mundo');
+  if (!caixa) return;
+  const mundo = EMB_MUNDO || '', antigos = await api.precos_antigos();
+  const quem = acharMeu(MEUS.atual);
+  caixa.innerHTML = (mundo
+    ? `<b>🌍 Mundo ${esc(mundo)}</b> <span class="dica">· personagem ${esc(quem.nome)}. Cada mundo tem os seus preços e o seu histórico: ao trocar de personagem de outro mundo, os campos mudam junto.</span>`
+    : `<b>🌍 Sem mundo definido</b> <span class="dica">· cadastre o seu personagem em ⚙ Configurações (o app confere o mundo dele) para o histórico de preços ficar separado por mundo.</span>`)
+    + (antigos && mundo ? `<div class="dica" style="margin-top:6px">Você tem <b>${antigos}</b> preços registrados antes da separação por mundo. <button class="btn btn-sm" id="emb-mover-antigos">Mover para ${esc(mundo)}</button></div>` : '');
+  const b = $('emb-mover-antigos');
+  if (b) b.addEventListener('click', async () => {
+    if (!confirm(`Mover os ${antigos} preços antigos para o mundo ${mundo}? (Use só se eram mesmo desse mundo.)`)) return;
+    const r = await api.precos_mover_antigos(mundo);
+    if (r.erro) { toast(r.erro, true); return; }
+    toast(`${r.movidos} preços movidos para ${mundo}`);
+    desenharMundoEmb(); atualizarVariacoes();
+  });
+}
+// chamada quando os personagens carregam ou o personagem em uso muda
+function trocarMundoEmb() {
+  if (!estado) return;
+  const novo = mundoAtual();
+  if (EMB_MUNDO === null) EMB_MUNDO = typeof estado.mundo === 'string' ? estado.mundo : novo;   // arquivo antigo: os preços digitados são do mundo de agora
+  const mudou = novo !== EMB_MUNDO || estado.mundo !== EMB_MUNDO;
+  if (novo !== EMB_MUNDO) {
+    estado.por_mundo = estado.por_mundo || {};
+    estado.por_mundo[EMB_MUNDO] = { precos: estado.precos, token: estado.token, blank: estado.blank };
+    const g = estado.por_mundo[novo] || { precos: {}, token: '', blank: estado.blank_padrao };
+    estado.precos = g.precos; estado.token = g.token; estado.blank = g.blank;
+    EMB_MUNDO = novo;
+    $('v-token').value = estado.token; $('v-blank').value = estado.blank;
+    montarItens();
+  }
+  estado.mundo = EMB_MUNDO;
+  desenharMundoEmb();
+  if (mudou) calcular();
+}
+
 // ---------- histórico de preços ----------
 const nomeGrafico = (chave, nome, texto) => `<span class="nome-grafico" data-grafico-preco="${esc(chave)}" data-grafico-nome="${esc(nome)}" title="Ver histórico de preços de ${esc(nome)}">${esc(texto)}</span>`;
 const varPreco = (chave) => `<div class="var-preco" data-var="${esc(chave)}"></div>`;
@@ -1124,7 +1230,7 @@ function precosTexto() {
   return t;
 }
 async function atualizarVariacoes() {
-  const v = await api.precos_variacoes(precosTexto());
+  const v = await api.precos_variacoes(precosTexto(), EMB_MUNDO || '');
   document.querySelectorAll('#page-emb [data-var]').forEach((el) => {
     const x = v[el.dataset.var];
     el.className = 'var-preco' + (x ? (x.sentido === 'subiu' ? ' neg' : ' pos') : '');
@@ -1133,7 +1239,7 @@ async function atualizarVariacoes() {
   });
 }
 $('precos-registrar').addEventListener('click', async () => {
-  const r = await api.precos_registrar(precosTexto());
+  const r = await api.precos_registrar(precosTexto(), EMB_MUNDO || '');
   if (r.erro) { toast(r.erro, true); return; }
   if (!r.gravados) { toast('Nenhum preço preenchido', true); return; }
   toast(`${r.gravados} preços registrados`);
@@ -1143,7 +1249,7 @@ let mpChave = null, mpNome = '';
 async function abrirGraficoPreco(chave, nome) {
   mpChave = chave; mpNome = nome;
   $('mp-titulo').textContent = `📈 ${nome}`;
-  renderGraficoPreco(await api.precos_serie(chave));
+  renderGraficoPreco(await api.precos_serie(chave, EMB_MUNDO || ''));
   $('modal-preco').style.display = 'flex';
 }
 function renderGraficoPreco(s) {
@@ -1165,7 +1271,7 @@ $('mp-corpo').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-mp-apagar]');
   if (!b) return;
   if (!confirm(`Apagar o registro de preço de ${b.dataset.mpApagar}? Isso não dá para desfazer.`)) return;
-  const r = await api.precos_apagar(mpChave, b.dataset.mpApagar);
+  const r = await api.precos_apagar(mpChave, b.dataset.mpApagar, EMB_MUNDO || '');
   if (r && r.erro) { toast(r.erro, true); return; }
   renderGraficoPreco(r);
   atualizarVariacoes();
@@ -1694,13 +1800,59 @@ $('h-personagem').addEventListener('change', async () => {
   H.entrada.personagem = $('h-personagem').value;
   H.equip = null;
   if (!H.id) await trocarHerancaDoPersonagem();
-  if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) MEUS = await api.personagem_usar(H.entrada.personagem);
+  if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) { MEUS = await api.personagem_usar(H.entrada.personagem); sincronizarPersonagem(); }
   montarSeletorPersonagem();
   analisarHunt();
 });
 
 // ---------- meus personagens ----------
 let MEUS = { lista: [], atual: '' };
+// rodas, sets e timers pertencem a um personagem (campo "personagem"); os sem dono são os "antigos", que o usuário vincula
+const mesmoPers = (a, b) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
+const doPers = (lista, nome) => (nome ? lista.filter((x) => mesmoPers(x.personagem, nome)) : []);
+const semDono = (lista) => lista.filter((x) => !(x.personagem || '').trim());
+const deOutros = (lista, nome) => lista.filter((x) => (x.personagem || '').trim() && !mesmoPers(x.personagem, nome));
+// aviso de quem está em uso + quantos itens de outros personagens estão escondidos
+function htmlDonoDaLista(lista, nome, plural) {
+  const outros = deOutros(lista, nome).length;
+  return `<div class="dica" style="margin:0 0 8px">${nome ? `Mostrando ${plural} de <b>${esc(nome)}</b> (o personagem em uso).` : `Nenhum personagem em uso: cadastre o seu em Configurações para vincular ${plural}.`}${outros ? ` ${outros} de outros personagens ficam escondidos até você usar o dono deles.` : ''}</div>`;
+}
+// bloco dos antigos: cada um ganha um seletor de personagem e o botão Vincular
+function htmlAntigos(itens, tipo, linha, plural) {
+  if (!itens.length) return '';
+  const opts = MEUS.lista.map((p) => `<option value="${esc(p.nome)}" ${p.nome === MEUS.atual ? 'selected' : ''}>${esc(p.nome)}</option>`).join('');
+  return `<h3 class="sub3" style="margin-top:16px">Antigos, sem personagem (${itens.length})</h3>
+    <div class="dica" style="margin:0 0 8px">Criados antes de existir o vínculo com o personagem. Escolha de quem é cada um; depois só aparece para esse personagem. ${MEUS.lista.length ? '' : 'Cadastre um personagem em Configurações primeiro.'}</div>
+    ${itens.map((x) => `<div class="roda-item">${linha(x)}${MEUS.lista.length ? `<div class="acoes"><select data-vinc-sel="${tipo}:${esc(x.id)}">${opts}</select>
+      <button class="btn btn-sm" data-vincular="${tipo}:${esc(x.id)}">Vincular</button></div>` : ''}</div>`).join('')}`;
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-vincular]');
+  if (!b) return;
+  const [tipo, id] = b.dataset.vincular.split(':');
+  const sel = document.querySelector(`[data-vinc-sel="${tipo}:${id}"]`);
+  const nome = sel && sel.value;
+  if (!nome) return;
+  if (tipo === 'roda') { await api.roda_vincular(id, nome); await carregarRodas(); desenharRodasConfig(); }
+  else if (tipo === 'set') { await api.set_vincular(id, nome); await carregarSets(); desenharSetsConfig(); }
+  else if (tipo === 'timer') { const t = AU.cfg.timers.find((x) => x.id === id); if (t) { t.personagem = nome; await salvarAudio(); } }
+  toast(`Vinculado a ${nome}`);
+});
+// o personagem em uso manda em tudo que é "dele": preços (pelo mundo), rodas, sets e timers. Quem mostra algo por personagem se registra aqui.
+const PERS_OUVINTES = [];
+let PERS_ATIVO = null;
+function sincronizarPersonagem() {
+  trocarMundoEmb();
+  if (MEUS.atual === PERS_ATIVO) return;
+  PERS_ATIVO = MEUS.atual;
+  PERS_OUVINTES.forEach((f) => { try { f(MEUS.atual); } catch (e) { console.error(e); } });
+}
+PERS_OUVINTES.push(() => {
+  if (typeof desenharRodasConfig === 'function') desenharRodasConfig();
+  if (typeof desenharSetsConfig === 'function') desenharSetsConfig();
+  if (typeof renderAudio === 'function') renderAudio();
+  if (typeof redesenharPerso === 'function' && H && H.a) redesenharPerso();
+});
 const acharMeu = (nome) => MEUS.lista.find((p) => p.nome.toLowerCase() === (nome || '').toLowerCase());
 function montarSeletorPersonagem() {
   const atual = H.entrada.personagem || '';
@@ -1720,6 +1872,7 @@ function montarListaPersonagens() {
     : '<div class="dica">Nenhum personagem ainda. Adicione o seu abaixo.</div>';
   $('pers-lista').querySelectorAll('[data-pers-usar]').forEach((b) => b.addEventListener('click', async () => {
     MEUS = await api.personagem_usar(b.dataset.persUsar);
+    sincronizarPersonagem();
     H.entrada.personagem = MEUS.atual;
     montarListaPersonagens(); montarSeletorPersonagem();
     if (H.a) analisarHunt();
@@ -1727,6 +1880,7 @@ function montarListaPersonagens() {
   $('pers-lista').querySelectorAll('[data-pers-remover]').forEach((b) => b.addEventListener('click', async () => {
     if (!confirm(`Remover ${b.dataset.persRemover} da sua lista? (As hunts salvas não mudam.)`)) return;
     MEUS = await api.personagem_remover(b.dataset.persRemover);
+    sincronizarPersonagem();
     if (!acharMeu(H.entrada.personagem)) H.entrada.personagem = MEUS.atual;
     montarListaPersonagens(); montarSeletorPersonagem();
   }));
@@ -1738,6 +1892,7 @@ async function abrirConfiguracoes() {
   montarListaPersonagens();
   $('pers-msg').textContent = 'Atualizando os levels no tibia.com...';
   MEUS = await api.meus_personagens(true);
+  sincronizarPersonagem();
   $('pers-msg').textContent = '';
   montarListaPersonagens(); montarSeletorPersonagem();
 }
@@ -1784,6 +1939,7 @@ async function adicionarPersonagem() {
   if (r.erro) { $('pers-msg').textContent = r.erro; return; }
   const novo = r.lista.find((p) => p.nome.toLowerCase() === nome.toLowerCase());
   MEUS = r;
+  sincronizarPersonagem();
   if (!H.entrada.personagem && MEUS.atual) H.entrada.personagem = MEUS.atual;
   $('pers-novo').value = '';
   $('pers-msg').textContent = novo ? `✔ ${novo.nome} adicionado: level ${novo.level}, ${novo.vocacao}, ${novo.mundo}.` : '';
@@ -2083,6 +2239,7 @@ function ligarHunt() {
 async function huntIniciar() {
   const r = await api.hunt_carregar();
   MEUS = await api.meus_personagens();
+  sincronizarPersonagem();
   H.entrada.personagem = MEUS.atual || (r.entrada && r.entrada.personagem) || '';
   TAB = await api.hunt_tabelas();
   api.hunt_icones_charms().then((u) => { ICONES_CHARM = u || {}; redesenharPerso(false); });
@@ -2097,7 +2254,7 @@ async function huntIniciar() {
   marcarHerdado();
   H.id = null;
   preencherHunt();
-  api.meus_personagens(true).then((d) => { MEUS = d; montarSeletorPersonagem(); });  // atualiza levels sem travar
+  api.meus_personagens(true).then((d) => { MEUS = d; sincronizarPersonagem(); montarSeletorPersonagem(); });  // atualiza levels sem travar
   mostrarCapturas(await api.hunt_monitor_iniciar());
 }
 
@@ -2517,7 +2674,8 @@ function renderAudio() {
   $('au-vol').value = c.volume; $('au-vol-val').textContent = c.volume + '%';
   $('au-sotibia').checked = !!c.so_tibia;
   mostrarCfgBarra();
-  $('au-lista').innerHTML = c.timers.length ? c.timers.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
+  const meus = doPers(c.timers, MEUS.atual);   // os timers são do personagem em uso; os outros ficam escondidos e parados
+  $('au-lista').innerHTML = htmlDonoDaLista(c.timers, MEUS.atual, 'os timers') + (meus.length ? meus.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
       <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDurMs(t.duracao)}${t.antes ? ` · avisa ${fmtDurMs(t.antes)} antes` : ''} · 🔊 ${esc(nomeSom(t.som))} ${t.volume}%${t.alerta ? ' · 📢 alerta' : ''}${t.barra ? ' · ▬ barra' : ''}</div></div>
       <span class="au-tecla" title="Tecla que começa o timer">${esc(AU.teclas[t.id] || '—')}</span>
       <div class="au-tempo"><span class="barra-el"><i style="width:0%"></i></span><b>${fmtDur(t.duracao)}</b></div>
@@ -2525,7 +2683,8 @@ function renderAudio() {
         <button class="btn btn-sm" data-au-ouvir="${t.id}" title="Ouvir o som">▶</button>
         <button class="btn btn-sm" data-au-editar="${t.id}">✎ Editar</button>
         <button class="btn btn-sm btn-danger" data-au-apagar="${t.id}" title="Apagar">✕</button></div></div>`).join('')
-    : '<div class="card calmo"><div class="vazio">Nenhum timer ainda. Clique em <b>+ Novo timer</b>.</div></div>';
+    : '<div class="card calmo"><div class="vazio">Nenhum timer para este personagem ainda. Clique em <b>+ Novo timer</b>.</div></div>')
+    + htmlAntigos(semDono(c.timers), 'timer', (t) => `<div class="roda-nome"><b>${esc(t.nome)}</b> <span class="chip chip-neutro">${esc(AU.teclas[t.id] || '—')}</span> <span class="chip chip-neutro">${fmtDur(t.duracao)}</span></div>`, 'os timers');
   $('au-lista').querySelectorAll('[data-au-ativo]').forEach((c2) => c2.addEventListener('change', () => {
     AU.cfg.timers.find((t) => t.id === c2.dataset.auAtivo).ativo = c2.checked; salvarAudio();
   }));
@@ -2648,7 +2807,9 @@ function desenharFormAudio() {
     if (t.antes >= t.duracao) { toast('O aviso tem que ser antes do fim: menor que a duração.', true); return; }
     const limpo = { ...t }; delete limpo._teclaTexto;
     const i = AU.cfg.timers.findIndex((x) => x.id && x.id === t.id);
-    if (i >= 0) AU.cfg.timers[i] = limpo; else AU.cfg.timers.push(limpo);
+    if (i >= 0) AU.cfg.timers[i] = limpo;
+    else { limpo.personagem = MEUS.atual || ''; AU.cfg.timers.push(limpo); }   // timer novo nasce do personagem em uso (editar mantém o dono)
+    if (!limpo.personagem) toast('Sem personagem em uso: este timer só dispara depois de vinculado a um personagem.', true);
     auEditando = null; desenharFormAudio();
     await salvarAudio();
     toast('Timer salvo!');
@@ -2896,17 +3057,20 @@ window.onFalhaAtualizacao = (d) => {
 };
 
 // ================= janela: fixar por cima + transparência =================
-let janela = { por_cima: false, opacidade: 100 };
+let janela = { por_cima: false, opacidade: 100, escala: 100 };
 let tJanela = null;
 function mostrarJanela() {
   $('j-topo').classList.toggle('on', janela.por_cima);
   $('j-opac').value = janela.opacidade;
   $('j-opac-val').textContent = janela.opacidade + '%';
+  $('j-esc').value = janela.escala;
+  $('j-esc-val').textContent = janela.escala + '%';
+  document.documentElement.style.zoom = janela.escala / 100;   // zoom do navegador: tudo (letras, botões, espaços) cresce ou diminui junto
 }
 function aplicarJanela() {
   mostrarJanela();
   clearTimeout(tJanela);
-  tJanela = setTimeout(() => api.janela_aplicar(janela.por_cima, janela.opacidade), 60);
+  tJanela = setTimeout(() => api.janela_aplicar(janela.por_cima, janela.opacidade, janela.escala), 60);
 }
 $('j-topo').addEventListener('click', () => {
   janela.por_cima = !janela.por_cima;
@@ -2914,6 +3078,49 @@ $('j-topo').addEventListener('click', () => {
   toast(janela.por_cima ? 'Fixado por cima do Tibia' : 'Não está mais fixado');
 });
 $('j-opac').addEventListener('input', () => { janela.opacidade = Number($('j-opac').value); aplicarJanela(); });
+const mudarEscala = (v) => { janela.escala = Math.max(50, Math.min(130, Math.round(v / 5) * 5)); aplicarJanela(); };
+$('j-esc').addEventListener('input', () => mudarEscala(Number($('j-esc').value)));
+// Ctrl + roda do mouse (ou Ctrl e + / - / 0) também muda o tamanho
+window.addEventListener('wheel', (e) => { if (e.ctrlKey) { e.preventDefault(); mudarEscala(janela.escala + (e.deltaY < 0 ? 5 : -5)); } }, { passive: false });
+window.addEventListener('keydown', (e) => {
+  if (!e.ctrlKey || e.altKey) return;
+  if (e.key === '+' || e.key === '=') { e.preventDefault(); mudarEscala(janela.escala + 5); }
+  else if (e.key === '-') { e.preventDefault(); mudarEscala(janela.escala - 5); }
+  else if (e.key === '0') { e.preventDefault(); mudarEscala(100); }
+});
+let modoGadget = false;
+async function alternarGadget() {
+  modoGadget = !modoGadget;
+  if (modoGadget) { mudarEscala(70); janela.por_cima = true; }
+  else { mudarEscala(100); janela.por_cima = false; }
+  aplicarJanela();
+  await api.janela_tamanho(modoGadget ? 'gadget' : 'normal');
+  const semBarra = await api.janela_moldura(!modoGadget);   // gadget: some a barra de título do Windows; fica só a faixa do app
+  document.body.classList.toggle('gadget', modoGadget && semBarra);
+  $('j-gadget').classList.toggle('on', modoGadget);
+  toast(modoGadget ? 'Modo gadget: janela estreita, tamanho 70% e por cima do Tibia (duplo clique na faixa de cima volta ao normal)' : 'Janela normal');
+}
+$('j-gadget').addEventListener('click', alternarGadget);
+// faixa de cima do modo gadget: arrasta a janela; o X só aparece com o mouse em cima
+(() => {
+  const topo = $('gadget-topo');
+  let arrastando = false, esperando = false;
+  topo.addEventListener('pointerdown', async (e) => {
+    if (e.target.closest('#gadget-fechar') || e.button !== 0) return;
+    topo.setPointerCapture(e.pointerId);
+    if (await api.janela_arrastar('inicio')) arrastando = true;
+  });
+  topo.addEventListener('pointermove', () => {
+    if (!arrastando || esperando) return;
+    esperando = true;
+    api.janela_arrastar('mover').finally(() => { esperando = false; });
+  });
+  const soltar = () => { if (arrastando) { arrastando = false; api.janela_arrastar('fim'); } };
+  topo.addEventListener('pointerup', soltar);
+  topo.addEventListener('pointercancel', soltar);
+  topo.addEventListener('dblclick', (e) => { if (!e.target.closest('#gadget-fechar')) alternarGadget(); });
+  $('gadget-fechar').addEventListener('click', () => api.janela_fechar());
+})();
 
 // ================= início =================
 async function iniciar() {
@@ -2948,5 +3155,8 @@ else window.addEventListener('pywebviewready', iniciar);
 <script src="roda.js"></script>
 <script src="sets.js"></script>
 <script src="classificador.js"></script>
+<script src="guild_stats.js"></script>
+<script src="criaturas.js"></script>
+<script src="task_items.js"></script>
 </body>
 </html>

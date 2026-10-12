@@ -21,7 +21,10 @@ Write-Host "Versao: $versao"
 $iscc = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
     "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-    "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+    "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+    "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe",
+    "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
+    "$env:ProgramFiles\Inno Setup 7\ISCC.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 nao encontrado." }
 
@@ -44,6 +47,7 @@ if ($LASTEXITCODE -ne 0) { throw "PyInstaller falhou" }
 $app = Join-Path $PastaBuild "dist\ZandaoTibiaTools"
 New-Item -ItemType Directory -Force (Join-Path $app "data") | Out-Null
 Copy-Item (Join-Path $raiz "data\imbuements.json") (Join-Path $app "data") -Force
+Copy-Item (Join-Path $raiz "data\task_items.json") (Join-Path $app "data") -Force
 
 Write-Host "3/3  Inno Setup..."
 & $iscc "/DMyAppVersion=$versao" "/DSourceDistDir=$app" "/DOutputDir=$(Join-Path $PastaBuild 'output')" `

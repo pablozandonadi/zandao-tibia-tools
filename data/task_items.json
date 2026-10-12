@@ -1,0 +1,7834 @@
+[
+  {
+    "id": 1,
+    "name": "Afflicted Strider Head",
+    "imageUrl": "/api/items/1/image",
+    "droppedBy": [
+      "Afflicted Strider"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 900,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36789,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 2,
+    "name": "Afflicted Strider Worms",
+    "imageUrl": "/api/items/2/image",
+    "droppedBy": [
+      "Afflicted Strider"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36790,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 3,
+    "name": "Alloy Legs",
+    "imageUrl": "/api/items/3/image",
+    "droppedBy": [
+      "Brachiodemon",
+      "Bulltaur Alchemist",
+      "Control Tower",
+      "Glooth Battery",
+      "Metal Gargoyle",
+      "Sorcerer's Apparition",
+      "Ghulosh",
+      "Katex Blood Tongue",
+      "Yirkas Blue Scales"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 11000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21168,
+    "rarity": "Rare"
+  },
+  {
+    "id": 4,
+    "name": "Amber Souvenir",
+    "imageUrl": "/api/items/4/image",
+    "droppedBy": [
+      "Quara Looter",
+      "Quara Plunderer",
+      "Quara Raider"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 850,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 5,
+    "name": "Ancient Belt Buckle",
+    "imageUrl": "/api/items/5/image",
+    "droppedBy": [
+      "Broken Shaper",
+      "Twisted Shaper"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 260,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 6,
+    "name": "Ancient Stone",
+    "imageUrl": "/api/items/6/image",
+    "droppedBy": [
+      "Animated Ogre Brute",
+      "Eternal Guardian",
+      "Museum Stone Golem",
+      "Ogre Brute",
+      "Stone Devourer",
+      "Stone Golem",
+      "Ancient Spawn of Morgathla",
+      "The Last Lore Keeper",
+      "The Source of Corruption"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 7,
+    "name": "Angelic Axe",
+    "imageUrl": "/api/items/7/image",
+    "droppedBy": [
+      "Humongous Fungus",
+      "Lucifuga Aranea",
+      "Mutated Tiger",
+      "Weretiger",
+      "Feroxa",
+      "Weakened Shlorg"
+    ],
+    "sellToNpc": "Blue Djinn",
+    "priceAtNpc": 5000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7436,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 8,
+    "name": "Badger Boots",
+    "imageUrl": "/api/items/8/image",
+    "droppedBy": [
+      "Werebadger",
+      "Feroxa",
+      "Sharpclaw",
+      "The Baron from Below"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 7500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 22086,
+    "rarity": "Rare"
+  },
+  {
+    "id": 9,
+    "name": "Banana Sash",
+    "imageUrl": "/api/items/9/image",
+    "droppedBy": [
+      "Merlkin",
+      "Sibang"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 55,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 11511,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 10,
+    "name": "Basalt Crumbs",
+    "imageUrl": "/api/items/10/image",
+    "droppedBy": [
+      "Darklight Emitter",
+      "Wandering Pillar"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 3000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43858,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 11,
+    "name": "Basalt Fetish",
+    "imageUrl": "/api/items/11/image",
+    "droppedBy": [
+      "Lost Basher",
+      "Lost Exile",
+      "Lost Husher",
+      "Lost Thrower"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 210,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17856,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 12,
+    "name": "Basalt Figurine",
+    "imageUrl": "/api/items/12/image",
+    "droppedBy": [
+      "Lost Basher",
+      "Lost Exile",
+      "Lost Husher",
+      "Lost Thrower"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 160,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17857,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 13,
+    "name": "Bashmu Fang",
+    "imageUrl": "/api/items/13/image",
+    "droppedBy": [
+      "Bashmu",
+      "Juvenile Bashmu"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36820,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 14,
+    "name": "Bashmu Feather",
+    "imageUrl": "/api/items/14/image",
+    "droppedBy": [
+      "Bashmu",
+      "Juvenile Bashmu"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36823,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 15,
+    "name": "Bashmu Tongue",
+    "imageUrl": "/api/items/15/image",
+    "droppedBy": [
+      "Bashmu",
+      "Juvenile Bashmu"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 400,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36821,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 16,
+    "name": "Battle Shield",
+    "imageUrl": "/api/items/16/image",
+    "droppedBy": [
+      "Animated Cyclops",
+      "Assassin",
+      "Cyclops",
+      "Cyclops Drone",
+      "Cyclops Smith",
+      "Demon Skeleton",
+      "Dwarf Guard",
+      "Elf Overseer",
+      "Frost Giant",
+      "Frost Giantess",
+      "Gargoyle",
+      "Hellspawn",
+      "Memory of a Dwarf",
+      "Memory of a Pirate",
+      "Minotaur Guard",
+      "Mutated Bat",
+      "Orc Rider",
+      "Pirate Buccaneer",
+      "Undead Minion",
+      "War Golem",
+      "Foreman Kneebiter",
+      "General Murius",
+      "The Horned Fox"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 95,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3413,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 17,
+    "name": "Black Shield",
+    "imageUrl": "/api/items/17/image",
+    "droppedBy": [
+      "Animated Mummy",
+      "Candy Horror",
+      "Furious Scorpion",
+      "Gloom Maw",
+      "Lost Basher",
+      "Lost Berserker",
+      "Magma Crawler",
+      "Mummy",
+      "Mutated Bat",
+      "Priestess",
+      "Sandstone Scorpion",
+      "Thanatursus",
+      "Werehyaena Shaman",
+      "Wiggler",
+      "Bruise Payne"
+    ],
+    "sellToNpc": "Green Djinn",
+    "priceAtNpc": 800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3429,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 18,
+    "name": "Blemished Spawn Abdomen",
+    "imageUrl": "/api/items/18/image",
+    "droppedBy": [
+      "Blemished Spawn"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 550,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36779,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 19,
+    "name": "Blemished Spawn Head",
+    "imageUrl": "/api/items/19/image",
+    "droppedBy": [
+      "Blemished Spawn"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36778,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 20,
+    "name": "Blemished Spawn Tail",
+    "imageUrl": "/api/items/20/image",
+    "droppedBy": [
+      "Blemished Spawn"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36780,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 21,
+    "name": "Bloated Maggot",
+    "imageUrl": "/api/items/21/image",
+    "droppedBy": [
+      "Bloated Man-Maggot"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 5200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43856,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 22,
+    "name": "Blood Amulet",
+    "imageUrl": "/api/items/22/image",
+    "droppedBy": [
+      "Dworc Shadowstalker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1230,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51473,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 23,
+    "name": "Blood Hood",
+    "imageUrl": "/api/items/23/image",
+    "droppedBy": [
+      "Norcferatu Nightweaver"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1550,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51480,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 24,
+    "name": "Blood Preservation",
+    "imageUrl": "/api/items/24/image",
+    "droppedBy": [
+      "Nightfiend",
+      "Vampire",
+      "Vampire Bride",
+      "Vampire Viscount",
+      "Vicious Manbat",
+      "Arachir The Ancient One",
+      "Arthei",
+      "Boreth",
+      "Diblis The Fair",
+      "Lersatio",
+      "The Pale Count",
+      "Vladrukh"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 320,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 11449,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 25,
+    "name": "Blood Tincture in a Vial",
+    "imageUrl": "/api/items/25/image",
+    "droppedBy": [
+      "Blood Hand",
+      "Blood Priest"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 360,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 26,
+    "name": "Bloodshot Giant Eye",
+    "imageUrl": "/api/items/26/image",
+    "droppedBy": [
+      "Orclops Bloodbreaker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1820,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51482,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 27,
+    "name": "Blue Goanna Scale",
+    "imageUrl": "/api/items/27/image",
+    "droppedBy": [
+      "Young Goanna",
+      "Yirkas Blue Scales"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 230,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31559,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 28,
+    "name": "Boar Man Hoof",
+    "imageUrl": "/api/items/28/image",
+    "droppedBy": [
+      "Boar Man"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 40584,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 29,
+    "name": "Boggy Dreads",
+    "imageUrl": "/api/items/29/image",
+    "droppedBy": [
+      "Bog Raider",
+      "Weakened Shlorg"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 30,
+    "name": "Bola",
+    "imageUrl": "/api/items/30/image",
+    "droppedBy": [
+      "Corym Charlatan",
+      "Corym Skirmisher",
+      "Corym Vanguard"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 35,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17809,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 31,
+    "name": "Bone Club",
+    "imageUrl": "/api/items/31/image",
+    "droppedBy": [
+      "Bonebeast",
+      "Corrupted Skeleton",
+      "Demon (Goblin)",
+      "Dreadbeast",
+      "Goblin",
+      "Goblin Assassin",
+      "Goblin Leader",
+      "Goblin Scavenger",
+      "Muglex Clan Scavenger",
+      "Orger",
+      "Pirate Skeleton",
+      "Troll-Trained Salamander",
+      "Munster",
+      "Necropharus",
+      "Salamander Trainer"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 5,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3337,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 32,
+    "name": "Bone Fetish",
+    "imageUrl": "/api/items/32/image",
+    "droppedBy": [
+      "Animated Ogre Shaman",
+      "Lost Basher",
+      "Lost Exile",
+      "Lost Husher",
+      "Ogre Sage",
+      "Ogre Shaman",
+      "Shaper Matriarch"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17831,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 33,
+    "name": "Bone Fibula",
+    "imageUrl": "/api/items/33/image",
+    "droppedBy": [
+      "Orclops Bloodbreaker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 580,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51485,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 34,
+    "name": "Bone Rattle",
+    "imageUrl": "/api/items/34/image",
+    "droppedBy": [
+      "Dworc Shadowstalker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 790,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51478,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 35,
+    "name": "Bone Shoulderplate",
+    "imageUrl": "/api/items/35/image",
+    "droppedBy": [
+      "Draken Warmaster"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 36,
+    "name": "Bone Toothpick",
+    "imageUrl": "/api/items/36/image",
+    "droppedBy": [
+      "Orclops Bloodbreaker",
+      "Orclops Doomhauler",
+      "Orclops Ravager",
+      "Skeleton Elite Warrior"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 24380,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 37,
+    "name": "Bonebreaker",
+    "imageUrl": "/api/items/37/image",
+    "droppedBy": [
+      "Animated Ogre Brute",
+      "Armadile",
+      "Diamond Servant",
+      "Diamond Servant Replica",
+      "Memory of an Ogre",
+      "Ogre Brute",
+      "War Golem",
+      "Werecrocodile",
+      "Werewolf",
+      "Worker Golem",
+      "Ancient Spawn of Morgathla",
+      "Darkfang",
+      "Feroxa",
+      "Ghazbaran",
+      "Hemming",
+      "Leviathan",
+      "Outburst",
+      "Ragiaz",
+      "The Shatterer",
+      "The Unarmored Voidborn",
+      "World Devourer",
+      "Zavarash"
+    ],
+    "sellToNpc": "Green Djinn",
+    "priceAtNpc": 10000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7428,
+    "rarity": "Rare"
+  },
+  {
+    "id": 38,
+    "name": "Bonecarving Knife",
+    "imageUrl": "/api/items/38/image",
+    "droppedBy": [
+      "Lost Basher",
+      "Lost Exile",
+      "Lost Husher"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 190,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17830,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 39,
+    "name": "Bony Tail",
+    "imageUrl": "/api/items/39/image",
+    "droppedBy": [
+      "Bonebeast",
+      "Ribstride"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 210,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10277,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 40,
+    "name": "Book of Necromantic Rituals",
+    "imageUrl": "/api/items/40/image",
+    "droppedBy": [
+      "Blood Hand",
+      "Blood Priest",
+      "Floating Savant",
+      "Necromancer",
+      "Necromancer Servant",
+      "Shadow Pupil",
+      "Necropharus"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 180,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 41,
+    "name": "Book Page",
+    "imageUrl": "/api/items/41/image",
+    "droppedBy": [
+      "Biting Book",
+      "Burning Book",
+      "Cursed Book",
+      "Energetic Book",
+      "Energuardian of Tales",
+      "Guardian of Tales",
+      "Icecold Book",
+      "Knowledge Elemental"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 640,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 28569,
+    "rarity": "Common"
+  },
+  {
+    "id": 42,
+    "name": "Book with a Dragon",
+    "imageUrl": "/api/items/42/image",
+    "droppedBy": [
+      "Bramble Wyrmling",
+      "Cinder Wyrmling",
+      "Inkwing"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51423,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 43,
+    "name": "Book with an Hourglass",
+    "imageUrl": "/api/items/43/image",
+    "droppedBy": [
+      "Headwalker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1450,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51425,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 44,
+    "name": "Bowl of Terror Sweat",
+    "imageUrl": "/api/items/44/image",
+    "droppedBy": [
+      "Feversleep",
+      "Shiversleep",
+      "Terrorsleep"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 20204,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 45,
+    "name": "Brigadeiro",
+    "imageUrl": "/api/items/45/image",
+    "droppedBy": [
+      "Candy Horror",
+      "Sugar Daddy"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2640,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 48252,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 46,
+    "name": "Brinebrute Claw",
+    "imageUrl": "/api/items/46/image",
+    "droppedBy": [
+      "Brinebrute Inferniarch",
+      "Malvaroth"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 2600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 47,
+    "name": "Broadsword",
+    "imageUrl": "/api/items/47/image",
+    "droppedBy": [
+      "Afflicted Strider",
+      "Dragon",
+      "Orc Leader",
+      "Renegade Orc",
+      "Demodras",
+      "Dragon Hoard",
+      "Grand Mother Foulscale"
+    ],
+    "sellToNpc": "Blue Djinn",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3301,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 48,
+    "name": "Broken Draken Mail",
+    "imageUrl": "/api/items/48/image",
+    "droppedBy": [
+      "Draken Elite",
+      "Paiz the Pauperizer"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 340,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 49,
+    "name": "Broken Gladiator Shield",
+    "imageUrl": "/api/items/49/image",
+    "droppedBy": [
+      "Undead Elite Gladiator",
+      "Undead Gladiator"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 190,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 9656,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 50,
+    "name": "Broken Halberd",
+    "imageUrl": "/api/items/50/image",
+    "droppedBy": [
+      "Lizard Legionnaire"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10418,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 51,
+    "name": "Broken Mitmah Necklace",
+    "imageUrl": "/api/items/51/image",
+    "droppedBy": [
+      "Atab",
+      "Mitmah Scout",
+      "Mitmah Vanguard"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 210,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 52,
+    "name": "Broken Slicer",
+    "imageUrl": "/api/items/52/image",
+    "droppedBy": [
+      "Draken Elite",
+      "Paiz the Pauperizer"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 120,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 53,
+    "name": "Broken Throwing Axe",
+    "imageUrl": "/api/items/53/image",
+    "droppedBy": [
+      "Lost Thrower"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 230,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 54,
+    "name": "Broodrider Saddle",
+    "imageUrl": "/api/items/54/image",
+    "droppedBy": [
+      "Broodrider Inferniarch"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 2800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 55,
+    "name": "Buckle",
+    "imageUrl": "/api/items/55/image",
+    "droppedBy": [
+      "Lost Basher",
+      "Lost Exile",
+      "Lost Husher",
+      "Lost Thrower",
+      "Mycobiontic Beetle",
+      "Spiky Carnivor"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 7000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17829,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 56,
+    "name": "Bulltaur Armor Scrap",
+    "imageUrl": "/api/items/56/image",
+    "droppedBy": [
+      "Bulltaur Brute"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 480,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 44738,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 57,
+    "name": "Bulltaur Hoof",
+    "imageUrl": "/api/items/57/image",
+    "droppedBy": [
+      "Bulltaur Brute"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 540,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 44737,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 58,
+    "name": "Bulltaur Horn",
+    "imageUrl": "/api/items/58/image",
+    "droppedBy": [
+      "Bulltaur Alchemist",
+      "Bulltaur Brute",
+      "Bulltaur Forgepriest"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 385,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 44736,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 59,
+    "name": "Bundle of Cursed Straw",
+    "imageUrl": "/api/items/59/image",
+    "droppedBy": [
+      "Blightwalker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 9688,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 60,
+    "name": "Carnisylvan Bark",
+    "imageUrl": "/api/items/60/image",
+    "droppedBy": [
+      "Dark Carnisylvan",
+      "Hulking Carnisylvan",
+      "Poisonous Carnisylvan"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 230,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36806,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 61,
+    "name": "Carnisylvan Finger",
+    "imageUrl": "/api/items/61/image",
+    "droppedBy": [
+      "Dark Carnisylvan",
+      "Hulking Carnisylvan",
+      "Poisonous Carnisylvan"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36805,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 62,
+    "name": "Carnivostrich Feather",
+    "imageUrl": "/api/items/62/image",
+    "droppedBy": [
+      "Carnivostrich"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 630,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 63,
+    "name": "Cat's Paw",
+    "imageUrl": "/api/items/63/image",
+    "droppedBy": [
+      "Dark Torturer",
+      "Hemming",
+      "Mr. Punish",
+      "The Scourge of Oblivion"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 2000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 64,
+    "name": "Cave Devourer Eyes",
+    "imageUrl": "/api/items/64/image",
+    "droppedBy": [
+      "Cave Devourer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 550,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27599,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 65,
+    "name": "Cave Devourer Legs",
+    "imageUrl": "/api/items/65/image",
+    "droppedBy": [
+      "Cave Devourer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27601,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 66,
+    "name": "Cave Devourer Maw",
+    "imageUrl": "/api/items/66/image",
+    "droppedBy": [
+      "Cave Devourer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27600,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 67,
+    "name": "Centipede Leg",
+    "imageUrl": "/api/items/67/image",
+    "droppedBy": [
+      "Centipede"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 28,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10301,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 68,
+    "name": "Chain Leash",
+    "imageUrl": "/api/items/68/image",
+    "droppedBy": [
+      "Gloom Maw"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 970,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51472,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 69,
+    "name": "Chaos Mace",
+    "imageUrl": "/api/items/69/image",
+    "droppedBy": [
+      "Animated Moohtant",
+      "Destroyer",
+      "Infernal Phantom",
+      "Juvenile Bashmu",
+      "Lost Basher",
+      "Lost Berserker",
+      "Moohtant",
+      "Nightstalker",
+      "Norcferatu Heartless",
+      "Alptramun",
+      "Anomaly",
+      "Bretzecutioner",
+      "Duke Krule",
+      "Ferumbras",
+      "Ferumbras Mortal Shell",
+      "Gorzindel",
+      "Izcandar Champion of Summer",
+      "Izcandar Champion of Winter",
+      "Izcandar the Banished",
+      "Malofur Mangrinder",
+      "Maxxenius",
+      "Outburst",
+      "Plagueroot",
+      "Rupture",
+      "Shulgrax",
+      "Sir Valorcrest",
+      "Tarbaz",
+      "The Nightmare Beast",
+      "The Pale Count",
+      "The Percht Queen",
+      "The Scourge of Oblivion",
+      "The Shatterer",
+      "Utua Stone Sting",
+      "Weakened Shlorg"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 9000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7427,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 70,
+    "name": "Chasm Spawn Abdomen",
+    "imageUrl": "/api/items/70/image",
+    "droppedBy": [
+      "Chasm Spawn"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 240,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27603,
+    "rarity": "Common"
+  },
+  {
+    "id": 71,
+    "name": "Chasm Spawn Head",
+    "imageUrl": "/api/items/71/image",
+    "droppedBy": [
+      "Chasm Spawn"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 850,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27602,
+    "rarity": "Common"
+  },
+  {
+    "id": 72,
+    "name": "Chasm Spawn Tail",
+    "imageUrl": "/api/items/72/image",
+    "droppedBy": [
+      "Chasm Spawn"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 120,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27604,
+    "rarity": "Common"
+  },
+  {
+    "id": 73,
+    "name": "Cheese Cutter",
+    "imageUrl": "/api/items/73/image",
+    "droppedBy": [
+      "Corym Charlatan",
+      "Corym Skirmisher",
+      "Corym Vanguard"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 50,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17817,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 74,
+    "name": "Cheesy Figurine",
+    "imageUrl": "/api/items/74/image",
+    "droppedBy": [
+      "Cobra Scout",
+      "Corym Charlatan",
+      "Corym Skirmisher",
+      "Corym Vanguard"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17818,
+    "rarity": "Rare"
+  },
+  {
+    "id": 75,
+    "name": "Cluster of Crystallized Death",
+    "imageUrl": "/api/items/75/image",
+    "droppedBy": [
+      "Creepy Crawler",
+      "Crypt Construct",
+      "Crypt Fiend"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 9000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 52720,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 76,
+    "name": "Cobra Crest",
+    "imageUrl": "/api/items/76/image",
+    "droppedBy": [
+      "Cobra Assassin",
+      "Cobra Scout",
+      "Cobra Vizier",
+      "Custodian",
+      "Gaffir",
+      "Guard Captain Quaid"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 650,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31678,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 77,
+    "name": "Colourful Feather",
+    "imageUrl": "/api/items/77/image",
+    "droppedBy": [
+      "Iks Yapunac",
+      "Terror Bird"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 110,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 11514,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 78,
+    "name": "Colourful Snail Shell",
+    "imageUrl": "/api/items/78/image",
+    "droppedBy": [
+      "Nymph",
+      "Pixie",
+      "Swan Maiden"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 79,
+    "name": "Combat Knife",
+    "imageUrl": "/api/items/79/image",
+    "droppedBy": [
+      "Assassin",
+      "Enraged Soul",
+      "Foam Stalker",
+      "Ghost",
+      "Goggle Cake",
+      "Orger",
+      "Smuggler",
+      "Tarnished Spirit",
+      "Venerable Foam Stalker",
+      "Werehyaena",
+      "White Lion",
+      "Ancient Lion Knight",
+      "General Murius",
+      "The Horned Fox"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 9000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3292,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 80,
+    "name": "Compound Eye",
+    "imageUrl": "/api/items/80/image",
+    "droppedBy": [
+      "Crawler",
+      "Hive Overseer",
+      "Insectoid Worker",
+      "Kollos",
+      "Spidris",
+      "Spidris Elite",
+      "Spitter",
+      "Swarmer",
+      "Waspoid",
+      "Chopper",
+      "Fleshslicer",
+      "Maw",
+      "Mindmasher",
+      "Rotspit",
+      "Shadowstalker",
+      "The Hungerer",
+      "The Mean Masher"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 14083,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 81,
+    "name": "Cookbook",
+    "imageUrl": "/api/items/81/image",
+    "droppedBy": [
+      "Crusader"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 870,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51424,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 82,
+    "name": "Coral Branch",
+    "imageUrl": "/api/items/82/image",
+    "droppedBy": [
+      "Foam Stalker",
+      "Venerable Foam Stalker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 360,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 83,
+    "name": "Cowbell",
+    "imageUrl": "/api/items/83/image",
+    "droppedBy": [
+      "Minotaur Amazon",
+      "Minotaur Cult Follower",
+      "Minotaur Cult Prophet"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 210,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21204,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 84,
+    "name": "Crab Man Claws",
+    "imageUrl": "/api/items/84/image",
+    "droppedBy": [
+      "Crape Man"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 550,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 40582,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 85,
+    "name": "Cracked Alabaster Vase",
+    "imageUrl": "/api/items/85/image",
+    "droppedBy": [
+      "Broken Shaper",
+      "Shaper Matriarch",
+      "Twisted Shaper"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 180,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 86,
+    "name": "Crawler's Essence",
+    "imageUrl": "/api/items/86/image",
+    "droppedBy": [
+      "Branchy Crawler"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 3700,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 33982,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 87,
+    "name": "Cry-Stal",
+    "imageUrl": "/api/items/87/image",
+    "droppedBy": [
+      "Shrieking Cry-Stal"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 3200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 88,
+    "name": "Crystal Bone",
+    "imageUrl": "/api/items/88/image",
+    "droppedBy": [
+      "Instable Breach Brood"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 89,
+    "name": "Crystal Crossbow",
+    "imageUrl": "/api/items/89/image",
+    "droppedBy": [
+      "Branchy Crawler",
+      "Cave Chimera",
+      "Cliff Strider",
+      "Crazed Summer Rearguard",
+      "Freakish Lost Soul",
+      "Haunted Hunter",
+      "Mould Phantom",
+      "Naga Archer",
+      "Orewalker",
+      "Quara Looter",
+      "Sulphur Spouter",
+      "Abyssador",
+      "Deathstrike",
+      "Gnomevil",
+      "Guard Captain Quaid",
+      "Mazzinor",
+      "Gorerilla"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 35000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 16163,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 90,
+    "name": "Crystal Mace",
+    "imageUrl": "/api/items/90/image",
+    "droppedBy": [
+      "Animated Feather",
+      "Boar Man",
+      "Brachiodemon",
+      "Darklight Striker",
+      "Eyeless Devourer",
+      "Icecold Book",
+      "Infernal Phantom",
+      "Ironblight",
+      "Juvenile Bashmu",
+      "Knight's Apparition",
+      "Lavafungus",
+      "Roaming Dread",
+      "Sight of Surrender",
+      "Squid Warden",
+      "Stone Devourer",
+      "Streaked Devourer",
+      "Tunnel Tyrant",
+      "Walker",
+      "White Weretiger",
+      "Eradicator",
+      "Ice Horror",
+      "Melting Frozen Horror",
+      "Realityquake",
+      "Tamru The Black",
+      "The Baron from Below",
+      "Utua Stone Sting",
+      "Vashresamun",
+      "Yakchal",
+      "Zamulosh",
+      "Zushuka"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 12000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3333,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 91,
+    "name": "Crystal of the Mitmah",
+    "imageUrl": "/api/items/91/image",
+    "droppedBy": [
+      "Mitmah Seer",
+      "Atab",
+      "Mitmah Vanguard"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 280,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 92,
+    "name": "Crystal Sword",
+    "imageUrl": "/api/items/92/image",
+    "droppedBy": [
+      "Afflicted Strider",
+      "Barbarian Skullhunter",
+      "Boar Man",
+      "Crystal Spider",
+      "Elf Overseer",
+      "Energy Elemental",
+      "Enraged Crystal Golem",
+      "High Voltage Elemental",
+      "Ice Golem",
+      "Ice Witch",
+      "Knowledge Elemental",
+      "Menacing Carnivor",
+      "Nighthunter",
+      "Pirat Cutthroat",
+      "Spitter",
+      "Squid Warden",
+      "Werelion",
+      "Werelioness",
+      "Hirintror",
+      "Madareth",
+      "Melting Frozen Horror",
+      "Rotspit",
+      "Shardhead",
+      "Yakchal",
+      "Zushuka"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7449,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 93,
+    "name": "Crystalline Armor",
+    "imageUrl": "/api/items/93/image",
+    "droppedBy": [
+      "Animated Feather",
+      "Armadile",
+      "Crystal Wolf",
+      "Diamond Servant",
+      "Diamond Servant Replica",
+      "Haunted Hunter",
+      "Icecold Book",
+      "Orewalker",
+      "Quara Raider",
+      "Roaming Dread",
+      "Sea Serpent",
+      "Squid Warden",
+      "Tunnel Tyrant",
+      "Turbulent Elemental",
+      "Blight Mariner",
+      "Eradicator",
+      "Ghazbaran",
+      "Ice Overlord",
+      "Mazzinor",
+      "Melting Frozen Horror",
+      "Michael the Stalwart",
+      "Omrafir",
+      "Prince Drazzak",
+      "Ravenous Hunger",
+      "Realityquake",
+      "Rupture",
+      "The Count of the Core",
+      "The Duke of the Depths",
+      "The Winter Bloom",
+      "Zamulosh",
+      "Darklight Source"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 16000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 8050,
+    "rarity": "Rare"
+  },
+  {
+    "id": 94,
+    "name": "Crystalline Spikes",
+    "imageUrl": "/api/items/94/image",
+    "droppedBy": [
+      "Armadile",
+      "Crystalcrusher",
+      "Enraged Crystal Golem",
+      "Ironblight",
+      "Stone Devourer"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 440,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 16138,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 95,
+    "name": "Crystalline Sword",
+    "imageUrl": "/api/items/95/image",
+    "droppedBy": [
+      "Brachiodemon",
+      "Branchy Crawler",
+      "Cliff Strider",
+      "Harpy",
+      "Abyssador",
+      "Anomaly",
+      "Deathstrike",
+      "Deep Terror",
+      "Gnomevil",
+      "Gorzindel",
+      "Melting Frozen Horror",
+      "Outburst"
+    ],
+    "sellToNpc": "Ninguem",
+    "priceAtNpc": 0,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 16160,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 96,
+    "name": "Crystallized Death",
+    "imageUrl": "/api/items/96/image",
+    "droppedBy": [
+      "Creepy Crawler",
+      "Crypt Construct",
+      "Crypt Fiend",
+      "Crypt Mage",
+      "Cyclursus",
+      "Haunted Hunter",
+      "Roaming Dread",
+      "Walking Dread"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 3000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 52719,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 97,
+    "name": "Cuirass Plate",
+    "imageUrl": "/api/items/97/image",
+    "droppedBy": [
+      "Raubritter Marksman",
+      "Raubritter Skirmisher",
+      "Adlerauge",
+      "Michael the Stalwart"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 52663,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 98,
+    "name": "Curious Matter",
+    "imageUrl": "/api/items/98/image",
+    "droppedBy": [
+      "Breach Brood",
+      "Anomaly",
+      "Burster",
+      "Gorzindel",
+      "Rupture",
+      "The Souldespoiler"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 430,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 99,
+    "name": "Cursed Shoulder Spikes",
+    "imageUrl": "/api/items/99/image",
+    "droppedBy": [
+      "Lizard Chosen",
+      "The Voice of Ruin"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 320,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10410,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 100,
+    "name": "Damaged Armor Plates",
+    "imageUrl": "/api/items/100/image",
+    "droppedBy": [
+      "Falcon Knight",
+      "Falcon Paladin",
+      "Grand Canon Dominus",
+      "Grand Chaplain Gaunder",
+      "Grand Commander Soeren"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 280,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 28822,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 101,
+    "name": "Damselfly Eye",
+    "imageUrl": "/api/items/101/image",
+    "droppedBy": [
+      "Dawnfly",
+      "Emerald Damselfly"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 25,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17463,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 102,
+    "name": "Dandelion Seeds",
+    "imageUrl": "/api/items/102/image",
+    "droppedBy": [
+      "Arctic Faun",
+      "Faun",
+      "Nymph",
+      "Pixie"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 103,
+    "name": "Dangerous Proto Matter",
+    "imageUrl": "/api/items/103/image",
+    "droppedBy": [
+      "Dreadful Disruptor",
+      "Reality Reaver"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 104,
+    "name": "Dark Obsidian Splinter",
+    "imageUrl": "/api/items/104/image",
+    "droppedBy": [
+      "Darklight Construct",
+      "Darklight Source",
+      "Darklight Striker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 4400,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43850,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 105,
+    "name": "Dark Rosary",
+    "imageUrl": "/api/items/105/image",
+    "droppedBy": [
+      "Dark Monk",
+      "Priestess"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 48,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 106,
+    "name": "Dark Shield",
+    "imageUrl": "/api/items/106/image",
+    "droppedBy": [
+      "Bellicose Orger",
+      "Grim Reaper",
+      "Haunted Dragon",
+      "Pirate Corsair",
+      "Silencer",
+      "Thanatursus",
+      "Werelion",
+      "Ancient Lion Knight",
+      "Bretzecutioner",
+      "Michael the Stalwart",
+      "The Handmaiden"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 400,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3421,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 107,
+    "name": "Darklight Basalt Chunk",
+    "imageUrl": "/api/items/107/image",
+    "droppedBy": [
+      "Walking Pillar"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 3800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 108,
+    "name": "Darklight Core",
+    "imageUrl": "/api/items/108/image",
+    "droppedBy": [
+      "Converter",
+      "Darklight Construct",
+      "Darklight Emitter",
+      "Darklight Matter",
+      "Darklight Source",
+      "Darklight Striker",
+      "Walking Pillar",
+      "Wandering Pillar"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 4100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43853,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 109,
+    "name": "Darklight Matter",
+    "imageUrl": "/api/items/109/image",
+    "droppedBy": [
+      "Converter",
+      "Darklight Matter"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 5500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43851,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 110,
+    "name": "Dead Weight",
+    "imageUrl": "/api/items/110/image",
+    "droppedBy": [
+      "Choking Fear"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 450,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 20202,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 111,
+    "name": "Deadly Fangs",
+    "imageUrl": "/api/items/111/image",
+    "droppedBy": [
+      "Cyclursus",
+      "Haunted Hunter"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 5500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 52718,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 112,
+    "name": "Decayed Finger Bone",
+    "imageUrl": "/api/items/112/image",
+    "droppedBy": [
+      "Oozing Carcass",
+      "Sopping Carcass"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 5100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43846,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 113,
+    "name": "Deepling Breaktime Snack",
+    "imageUrl": "/api/items/113/image",
+    "droppedBy": [
+      "Deepling Guard",
+      "Deepling Tyrant"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 90,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 114,
+    "name": "Deepling Claw",
+    "imageUrl": "/api/items/114/image",
+    "droppedBy": [
+      "Deepling Guard",
+      "Deepling Tyrant"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 430,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 115,
+    "name": "Deepling Guard Belt Buckle",
+    "imageUrl": "/api/items/115/image",
+    "droppedBy": [
+      "Deepling Guard",
+      "Deepling Tyrant"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 230,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 116,
+    "name": "Deepling Ridge",
+    "imageUrl": "/api/items/116/image",
+    "droppedBy": [
+      "Deathling Scout",
+      "Deathling Spellsinger",
+      "Deepling Elite",
+      "Deepling Warrior",
+      "Neutral Deepling Warrior"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 360,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 117,
+    "name": "Deepling Scales",
+    "imageUrl": "/api/items/117/image",
+    "droppedBy": [
+      "Deepling Brawler",
+      "Deepling Worker",
+      "Shark"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 80,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 118,
+    "name": "Deeptags",
+    "imageUrl": "/api/items/118/image",
+    "droppedBy": [
+      "Deathling Scout",
+      "Deathling Spellsinger",
+      "Deepling Elite",
+      "Deepling Warrior",
+      "Neutral Deepling Warrior"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 290,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 119,
+    "name": "Deepworm Jaws",
+    "imageUrl": "/api/items/119/image",
+    "droppedBy": [
+      "Deepworm"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27594,
+    "rarity": "Common"
+  },
+  {
+    "id": 120,
+    "name": "Deepworm Spike Roots",
+    "imageUrl": "/api/items/120/image",
+    "droppedBy": [
+      "Deepworm"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 650,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27593,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 121,
+    "name": "Deepworm Spikes",
+    "imageUrl": "/api/items/121/image",
+    "droppedBy": [
+      "Deepworm"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 122,
+    "name": "Demon Root",
+    "imageUrl": "/api/items/122/image",
+    "droppedBy": [
+      "Rootthing Amber Shaper",
+      "Rootthing Bug Tracker",
+      "Rootthing Nutshell"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 950,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 48510,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 123,
+    "name": "Demonic Matter",
+    "imageUrl": "/api/items/123/image",
+    "droppedBy": [
+      "Brinebrute Inferniarch",
+      "Broodrider Inferniarch",
+      "Gorger Inferniarch",
+      "Hellhunter Inferniarch",
+      "Sineater Inferniarch",
+      "Spellreaper Inferniarch",
+      "Gralvalon",
+      "Malvaroth",
+      "Twisterror"
+    ],
+    "sellToNpc": "Ninguem",
+    "priceAtNpc": 0,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 124,
+    "name": "Diamond Sceptre",
+    "imageUrl": "/api/items/124/image",
+    "droppedBy": [
+      "Animated Feather",
+      "Blemished Spawn",
+      "Cursed Book",
+      "Enfeebled Silencer",
+      "Girtablilu Warrior",
+      "Gore Horn",
+      "Hulking Carnisylvan",
+      "Ice Witch",
+      "Icecold Book",
+      "Juvenile Bashmu",
+      "Massive Earth Elemental",
+      "Nightmare Scion",
+      "Ogre Ruffian",
+      "Poisonous Carnisylvan",
+      "Silencer",
+      "Squid Warden",
+      "Swan Maiden",
+      "Varnished Diremaw",
+      "Annihilon",
+      "The Blazing Time Guardian",
+      "The Freezing Time Guardian",
+      "The Time Guardian",
+      "Zavarash"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 3000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7387,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 125,
+    "name": "Diremaw Brainpan",
+    "imageUrl": "/api/items/125/image",
+    "droppedBy": [
+      "Diremaw"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27597,
+    "rarity": "Common"
+  },
+  {
+    "id": 126,
+    "name": "Diremaw Legs",
+    "imageUrl": "/api/items/126/image",
+    "droppedBy": [
+      "Diremaw"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 270,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27598,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 127,
+    "name": "Dirty Turban",
+    "imageUrl": "/api/items/127/image",
+    "droppedBy": [
+      "Blue Djinn",
+      "Crypt Defiler",
+      "Grave Robber",
+      "Green Djinn",
+      "Nomad",
+      "Nomad (Blue)",
+      "Nomad (Female)"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 120,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 128,
+    "name": "Double Axe",
+    "imageUrl": "/api/items/128/image",
+    "droppedBy": [
+      "Behemoth",
+      "Cyclops Smith",
+      "Diabolic Imp",
+      "Dragon",
+      "Dwarf Guard",
+      "Fire Devil",
+      "Memory of a Dwarf",
+      "Minotaur Guard",
+      "Orger",
+      "Quara Predator",
+      "Quara Predator Scout",
+      "Valkyrie",
+      "Brutus Bloodbeard",
+      "Demodras",
+      "Ferumbras",
+      "General Murius",
+      "Ghazbaran",
+      "Golgordan",
+      "Grand Mother Foulscale",
+      "Latrivan",
+      "Lethal Lissy",
+      "Morgaroth",
+      "Mr. Punish",
+      "Orshabaal",
+      "Ron The Ripper",
+      "Stonecracker",
+      "Tazhadur",
+      "The Horned Fox",
+      "Werelion"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 260,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3275,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 129,
+    "name": "Dowser",
+    "imageUrl": "/api/items/129/image",
+    "droppedBy": [
+      "Leaf Golem",
+      "Wilting Leaf Golem",
+      "Dazed Leaf Golem"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 35,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 19110,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 130,
+    "name": "Dragolisk Eye",
+    "imageUrl": "/api/items/130/image",
+    "droppedBy": [
+      "Dragolisk"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 690,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 131,
+    "name": "Dragolisk Poison Gland",
+    "imageUrl": "/api/items/131/image",
+    "droppedBy": [
+      "Dragolisk"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 475,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 132,
+    "name": "Dragon Hammer",
+    "imageUrl": "/api/items/132/image",
+    "droppedBy": [
+      "Bulltaur Brute",
+      "Dragon",
+      "Orc Warlord",
+      "Demodras",
+      "Dire Penguin",
+      "Grand Mother Foulscale",
+      "Orshabaal",
+      "Tazhadur"
+    ],
+    "sellToNpc": "Green Djinn",
+    "priceAtNpc": 2000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3322,
+    "rarity": "Rare"
+  },
+  {
+    "id": 133,
+    "name": "Dragon Priest's Wandtip",
+    "imageUrl": "/api/items/133/image",
+    "droppedBy": [
+      "Lizard Dragon Priest",
+      "Flamecaller Zazrak"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 175,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10444,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 134,
+    "name": "Dragon Slayer",
+    "imageUrl": "/api/items/134/image",
+    "droppedBy": [
+      "Dragon Lord",
+      "Frost Dragon",
+      "Haunted Dragon",
+      "Undead Dragon",
+      "Dragon Hoard",
+      "Inkwing",
+      "Ushuriel"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 15000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7402,
+    "rarity": "Rare"
+  },
+  {
+    "id": 135,
+    "name": "Dragon Tongue",
+    "imageUrl": "/api/items/135/image",
+    "droppedBy": [
+      "Ice Dragon",
+      "Wardragon",
+      "Eldritch Dragon Lord",
+      "Gelidrazah the Frozen",
+      "Kalyassa",
+      "Tazhadur",
+      "Zorvorax"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 550,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 136,
+    "name": "Dragon's Tail",
+    "imageUrl": "/api/items/136/image",
+    "droppedBy": [
+      "Dragolisk",
+      "Dragon",
+      "Dragon Hatchling"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 137,
+    "name": "Draken Wristbands",
+    "imageUrl": "/api/items/137/image",
+    "droppedBy": [
+      "Draken Elite",
+      "Paiz the Pauperizer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 430,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 138,
+    "name": "Dream Essence Egg",
+    "imageUrl": "/api/items/138/image",
+    "droppedBy": [
+      "Crazed Summer Rearguard",
+      "Crazed Summer Vanguard",
+      "Crazed Winter Rearguard",
+      "Crazed Winter Vanguard",
+      "Insane Siren",
+      "Soul-broken Harbinger",
+      "Soul-Broken Harbinger"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 205,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 30005,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 139,
+    "name": "Dung Ball",
+    "imageUrl": "/api/items/139/image",
+    "droppedBy": [
+      "Insectoid Worker",
+      "Mindmasher"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 130,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 14225,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 140,
+    "name": "Earflap",
+    "imageUrl": "/api/items/140/image",
+    "droppedBy": [
+      "Corym Charlatan",
+      "Corym Skirmisher",
+      "Corym Vanguard"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 40,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17819,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 141,
+    "name": "Elder Bonelord Tentacle",
+    "imageUrl": "/api/items/141/image",
+    "droppedBy": [
+      "Elder Bonelord"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 142,
+    "name": "Elven Astral Observer",
+    "imageUrl": "/api/items/142/image",
+    "droppedBy": [
+      "Crazed Summer Vanguard",
+      "Crazed Winter Rearguard",
+      "Elf Arcanist",
+      "Dharalion"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 90,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 11465,
+    "rarity": "Common"
+  },
+  {
+    "id": 143,
+    "name": "Emerald Tortoise Shell",
+    "imageUrl": "/api/items/143/image",
+    "droppedBy": [
+      "Emerald Tortoise"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": null,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39379,
+    "rarity": "Common"
+  },
+  {
+    "id": 144,
+    "name": "Empty Honey Glass",
+    "imageUrl": "/api/items/144/image",
+    "droppedBy": [
+      "Black Sphinx Acolyte",
+      "Burning Gladiator",
+      "Priestess of the Wild Sun"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 270,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31331,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 145,
+    "name": "Encrypted Notes",
+    "imageUrl": "/api/items/145/image",
+    "droppedBy": [
+      "Bulltaur Alchemist"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 620,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 44739,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 146,
+    "name": "Energy Ball",
+    "imageUrl": "/api/items/146/image",
+    "droppedBy": [
+      "Brain Squid",
+      "Dread Intruder",
+      "Energetic Book",
+      "Outburst"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 23523,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 147,
+    "name": "Ensouled Essence",
+    "imageUrl": "/api/items/147/image",
+    "droppedBy": [
+      "Flimsy Lost Soul",
+      "Freakish Lost Soul",
+      "Mean Lost Soul"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 820,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 32698,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 148,
+    "name": "Essence of a Bad Dream",
+    "imageUrl": "/api/items/148/image",
+    "droppedBy": [
+      "Arachnophobica",
+      "Nightmare",
+      "Nightmare Scion",
+      "Thanatursus",
+      "Tormentor"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 360,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10306,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 149,
+    "name": "Exalted Core",
+    "imageUrl": "/api/items/149/image",
+    "droppedBy": [
+      "This item cannot be obtained from monsters."
+    ],
+    "sellToNpc": "Ninguem",
+    "priceAtNpc": 0,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 150,
+    "name": "Execowtioner Mask",
+    "imageUrl": "/api/items/150/image",
+    "droppedBy": [
+      "Execowtioner"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 240,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 151,
+    "name": "Eye of a Deepling",
+    "imageUrl": "/api/items/151/image",
+    "droppedBy": [
+      "Deathling Scout",
+      "Deathling Spellsinger",
+      "Deepling Brawler",
+      "Deepling Elite",
+      "Deepling Guard",
+      "Deepling Master Librarian",
+      "Deepling Scout",
+      "Deepling Spellsinger",
+      "Deepling Tyrant",
+      "Deepling Warrior",
+      "Deepling Worker",
+      "Shark",
+      "Reflection of Obujos"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 152,
+    "name": "Eye of a Weeper",
+    "imageUrl": "/api/items/152/image",
+    "droppedBy": [
+      "Weeper"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 650,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 153,
+    "name": "Eye of Corruption",
+    "imageUrl": "/api/items/153/image",
+    "droppedBy": [
+      "Draken Abomination"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 390,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 154,
+    "name": "Eyeless Devourer Legs",
+    "imageUrl": "/api/items/154/image",
+    "droppedBy": [
+      "Eyeless Devourer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 650,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36776,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 155,
+    "name": "Eyeless Devourer Maw",
+    "imageUrl": "/api/items/155/image",
+    "droppedBy": [
+      "Eyeless Devourer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 420,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36775,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 156,
+    "name": "Eyeless Devourer Tongue",
+    "imageUrl": "/api/items/156/image",
+    "droppedBy": [
+      "Eyeless Devourer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 900,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36777,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 157,
+    "name": "Fafnar Symbol",
+    "imageUrl": "/api/items/157/image",
+    "droppedBy": [
+      "Burning Gladiator",
+      "Priestess of the Wild Sun"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 950,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31443,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 158,
+    "name": "Falcon Crest",
+    "imageUrl": "/api/items/158/image",
+    "droppedBy": [
+      "Falcon Knight",
+      "Falcon Paladin",
+      "Grand Canon Dominus",
+      "Grand Chaplain Gaunder",
+      "Grand Commander Soeren"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 650,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 28823,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 159,
+    "name": "Fig Leaf",
+    "imageUrl": "/api/items/159/image",
+    "droppedBy": [
+      "Barkless Devotee",
+      "Barkless Fanatic",
+      "Ravenous Hunger"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 160,
+    "name": "Fir Cone",
+    "imageUrl": "/api/items/160/image",
+    "droppedBy": [
+      "Grove Guardian",
+      "Leaf Golem",
+      "Wilting Leaf Golem",
+      "Dazed Leaf Golem"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 25,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 19111,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 161,
+    "name": "Fire Axe",
+    "imageUrl": "/api/items/161/image",
+    "droppedBy": [
+      "Angry Demon",
+      "Brachiodemon",
+      "Demon",
+      "Feral Sphinx",
+      "Guardian of Tales",
+      "Hellfire Fighter",
+      "Infernal Phantom",
+      "Insane Siren",
+      "Lava Golem",
+      "Lost Basher",
+      "Lost Berserker",
+      "Lost Exile",
+      "Lost Husher",
+      "Mean Lost Soul",
+      "Rage Squid",
+      "Sulphider",
+      "Vexclaw",
+      "Weeper",
+      "Arbaziloth",
+      "Arbaziloth (Hard)",
+      "Essence of Malice",
+      "Ferumbras",
+      "Furyosa",
+      "Golgordan",
+      "Latrivan",
+      "Mahrdis",
+      "Mazoran",
+      "Minishabaal",
+      "Morgaroth",
+      "Orshabaal",
+      "The Duke of the Depths",
+      "The Imperor",
+      "Xogixath"
+    ],
+    "sellToNpc": "Blue Djinn",
+    "priceAtNpc": 8000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3320,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 162,
+    "name": "Flask of Demonic Blood",
+    "imageUrl": "/api/items/162/image",
+    "droppedBy": [
+      "Betrayed Wraith",
+      "Burning Book",
+      "Dark Torturer",
+      "Dawnfire Asura",
+      "Diabolic Imp",
+      "Falcon Knight",
+      "Floating Savant",
+      "Frost Flower Asura",
+      "Fury",
+      "Grim Reaper",
+      "Grimeleech",
+      "Hand of Cursed Fate",
+      "Hellflayer",
+      "Hellhound",
+      "Juggernaut",
+      "Midnight Asura",
+      "Nightmare",
+      "True Dawnfire Asura",
+      "True Frost Flower Asura",
+      "True Midnight Asura",
+      "Fluffy",
+      "Furyosa",
+      "Grand Chaplain Gaunder",
+      "Kerberos",
+      "Kusuma",
+      "Mazoran",
+      "Plagirath",
+      "Preceptor Lazare",
+      "Ragiaz",
+      "Razzagorn",
+      "Shulgrax",
+      "Tarbaz",
+      "The Blazing Rose",
+      "The Diamond Blossom",
+      "The Flaming Orchid",
+      "The Lily of Night",
+      "The Moonlight Aster",
+      "The Winter Bloom",
+      "Tormentor",
+      "Zamulosh"
+    ],
+    "sellToNpc": "Ninguem",
+    "priceAtNpc": 0,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 6558,
+    "rarity": "Common"
+  },
+  {
+    "id": 163,
+    "name": "Flotsam",
+    "imageUrl": "/api/items/163/image",
+    "droppedBy": [
+      "Foam Stalker",
+      "Venerable Foam Stalker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 330,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 164,
+    "name": "Focus Cape",
+    "imageUrl": "/api/items/164/image",
+    "droppedBy": [
+      "Afflicted Strider",
+      "Converter",
+      "Dawnfire Asura",
+      "Draken Spellweaver",
+      "Girtablilu Warrior",
+      "Harpy",
+      "Lavafungus",
+      "Lizard Dragon Priest",
+      "Lumbering Carnivor",
+      "Nightmare Scion",
+      "Pirat Cutthroat",
+      "Reality Reaver",
+      "Sea Serpent",
+      "Stabilizing Reality Reaver",
+      "Tremendous Tyrant",
+      "True Dawnfire Asura",
+      "Wyrm",
+      "Amenef the Burning",
+      "Captain Jones",
+      "Hellgorak",
+      "Raging Mage",
+      "Reflection of a Mage",
+      "Sister Hetai"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 6000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 8043,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 165,
+    "name": "Fox Paw",
+    "imageUrl": "/api/items/165/image",
+    "droppedBy": [
+      "Fox",
+      "Werefox",
+      "Black Vixen"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27462,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 166,
+    "name": "Frazzle Tongue",
+    "imageUrl": "/api/items/166/image",
+    "droppedBy": [
+      "Animated Guzzlemaw",
+      "Frazzlemaw",
+      "Guzzlemaw",
+      "Nibblemaw",
+      "Weakened Frazzlemaw",
+      "Mawhawk",
+      "Reflection of Mawhawk"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 700,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 20198,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 167,
+    "name": "Frozen Lightning",
+    "imageUrl": "/api/items/167/image",
+    "droppedBy": [
+      "Brain Squid",
+      "Dread Intruder",
+      "Anomaly",
+      "Rupture",
+      "Mazzinor"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 270,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 23519,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 168,
+    "name": "Fur Armor",
+    "imageUrl": "/api/items/168/image",
+    "droppedBy": [
+      "Adult Goanna",
+      "Blemished Spawn",
+      "Capricious Phantom",
+      "Cave Chimera",
+      "Cunning Werepanther",
+      "Girtablilu Warrior",
+      "Lumbering Carnivor",
+      "Raubritter Skirmisher",
+      "Rotten Golem",
+      "Sun-marked Goanna",
+      "Turbulent Elemental",
+      "Varnished Diremaw",
+      "Werebear",
+      "Wereboar",
+      "Werecrocodile",
+      "Werepanther",
+      "Young Goanna",
+      "Bloodback",
+      "Feroxa",
+      "Michael the Stalwart",
+      "Owin",
+      "Shadowpelt"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 5000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 22085,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 169,
+    "name": "Gauze Bandage",
+    "imageUrl": "/api/items/169/image",
+    "droppedBy": [
+      "Animated Mummy",
+      "Elder Mummy",
+      "Mummy",
+      "Mahatheb"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 90,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 9649,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 170,
+    "name": "Ghastly Dragon Head",
+    "imageUrl": "/api/items/170/image",
+    "droppedBy": [
+      "Ghastly Dragon",
+      "Ethershreck",
+      "Hatebreeder"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 700,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 171,
+    "name": "Giant Pacifier",
+    "imageUrl": "/api/items/171/image",
+    "droppedBy": [
+      "Animated Moohtant",
+      "Moohtant",
+      "Bullwark",
+      "Moohtant Wallbreaker"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 170,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 172,
+    "name": "Giant Tusk",
+    "imageUrl": "/api/items/172/image",
+    "droppedBy": [
+      "Creepy Crawler",
+      "Crypt Fiend"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 6000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 52707,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 173,
+    "name": "Girlish Hair Decoration",
+    "imageUrl": "/api/items/173/image",
+    "droppedBy": [
+      "Amazon",
+      "Valkyrie"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 30,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 174,
+    "name": "Girtablilu Warrior Carapace",
+    "imageUrl": "/api/items/174/image",
+    "droppedBy": [
+      "Girtablilu Warrior"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 520,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36971,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 175,
+    "name": "Glacier Mask",
+    "imageUrl": "/api/items/175/image",
+    "droppedBy": [
+      "Animated Feather",
+      "Animated Snowman",
+      "Crazed Winter Rearguard",
+      "Crystal Spider",
+      "Ice Dragon",
+      "Ice Golem",
+      "Icecold Book",
+      "Memory of a Dwarf",
+      "Monk's Apparition",
+      "Mycobiontic Beetle",
+      "Paladin's Apparition",
+      "Seacrest Serpent",
+      "Squid Warden",
+      "Earl Osam",
+      "Gelidrazah the Frozen",
+      "Hirintror",
+      "Neferi the Spy",
+      "Shardhead",
+      "The Bloodweb",
+      "Zushuka",
+      "Two-Headed Turtle"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 829,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 176,
+    "name": "Glacier Robe",
+    "imageUrl": "/api/items/176/image",
+    "droppedBy": [
+      "Crazed Winter Rearguard",
+      "Crazed Winter Vanguard",
+      "Druid's Apparition",
+      "Girtablilu Warrior",
+      "Goggle Cake",
+      "Hazardous Phantom",
+      "Icecold Book",
+      "Many Faces",
+      "Quara Pincher",
+      "Quara Predator",
+      "Quara Raider",
+      "Renegade Quara Pincher",
+      "Renegade Quara Predator",
+      "Schiach",
+      "Squid Warden",
+      "Tremendous Tyrant",
+      "Turbulent Elemental",
+      "Court Warlock",
+      "King Zelos",
+      "Srezz Yellow Eyes",
+      "Tarbaz",
+      "The Time Guardian",
+      "The Winter Bloom",
+      "Utua Stone Sting",
+      "Yakchal",
+      "Zushuka"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 11000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 824,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 177,
+    "name": "Glacier Shoes",
+    "imageUrl": "/api/items/177/image",
+    "droppedBy": [
+      "Bluebeak",
+      "Foam Stalker",
+      "Ice Witch",
+      "Icecold Book",
+      "Many Faces",
+      "Seacrest Serpent",
+      "Soul-broken Harbinger",
+      "Two-Headed Turtle",
+      "Usurper Archer",
+      "Varnished Diremaw",
+      "Venerable Foam Stalker",
+      "Hirintror",
+      "Neferi the Spy",
+      "Zushuka",
+      "Soul-Broken Harbinger"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 819,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 178,
+    "name": "Glob of Acid Slime",
+    "imageUrl": "/api/items/178/image",
+    "droppedBy": [
+      "Acid Blob",
+      "Defiler",
+      "Stonerefiner"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 25,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 9054,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 179,
+    "name": "Glob of Glooth",
+    "imageUrl": "/api/items/179/image",
+    "droppedBy": [
+      "Devourer",
+      "Glooth Blob",
+      "Rot Elemental"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 125,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21182,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 180,
+    "name": "Glob of Tar",
+    "imageUrl": "/api/items/180/image",
+    "droppedBy": [
+      "Death Blob",
+      "Defiler"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 30,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 9055,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 181,
+    "name": "Glooth Axe",
+    "imageUrl": "/api/items/181/image",
+    "droppedBy": [
+      "Blood Beast",
+      "Devourer",
+      "Glooth Anemone",
+      "Glooth Bandit",
+      "Glooth Blob",
+      "Glooth Brigand",
+      "Glooth Golem",
+      "Rot Elemental",
+      "Glooth Fairy",
+      "Lisa"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21180,
+    "rarity": "Rare"
+  },
+  {
+    "id": 182,
+    "name": "Glooth Blade",
+    "imageUrl": "/api/items/182/image",
+    "droppedBy": [
+      "Blood Beast",
+      "Devourer",
+      "Glooth Anemone",
+      "Glooth Bandit",
+      "Glooth Blob",
+      "Glooth Brigand",
+      "Glooth Golem",
+      "Glooth Fairy",
+      "Lisa"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21179,
+    "rarity": "Rare"
+  },
+  {
+    "id": 183,
+    "name": "Glooth Cape",
+    "imageUrl": "/api/items/183/image",
+    "droppedBy": [
+      "Devourer",
+      "Glooth Anemone",
+      "Glooth Bandit",
+      "Glooth Fairy",
+      "Lisa",
+      "Tremor Worm"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 7000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21164,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 184,
+    "name": "Glooth Club",
+    "imageUrl": "/api/items/184/image",
+    "droppedBy": [
+      "Blood Beast",
+      "Devourer",
+      "Glooth Anemone",
+      "Glooth Bandit",
+      "Glooth Blob",
+      "Glooth Brigand",
+      "Glooth Golem",
+      "Glooth Fairy",
+      "Lisa"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21178,
+    "rarity": "Rare"
+  },
+  {
+    "id": 185,
+    "name": "Glooth Injection Tube",
+    "imageUrl": "/api/items/185/image",
+    "droppedBy": [
+      "Glooth Golem",
+      "Glooth Fairy"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 186,
+    "name": "Glorious Axe",
+    "imageUrl": "/api/items/186/image",
+    "droppedBy": [
+      "Bashmu",
+      "Bellicose Orger",
+      "Enfeebled Silencer",
+      "Enraged Crystal Golem",
+      "Enslaved Dwarf",
+      "Infernal Phantom",
+      "Lumbering Carnivor",
+      "Mutated Tiger",
+      "Orewalker",
+      "Silencer",
+      "Stone Devourer",
+      "Werecrocodile",
+      "Werelion",
+      "Feroxa",
+      "Ghazbaran",
+      "Weakened Shlorg"
+    ],
+    "sellToNpc": "Blue Djinn",
+    "priceAtNpc": 3000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7454,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 187,
+    "name": "Glowing Rune",
+    "imageUrl": "/api/items/187/image",
+    "droppedBy": [
+      "Animated Feather",
+      "Biting Book",
+      "Brain Squid",
+      "Energetic Book",
+      "Energuardian of Tales",
+      "Guardian of Tales",
+      "Knowledge Elemental",
+      "Rage Squid",
+      "Squid Warden"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 28570,
+    "rarity": "Common"
+  },
+  {
+    "id": 188,
+    "name": "Goanna Claw",
+    "imageUrl": "/api/items/188/image",
+    "droppedBy": [
+      "Adult Goanna",
+      "Young Goanna"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 260,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31561,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 189,
+    "name": "Goanna Meat",
+    "imageUrl": "/api/items/189/image",
+    "droppedBy": [
+      "Adult Goanna",
+      "Sun-marked Goanna",
+      "Young Goanna"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 190,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31560,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 190,
+    "name": "Golden Legs",
+    "imageUrl": "/api/items/190/image",
+    "droppedBy": [
+      "Angry Demon",
+      "Dark Torturer",
+      "Demon",
+      "Fury",
+      "Rootthing Bug Tracker",
+      "Vexclaw",
+      "Arbaziloth",
+      "Ferumbras",
+      "Ferumbras Mortal Shell",
+      "Gaz'Haragoth",
+      "Ghazbaran",
+      "Golgordan",
+      "Hellgorak",
+      "Horadron",
+      "Latrivan",
+      "Minishabaal",
+      "Morgaroth",
+      "Orshabaal",
+      "Ragiaz",
+      "Realityquake",
+      "Rotrender Scourge of Azzilon",
+      "World Devourer"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 30000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3364,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 191,
+    "name": "Golden Lotus Brooch",
+    "imageUrl": "/api/items/191/image",
+    "droppedBy": [
+      "Dawnfire Asura",
+      "Frost Flower Asura",
+      "Midnight Asura",
+      "True Dawnfire Asura",
+      "True Frost Flower Asura",
+      "True Midnight Asura",
+      "Kusuma",
+      "The Blazing Rose",
+      "The Diamond Blossom",
+      "The Flaming Orchid",
+      "The Lily of Night",
+      "The Moonlight Aster",
+      "The Winter Bloom"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 270,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 192,
+    "name": "Golden Sickle",
+    "imageUrl": "/api/items/192/image",
+    "droppedBy": [
+      "Angry Demon",
+      "Blightwalker",
+      "Boogy",
+      "Cunning Werepanther",
+      "Demon",
+      "Priestess of the Wild Sun",
+      "Werepanther",
+      "Arbaziloth",
+      "Arbaziloth (Hard)",
+      "Latrivan",
+      "Orshabaal",
+      "Rotrender Scourge of Azzilon"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3306,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 193,
+    "name": "Golden Sun Coin",
+    "imageUrl": "/api/items/193/image",
+    "droppedBy": [
+      "Feral Werecrocodile",
+      "Werecrocodile",
+      "Ayana The Crimson Curse"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 11000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43734,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 194,
+    "name": "Gore Horn",
+    "imageUrl": "/api/items/194/image",
+    "droppedBy": [
+      "Gore Horn"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2900,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39377,
+    "rarity": "Common"
+  },
+  {
+    "id": 195,
+    "name": "Gorerilla Mane",
+    "imageUrl": "/api/items/195/image",
+    "droppedBy": [
+      "Gorerilla"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2750,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39392,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 196,
+    "name": "Gorerilla Tail",
+    "imageUrl": "/api/items/196/image",
+    "droppedBy": [
+      "Gorerilla"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2650,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39393,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 197,
+    "name": "Gorger Antlers",
+    "imageUrl": "/api/items/197/image",
+    "droppedBy": [
+      "Gorger Inferniarch"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 2250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 198,
+    "name": "Grappling Hook",
+    "imageUrl": "/api/items/198/image",
+    "droppedBy": [
+      "Pirat Scoundrel"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 35588,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 199,
+    "name": "Green Bandage",
+    "imageUrl": "/api/items/199/image",
+    "droppedBy": [
+      "Putrid Mummy"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 180,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 25697,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 200,
+    "name": "Guardian Shield",
+    "imageUrl": "/api/items/200/image",
+    "droppedBy": [
+      "Burning Book",
+      "Choking Fear",
+      "Cult Enforcer",
+      "Demon Skeleton",
+      "Diabolic Imp",
+      "Energy Elemental",
+      "Enslaved Dwarf",
+      "Fire Devil",
+      "Knowledge Elemental",
+      "Lost Berserker",
+      "Lost Exile",
+      "Lost Husher",
+      "Minotaur Invader",
+      "Mooh'Tah Warrior",
+      "Mutated Tiger",
+      "Spiky Carnivor",
+      "Undead Minion",
+      "Vicious Squire",
+      "Annihilon",
+      "Minishabaal",
+      "Terofar",
+      "The Imperor",
+      "Tyrn",
+      "Zavarash",
+      "Zomba",
+      "Zulazza the Corruptor"
+    ],
+    "sellToNpc": "Blue Djinn",
+    "priceAtNpc": 2000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3415,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 201,
+    "name": "Halberd",
+    "imageUrl": "/api/items/201/image",
+    "droppedBy": [
+      "Animated Cyclops",
+      "Barbarian Bloodwalker",
+      "Cult Enforcer",
+      "Cyclops",
+      "Cyclops Drone",
+      "Foam Stalker",
+      "Frost Giant",
+      "Golden Servant",
+      "Golden Servant Replica",
+      "Hacker",
+      "Iron Servant",
+      "Iron Servant Replica",
+      "Lizard Sentinel",
+      "Mutated Rat",
+      "Orc Berserker",
+      "Orc Cult Inquisitor",
+      "Quara Mantassin",
+      "Quara Pincher",
+      "Quara Pincher Scout",
+      "Renegade Quara Pincher",
+      "Thanatursus",
+      "Venerable Foam Stalker",
+      "Vicious Squire",
+      "Wailing Widow",
+      "Werehyaena",
+      "Werewolf",
+      "Zombie",
+      "Annihilon",
+      "Black Knight",
+      "Esmeralda"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 400,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3269,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 202,
+    "name": "Half-Digested Stones",
+    "imageUrl": "/api/items/202/image",
+    "droppedBy": [
+      "Stonerefiner"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 40,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27369,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 203,
+    "name": "Half-Eaten Brain",
+    "imageUrl": "/api/items/203/image",
+    "droppedBy": [
+      "Zombie"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 85,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 204,
+    "name": "Harpy Feathers",
+    "imageUrl": "/api/items/204/image",
+    "droppedBy": [
+      "Harpy"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 730,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 205,
+    "name": "Headpecker Beak",
+    "imageUrl": "/api/items/205/image",
+    "droppedBy": [
+      "Headpecker"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 206,
+    "name": "Headpecker Feather",
+    "imageUrl": "/api/items/206/image",
+    "droppedBy": [
+      "Headpecker"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 207,
+    "name": "Heart Amphora",
+    "imageUrl": "/api/items/207/image",
+    "droppedBy": [
+      "Norcferatu Heartless"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 930,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51484,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 208,
+    "name": "Heavy Machete",
+    "imageUrl": "/api/items/208/image",
+    "droppedBy": [
+      "Cobra Assassin",
+      "Cyclops Smith",
+      "Efreet",
+      "Marid",
+      "Menacing Carnivor",
+      "Fahim The Wise",
+      "Merikh the Slaughterer"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 90,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3330,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 209,
+    "name": "Heavy Trident",
+    "imageUrl": "/api/items/209/image",
+    "droppedBy": [
+      "Deathling Scout",
+      "Deathling Spellsinger",
+      "Deepling Brawler",
+      "Deepling Elite",
+      "Deepling Guard",
+      "Deepling Scout",
+      "Deepling Tyrant",
+      "Deepling Warrior",
+      "Deepling Worker",
+      "Neutral Deepling Warrior"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 2000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 210,
+    "name": "Hellhound Slobber",
+    "imageUrl": "/api/items/210/image",
+    "droppedBy": [
+      "Hellhound",
+      "Kerberos"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 211,
+    "name": "Hemp Rope",
+    "imageUrl": "/api/items/211/image",
+    "droppedBy": [
+      "Choking Fear"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 20206,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 212,
+    "name": "Hibiscus Dress",
+    "imageUrl": "/api/items/212/image",
+    "droppedBy": [
+      "Angry Sugar Fairy",
+      "Nymph",
+      "Vampire Bride",
+      "Wyrm",
+      "Boreth"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 3000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 213,
+    "name": "Hideous Chunk",
+    "imageUrl": "/api/items/213/image",
+    "droppedBy": [
+      "Hideous Fungus"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 510,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 16140,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 214,
+    "name": "High Guard Flag",
+    "imageUrl": "/api/items/214/image",
+    "droppedBy": [
+      "Lizard High Guard"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 550,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10415,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 215,
+    "name": "High Guard Shoulderplates",
+    "imageUrl": "/api/items/215/image",
+    "droppedBy": [
+      "Lizard High Guard"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 130,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10416,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 216,
+    "name": "Holy Ash",
+    "imageUrl": "/api/items/216/image",
+    "droppedBy": [
+      "Flickering Spirit Elemental",
+      "Lost Exile",
+      "Lost Husher",
+      "Psychic Spirit Elemental",
+      "Spirit Overlord"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 160,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 217,
+    "name": "Horoscope",
+    "imageUrl": "/api/items/217/image",
+    "droppedBy": [
+      "Blood Hand",
+      "Blood Priest",
+      "Shadow Pupil"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 40,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 218,
+    "name": "Human Teeth",
+    "imageUrl": "/api/items/218/image",
+    "droppedBy": [
+      "Dark Carnisylvan",
+      "Hulking Carnisylvan",
+      "Poisonous Carnisylvan"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 2000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36807,
+    "rarity": "Rare"
+  },
+  {
+    "id": 219,
+    "name": "Humongous Chunk",
+    "imageUrl": "/api/items/219/image",
+    "droppedBy": [
+      "Humongous Fungus"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 540,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 16139,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 220,
+    "name": "Hydra Head",
+    "imageUrl": "/api/items/220/image",
+    "droppedBy": [
+      "Hydra",
+      "Lion Hydra"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10282,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 221,
+    "name": "Hydrophytes",
+    "imageUrl": "/api/items/221/image",
+    "droppedBy": [
+      "Two-Headed Turtle"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 220,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39410,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 222,
+    "name": "Ice Flower",
+    "imageUrl": "/api/items/222/image",
+    "droppedBy": [
+      "Crazed Winter Rearguard",
+      "Crazed Winter Vanguard",
+      "Soul-broken Harbinger",
+      "Soul-Broken Harbinger"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 370,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 30058,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 223,
+    "name": "Idol of the Forge",
+    "imageUrl": "/api/items/223/image",
+    "droppedBy": [
+      "Bulltaur Forgepriest"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 950,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 44742,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 224,
+    "name": "Inkwell",
+    "imageUrl": "/api/items/224/image",
+    "droppedBy": [
+      "Brain Squid",
+      "Ink Blob",
+      "Ink Splash",
+      "Rage Squid",
+      "Squid Warden",
+      "Elf Arcanist"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 720,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 28568,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 225,
+    "name": "Instable Proto Matter",
+    "imageUrl": "/api/items/225/image",
+    "droppedBy": [
+      "Brain Squid",
+      "Dread Intruder",
+      "Outburst"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 23516,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 226,
+    "name": "Ivory Carving",
+    "imageUrl": "/api/items/226/image",
+    "droppedBy": [
+      "Werelion",
+      "Werelioness"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 33945,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 227,
+    "name": "Key to the Drowned Library",
+    "imageUrl": "/api/items/227/image",
+    "droppedBy": [
+      "Deepling Master Librarian",
+      "Deepling Spellsinger"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 330,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 228,
+    "name": "Knife",
+    "imageUrl": "/api/items/228/image",
+    "droppedBy": [
+      "Assassin",
+      "Barbarian Headsplitter",
+      "Barbarian Skullhunter",
+      "Cobra Assassin",
+      "Crazed Summer Vanguard",
+      "Headpecker",
+      "Smuggler",
+      "Undead Prospector",
+      "Usurper Archer",
+      "Werehyaena",
+      "Ancient Lion Knight",
+      "Apprentice Sheng",
+      "Faceless Bane"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3291,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 229,
+    "name": "Knight Axe",
+    "imageUrl": "/api/items/229/image",
+    "droppedBy": [
+      "Afflicted Strider",
+      "Blemished Spawn",
+      "Crusader",
+      "Execowtioner",
+      "Girtablilu Warrior",
+      "Hellhound",
+      "Hulking Carnisylvan",
+      "Lost Basher",
+      "Lost Berserker",
+      "Lost Exile",
+      "Lost Husher",
+      "Minotaur Invader",
+      "Pirat Cutthroat",
+      "Poisonous Carnisylvan",
+      "Skeleton Elite Warrior",
+      "Thanatursus",
+      "Tremendous Tyrant",
+      "Undead Elite Gladiator",
+      "Undead Gladiator",
+      "Amenef the Burning",
+      "Black Knight",
+      "Fluffy",
+      "Kerberos",
+      "Morguthis",
+      "Neferi the Spy",
+      "Sir Leonard",
+      "Sir Leopold",
+      "The Enraged Thorn Knight"
+    ],
+    "sellToNpc": "Green Djinn",
+    "priceAtNpc": 2000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3318,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 230,
+    "name": "Knight Legs",
+    "imageUrl": "/api/items/230/image",
+    "droppedBy": [
+      "Cliff Strider",
+      "Crystal Spider",
+      "Cult Enforcer",
+      "Foam Stalker",
+      "Giant Spider",
+      "Gore Horn",
+      "Hellspawn",
+      "Lost Basher",
+      "Menacing Carnivor",
+      "Mooh'Tah Warrior",
+      "Nightmare",
+      "Orewalker",
+      "Plaguesmith",
+      "Soul-broken Harbinger",
+      "Sulphur Spouter",
+      "Two-Headed Turtle",
+      "Usurper Knight",
+      "Usurper Warlock",
+      "Venerable Foam Stalker",
+      "Vicious Squire",
+      "Black Knight",
+      "Count Vlarkorth",
+      "Flameborn",
+      "Hellgorak",
+      "Hide",
+      "Horadron",
+      "Mamma Longlegs",
+      "Sir Baeloc",
+      "Sir Leonard",
+      "Sir Leopold",
+      "The Bloodweb",
+      "The Old Widow",
+      "Tormentor",
+      "Soul-Broken Harbinger"
+    ],
+    "sellToNpc": "Green Djinn",
+    "priceAtNpc": 5000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3371,
+    "rarity": "Rare"
+  },
+  {
+    "id": 231,
+    "name": "Kongra's Shoulderpad",
+    "imageUrl": "/api/items/231/image",
+    "droppedBy": [
+      "Cursed Ape",
+      "Kongra"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 11471,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 232,
+    "name": "Lamassu Hoof",
+    "imageUrl": "/api/items/232/image",
+    "droppedBy": [
+      "Crypt Warden",
+      "Lamassu"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 330,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31441,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 233,
+    "name": "Lamassu Horn",
+    "imageUrl": "/api/items/233/image",
+    "droppedBy": [
+      "Crypt Warden",
+      "Lamassu"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 240,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31442,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 234,
+    "name": "Lancer Beetle Shell",
+    "imageUrl": "/api/items/234/image",
+    "droppedBy": [
+      "Lancer Beetle",
+      "The Blightfather"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 80,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10455,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 235,
+    "name": "Lancet",
+    "imageUrl": "/api/items/235/image",
+    "droppedBy": [
+      "Blood Hand",
+      "Blood Priest"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 90,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 236,
+    "name": "Lavafungus Head",
+    "imageUrl": "/api/items/236/image",
+    "droppedBy": [
+      "Lavafungus"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 900,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36785,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 237,
+    "name": "Lavafungus Ring",
+    "imageUrl": "/api/items/237/image",
+    "droppedBy": [
+      "Lavafungus"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 390,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36786,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 238,
+    "name": "Lavaworm Jaws",
+    "imageUrl": "/api/items/238/image",
+    "droppedBy": [
+      "Lavaworm"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36771,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 239,
+    "name": "Lavaworm Spike Roots",
+    "imageUrl": "/api/items/239/image",
+    "droppedBy": [
+      "Lavaworm"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36769,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 240,
+    "name": "Lavaworm Spikes",
+    "imageUrl": "/api/items/240/image",
+    "droppedBy": [
+      "Lavaworm"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 750,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36770,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 241,
+    "name": "Lightning Boots",
+    "imageUrl": "/api/items/241/image",
+    "droppedBy": [
+      "Burning Gladiator",
+      "Cursed Prospector",
+      "Elder Wyrm",
+      "Energetic Book",
+      "Juvenile Bashmu",
+      "Lich",
+      "Mercurial Menace",
+      "Pirat Bombardier",
+      "War Golem",
+      "Gravelord Oshuran",
+      "Mazzinor",
+      "Omrafir",
+      "Prince Drazzak"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 820,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 242,
+    "name": "Lightning Headband",
+    "imageUrl": "/api/items/242/image",
+    "droppedBy": [
+      "Brain Squid",
+      "Burning Gladiator",
+      "Cloak of Terror",
+      "Courage Leech",
+      "Cunning Werepanther",
+      "Energetic Book",
+      "Evil Prospector",
+      "Giant Spider",
+      "High Voltage Elemental",
+      "Hulking Carnisylvan",
+      "Reality Reaver",
+      "Sphinx",
+      "Stabilizing Reality Reaver",
+      "Two-Headed Turtle",
+      "Usurper Warlock",
+      "Werelioness",
+      "Anomaly",
+      "Burster",
+      "Lord Azaram",
+      "Neferi the Spy",
+      "Outburst",
+      "Realityquake",
+      "Rupture",
+      "Sister Hetai",
+      "Tyrn",
+      "World Devourer"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 828,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 243,
+    "name": "Lightning Robe",
+    "imageUrl": "/api/items/243/image",
+    "droppedBy": [
+      "Bulltaur Forgepriest",
+      "Cursed Prospector",
+      "Elder Wyrm",
+      "High Voltage Elemental",
+      "Raubritter Chastener",
+      "Warlock",
+      "Anomaly",
+      "Court Warlock",
+      "King Zelos",
+      "Mad Mage",
+      "Omrafir",
+      "Outburst",
+      "Prince Drazzak",
+      "Realityquake",
+      "Tyrn",
+      "Zarabustor"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 11000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 825,
+    "rarity": "Rare"
+  },
+  {
+    "id": 244,
+    "name": "Lime Tart",
+    "imageUrl": "/api/items/244/image",
+    "droppedBy": [
+      "Nibblemaw",
+      "Sugar Daddy"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1870,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 48255,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 245,
+    "name": "Liodile Fang",
+    "imageUrl": "/api/items/245/image",
+    "droppedBy": [
+      "Liodile"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 480,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 40583,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 246,
+    "name": "Lion Cloak Patch",
+    "imageUrl": "/api/items/246/image",
+    "droppedBy": [
+      "Usurper Archer",
+      "Usurper Commander",
+      "Usurper Knight",
+      "Usurper Warlock"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 190,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 34162,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 247,
+    "name": "Lion Crest",
+    "imageUrl": "/api/items/247/image",
+    "droppedBy": [
+      "Usurper Archer",
+      "Usurper Commander",
+      "Usurper Knight",
+      "Usurper Warlock"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 270,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 34160,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 248,
+    "name": "Lost Basher's Spike",
+    "imageUrl": "/api/items/248/image",
+    "droppedBy": [
+      "Lost Basher"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 280,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17826,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 249,
+    "name": "Lost Bracers",
+    "imageUrl": "/api/items/249/image",
+    "droppedBy": [
+      "Lost Thrower"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 140,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 250,
+    "name": "Luminous Orb",
+    "imageUrl": "/api/items/250/image",
+    "droppedBy": [
+      "Draken Spellweaver",
+      "Raging Mage",
+      "Warlock",
+      "Ancient Spawn of Morgathla",
+      "Lloyd",
+      "Mad Mage",
+      "Ravenous Hunger",
+      "Reflection of a Mage",
+      "The Baron from Below",
+      "The Blazing Time Guardian",
+      "The Count of the Core",
+      "The Duke of the Depths",
+      "The Freezing Time Guardian",
+      "The Sandking",
+      "The Time Guardian"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 251,
+    "name": "Lump of Earth",
+    "imageUrl": "/api/items/251/image",
+    "droppedBy": [
+      "Brimstone Bug",
+      "Clay Guardian",
+      "Drillworm",
+      "Earth Elemental",
+      "Jagged Earth Elemental",
+      "Massive Earth Elemental",
+      "Muddy Earth Elemental",
+      "Earth Overlord",
+      "Sulphur Scuttler",
+      "The Shatterer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 130,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10305,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 252,
+    "name": "Mad Froth",
+    "imageUrl": "/api/items/252/image",
+    "droppedBy": [
+      "Lost Thrower"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 80,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 253,
+    "name": "Magma Boots",
+    "imageUrl": "/api/items/253/image",
+    "droppedBy": [
+      "Burning Gladiator",
+      "Crazed Summer Vanguard",
+      "Dragon Lord Hatchling",
+      "Feral Sphinx",
+      "Hellflayer",
+      "Hellhound",
+      "Honey Elemental",
+      "Infernal Demon",
+      "Infernalist",
+      "Lava Golem",
+      "Magma Crawler",
+      "Manticore",
+      "Massive Fire Elemental",
+      "Orc Warlord",
+      "Pirat Bombardier",
+      "Sphinx",
+      "Sulphider",
+      "Wandering Pillar",
+      "Bibby Bloodbath",
+      "Count Vlarkorth",
+      "Sister Hetai",
+      "The Souldespoiler",
+      "Warlord Ruzad"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 818,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 254,
+    "name": "Magma Clump",
+    "imageUrl": "/api/items/254/image",
+    "droppedBy": [
+      "Lava Golem",
+      "Magma Crawler",
+      "Vulcongra",
+      "Walking Pillar",
+      "Wandering Pillar",
+      "Weeper"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 570,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 16130,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 255,
+    "name": "Magma Coat",
+    "imageUrl": "/api/items/255/image",
+    "droppedBy": [
+      "Afflicted Strider",
+      "Burning Book",
+      "Cinder Wyrmling",
+      "Crape Man",
+      "Dawnfire Asura",
+      "Diabolic Imp",
+      "Gazer Spectre",
+      "Girtablilu Warrior",
+      "Gorerilla",
+      "Guardian of Tales",
+      "Hellfire Fighter",
+      "Hellhound",
+      "Insane Siren",
+      "Lava Golem",
+      "Manticore",
+      "Percht",
+      "Sabretooth",
+      "Shaburak Lord",
+      "Shaburak Prince",
+      "Stalking Stalk",
+      "True Dawnfire Asura",
+      "Vulcongra",
+      "Wandering Pillar",
+      "Weeper",
+      "Court Warlock",
+      "Fire Overlord",
+      "Furyosa",
+      "Gaz'Haragoth",
+      "King Zelos",
+      "Mazoran",
+      "Morgaroth",
+      "Scarlett Etzel",
+      "Sister Hetai",
+      "The Baron from Below",
+      "The Blazing Rose",
+      "The Count of the Core",
+      "The Flaming Orchid",
+      "The Imperor",
+      "The Sandking",
+      "The Time Guardian",
+      "Urmahlullu the Weakened"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 11000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 826,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 256,
+    "name": "Magma Legs",
+    "imageUrl": "/api/items/256/image",
+    "droppedBy": [
+      "Broodrider Inferniarch",
+      "Feral Sphinx",
+      "Grimeleech",
+      "Guardian of Tales",
+      "Hellfire Fighter",
+      "Hellflayer",
+      "Hellhound",
+      "Honey Elemental",
+      "Insane Siren",
+      "Manticore",
+      "Massive Fire Elemental",
+      "Percht",
+      "Shaburak Demon",
+      "Sphinx",
+      "Usurper Knight",
+      "Walking Pillar",
+      "Weeper",
+      "Werelioness",
+      "Arbaziloth",
+      "Arbaziloth (Hard)",
+      "Ferumbras",
+      "Ferumbras Mortal Shell",
+      "Furyosa",
+      "Hellgorak",
+      "Mazoran",
+      "The Blazing Time Guardian",
+      "The Flaming Orchid",
+      "The Freezing Time Guardian",
+      "The Time Guardian",
+      "Utua Stone Sting",
+      "Yirkas Blue Scales"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 11000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 821,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 257,
+    "name": "Magma Monocle",
+    "imageUrl": "/api/items/257/image",
+    "droppedBy": [
+      "Burning Book",
+      "Cinder Wyrmling",
+      "Diabolic Imp",
+      "Efreet",
+      "Feral Sphinx",
+      "Hellhound",
+      "Insane Siren",
+      "Manticore",
+      "Marid",
+      "Percht",
+      "Raubritter Chastener",
+      "Sphinx",
+      "Usurper Warlock",
+      "Werepanther",
+      "Clavius",
+      "Essence of Malice",
+      "Fahim The Wise",
+      "Merikh the Slaughterer",
+      "Overseer Osverger",
+      "Scarlett Etzel",
+      "Sir Baeloc",
+      "Urmahlullu the Weakened"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 827,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 258,
+    "name": "Makara Fin",
+    "imageUrl": "/api/items/258/image",
+    "droppedBy": [
+      "Makara"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 259,
+    "name": "Makara Tongue",
+    "imageUrl": "/api/items/259/image",
+    "droppedBy": [
+      "Makara"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 320,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 260,
+    "name": "Mammoth Tusk",
+    "imageUrl": "/api/items/260/image",
+    "droppedBy": [
+      "Mammoth",
+      "The Bloodtusk"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10321,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 261,
+    "name": "Mammoth Whopper",
+    "imageUrl": "/api/items/261/image",
+    "droppedBy": [
+      "Chakoya Toolshaper",
+      "Chakoya Tribewarden",
+      "Crypt Warrior",
+      "Mammoth",
+      "Memory of a Mammoth",
+      "Skeleton Elite Warrior",
+      "Ocyakao"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7381,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 262,
+    "name": "Manticore Ear",
+    "imageUrl": "/api/items/262/image",
+    "droppedBy": [
+      "Manticore",
+      "Enusat the Onyx Wing"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 310,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31440,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 263,
+    "name": "Manticore Tail",
+    "imageUrl": "/api/items/263/image",
+    "droppedBy": [
+      "Manticore",
+      "Enusat the Onyx Wing"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 220,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31439,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 264,
+    "name": "Mantosaurus Jaw",
+    "imageUrl": "/api/items/264/image",
+    "droppedBy": [
+      "Mantosaurus"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39386,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 265,
+    "name": "Mega Dragon Heart",
+    "imageUrl": "/api/items/265/image",
+    "droppedBy": [
+      "Mega Dragon"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 266,
+    "name": "Mercenary Sword",
+    "imageUrl": "/api/items/266/image",
+    "droppedBy": [
+      "Afflicted Strider",
+      "Betrayed Wraith",
+      "Eyeless Devourer",
+      "Foam Stalker",
+      "Glooth Brigand",
+      "Infernal Demon",
+      "Mean Lost Soul",
+      "Mutated Bat",
+      "Raubritter Skirmisher",
+      "Retching Horror",
+      "Rotten Golem",
+      "Serpent Spawn",
+      "Streaked Devourer",
+      "Venerable Foam Stalker",
+      "Amenef the Burning",
+      "Blight Mariner",
+      "Bruise Payne",
+      "Ghulosh",
+      "Madareth",
+      "Man in the Cave",
+      "Michael the Stalwart",
+      "Plagirath",
+      "The Noxious Spawn",
+      "Unaz the Mean",
+      "Utua Stone Sting"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 12000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7386,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 267,
+    "name": "Mercurial Wing",
+    "imageUrl": "/api/items/267/image",
+    "droppedBy": [
+      "Mercurial Menace"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39395,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 268,
+    "name": "Metal Bat",
+    "imageUrl": "/api/items/268/image",
+    "droppedBy": [
+      "Brachiodemon",
+      "Eyeless Devourer",
+      "Metal Gargoyle",
+      "Rustheap Golem",
+      "The Unarmored Voidborn"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 9000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21171,
+    "rarity": "Rare"
+  },
+  {
+    "id": 269,
+    "name": "Metal Jaw",
+    "imageUrl": "/api/items/269/image",
+    "droppedBy": [
+      "Metal Gargoyle"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 260,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 270,
+    "name": "Metal Spats",
+    "imageUrl": "/api/items/270/image",
+    "droppedBy": [
+      "Bellicose Orger",
+      "Control Tower",
+      "Glooth Battery",
+      "Gore Horn",
+      "Lavafungus",
+      "Metal Gargoyle",
+      "Ogre Ruffian",
+      "Sabretooth",
+      "Walker",
+      "Sister Hetai"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21169,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 271,
+    "name": "Mino Lance",
+    "imageUrl": "/api/items/271/image",
+    "droppedBy": [
+      "Minotaur Amazon",
+      "Minotaur Cult Follower"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 7000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21174,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 272,
+    "name": "Mino Shield",
+    "imageUrl": "/api/items/272/image",
+    "droppedBy": [
+      "Bulltaur Brute",
+      "Minotaur Amazon",
+      "Minotaur Cult Follower",
+      "Minotaur Hunter",
+      "Thanatursus",
+      "Usurper Archer",
+      "The False God"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 3000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21175,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 273,
+    "name": "Molten Dragon Essence",
+    "imageUrl": "/api/items/273/image",
+    "droppedBy": [
+      "Mega Dragon"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 840,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 274,
+    "name": "Mould Heart",
+    "imageUrl": "/api/items/274/image",
+    "droppedBy": [
+      "Mould Phantom"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 2100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 34141,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 275,
+    "name": "Mouldy Powder",
+    "imageUrl": "/api/items/275/image",
+    "droppedBy": [
+      "Pirat Bombardier",
+      "Pirat Mate"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 35596,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 276,
+    "name": "Mummified Demon Finger",
+    "imageUrl": "/api/items/276/image",
+    "droppedBy": [
+      "Brinebrute Inferniarch",
+      "Broodrider Inferniarch",
+      "Gorger Inferniarch",
+      "Hellhunter Inferniarch",
+      "Sineater Inferniarch",
+      "Spellreaper Inferniarch"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 277,
+    "name": "Mutated Bat Ear",
+    "imageUrl": "/api/items/277/image",
+    "droppedBy": [
+      "Mutated Bat",
+      "Bruise Payne"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 420,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 278,
+    "name": "Mutated Flesh",
+    "imageUrl": "/api/items/278/image",
+    "droppedBy": [
+      "Mutated Human"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 50,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 279,
+    "name": "Mutated Rat Tail",
+    "imageUrl": "/api/items/279/image",
+    "droppedBy": [
+      "Mutated Rat",
+      "Esmeralda"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 280,
+    "name": "Naga Archer Scales",
+    "imageUrl": "/api/items/280/image",
+    "droppedBy": [
+      "Naga Archer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 340,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39413,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 281,
+    "name": "Naga Armring",
+    "imageUrl": "/api/items/281/image",
+    "droppedBy": [
+      "Naga Archer",
+      "Naga Warrior"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 390,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39411,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 282,
+    "name": "Naga Earring",
+    "imageUrl": "/api/items/282/image",
+    "droppedBy": [
+      "Naga Archer",
+      "Naga Warrior"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 380,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39412,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 283,
+    "name": "Naga Warrior Scales",
+    "imageUrl": "/api/items/283/image",
+    "droppedBy": [
+      "Naga Warrior"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 340,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39414,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 284,
+    "name": "Necromantic Core",
+    "imageUrl": "/api/items/284/image",
+    "droppedBy": [
+      "Creepy Crawler",
+      "Crypt Fiend",
+      "Crypt Mage",
+      "Cyclursus",
+      "Roaming Dread",
+      "Walking Dread"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 10000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 52705,
+    "rarity": "Rare"
+  },
+  {
+    "id": 285,
+    "name": "Necromantic Rust",
+    "imageUrl": "/api/items/285/image",
+    "droppedBy": [
+      "Rustheap Golem",
+      "The False God"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 390,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 286,
+    "name": "Night Harpy Feathers",
+    "imageUrl": "/api/items/286/image",
+    "droppedBy": [
+      "Night Harpy"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 5000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 287,
+    "name": "Nighthunter Wing",
+    "imageUrl": "/api/items/287/image",
+    "droppedBy": [
+      "Nighthunter"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39381,
+    "rarity": "Common"
+  },
+  {
+    "id": 288,
+    "name": "Nimmersatt's Seal",
+    "imageUrl": "/api/items/288/image",
+    "droppedBy": [
+      "Dragolisk",
+      "Mega Dragon",
+      "Wardragon"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 520,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 289,
+    "name": "Odd Organ",
+    "imageUrl": "/api/items/289/image",
+    "droppedBy": [
+      "Brain Squid",
+      "Dread Intruder",
+      "Essence of Malice",
+      "Rupture",
+      "The Souldespoiler"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 410,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 23510,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 290,
+    "name": "Ogre Ear Stud",
+    "imageUrl": "/api/items/290/image",
+    "droppedBy": [
+      "Animated Ogre Brute",
+      "Animated Ogre Savage",
+      "Animated Ogre Shaman",
+      "Ogre Brute",
+      "Ogre Rowdy",
+      "Ogre Ruffian",
+      "Ogre Sage",
+      "Ogre Savage",
+      "Ogre Shaman",
+      "Shaper Matriarch"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 180,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 291,
+    "name": "Old Girtablilu Carapace",
+    "imageUrl": "/api/items/291/image",
+    "droppedBy": [
+      "Venerable Girtablilu"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 570,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36972,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 292,
+    "name": "Orcish Axe",
+    "imageUrl": "/api/items/292/image",
+    "droppedBy": [
+      "Orc Cult Fanatic",
+      "Orc Cult Inquisitor",
+      "Orc Cult Minion",
+      "Orc Cultist",
+      "Orc Marauder",
+      "Orc Rider",
+      "Orc Warlord",
+      "Orclops Bloodbreaker",
+      "Orclops Doomhauler",
+      "Orclops Ravager",
+      "Rorc",
+      "Bibby Bloodbath",
+      "Cublarc the Plunderer",
+      "Vladrukh",
+      "Warlord Ruzad"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3316,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 293,
+    "name": "Orcish Gear",
+    "imageUrl": "/api/items/293/image",
+    "droppedBy": [
+      "Orc Berserker",
+      "Orc Cult Inquisitor"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 85,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 11477,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 294,
+    "name": "Orcish Toothbrush",
+    "imageUrl": "/api/items/294/image",
+    "droppedBy": [
+      "Orclops Bloodbreaker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 750,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51477,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 295,
+    "name": "Ornate Crossbow",
+    "imageUrl": "/api/items/295/image",
+    "droppedBy": [
+      "Capricious Phantom",
+      "Cave Chimera",
+      "Deepling Guard",
+      "Deepling Master Librarian",
+      "Deepling Spellsinger",
+      "Deepling Tyrant",
+      "Eyeless Devourer",
+      "Feral Werecrocodile",
+      "Freakish Lost Soul",
+      "Harpy",
+      "Mitmah Scout",
+      "Mould Phantom",
+      "Naga Archer",
+      "Streaked Devourer",
+      "Usurper Archer",
+      "Adlerauge",
+      "Ayana The Crimson Curse",
+      "Katex Blood Tongue",
+      "Melting Frozen Horror",
+      "Vok the Freakish",
+      "Yirkas Blue Scales",
+      "Gorerilla"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 12000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 14247,
+    "rarity": "Rare"
+  },
+  {
+    "id": 296,
+    "name": "Pair of Hellflayer Horns",
+    "imageUrl": "/api/items/296/image",
+    "droppedBy": [
+      "Hellflayer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 297,
+    "name": "Paper Boat",
+    "imageUrl": "/api/items/297/image",
+    "droppedBy": [
+      "Bluebeak"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51420,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 298,
+    "name": "Paper Plane",
+    "imageUrl": "/api/items/298/image",
+    "droppedBy": [
+      "Shell Drake"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 480,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51419,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 299,
+    "name": "Piece of Draconian Steel",
+    "imageUrl": "/api/items/299/image",
+    "droppedBy": [
+      "Plaguesmith",
+      "Earl Osam",
+      "Soul of Dragonking Zyrtarch",
+      "The False God"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 480,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 300,
+    "name": "Piece of Frozen Night",
+    "imageUrl": "/api/items/300/image",
+    "droppedBy": [
+      "Gloom Maw",
+      "Norcferatu Nightweaver"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 680,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51474,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 301,
+    "name": "Piece of Hell Steel",
+    "imageUrl": "/api/items/301/image",
+    "droppedBy": [
+      "Plaguesmith",
+      "Duke Krule",
+      "Earl Osam",
+      "Lloyd",
+      "Lord Azaram",
+      "Sir Baeloc",
+      "The False God",
+      "The Source of Corruption"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 302,
+    "name": "Piece of Warrior Armor",
+    "imageUrl": "/api/items/302/image",
+    "droppedBy": [
+      "Minotaur Guard",
+      "Minotaur Invader",
+      "The Horned Fox"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 50,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 11482,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 303,
+    "name": "Pirat's Tail",
+    "imageUrl": "/api/items/303/image",
+    "droppedBy": [
+      "Pirat Bombardier",
+      "Pirat Cutthroat",
+      "Pirat Mate",
+      "Pirat Scoundrel"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 180,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 35573,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 304,
+    "name": "Pirate Coin",
+    "imageUrl": "/api/items/304/image",
+    "droppedBy": [
+      "Pirat Bombardier",
+      "Pirat Cutthroat",
+      "Pirat Mate",
+      "Pirat Scoundrel",
+      "Ratmiral Blackwhiskers",
+      "Tentugly's Head"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 110,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 35572,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 305,
+    "name": "Plasma Pearls",
+    "imageUrl": "/api/items/305/image",
+    "droppedBy": [
+      "Breach Brood",
+      "Dreadful Disruptor",
+      "Instable Breach Brood",
+      "Reality Reaver",
+      "Stabilizing Reality Reaver",
+      "Burster",
+      "Essence of Malice",
+      "Rupture",
+      "The Souldespoiler"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 306,
+    "name": "Plasmatic Lightning",
+    "imageUrl": "/api/items/306/image",
+    "droppedBy": [
+      "Dreadful Disruptor",
+      "Reality Reaver",
+      "Eradicator",
+      "The Scourge of Oblivion"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 270,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 307,
+    "name": "Plate Legs",
+    "imageUrl": "/api/items/307/image",
+    "droppedBy": [
+      "Bog Raider",
+      "Dragon",
+      "Ghastly Dragon",
+      "Giant Spider",
+      "Orc Cult Fanatic",
+      "Orc Leader",
+      "Orc Warlord",
+      "Renegade Orc",
+      "Sea Serpent",
+      "Undead Elite Gladiator",
+      "Undead Gladiator",
+      "Bibby Bloodbath",
+      "Countess Sorrow",
+      "Demodras",
+      "Grand Mother Foulscale",
+      "The Snapper",
+      "Warlord Ruzad"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 115,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3557,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 308,
+    "name": "Poisoned Fang",
+    "imageUrl": "/api/items/308/image",
+    "droppedBy": [
+      "Blood Beast"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 130,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21195,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 309,
+    "name": "Pool of Chitinous Glue",
+    "imageUrl": "/api/items/309/image",
+    "droppedBy": [
+      "Retching Horror"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 480,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 20207,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 310,
+    "name": "Pot of Orcish Warpaint",
+    "imageUrl": "/api/items/310/image",
+    "droppedBy": [
+      "Norcferatu Heartless"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51476,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 311,
+    "name": "Prehemoth Claw",
+    "imageUrl": "/api/items/311/image",
+    "droppedBy": [
+      "Hulking Prehemoth"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 312,
+    "name": "Prehemoth Horns",
+    "imageUrl": "/api/items/312/image",
+    "droppedBy": [
+      "Hulking Prehemoth"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 3000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 313,
+    "name": "Pressed Flower",
+    "imageUrl": "/api/items/313/image",
+    "droppedBy": [
+      "Hawk Hopper"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 570,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51428,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 314,
+    "name": "Pulverized Ore",
+    "imageUrl": "/api/items/314/image",
+    "droppedBy": [
+      "Cliff Strider",
+      "Drillworm",
+      "Orewalker"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 400,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 16133,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 315,
+    "name": "Quara Bone",
+    "imageUrl": "/api/items/315/image",
+    "droppedBy": [
+      "Quara Predator",
+      "Quara Predator Scout",
+      "Renegade Quara Predator"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 316,
+    "name": "Quara Eye",
+    "imageUrl": "/api/items/316/image",
+    "droppedBy": [
+      "Quara Hydromancer",
+      "Quara Hydromancer Scout",
+      "Renegade Quara Hydromancer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 317,
+    "name": "Quara Pincers",
+    "imageUrl": "/api/items/317/image",
+    "droppedBy": [
+      "Quara Pincher",
+      "Quara Pincher Scout",
+      "Quara Raider",
+      "Renegade Quara Pincher"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 410,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 318,
+    "name": "Quara Tentacle",
+    "imageUrl": "/api/items/318/image",
+    "droppedBy": [
+      "Quara Constrictor",
+      "Quara Constrictor Scout",
+      "Renegade Quara Constrictor"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 140,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 319,
+    "name": "Ratana",
+    "imageUrl": "/api/items/319/image",
+    "droppedBy": [
+      "Corym Charlatan",
+      "Corym Skirmisher",
+      "Corym Vanguard",
+      "Werehyaena"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17812,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 320,
+    "name": "Raw Meat",
+    "imageUrl": "/api/items/320/image",
+    "droppedBy": [
+      "Animated Clomp",
+      "Clomp",
+      "Museum Stone Rhino",
+      "Stone Rhino"
+    ],
+    "sellToNpc": "Ninguem",
+    "priceAtNpc": 0,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 22186,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 321,
+    "name": "Red Goanna Scale",
+    "imageUrl": "/api/items/321/image",
+    "droppedBy": [
+      "Adult Goanna",
+      "Sun-marked Goanna"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 270,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31558,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 322,
+    "name": "Red Hair Dye",
+    "imageUrl": "/api/items/322/image",
+    "droppedBy": [
+      "Lost Basher",
+      "Lost Exile",
+      "Lost Husher",
+      "Lost Thrower"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 40,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17855,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 323,
+    "name": "Relic Sword",
+    "imageUrl": "/api/items/323/image",
+    "droppedBy": [
+      "Eyeless Devourer",
+      "Naga Warrior",
+      "Priestess of the Wild Sun",
+      "Quara Predator",
+      "Renegade Quara Predator",
+      "Spectre",
+      "Streaked Devourer",
+      "Undead Elite Gladiator",
+      "Undertaker",
+      "Werebear",
+      "Werewolf",
+      "Feroxa",
+      "Madareth",
+      "Shadowpelt",
+      "Thul",
+      "Sopping Corpus",
+      "Walking Dread"
+    ],
+    "sellToNpc": "Yasir, Rashid",
+    "priceAtNpc": 25000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7383,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 324,
+    "name": "Resin Parasite",
+    "imageUrl": "/api/items/324/image",
+    "droppedBy": [
+      "Rootthing Amber Shaper",
+      "Rootthing Bug Tracker",
+      "Rootthing Nutshell"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1450,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 48511,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 325,
+    "name": "Resinous Fish Fin",
+    "imageUrl": "/api/items/325/image",
+    "droppedBy": [
+      "Quara Looter",
+      "Quara Plunderer",
+      "Quara Raider"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 326,
+    "name": "Rhindeer Antlers",
+    "imageUrl": "/api/items/326/image",
+    "droppedBy": [
+      "Rhindeer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 68,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 40587,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 327,
+    "name": "Ripper Lance",
+    "imageUrl": "/api/items/327/image",
+    "droppedBy": [
+      "Cunning Werepanther",
+      "Dworc Fleshhunter",
+      "Dworc Shadowstalker",
+      "Insectoid Scout",
+      "Sopping Carcass",
+      "Werepanther",
+      "Fleshslicer",
+      "Mindmasher"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3346,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 328,
+    "name": "Ripptor Claw",
+    "imageUrl": "/api/items/328/image",
+    "droppedBy": [
+      "Noxious Ripptor"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 2600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39389,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 329,
+    "name": "Ripptor Scales",
+    "imageUrl": "/api/items/329/image",
+    "droppedBy": [
+      "Noxious Ripptor"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39391,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 330,
+    "name": "Ritual Bone Knife",
+    "imageUrl": "/api/items/330/image",
+    "droppedBy": [
+      "Varg"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 820,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51475,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 331,
+    "name": "Ritual Tooth",
+    "imageUrl": "/api/items/331/image",
+    "droppedBy": [
+      "Iks Ahpututu",
+      "Iks Aucar",
+      "Iks Chuka",
+      "Iks Pututu",
+      "Iks Yapunac",
+      "Ahau"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 135,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 40528,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 332,
+    "name": "Roots",
+    "imageUrl": "/api/items/332/image",
+    "droppedBy": [
+      "Branchy Crawler"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 33938,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 333,
+    "name": "Rotten Feather",
+    "imageUrl": "/api/items/333/image",
+    "droppedBy": [
+      "Iks Ahpututu",
+      "Iks Aucar",
+      "Iks Chuka",
+      "Iks Pututu",
+      "Ahau"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 120,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 40527,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 334,
+    "name": "Rotten Piece of Cloth",
+    "imageUrl": "/api/items/334/image",
+    "droppedBy": [
+      "Ghoul"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 30,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10291,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 335,
+    "name": "Rotten Roots",
+    "imageUrl": "/api/items/335/image",
+    "droppedBy": [
+      "Bloated Man-Maggot",
+      "Meandering Mushroom",
+      "Mycobiontic Beetle",
+      "Oozing Carcass",
+      "Oozing Corpus",
+      "Rotten Man-Maggot",
+      "Sopping Carcass",
+      "Sopping Corpus"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 3800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43849,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 336,
+    "name": "Rubber Cap",
+    "imageUrl": "/api/items/336/image",
+    "droppedBy": [
+      "Darklight Matter",
+      "Glooth Bandit",
+      "Glooth Brigand",
+      "Glooth Golem",
+      "Rotten Golem",
+      "Turbulent Elemental",
+      "Glooth Fairy"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 11000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21165,
+    "rarity": "Rare"
+  },
+  {
+    "id": 337,
+    "name": "Sabretooth Fur",
+    "imageUrl": "/api/items/337/image",
+    "droppedBy": [
+      "Sabretooth"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39378,
+    "rarity": "Common"
+  },
+  {
+    "id": 338,
+    "name": "Sandcrawler Shell",
+    "imageUrl": "/api/items/338/image",
+    "droppedBy": [
+      "Sandcrawler"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 20,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10456,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 339,
+    "name": "Scale of Corruption",
+    "imageUrl": "/api/items/339/image",
+    "droppedBy": [
+      "Draken Abomination",
+      "Lizard Chosen"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 680,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 11673,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 340,
+    "name": "Scarab Pincers",
+    "imageUrl": "/api/items/340/image",
+    "droppedBy": [
+      "Ancient Scarab",
+      "Ancient Spawn of Morgathla",
+      "Fleshcrawler"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 280,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 9631,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 341,
+    "name": "Scimitar",
+    "imageUrl": "/api/items/341/image",
+    "droppedBy": [
+      "Burning Book",
+      "Cobra Assassin",
+      "Crazed Summer Vanguard",
+      "Diabolic Imp",
+      "Fire Devil",
+      "Honour Guard",
+      "Naga Warrior",
+      "Orc Leader",
+      "Orc Warlord",
+      "Renegade Orc",
+      "Salamander",
+      "Undead Elite Gladiator",
+      "Undead Gladiator",
+      "Ushuriel",
+      "Warlord Ruzad"
+    ],
+    "sellToNpc": "Green Djinn",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3307,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 342,
+    "name": "Scorpion Charm",
+    "imageUrl": "/api/items/342/image",
+    "droppedBy": [
+      "Venerable Girtablilu",
+      "Girtablilu Warrior"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 620,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36822,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 343,
+    "name": "Scroll of Heroic Deeds",
+    "imageUrl": "/api/items/343/image",
+    "droppedBy": [
+      "Hero",
+      "Renegade Knight",
+      "Vile Grandmaster"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 230,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 344,
+    "name": "Scythe Leg",
+    "imageUrl": "/api/items/344/image",
+    "droppedBy": [
+      "Nightmare",
+      "Nightmare Scion",
+      "Tormentor"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 450,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10312,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 345,
+    "name": "Sealing Wax",
+    "imageUrl": "/api/items/345/image",
+    "droppedBy": [
+      "Lion Hydra"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 620,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51426,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 346,
+    "name": "Shaggy Tail",
+    "imageUrl": "/api/items/346/image",
+    "droppedBy": [
+      "Gnarlhound",
+      "Orc Marauder",
+      "Cublarc the Plunderer",
+      "Fleabringer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 25,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10407,
+    "rarity": "Common"
+  },
+  {
+    "id": 347,
+    "name": "Shamanic Talisman",
+    "imageUrl": "/api/items/347/image",
+    "droppedBy": [
+      "Animated Ogre Shaman",
+      "Ogre Sage",
+      "Ogre Shaman",
+      "Shaper Matriarch"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 348,
+    "name": "Shark Fins",
+    "imageUrl": "/api/items/348/image",
+    "droppedBy": [
+      "Pirat Cutthroat",
+      "Pirat Mate"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 35574,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 349,
+    "name": "Shimmering Beetles",
+    "imageUrl": "/api/items/349/image",
+    "droppedBy": [
+      "Arctic Faun",
+      "Boogy",
+      "Dark Faun",
+      "Faun",
+      "Pooka",
+      "Twisted Pooka",
+      "Raxias"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 350,
+    "name": "Shiny Stone",
+    "imageUrl": "/api/items/350/image",
+    "droppedBy": [
+      "Cliff Strider",
+      "Crystal Wolf",
+      "Enslaved Dwarf",
+      "Eternal Guardian",
+      "Gargoyle",
+      "Ghastly Dragon",
+      "Ironblight",
+      "Metal Gargoyle",
+      "Museum Stone Golem",
+      "Orewalker",
+      "Spectre",
+      "Stone Golem",
+      "Earth Overlord",
+      "Ethershreck",
+      "Fahim The Wise",
+      "Grorlam",
+      "Merikh the Slaughterer",
+      "Stonecracker",
+      "The Shatterer"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10310,
+    "rarity": "Rare"
+  },
+  {
+    "id": 351,
+    "name": "Silencer Resonating Chamber",
+    "imageUrl": "/api/items/351/image",
+    "droppedBy": [
+      "Silencer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 352,
+    "name": "Silken Bookmark",
+    "imageUrl": "/api/items/352/image",
+    "droppedBy": [
+      "Biting Book",
+      "Burning Book",
+      "Cursed Book",
+      "Energetic Book",
+      "Icecold Book",
+      "Knowledge Elemental"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 28566,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 353,
+    "name": "Silver Moon Coin",
+    "imageUrl": "/api/items/353/image",
+    "droppedBy": [
+      "Weretiger",
+      "White Weretiger",
+      "Tamru The Black"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 11000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43732,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 354,
+    "name": "Silver Poniard",
+    "imageUrl": "/api/items/354/image",
+    "droppedBy": [
+      "Raubritter Chastener",
+      "Raubritter Skirmisher",
+      "Clavius",
+      "Michael the Stalwart"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 52662,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 355,
+    "name": "Sineater Wing",
+    "imageUrl": "/api/items/355/image",
+    "droppedBy": [
+      "Sineater Inferniarch"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 2100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 356,
+    "name": "Single Human Eye",
+    "imageUrl": "/api/items/356/image",
+    "droppedBy": [
+      "Putrid Mummy"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 25701,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 357,
+    "name": "Skull Fetish",
+    "imageUrl": "/api/items/357/image",
+    "droppedBy": [
+      "Animated Ogre Brute",
+      "Animated Ogre Savage",
+      "Animated Ogre Shaman",
+      "Ogre Brute",
+      "Ogre Rowdy",
+      "Ogre Ruffian",
+      "Ogre Sage",
+      "Ogre Savage",
+      "Ogre Shaman",
+      "Shaper Matriarch",
+      "The Unarmored Voidborn"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 358,
+    "name": "Skullcracker Armor",
+    "imageUrl": "/api/items/358/image",
+    "droppedBy": [
+      "Bony Sea Devil",
+      "Frost Flower Asura",
+      "Grim Reaper",
+      "Haunted Dragon",
+      "Midnight Asura",
+      "Sopping Corpus",
+      "True Frost Flower Asura",
+      "True Midnight Asura",
+      "Undead Dragon",
+      "Annihilon",
+      "Feroxa",
+      "The Moonlight Aster",
+      "The Scourge of Oblivion",
+      "Zavarash"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 18000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 8061,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 359,
+    "name": "Slimy Leaf Tentacle",
+    "imageUrl": "/api/items/359/image",
+    "droppedBy": [
+      "Glooth Anemone",
+      "Lisa"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 320,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 21197,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 360,
+    "name": "Sliver",
+    "imageUrl": "/api/items/360/image",
+    "droppedBy": [
+      "This item cannot be obtained from monsters."
+    ],
+    "sellToNpc": "Ninguem",
+    "priceAtNpc": 0,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 361,
+    "name": "Small Flask of Eyedrops",
+    "imageUrl": "/api/items/361/image",
+    "droppedBy": [
+      "Bonelord",
+      "Elder Bonelord",
+      "Gazer",
+      "Bonelord's Phylactery",
+      "The Evil Eye",
+      "The Gravedigger"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 95,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 11512,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 362,
+    "name": "Small Notebook",
+    "imageUrl": "/api/items/362/image",
+    "droppedBy": [
+      "Hero",
+      "Renegade Knight",
+      "Vile Grandmaster"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 480,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 363,
+    "name": "Small Treasure Chest",
+    "imageUrl": "/api/items/363/image",
+    "droppedBy": [
+      "Pirat Mate",
+      "Ratmiral Blackwhiskers",
+      "Tentugly's Head"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 35571,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 364,
+    "name": "Small Tropical Fish",
+    "imageUrl": "/api/items/364/image",
+    "droppedBy": [
+      "Two-Headed Turtle"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 380,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39408,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 365,
+    "name": "Spark Sphere",
+    "imageUrl": "/api/items/365/image",
+    "droppedBy": [
+      "Breach Brood",
+      "Burster",
+      "Eradicator",
+      "Melting Frozen Horror",
+      "The Scourge of Oblivion",
+      "The Souldespoiler"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 366,
+    "name": "Sparkion Claw",
+    "imageUrl": "/api/items/366/image",
+    "droppedBy": [
+      "Instable Sparkion",
+      "Sparkion"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 290,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 367,
+    "name": "Sparkion Legs",
+    "imageUrl": "/api/items/367/image",
+    "droppedBy": [
+      "Instable Sparkion",
+      "Sparkion"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 310,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 368,
+    "name": "Sparkion Stings",
+    "imageUrl": "/api/items/368/image",
+    "droppedBy": [
+      "Instable Sparkion",
+      "Sparkion"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 280,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 369,
+    "name": "Sparkion Tail",
+    "imageUrl": "/api/items/369/image",
+    "droppedBy": [
+      "Instable Sparkion",
+      "Sparkion"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 370,
+    "name": "Spellbook of Mind Control",
+    "imageUrl": "/api/items/370/image",
+    "droppedBy": [
+      "Blood Priest",
+      "Brachiodemon",
+      "Bulltaur Forgepriest",
+      "Carnivostrich",
+      "Choking Fear",
+      "Crypt Mage",
+      "Dawnfire Asura",
+      "Frost Flower Asura",
+      "Hellflayer",
+      "Infernalist",
+      "Lava Golem",
+      "Midnight Asura",
+      "Nighthunter",
+      "Quara Plunderer",
+      "Serpent Spawn",
+      "Soul-broken Harbinger",
+      "Spellreaper Inferniarch",
+      "True Dawnfire Asura",
+      "True Frost Flower Asura",
+      "True Midnight Asura",
+      "Ferumbras",
+      "Ferumbras Mortal Shell",
+      "Ghazbaran",
+      "Gorzindel",
+      "Hellgorak",
+      "Horadron",
+      "Raging Mage",
+      "Reflection of a Mage",
+      "Soul of Dragonking Zyrtarch",
+      "The Moonlight Aster",
+      "The Noxious Spawn",
+      "Wrathful Archivist",
+      "Yaga the Crone",
+      "Yirkas Blue Scales",
+      "Zarabustor",
+      "Soul-Broken Harbinger"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 13000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 8074,
+    "rarity": "Rare"
+  },
+  {
+    "id": 371,
+    "name": "Spellsinger's Seal",
+    "imageUrl": "/api/items/371/image",
+    "droppedBy": [
+      "Deepling Master Librarian",
+      "Deepling Spellsinger"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 280,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 372,
+    "name": "Spellweaver's Robe",
+    "imageUrl": "/api/items/372/image",
+    "droppedBy": [
+      "Brain Squid",
+      "Bulltaur Alchemist",
+      "Burning Gladiator",
+      "Draken Spellweaver",
+      "Energetic Book",
+      "Energuardian of Tales",
+      "Ghastly Dragon",
+      "Haunted Dragon",
+      "Juvenile Bashmu",
+      "Knowledge Elemental",
+      "Undead Dragon",
+      "Arbaziloth (Hard)",
+      "Dragon Hoard",
+      "Ethershreck",
+      "Hatebreeder",
+      "Lady Tenebris",
+      "Lloyd",
+      "The Duke of the Depths",
+      "Utua Stone Sting",
+      "Wrathful Archivist",
+      "Yirkas Blue Scales",
+      "Zamulosh"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 12000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10438,
+    "rarity": "Rare"
+  },
+  {
+    "id": 373,
+    "name": "Sphinx Tiara",
+    "imageUrl": "/api/items/373/image",
+    "droppedBy": [
+      "Feral Sphinx",
+      "Sphinx"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 360,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 31438,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 374,
+    "name": "Spiked Bracers",
+    "imageUrl": "/api/items/374/image",
+    "droppedBy": [
+      "Norcferatu Nightweaver"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1360,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51479,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 375,
+    "name": "Spiked Gorget",
+    "imageUrl": "/api/items/375/image",
+    "droppedBy": [
+      "Norcferatu Heartless"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 850,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 376,
+    "name": "Spiked Iron Ball",
+    "imageUrl": "/api/items/376/image",
+    "droppedBy": [
+      "Eternal Guardian",
+      "Lizard Chosen",
+      "Lizard High Guard",
+      "The Voice of Ruin"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10408,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 377,
+    "name": "Spiky Club",
+    "imageUrl": "/api/items/377/image",
+    "droppedBy": [
+      "Corym Skirmisher",
+      "Corym Vanguard",
+      "Orger",
+      "Naga Warrior"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17859,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 378,
+    "name": "Spitter Nose",
+    "imageUrl": "/api/items/378/image",
+    "droppedBy": [
+      "Spitter",
+      "Rotspit",
+      "The Hungerer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 340,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 14078,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 379,
+    "name": "Staff Piece",
+    "imageUrl": "/api/items/379/image",
+    "droppedBy": [
+      "Bulltaur Forgepriest"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 560,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 44741,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 380,
+    "name": "Stag Parchment",
+    "imageUrl": "/api/items/380/image",
+    "droppedBy": [
+      "Raubritter Chastener",
+      "Raubritter Marksman",
+      "Adlerauge",
+      "Clavius",
+      "Overseer Osverger"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 3000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 52664,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 381,
+    "name": "Stalking Seeds",
+    "imageUrl": "/api/items/381/image",
+    "droppedBy": [
+      "Stalking Stalk"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39384,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 382,
+    "name": "Stampor Talons",
+    "imageUrl": "/api/items/382/image",
+    "droppedBy": [
+      "Stampor",
+      "Tromphonyte"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 12313,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 383,
+    "name": "Star Ink",
+    "imageUrl": "/api/items/383/image",
+    "droppedBy": [
+      "Bluebeak",
+      "Ink Splash"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51422,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 384,
+    "name": "Stone Wing",
+    "imageUrl": "/api/items/384/image",
+    "droppedBy": [
+      "Gargoyle"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 120,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10278,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 385,
+    "name": "Stonerefiner's Skull",
+    "imageUrl": "/api/items/385/image",
+    "droppedBy": [
+      "Stonerefiner"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27606,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 386,
+    "name": "Strange Helmet",
+    "imageUrl": "/api/items/386/image",
+    "droppedBy": [
+      "Albino Dragon",
+      "Dragon Lord",
+      "Frost Dragon",
+      "Ice Golem",
+      "Icecold Book",
+      "Lavaworm",
+      "Lich",
+      "Quara Mantassin",
+      "Renegade Quara Mantassin",
+      "Serpent Spawn",
+      "Vampire",
+      "Walking Pillar",
+      "Adlerauge",
+      "Arbaziloth",
+      "Arbaziloth (Hard)",
+      "Blight Mariner",
+      "Clavius",
+      "Demodras",
+      "Dragon Hoard",
+      "Gravelord Oshuran",
+      "Hirintror",
+      "Michael the Stalwart",
+      "Ushuriel"
+    ],
+    "sellToNpc": "Green Djinn",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3373,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 387,
+    "name": "Strange Substance",
+    "imageUrl": "/api/items/387/image",
+    "droppedBy": [
+      "Bulltaur Alchemist"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 810,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 44740,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 388,
+    "name": "Streaked Devourer Eyes",
+    "imageUrl": "/api/items/388/image",
+    "droppedBy": [
+      "Streaked Devourer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36772,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 389,
+    "name": "Streaked Devourer Legs",
+    "imageUrl": "/api/items/389/image",
+    "droppedBy": [
+      "Streaked Devourer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36774,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 390,
+    "name": "Streaked Devourer Maw",
+    "imageUrl": "/api/items/390/image",
+    "droppedBy": [
+      "Streaked Devourer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 400,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 36773,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 391,
+    "name": "Striped Fur",
+    "imageUrl": "/api/items/391/image",
+    "droppedBy": [
+      "Mutated Tiger",
+      "Tiger",
+      "White Tiger"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 50,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10293,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 392,
+    "name": "Sulphider Shell",
+    "imageUrl": "/api/items/392/image",
+    "droppedBy": [
+      "Sulphider"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39375,
+    "rarity": "Common"
+  },
+  {
+    "id": 393,
+    "name": "Sulphur Powder",
+    "imageUrl": "/api/items/393/image",
+    "droppedBy": [
+      "Sulphider",
+      "Sulphur Spouter"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1900,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39376,
+    "rarity": "Common"
+  },
+  {
+    "id": 394,
+    "name": "Sulphurous Stone",
+    "imageUrl": "/api/items/394/image",
+    "droppedBy": [
+      "Brimstone Bug",
+      "Museum Stone Golem",
+      "Orewalker",
+      "Stone Golem",
+      "Wandering Pillar",
+      "Grorlam",
+      "Sulphur Scuttler"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10315,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 395,
+    "name": "Swampling Club",
+    "imageUrl": "/api/items/395/image",
+    "droppedBy": [
+      "Leaf Golem",
+      "Minotaur Occultist",
+      "Swampling",
+      "Wilting Leaf Golem"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 40,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17824,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 396,
+    "name": "Swarmer Antenna",
+    "imageUrl": "/api/items/396/image",
+    "droppedBy": [
+      "Swarmer"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 130,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 14076,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 397,
+    "name": "Tail of Corruption",
+    "imageUrl": "/api/items/397/image",
+    "droppedBy": [
+      "Draken Abomination"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 240,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 398,
+    "name": "Taurus Mace",
+    "imageUrl": "/api/items/398/image",
+    "droppedBy": [
+      "Minotaur Cult Zealot",
+      "Minotaur Mage",
+      "Worm Priestess"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7425,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 399,
+    "name": "Telescope Eye",
+    "imageUrl": "/api/items/399/image",
+    "droppedBy": [
+      "Cloak of Terror"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 1600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 33934,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 400,
+    "name": "Terra Boots",
+    "imageUrl": "/api/items/400/image",
+    "droppedBy": [
+      "Armadile",
+      "Choking Fear",
+      "Cobra Vizier",
+      "Cursed Book",
+      "Dwarf Geomancer",
+      "Enfeebled Silencer",
+      "Exotic Cave Spider",
+      "Foam Stalker",
+      "Ghastly Dragon",
+      "Glooth Bandit",
+      "Glooth Brigand",
+      "Hideous Fungus",
+      "Hulking Carnisylvan",
+      "Humongous Fungus",
+      "Ink Blob",
+      "Ink Splash",
+      "Lost Basher",
+      "Lost Berserker",
+      "Lost Exile",
+      "Lost Husher",
+      "Mercurial Menace",
+      "Ogre Sage",
+      "Omnivora",
+      "Oozing Corpus",
+      "Pirat Bombardier",
+      "Shrieking Cry-Stal",
+      "Silencer",
+      "Thanatursus",
+      "Undertaker",
+      "Venerable Foam Stalker",
+      "White Lion",
+      "Blight Mariner",
+      "Deathbine",
+      "Neferi the Spy",
+      "Ravenous Hunger",
+      "Sister Hetai",
+      "Terofar"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 813,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 401,
+    "name": "Terra Hood",
+    "imageUrl": "/api/items/401/image",
+    "droppedBy": [
+      "Adult Goanna",
+      "Ancient Scarab",
+      "Bramble Wyrmling",
+      "Cobra Vizier",
+      "Cursed Book",
+      "Draken Abomination",
+      "Earworm",
+      "Glooth Bandit",
+      "Glooth Brigand",
+      "Hulking Carnisylvan",
+      "Ink Blob",
+      "Ink Splash",
+      "Lamassu",
+      "Rootthing Nutshell",
+      "Sun-marked Goanna",
+      "Thanatursus",
+      "Usurper Warlock",
+      "Young Goanna",
+      "Ancient Spawn of Morgathla",
+      "Arthom the Hunter",
+      "Clavius",
+      "Drume",
+      "Duke Krule",
+      "Guard Captain Quaid",
+      "Hide",
+      "Kusuma",
+      "Megasylvan Yselda",
+      "Neferi the Spy",
+      "Scarlett Etzel",
+      "Sister Hetai",
+      "The Unarmored Voidborn"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 2500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 830,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 402,
+    "name": "Terra Mantle",
+    "imageUrl": "/api/items/402/image",
+    "droppedBy": [
+      "Askarak Lord",
+      "Askarak Prince",
+      "Banshee",
+      "Blightwalker",
+      "Bramble Wyrmling",
+      "Choking Fear",
+      "Cursed Book",
+      "Exotic Cave Spider",
+      "Feral Werecrocodile",
+      "Glooth Bandit",
+      "Glooth Brigand",
+      "Hideous Fungus",
+      "Humongous Fungus",
+      "Ink Blob",
+      "Ink Splash",
+      "Medusa",
+      "Raubritter Marksman",
+      "Rotten Golem",
+      "Spiky Carnivor",
+      "Adlerauge",
+      "Ancient Spawn of Morgathla",
+      "Ayana The Crimson Curse",
+      "Drume",
+      "Earth Overlord",
+      "Esmeralda",
+      "Fleshcrawler",
+      "Gorga",
+      "Gorgo",
+      "King Zelos",
+      "Megasylvan Yselda",
+      "Plagirath",
+      "Ravenous Hunger",
+      "Scarlett Etzel",
+      "The Duke of the Depths",
+      "The Evil Eye",
+      "The Lord of the Lice"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 11000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 811,
+    "rarity": "Rare"
+  },
+  {
+    "id": 403,
+    "name": "Terramite Legs",
+    "imageUrl": "/api/items/403/image",
+    "droppedBy": [
+      "Terramite"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 60,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10454,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 404,
+    "name": "Thorn",
+    "imageUrl": "/api/items/404/image",
+    "droppedBy": [
+      "Thornback Tortoise"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 100,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 9643,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 405,
+    "name": "Titan Axe",
+    "imageUrl": "/api/items/405/image",
+    "droppedBy": [
+      "Afflicted Strider",
+      "Armadile",
+      "Behemoth",
+      "Enslaved Dwarf",
+      "Execowtioner",
+      "Falcon Knight",
+      "Headpecker",
+      "Hellflayer",
+      "Infernal Phantom",
+      "Juggernaut",
+      "Lion Hydra",
+      "Lost Soul",
+      "Medusa",
+      "Minotaur Invader",
+      "Orewalker",
+      "Rhindeer",
+      "Rotten Golem",
+      "Silencer",
+      "Spidris",
+      "Spidris Elite",
+      "Thanatursus",
+      "Werelion",
+      "Fleshslicer",
+      "Gorga",
+      "Gorgo",
+      "Grand Chaplain Gaunder",
+      "Preceptor Lazare"
+    ],
+    "sellToNpc": "Green Djinn",
+    "priceAtNpc": 4000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 7413,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 406,
+    "name": "Toe Nails",
+    "imageUrl": "/api/items/406/image",
+    "droppedBy": [
+      "Crypt Construct",
+      "Crypt Mage",
+      "Haunted Hunter",
+      "Roaming Dread",
+      "Walking Dread"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 4500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 52706,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 407,
+    "name": "Tooth File",
+    "imageUrl": "/api/items/407/image",
+    "droppedBy": [
+      "Nightfiend",
+      "Vampire Viscount",
+      "Vicious Manbat"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 60,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 18924,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 408,
+    "name": "Torn Page",
+    "imageUrl": "/api/items/408/image",
+    "droppedBy": [
+      "Crusader",
+      "Headwalker"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 340,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 51427,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 409,
+    "name": "Trapped Bad Dream Monster",
+    "imageUrl": "/api/items/409/image",
+    "droppedBy": [
+      "Feversleep",
+      "Shiversleep",
+      "Terrorsleep",
+      "The Enraged Thorn Knight"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 900,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 20203,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 410,
+    "name": "Tunnel Tyrant Head",
+    "imageUrl": "/api/items/410/image",
+    "droppedBy": [
+      "Tunnel Tyrant"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27595,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 411,
+    "name": "Tunnel Tyrant Shell",
+    "imageUrl": "/api/items/411/image",
+    "droppedBy": [
+      "Tunnel Tyrant"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 700,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27596,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 412,
+    "name": "Two-Headed Turtle Heads",
+    "imageUrl": "/api/items/412/image",
+    "droppedBy": [
+      "Two-Headed Turtle"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 460,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39409,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 413,
+    "name": "Undertaker Fangs",
+    "imageUrl": "/api/items/413/image",
+    "droppedBy": [
+      "Undertaker"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 2700,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 39380,
+    "rarity": "Common"
+  },
+  {
+    "id": 414,
+    "name": "Unholy Bone",
+    "imageUrl": "/api/items/414/image",
+    "droppedBy": [
+      "Betrayed Wraith",
+      "Crypt Warrior",
+      "Gravedigger",
+      "Haunted Dragon",
+      "Lost Soul",
+      "Skeleton Elite Warrior",
+      "Undead Dragon",
+      "Zanakeph",
+      "Zorvorax"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 480,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10316,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 415,
+    "name": "Vampire's Cape Chain",
+    "imageUrl": "/api/items/415/image",
+    "droppedBy": [
+      "Vampire Viscount",
+      "The Pale Count"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 416,
+    "name": "Vein of Ore",
+    "imageUrl": "/api/items/416/image",
+    "droppedBy": [
+      "Cliff Strider",
+      "Drillworm",
+      "Orewalker"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 330,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 16135,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 417,
+    "name": "Venison",
+    "imageUrl": "/api/items/417/image",
+    "droppedBy": [
+      "Elder Forest Fury",
+      "Forest Fury"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 55,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 418,
+    "name": "Vile Axe",
+    "imageUrl": "/api/items/418/image",
+    "droppedBy": [
+      "Dark Torturer",
+      "Grimeleech",
+      "Eradicator",
+      "Ferumbras",
+      "Ferumbras Mortal Shell",
+      "Hellgorak",
+      "Horadron",
+      "Mazzinor",
+      "Realityquake"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 30000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 419,
+    "name": "Volatile Proto Matter",
+    "imageUrl": "/api/items/419/image",
+    "droppedBy": [
+      "Breach Brood",
+      "Burster"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 300,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 420,
+    "name": "War Axe",
+    "imageUrl": "/api/items/420/image",
+    "droppedBy": [
+      "Behemoth",
+      "Eyeless Devourer",
+      "Falcon Knight",
+      "Glooth Bandit",
+      "Hulking Prehemoth",
+      "Infernal Demon",
+      "Infernal Phantom",
+      "Juggernaut",
+      "Lost Basher",
+      "Nightmare",
+      "Norcferatu Heartless",
+      "Priestess of the Wild Sun",
+      "Rotten Golem",
+      "Stone Devourer",
+      "Streaked Devourer",
+      "Undead Dragon",
+      "Katex Blood Tongue",
+      "Outburst",
+      "Preceptor Lazare",
+      "Srezz Yellow Eyes",
+      "Stonecracker",
+      "The False God",
+      "Tormentor",
+      "Yirkas Blue Scales"
+    ],
+    "sellToNpc": "Rashid",
+    "priceAtNpc": 12000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3342,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 421,
+    "name": "Wardragon Claw",
+    "imageUrl": "/api/items/421/image",
+    "droppedBy": [
+      "Wardragon"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 550,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 422,
+    "name": "Wardragon Tooth",
+    "imageUrl": "/api/items/422/image",
+    "droppedBy": [
+      "Wardragon"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 730,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 423,
+    "name": "Waspoid Claw",
+    "imageUrl": "/api/items/423/image",
+    "droppedBy": [
+      "Waspoid",
+      "Chopper"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 320,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 14080,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 424,
+    "name": "Weaver's Wandtip",
+    "imageUrl": "/api/items/424/image",
+    "droppedBy": [
+      "Draken Spellweaver"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 250,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 425,
+    "name": "Werebadger Claws",
+    "imageUrl": "/api/items/425/image",
+    "droppedBy": [
+      "Werebadger",
+      "Sharpclaw"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 160,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 22051,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 426,
+    "name": "Werebear Fur",
+    "imageUrl": "/api/items/426/image",
+    "droppedBy": [
+      "Werebear",
+      "Shadowpelt"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 185,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 22057,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 427,
+    "name": "Werebear Skull",
+    "imageUrl": "/api/items/427/image",
+    "droppedBy": [
+      "Werebear",
+      "Shadowpelt"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 195,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 22056,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 428,
+    "name": "Wereboar Loincloth",
+    "imageUrl": "/api/items/428/image",
+    "droppedBy": [
+      "Wereboar",
+      "Bloodback",
+      "Feroxa",
+      "Owin"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1500,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 22087,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 429,
+    "name": "Wereboar Tusks",
+    "imageUrl": "/api/items/429/image",
+    "droppedBy": [
+      "Wereboar",
+      "Bloodback",
+      "Owin"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 165,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 22054,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 430,
+    "name": "Werecrocodile Tongue",
+    "imageUrl": "/api/items/430/image",
+    "droppedBy": [
+      "Ayana The Crimson Curse",
+      "Feral Werecrocodile",
+      "Werecrocodile"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 570,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43729,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 431,
+    "name": "Werefox Tail",
+    "imageUrl": "/api/items/431/image",
+    "droppedBy": [
+      "Werefox",
+      "Black Vixen"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 27463,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 432,
+    "name": "Werehyaena Nose",
+    "imageUrl": "/api/items/432/image",
+    "droppedBy": [
+      "Werehyaena",
+      "Werehyaena Shaman",
+      "Katex Blood Tongue"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 220,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 33943,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 433,
+    "name": "Werehyaena Talisman",
+    "imageUrl": "/api/items/433/image",
+    "droppedBy": [
+      "Werehyaena",
+      "Werehyaena Shaman",
+      "Katex Blood Tongue"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 350,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 33944,
+    "rarity": "Rare"
+  },
+  {
+    "id": 434,
+    "name": "Werepanther Claw",
+    "imageUrl": "/api/items/434/image",
+    "droppedBy": [
+      "Cunning Werepanther",
+      "Werepanther"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 280,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43731,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 435,
+    "name": "Weretiger Tooth",
+    "imageUrl": "/api/items/435/image",
+    "droppedBy": [
+      "Weretiger",
+      "White Weretiger",
+      "Tamru The Black"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 490,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43730,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 436,
+    "name": "Werewolf Fur",
+    "imageUrl": "/api/items/436/image",
+    "droppedBy": [
+      "Werewolf",
+      "Darkfang",
+      "Hemming"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 380,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10317,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 437,
+    "name": "Widow's Mandibles",
+    "imageUrl": "/api/items/437/image",
+    "droppedBy": [
+      "Wailing Widow"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 110,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10411,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 438,
+    "name": "Wild Flowers",
+    "imageUrl": "/api/items/438/image",
+    "droppedBy": [
+      "Angry Sugar Fairy",
+      "Nymph",
+      "Pixie",
+      "Swan Maiden"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 120,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 439,
+    "name": "Wimp Tooth Chain",
+    "imageUrl": "/api/items/439/image",
+    "droppedBy": [
+      "Lost Basher",
+      "Lost Exile",
+      "Lost Husher"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 120,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 17847,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 440,
+    "name": "Winged Tail",
+    "imageUrl": "/api/items/440/image",
+    "droppedBy": [
+      "Serpent Spawn",
+      "Srezz Yellow Eyes",
+      "The Noxious Spawn"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 800,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10313,
+    "rarity": "Rare"
+  },
+  {
+    "id": 441,
+    "name": "Witch Broom",
+    "imageUrl": "/api/items/441/image",
+    "droppedBy": [
+      "Witch",
+      "Ekatrix"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 60,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": null,
+    "rarity": null
+  },
+  {
+    "id": 442,
+    "name": "Wood Cape",
+    "imageUrl": "/api/items/442/image",
+    "droppedBy": [
+      "Adult Goanna",
+      "Arctic Faun",
+      "Capricious Phantom",
+      "Crazed Summer Rearguard",
+      "Dark Faun",
+      "Faun",
+      "Monk's Apparition",
+      "Paladin's Apparition",
+      "Pirat Bombardier",
+      "Rootthing Bug Tracker",
+      "Rotten Golem",
+      "Rotten Man-Maggot",
+      "Soul-broken Harbinger",
+      "Turbulent Elemental",
+      "Usurper Archer",
+      "Varnished Diremaw",
+      "Venerable Girtablilu",
+      "Guard Captain Quaid",
+      "Ravenous Hunger",
+      "Raxias",
+      "Soul-Broken Harbinger"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 5000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 3575,
+    "rarity": "Common"
+  },
+  {
+    "id": 443,
+    "name": "Wooden Spellbook",
+    "imageUrl": "/api/items/443/image",
+    "droppedBy": [
+      "Arctic Faun",
+      "Boogy",
+      "Dark Faun",
+      "Faun",
+      "Mitmah Seer",
+      "Noxious Ripptor",
+      "Pixie",
+      "Raubritter Chastener",
+      "Rootthing Amber Shaper",
+      "Sineater Inferniarch",
+      "Young Goanna",
+      "Clavius",
+      "Court Warlock",
+      "Ravenous Hunger"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 12000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 25699,
+    "rarity": "Rare"
+  },
+  {
+    "id": 444,
+    "name": "Worm Sponge",
+    "imageUrl": "/api/items/444/image",
+    "droppedBy": [
+      "Meandering Mushroom",
+      "Oozing Corpus"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 4200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 43848,
+    "rarity": "Semi-Rare"
+  },
+  {
+    "id": 445,
+    "name": "Yapunac Dagger",
+    "imageUrl": "/api/items/445/image",
+    "droppedBy": [
+      "Atab",
+      "Iks Yapunac"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 240,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 44440,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 446,
+    "name": "Zaoan Armor",
+    "imageUrl": "/api/items/446/image",
+    "droppedBy": [
+      "Darklight Emitter",
+      "Draken Abomination",
+      "Draken Elite",
+      "Draken Warmaster",
+      "Ghastly Dragon",
+      "Lizard Chosen",
+      "Lizard High Guard",
+      "Lizard Legionnaire",
+      "Lizard Zaogun",
+      "Battlemaster Zunzu",
+      "Ethershreck",
+      "Fazzrah",
+      "Lizard Gate Guardian",
+      "Paiz the Pauperizer"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 14000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10384,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 447,
+    "name": "Zaoan Robe",
+    "imageUrl": "/api/items/447/image",
+    "droppedBy": [
+      "Draken Spellweaver",
+      "Lizard Dragon Priest",
+      "Flamecaller Zazrak"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 1200,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10439,
+    "rarity": "Very Rare"
+  },
+  {
+    "id": 448,
+    "name": "Zaoan Shoes",
+    "imageUrl": "/api/items/448/image",
+    "droppedBy": [
+      "Darklight Construct",
+      "Draken Spellweaver",
+      "Draken Warmaster",
+      "Ghastly Dragon",
+      "Lizard Chosen",
+      "Lizard Dragon Priest",
+      "Lizard High Guard",
+      "Lizard Legionnaire",
+      "Lizard Zaogun",
+      "Battlemaster Zunzu",
+      "Ethershreck",
+      "Fazzrah",
+      "Flamecaller Zazrak",
+      "Hatebreeder",
+      "Lizard Gate Guardian",
+      "The Voice of Ruin"
+    ],
+    "sellToNpc": "Outro",
+    "priceAtNpc": 5000,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10386,
+    "rarity": "Rare"
+  },
+  {
+    "id": 449,
+    "name": "Zaogun Flag",
+    "imageUrl": "/api/items/449/image",
+    "droppedBy": [
+      "Lizard Zaogun",
+      "Battlemaster Zunzu",
+      "Fazzrah"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 600,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10413,
+    "rarity": "Uncommon"
+  },
+  {
+    "id": 450,
+    "name": "Zaogun Shoulderplates",
+    "imageUrl": "/api/items/450/image",
+    "droppedBy": [
+      "Lizard Zaogun",
+      "Battlemaster Zunzu",
+      "Fazzrah"
+    ],
+    "sellToNpc": "Yasir",
+    "priceAtNpc": 150,
+    "isWeeklyTask": true,
+    "tibiadraptorItemId": 10414,
+    "rarity": "Uncommon"
+  }
+]

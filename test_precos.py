@@ -101,7 +101,7 @@ class TestApiPrecos(unittest.TestCase):
         from unittest import mock
         self.api._hoje = lambda: "2026-10-03"
         self.api.precos_registrar({"token": "50000"})
-        with mock.patch.object(precos, "_gravar", side_effect=OSError("disco cheio")):
+        with mock.patch.object(precos, "_gravar_tudo", side_effect=OSError("disco cheio")):
             r = self.api.precos_apagar("token", "2026-10-03")
         self.assertIn("erro", r)                                              # a tela mostra o aviso em vez de fingir que apagou
         self.assertEqual(len(precos.carregar(self.api._precos_path)["token"]), 1)
@@ -116,6 +116,88 @@ class TestApiPrecos(unittest.TestCase):
         dest = {"precos": os.path.join(self.tmp.name, "dest.json")}
         backup.importar(pacote, dest)
         self.assertEqual(precos.carregar(dest["precos"]), {"token": [{"data": "2026-10-07", "preco": 55554}]})
+
+
+class TestPrecosPorMundo(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.arq = os.path.join(self.tmp.name, "p.json")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_cada_mundo_tem_o_seu_historico(self):
+        precos.registrar({"token": 55000}, "2026-10-07", self.arq, "Honbra")
+        precos.registrar({"token": 61000}, "2026-10-07", self.arq, "Xybra")
+        precos.registrar({"token": 56000}, "2026-10-08", self.arq, "Honbra")
+        self.assertEqual([p["preco"] for p in precos.carregar(self.arq, "Honbra")["token"]], [55000, 56000])
+        self.assertEqual([p["preco"] for p in precos.carregar(self.arq, "Xybra")["token"]], [61000])
+        self.assertEqual(precos.carregar(self.arq, "Rasteibra"), {})
+        self.assertEqual(precos.carregar(self.arq), {})          # sem mundo = grupo dos antigos, que não mistura com os mundos
+
+    def test_variacao_so_compara_com_o_mesmo_mundo(self):
+        precos.registrar({"token": 55000}, "2026-10-01", self.arq, "Honbra")
+        precos.registrar({"token": 90000}, "2026-10-02", self.arq, "Xybra")
+        v = precos.variacao(60500, "token", "2026-10-07", precos.carregar(self.arq, "Honbra"))
+        self.assertEqual(v["antes"], 55000)
+
+    def test_apagar_so_no_mundo_escolhido(self):
+        precos.registrar({"token": 1}, "2026-10-07", self.arq, "Honbra")
+        precos.registrar({"token": 2}, "2026-10-07", self.arq, "Xybra")
+        self.assertTrue(precos.apagar("token", "2026-10-07", self.arq, "Honbra"))
+        self.assertEqual(precos.carregar(self.arq, "Honbra"), {})
+        self.assertEqual(len(precos.carregar(self.arq, "Xybra")["token"]), 1)
+
+    def test_arquivo_antigo_sem_mundo_vira_grupo_dos_antigos(self):
+        with open(self.arq, "w", encoding="utf-8") as f:
+            f.write('{"token": [{"data": "2026-10-07", "preco": 54994}]}')
+        self.assertEqual(precos.carregar(self.arq)["token"][0]["preco"], 54994)
+        self.assertEqual(precos.carregar(self.arq, "Honbra"), {})
+        self.assertEqual(precos.contar_antigos(self.arq), 1)
+        precos.registrar({"blank": 25000}, "2026-10-07", self.arq, "Honbra")    # gravar não perde os antigos
+        self.assertEqual(precos.contar_antigos(self.arq), 1)
+        self.assertEqual(precos.carregar(self.arq, "Honbra")["blank"][0]["preco"], 25000)
+
+    def test_mover_antigos_para_um_mundo(self):
+        with open(self.arq, "w", encoding="utf-8") as f:
+            f.write('{"token": [{"data": "2026-10-07", "preco": 54994}, {"data": "2026-10-05", "preco": 50000}]}')
+        precos.registrar({"token": 56000}, "2026-10-07", self.arq, "Honbra")       # no mesmo dia vale o que já está no mundo
+        self.assertEqual(precos.mover_antigos("Honbra", self.arq), 1)   # o do dia 07 já existe no mundo e vale o dele
+        h = precos.carregar(self.arq, "Honbra")["token"]
+        self.assertEqual([(p["data"], p["preco"]) for p in h], [("2026-10-05", 50000), ("2026-10-07", 56000)])
+        self.assertEqual(precos.contar_antigos(self.arq), 0)
+        self.assertEqual(precos.mover_antigos("", self.arq), 0)
+
+    def test_registros_malformados_do_novo_formato_sao_ignorados(self):
+        with open(self.arq, "w", encoding="utf-8") as f:
+            f.write('{"versao": 2, "mundos": {"Honbra": {"token": [{"data": "2026-10-07", "preco": 5}, {"x": 1}], "lixo": 3}, "Ruim": 7}}')
+        self.assertEqual(precos.carregar(self.arq, "Honbra"), {"token": [{"data": "2026-10-07", "preco": 5}]})
+        self.assertEqual(precos.carregar(self.arq, "Ruim"), {})
+
+    def test_api_usa_o_mundo_do_personagem(self):
+        import web_api
+        api = object.__new__(web_api.API)
+        api._precos_path = self.arq
+        api._hoje = lambda: "2026-10-07"
+        self.assertEqual(api.precos_registrar({"token": "55.000"}, "Honbra"), {"gravados": 1})
+        api.precos_registrar({"token": "61.000"}, "Xybra")
+        self.assertEqual(api.precos_serie("token", "Honbra")["max"], 55000)
+        self.assertEqual(api.precos_serie("token", "Xybra")["max"], 61000)
+        api._hoje = lambda: "2026-10-08"
+        self.assertEqual(api.precos_variacoes({"token": "60.500"}, "Honbra")["token"]["antes"], 55000)
+        self.assertEqual(api.precos_apagar("token", "2026-10-07", "Honbra")["pontos"], [])
+        self.assertEqual(api.precos_serie("token", "Xybra")["max"], 61000)
+
+    def test_api_antigos_contar_e_mover(self):
+        import web_api
+        api = object.__new__(web_api.API)
+        api._precos_path = self.arq
+        with open(self.arq, "w", encoding="utf-8") as f:
+            f.write('{"token": [{"data": "2026-10-07", "preco": 54994}]}')
+        self.assertEqual(api.precos_antigos(), 1)
+        self.assertEqual(api.precos_mover_antigos("Honbra"), {"movidos": 1})
+        self.assertEqual(api.precos_antigos(), 0)
+        self.assertEqual(api.precos_serie("token", "Honbra")["max"], 54994)
 
 
 if __name__ == "__main__":

@@ -179,7 +179,7 @@ def _ler(caminho=None):
         if isinstance(b, dict) and b.get("id"):
             n = normalizar_set(b)
             if n:
-                saida.append({"id": str(b["id"]), **n})
+                saida.append({"id": str(b["id"]), **n, "personagem": _texto(b.get("personagem"), 40)})
     return saida
 
 
@@ -207,10 +207,24 @@ def salvar(dados, caminho=None):
     with _trava:
         lista = _ler(caminho)
         id_ = str((dados or {}).get("id") or "")
-        novo = {"id": id_ if any(s["id"] == id_ for s in lista) else uuid.uuid4().hex, **n}
+        antigo = next((s for s in lista if s["id"] == id_), {})
+        dono = _texto((dados or {}).get("personagem"), 40) if "personagem" in (dados or {}) else antigo.get("personagem", "")   # editar sem o campo mantém o vínculo
+        novo = {"id": id_ if antigo else uuid.uuid4().hex, **n, "personagem": dono}
         lista = [novo if s["id"] == novo["id"] else s for s in lista] if any(s["id"] == novo["id"] for s in lista) else lista + [novo]
         _gravar(lista, caminho)
     return novo
+
+
+def vincular(id_, personagem, caminho=None):
+    """Liga o set a um personagem ("" = sem personagem, fica entre os antigos). False se o set não existe."""
+    with _trava:
+        lista = _ler(caminho)
+        s = next((x for x in lista if x["id"] == id_), None)
+        if not s:
+            return False
+        s["personagem"] = _texto(personagem, 40)
+        _gravar(lista, caminho)
+        return True
 
 
 def remover(id_, caminho=None):

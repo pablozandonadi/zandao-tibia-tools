@@ -22,8 +22,12 @@ import classificador
 import hunt
 import itens_set
 import monstros
+import planejador
 import organizer
 import personagens
+import task_items
+import task_item_images
+import guild_stats
 import posturas
 import proficiencia
 import precos
@@ -99,13 +103,80 @@ def aplicar_janela(hwnd, por_cima, opacidade):
                      SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE)
 
 
+WS_CAPTION, WS_THICKFRAME = 0x00C00000, 0x00040000   # barra de título (com a borda) e borda de redimensionar
+
+
+def estilo_moldura(estilo, mostrar):
+    """Estilo da janela com ou sem a barra de título do Windows. A borda de redimensionar (WS_THICKFRAME) não é mexida."""
+    return (estilo | WS_CAPTION) if mostrar else (estilo & ~WS_CAPTION)
+
+
+def posicao_arrasto(origem, cursor_inicio, cursor_agora):
+    """Canto da janela quando o mouse andou do cursor_inicio até o cursor_agora (a janela acompanha o mouse)."""
+    return (origem[0] + cursor_agora[0] - cursor_inicio[0], origem[1] + cursor_agora[1] - cursor_inicio[1])
+
+
+def definir_moldura(hwnd, mostrar):
+    """Mostra ou tira a barra de título do Windows da janela (modo gadget: sem barra, só a faixa do app com o X)."""
+    import ctypes
+
+    u32 = ctypes.windll.user32
+    u32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p] + [ctypes.c_int] * 4 + [ctypes.c_uint]
+    GWL_STYLE = -16
+    SWP_NOSIZE, SWP_NOMOVE, SWP_NOZORDER, SWP_NOACTIVATE, SWP_FRAMECHANGED = 0x1, 0x2, 0x4, 0x10, 0x20
+    estilo = u32.GetWindowLongW(hwnd, GWL_STYLE)
+    u32.SetWindowLongW(hwnd, GWL_STYLE, estilo_moldura(estilo, mostrar))
+    u32.SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED)
+
+
+def _cursor():
+    """Posição do mouse na tela, em pixels."""
+    import ctypes
+    from ctypes import wintypes
+
+    p = wintypes.POINT()
+    ctypes.windll.user32.GetCursorPos(ctypes.byref(p))
+    return (p.x, p.y)
+
+
+def _canto_da_janela(hwnd):
+    import ctypes
+    from ctypes import wintypes
+
+    r = wintypes.RECT()
+    ctypes.windll.user32.GetWindowRect(hwnd, ctypes.byref(r))
+    return (r.left, r.top)
+
+
+def _mover_janela(hwnd, x, y):
+    import ctypes
+
+    u32 = ctypes.windll.user32
+    u32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p] + [ctypes.c_int] * 4 + [ctypes.c_uint]
+    SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE = 0x1, 0x4, 0x10
+    u32.SetWindowPos(hwnd, None, int(x), int(y), 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
+
+
 def ler_prefs():
     try:
         with open(PREFS_PATH, "r", encoding="utf-8") as f:
             p = json.load(f)
     except (OSError, json.JSONDecodeError):
         p = {}
-    return {"por_cima": bool(p.get("por_cima", False)), "opacidade": int(p.get("opacidade", 100))}
+    return {"por_cima": bool(p.get("por_cima", False)), "opacidade": int(p.get("opacidade", 100)), "escala": _escala(p.get("escala"))}
+
+
+ESCALA_MIN, ESCALA_MAX = 50, 130           # tamanho da interface em % (menor para virar um gadget no canto do Tibia)
+TAMANHO_GADGET = (340, 640)                # presets de tamanho da janela
+TAMANHO_NORMAL = (1320, 840)
+
+
+def _escala(v):
+    """Tamanho da interface em %, entre ESCALA_MIN e ESCALA_MAX (100 se não for número)."""
+    try:
+        return max(ESCALA_MIN, min(ESCALA_MAX, int(v)))
+    except (TypeError, ValueError):
+        return 100
 
 
 # ---------- área de transferência (Win32, aceita acentos) ----------
@@ -223,6 +294,9 @@ class API:
                 "selecionados": dados.get("selecionados", ["void", "vampirism", "strike"]),
                 "precos": dados.get("precos", {}),
                 "inventario": dados.get("inventario", {}),
+                "mundo": dados.get("mundo"),                  # mundo a que pertencem os preços digitados (None = arquivo antigo)
+                "por_mundo": dados.get("por_mundo", {}),      # preços digitados dos outros mundos {mundo: {precos, token, blank}}
+                "blank_padrao": emb.fmt(emb.DEFAULT_BLANK),
             },
             "prints": prints,
             "pasta_padrao_tibia": organizer.PASTA_PADRAO_TIBIA if os.path.isdir(organizer.PASTA_PADRAO_TIBIA) else "",
@@ -293,26 +367,42 @@ class API:
     def _hoje(self):
         return date.today().isoformat()
 
-    def precos_registrar(self, precos_texto):
+    def precos_registrar(self, precos_texto, mundo=""):
         valores = {k: emb.parse_num(str(v or "")) for k, v in (precos_texto or {}).items()}
         try:
-            return {"gravados": precos.registrar(valores, self._hoje(), self._precos_path)}
+            return {"gravados": precos.registrar(valores, self._hoje(), self._precos_path, mundo)}
         except OSError:
             return {"erro": "Não consegui salvar o histórico de preços"}
 
-    def precos_variacoes(self, precos_texto):
-        hist, hoje = precos.carregar(self._precos_path), self._hoje()
+    def precos_variacoes(self, precos_texto, mundo=""):
+        hist, hoje = precos.carregar(self._precos_path, mundo), self._hoje()
         return {k: precos.variacao(emb.parse_num(str(v or "")), k, hoje, hist) for k, v in (precos_texto or {}).items()}
 
-    def precos_serie(self, chave):
-        return precos.serie(precos.carregar(self._precos_path), chave)
+    def precos_serie(self, chave, mundo=""):
+        return precos.serie(precos.carregar(self._precos_path, mundo), chave)
 
-    def precos_apagar(self, chave, data):
+    def precos_apagar(self, chave, data, mundo=""):
         try:
-            precos.apagar(chave, data, self._precos_path)
+            precos.apagar(chave, data, self._precos_path, mundo)
         except OSError:
             return {"erro": "Não consegui apagar esse registro (o arquivo de preços está bloqueado ou o disco está cheio)."}
-        return self.precos_serie(chave)
+        return self.precos_serie(chave, mundo)
+
+    def precos_antigos(self):
+        """Quantos registros de preço antigos (de antes da separação por mundo) ainda não foram movidos para um mundo."""
+        return precos.contar_antigos(self._precos_path)
+
+    def precos_mover_antigos(self, mundo):
+        try:
+            return {"movidos": precos.mover_antigos(mundo, self._precos_path)}
+        except OSError:
+            return {"erro": "Não consegui mover os preços antigos (arquivo bloqueado ou disco cheio)."}
+
+    def task_itens_imagens(self, itens):
+        return task_item_images.resolve(itens)
+
+    def task_itens_analisar(self, texto, pessoas=1):
+        return task_items.analyse(texto, pessoas)
 
     def copiar(self, texto):
         try:
@@ -365,7 +455,7 @@ class API:
                 personagens.adicionar(antigo)  # migra o nome que o app já lembrava (se existir no tibia.com)
         if atualizar:
             personagens.atualizar_levels()
-        return personagens.carregar()
+        return self._timers_do_personagem(personagens.carregar())
 
     def equip_recomendar(self, nome, distribuicao, elemento=None, vocacao=None, level=None):
         """Itens do set que protegem do dano da hunt, para uma vocação e level (os do personagem, ou os escolhidos).
@@ -395,13 +485,32 @@ class API:
 
     def personagem_adicionar(self, nome):
         d, erro = personagens.adicionar(nome)
-        return {"erro": erro} if erro else d
+        return {"erro": erro} if erro else self._timers_do_personagem(d)
 
     def personagem_remover(self, nome):
-        return personagens.remover(nome)
+        return self._timers_do_personagem(personagens.remover(nome))
+
+    def criaturas_catalogo(self, atualizar=False):
+        return planejador.catalogo_visual(atualizar)
+
+    def criaturas_importar(self, texto):
+        return planejador.importar_texto(texto)
+
+    def criaturas_analisar(self, selecao, atualizar=False, dano_texto=""):
+        return planejador.analisar(selecao, atualizar, dano_texto)
+
+    def guildstats_buscar(self, nome="", aba="experience", atualizar=False, pagina=1):
+        return guild_stats.buscar(nome or personagens.carregar()["atual"], aba, atualizar, pagina)
+
+    def guildstats_abrir(self, nome, aba="experience"):
+        import webbrowser
+        from urllib.parse import quote
+        if aba not in guild_stats.TABS: aba = "experience"
+        webbrowser.open(guild_stats.BASE + "character/" + quote((nome or "").strip(), safe="") + "#" + aba)
+        return True
 
     def personagem_usar(self, nome):
-        return personagens.usar(nome)
+        return self._timers_do_personagem(personagens.usar(nome))
 
     def hunt_carregar(self):
         """Rascunho da última hunt (textos colados) para reabrir o app sem perder nada."""
@@ -683,6 +792,9 @@ class API:
     def set_listar(self):
         return sets.listar()
 
+    def set_vincular(self, id_, personagem):
+        return sets.vincular(id_, personagem)
+
     def set_salvar(self, dados):
         try:
             return {"ok": True, "set": sets.salvar(dados)}
@@ -738,13 +850,16 @@ class API:
     def roda_listar(self):
         return roda.listar()
 
-    def roda_adicionar(self, titulo, codigo):
+    def roda_adicionar(self, titulo, codigo, personagem=""):
         try:
-            return {"ok": True, "roda": roda.adicionar(titulo, codigo)}
+            return {"ok": True, "roda": roda.adicionar(titulo, codigo, personagem=personagem)}
         except ValueError as e:
             return {"ok": False, "erro": str(e)}
         except OSError:
             return {"ok": False, "erro": "Não consegui salvar a roda."}
+
+    def roda_vincular(self, id_, personagem):
+        return roda.vincular(id_, personagem)
 
     def roda_atualizar(self, id_, codigo, titulo=None):
         """Guarda o código novo de uma roda (e o novo nome, se vier) depois de editada no planner."""
@@ -928,8 +1043,15 @@ class API:
     def audio_iniciar(self):
         """Liga o motor (lê as teclas cadastradas e toca os sons), também com o app minimizado."""
         if self._audio is None:
-            self._audio = audio_timers.Motor(ao_mudar=lambda est: self._emit("audioEstado", est))
+            self._audio = audio_timers.Motor(ao_mudar=lambda est: self._emit("audioEstado", est),
+                                             personagem=personagens.carregar()["atual"])
         return self.audio_carregar()
+
+    def _timers_do_personagem(self, d):
+        """Os timers só valem para o personagem em uso: avisa o motor quando ele muda. Devolve d."""
+        if getattr(self, "_audio", None):
+            self._audio.definir_personagem((d or {}).get("atual", ""))
+        return d
 
     def audio_carregar(self):
         m = self._audio
@@ -1115,9 +1237,10 @@ class API:
     def janela_prefs(self):
         return ler_prefs()
 
-    def janela_aplicar(self, por_cima, opacidade):
-        """Chamado pela página ao abrir e a cada mudança no 'Fixar por cima' / transparência."""
-        prefs = {"por_cima": bool(por_cima), "opacidade": max(40, min(100, int(opacidade)))}
+    def janela_aplicar(self, por_cima, opacidade, escala=None):
+        """Chamado pela página ao abrir e a cada mudança no 'Fixar por cima' / transparência / tamanho da interface."""
+        prefs = {"por_cima": bool(por_cima), "opacidade": max(40, min(100, int(opacidade))),
+                 "escala": ler_prefs()["escala"] if escala is None else _escala(escala)}
         try:
             with open(PREFS_PATH, "w", encoding="utf-8") as f:
                 json.dump(prefs, f, indent=2)
@@ -1127,6 +1250,54 @@ class API:
         if not hwnd:
             return False
         aplicar_janela(hwnd, prefs["por_cima"], prefs["opacidade"])
+        return True
+
+    def janela_moldura(self, mostrar):
+        """Mostra (True) ou esconde (False) a barra de título do Windows. Escondida: modo gadget, só a faixa do app com o X no hover."""
+        hwnd = hwnd_do_app(self._window.title) if self._window else None
+        if not hwnd:
+            return False
+        try:
+            definir_moldura(hwnd, bool(mostrar))
+        except Exception:
+            return False
+        return True
+
+    def janela_arrastar(self, fase):
+        """Arrastar a janela sem barra de título: 'inicio' (botão do mouse desceu na faixa), 'mover' (a cada movimento) e 'fim'.
+        A posição vem do mouse real do Windows (não do navegador), então não depende de zoom nem de escala da tela."""
+        if fase == "fim":
+            self._arrasto = None
+            return True
+        hwnd = hwnd_do_app(self._window.title) if self._window else None
+        if not hwnd:
+            return False
+        if fase == "inicio":
+            self._arrasto = (_cursor(), _canto_da_janela(hwnd))
+            return True
+        arrasto = getattr(self, "_arrasto", None)
+        if fase != "mover" or not arrasto:
+            return False
+        x, y = posicao_arrasto(arrasto[1], arrasto[0], _cursor())
+        _mover_janela(hwnd, x, y)
+        return True
+
+    def janela_fechar(self):
+        """O X da faixa do modo gadget."""
+        if not self._window:
+            return False
+        self._window.destroy()
+        return True
+
+    def janela_tamanho(self, modo):
+        """Preset de tamanho da janela: 'gadget' (estreita, para ficar num canto do Tibia) ou 'normal'."""
+        tamanho = {"gadget": TAMANHO_GADGET, "normal": TAMANHO_NORMAL}.get(modo)
+        if not tamanho or not self._window:
+            return False
+        try:
+            self._window.resize(*tamanho)
+        except Exception:
+            return False
         return True
 
 

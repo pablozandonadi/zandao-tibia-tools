@@ -49,13 +49,15 @@ class TestPelaApiEPeloComparativo(unittest.TestCase):
         import web_api
         api = object.__new__(web_api.API)
         dados = {"lista": [{"nome": "Elite Nestos", "level": 170, "skills": {"sword fighting": 112}, "modo": "offensive"}], "atual": "Elite Nestos"}
-        with mock.patch.object(personagens, "carregar", return_value=dados):
+        with mock.patch.object(personagens, "carregar", return_value=dados), mock.patch.object(personagens, "_gravar") as gravar:
             l = {x["chave"]: x for x in api.hunt_stats(SET, [], [], None, "", 170, "elite nestos")}
             self.assertEqual((l["attackvalue"]["valor"], l["defencevalue"]["valor"]), (282, 107))    # sem a roda o flat é 34 (e não 35): 34 + 248
             sem = {x["chave"] for x in api.hunt_stats(SET, [], [], None, "", 170, "Outro")}          # personagem sem skills: como antes
             self.assertNotIn("attackvalue", sem)
             r = api.personagem_skills("Elite Nestos", {"sword fighting": 120}, "balanced")
         self.assertIsNotNone(r)
+        gravar.assert_called_once()
+        self.assertEqual(r["lista"][0]["skills"]["sword fighting"], 120)
 
     def test_comparativo_usa_as_skills_de_cada_personagem(self):
         from unittest import mock

@@ -1,0 +1,10 @@
+#ti-input { width:100%; resize:vertical; min-height:160px; }
+.ti-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:12px; }
+.ti-card { border:2px solid var(--ink); border-radius:10px; padding:16px 12px; background:var(--surface-2); text-align:center; cursor:pointer; user-select:text; overflow-wrap:anywhere; }
+.ti-card:hover,.ti-card:focus-visible { border-color:#d9a441; outline:2px solid #d9a441; outline-offset:2px; }
+.ti-card img { width:48px; height:48px; object-fit:contain; image-rendering:pixelated; margin-bottom:10px; }
+.ti-card strong { display:block; margin-bottom:8px; }
+.ti-card p { margin:5px 0; }
+.ti-badge { display:block; color:#77bc91; font-size:12px; margin-top:8px; }
+.ti-section { margin-top:20px; }
+@media(max-width:420px) { .ti-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }

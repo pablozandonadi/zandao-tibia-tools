@@ -42,7 +42,7 @@ def main():
         js_api=api,
         width=1320,
         height=840,
-        min_size=(420, 420),  # pequena o bastante para ficar num canto, por cima do Tibia
+        min_size=(280, 320),  # bem pequena: vira um gadget num canto, por cima do Tibia (com o tamanho da interface menor)
         background_color="#14171c",
     )
     api._window = janela

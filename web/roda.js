@@ -275,17 +275,19 @@ async function carregarRodas() { RODAS = (await api.roda_listar()) || []; return
 const rodaInicial = async (personagem) => (await api.hunt_ultima_roda(personagem || '')) || {};
 const codigoCurto = (c) => (c.length > 16 ? c.slice(0, 16) + '…' : c);
 
-function desenharRodasConfig() {
-  $('rodas-lista').innerHTML = RODAS.length ? RODAS.map((r) => `<div class="roda-item">
-      <div class="roda-nome"><b>${esc(r.titulo)}</b> <span class="chip chip-neutro">${esc(r.vocacao)}</span> <code class="dim" title="${esc(r.codigo)}">${esc(codigoCurto(r.codigo))}</code></div>
+const linhaRodaCfg = (r) => `<div class="roda-nome"><b>${esc(r.titulo)}</b> <span class="chip chip-neutro">${esc(r.vocacao)}</span> <code class="dim" title="${esc(r.codigo)}">${esc(codigoCurto(r.codigo))}</code></div>
       <div class="acoes"><button class="btn btn-sm" data-roda-ver="${esc(r.id)}">👁 Ver</button><button class="btn btn-sm" data-roda-editar="${esc(r.id)}" title="Abrir a roda para editar">🛠 Editar</button><button class="btn btn-sm" data-roda-renomear="${esc(r.id)}" title="Renomear">✎</button>
-        <button class="btn btn-sm btn-danger" data-roda-apagar="${esc(r.id)}" title="Apagar">✕</button></div></div>`).join('')
-    : '<div class="dica">Nenhuma roda cadastrada ainda.</div>';
+        <button class="btn btn-sm btn-danger" data-roda-apagar="${esc(r.id)}" title="Apagar">✕</button></div>`;
+function desenharRodasConfig() {
+  const minhas = doPers(RODAS, MEUS.atual);
+  $('rodas-lista').innerHTML = htmlDonoDaLista(RODAS, MEUS.atual, 'as rodas')
+    + (minhas.length ? minhas.map((r) => `<div class="roda-item">${linhaRodaCfg(r)}</div>`).join('') : '<div class="dica">Nenhuma roda cadastrada para este personagem ainda.</div>')
+    + htmlAntigos(semDono(RODAS), 'roda', (r) => `<div class="roda-nome"><b>${esc(r.titulo)}</b> <span class="chip chip-neutro">${esc(r.vocacao)}</span></div>`, 'as rodas');
 }
 async function montarRodasConfig() { await carregarRodas(); desenharRodasConfig(); }
 
 async function adicionarRoda() {
-  const r = await api.roda_adicionar($('roda-titulo').value, $('roda-codigo').value);
+  const r = await api.roda_adicionar($('roda-titulo').value, $('roda-codigo').value, MEUS.atual || '');
   if (!r.ok) { $('roda-msg').textContent = r.erro; return; }
   $('roda-titulo').value = ''; $('roda-codigo').value = '';
   $('roda-msg').textContent = `✔ "${r.roda.titulo}" adicionada (${r.roda.vocacao}).`;
@@ -342,7 +344,7 @@ async function abrirEditorRoda(roda) {
 $('roda-montar').addEventListener('click', () => abrirEditorRoda(null));
 $('roda-ed-salvar').addEventListener('click', async () => {
   if (!rodaEdicao) return;
-  const r = await api.roda_adicionar($('roda-ed-nome').value, rodaEdicao.codigo);
+  const r = await api.roda_adicionar($('roda-ed-nome').value, rodaEdicao.codigo, MEUS.atual || '');
   if (!r.ok) { $('roda-ed-status').textContent = r.erro; return; }
   $('roda-msg').textContent = `✔ "${r.roda.titulo}" salva (${r.roda.vocacao}).`;
   $('roda-ed-status').textContent = `✔ Salva como "${r.roda.titulo}".`;
@@ -365,8 +367,9 @@ function resumoRoda() {
 }
 function htmlRodaHunt() {
   const r = H.entrada.roda;
-  const sel = r && r.codigo ? RODAS.find((x) => x.codigo === r.codigo) : null;
-  const opcoes = RODAS.map((x) => `<option value="${esc(x.id)}" ${sel && sel.id === x.id ? 'selected' : ''}>${esc(x.titulo)} (${esc(x.vocacao)})</option>`).join('');
+  const dono = H.entrada.personagem || MEUS.atual, minhas = doPers(RODAS, dono);
+  const sel = r && r.codigo ? minhas.find((x) => x.codigo === r.codigo) : null;
+  const opcoes = minhas.map((x) => `<option value="${esc(x.id)}" ${sel && sel.id === x.id ? 'selected' : ''}>${esc(x.titulo)} (${esc(x.vocacao)})</option>`).join('');
   const guardada = r && r.codigo && !sel ? `<option value="__hunt" selected>${esc(r.titulo)} (guardada nesta hunt)</option>` : '';
   return `<h3 class="sub3" style="margin-top:18px">Roda (Wheel of Destiny)</h3>
     <div class="dica perso-desc">Escolha a roda que você usou nesta hunt. Cadastre as suas em Configurações.</div>
@@ -374,7 +377,7 @@ function htmlRodaHunt() {
     <div class="roda-linha"><select id="h-roda-sel">${r == null ? '<option value="" selected disabled>Escolher a roda...</option>' : ''}
       <option value="__nenhuma" ${r && !r.codigo ? 'selected' : ''}>Sem roda</option>${opcoes}${guardada}</select>
       ${r && r.codigo ? '<button class="btn btn-sm" data-roda-hunt-ver>👁 Ver a roda</button>' : ''}
-      ${RODAS.length ? '' : '<span class="dica">Nenhuma roda cadastrada: cadastre em Configurações.</span>'}</div>
+      ${minhas.length ? '' : `<span class="dica">Nenhuma roda de ${esc(dono || 'personagem')}: cadastre em Configurações${semDono(RODAS).length ? ' ou vincule as antigas a ele' : ''}.</span>`}</div>
     <div id="h-roda-view" style="margin-top:10px"></div>`;
 }
 $('h-res').addEventListener('change', (e) => {
