@@ -19,3 +19,9 @@ Build local de teste:
     ./instalador/gerar_instalador.ps1 -Canal beta -BetaBuild 1.1 -PastaBuild "$env:TEMP/zandao-beta"
 
 Durante desenvolvimento, executar python zandao_tibia_tools.py evita compilar a cada ajuste, mas essa execução usa os dados da pasta da fonte, não os dados das instalações. Não teste gravações com dados importantes sem backup.
+
+## Estado da ativação (12/10/2026)
+
+Implementação validada com 282 testes em cópia limpa. O primeiro push foi recusado pelo GitHub: a credencial OAuth usada pelo Git não tem escopo workflow. Nenhuma branch develop ou Release Beta foi publicada por essa tentativa. Para autorizar a publicação, o usuário pode executar no terminal: gh auth login --hostname github.com --git-protocol https --web --scopes workflow. Após autenticar: gh auth setup-git. Não grave tokens em arquivos do projeto.
+
+O commit preparado está na branch develop da cópia temporária %TEMP%\zandao-beta-pipeline-20261012. A fonte compartilhada continua na sua branch original. Antes de retomar, conferir se origin/main ou origin/develop recebeu alterações e integrar sem sobrescrever trabalho de outro agente. Só depois enviar develop e acompanhar o workflow até terminar.
