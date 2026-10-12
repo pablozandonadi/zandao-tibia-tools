@@ -665,6 +665,7 @@
 <link rel="stylesheet" href="task_items.css">
 <link rel="stylesheet" href="timers.css">
 <script src="timers.js"></script>
+<link rel="stylesheet" href="zandaobot.css">
 </head>
 <body>
 <div id="gadget-topo" title="Arraste para mover a janela · duplo clique volta ao tamanho normal"><span class="gt-grip">• • •</span><button id="gadget-fechar" title="Fechar o app">✕</button></div>
@@ -685,6 +686,7 @@
     <div class="nav-item" data-pagina="ferr" title="Ferramentas">🧰<span class="txt"> Ferramentas</span></div>
     <div class="nav-item" data-pagina="audio" title="Timers de áudio">🔔<span class="txt"> Timers</span></div>
     <div class="nav-item" data-pagina="prints" title="Prints">📸<span class="txt"> Prints</span></div>
+    <div class="nav-item" data-pagina="zandaobot" title="Informações diárias do mundo">🤖<span class="txt"> ZandaoBot</span></div>
     <div class="nav-item" id="gs-menu" data-pagina="guildstats" tabindex="0" title="Guild Stats">📈<span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
     <div class="nav-item" data-pagina="config" title="Configurações">⚙️<span class="txt"> Configurações</span></div>
     <div class="sobrepor">
@@ -708,6 +710,15 @@
         <p class="dica">Clique no card para copiar o nome. Para copiar outras informações, selecione o texto e use Ctrl+C.</p>
       </div>
       <div id="ti-result" aria-live="polite" style="margin-top:16px"></div>
+    </section>
+    <section class="page" id="page-zandaobot">
+      <h1 class="titulo">ZandaoBot</h1>
+      <div class="card calmo">
+        <p class="dica">Seu resumo diário do Tibia. Acompanha o mundo do personagem em uso; você também pode consultar outro mundo.</p>
+        <div class="acoes"><input id="zb-world" type="search" list="zb-worlds" maxlength="40" aria-label="Mundo do Tibia" placeholder="Pesquisar mundo, ex.: Rasteibra"><datalist id="zb-worlds"></datalist><button class="btn btn-primary" id="zb-find">Buscar mundo</button><button class="btn" id="zb-active">Personagem em uso</button><button class="btn" id="zb-refresh">Atualizar</button></div>
+        <p class="dica" id="zb-follow"></p>
+      </div>
+      <div id="zb-result" aria-live="polite"></div>
     </section>
     <section class="page" id="page-guildstats">
       <h1 class="titulo">Guild Stats</h1>
@@ -1100,6 +1111,7 @@ function irPara(pagina) {
   $('content').scrollTop = 0;
   if (pagina === 'criaturas') crLoad();
   if (pagina === 'guildstats') gsLoad();
+  if (pagina === 'zandaobot') zbLoad();
   if (pagina === 'hist') carregarHistorico();
   if (pagina === 'ferr') abrirFerramentas();
   if (pagina === 'config') abrirConfiguracoes();
@@ -3196,6 +3208,7 @@ else window.addEventListener('pywebviewready', iniciar);
 <script src="sets.js"></script>
 <script src="classificador.js"></script>
 <script src="guild_stats.js"></script>
+<script src="zandaobot.js"></script>
 <script src="criaturas.js"></script>
 <script src="task_items.js"></script>
 </body>

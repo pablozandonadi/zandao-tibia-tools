@@ -37,6 +37,7 @@ import roda as roda_mod
 import sets
 import stats_set
 import tibia_info
+import zandaobot
 from versao import VERSAO_APP
 
 if getattr(sys, "frozen", False):
@@ -983,6 +984,16 @@ class API:
         return {"ok": True, "novas": novas, "repetidas": repetidas}
 
     # ================= ferramentas: boss/criatura do dia, Rashid, server save, shared, "quando eu upo?" =================
+    def zandaobot_buscar(self, mundo="", forcar=False):
+        if not (mundo or "").strip():
+            d = personagens.carregar()
+            p = next((p for p in d["lista"] if p["nome"] == d["atual"]), {})
+            mundo = p.get("mundo", "")
+        return zandaobot.buscar(mundo, bool(forcar))
+
+    def zandaobot_mundos(self):
+        return zandaobot.mundos()
+
     def tibia_dia(self, forcar=False):
         return {**tibia_info.resumo_do_dia(), **tibia_info.boostados(bool(forcar))}
 
