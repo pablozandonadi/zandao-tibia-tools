@@ -77,3 +77,9 @@
 @media(max-width:1000px){.zb-meta{flex-direction:column;gap:10px}.zb-tile{padding:14px 12px 12px 15px}.zb-sprite{flex-basis:64px;width:64px}.zb-tile strong{font-size:19px}.zb-badge{font-size:8px;padding:4px}}
 @media(max-width:750px){.zb-daily-grid{grid-template-columns:1fr}.zb-world-grid{grid-template-columns:1fr}.zb-calendar-columns{grid-template-columns:1fr;gap:20px}.zb-tile-content{min-height:78px}.zb-overview h2{font-size:19px}}
 @media(max-width:500px){#zb-world{min-width:140px;width:100%}.zb-overview{align-items:flex-start;gap:9px}.zb-overview h2{font-size:18px}.zb-updated>span{font-size:10px}.zb-updated small{font-size:9px}.zb-panel{padding:14px}.zb-panel-footer{flex-direction:column}.zb-panel-footer .zb-source{max-width:100%}.zb-tile-heading h3{font-size:13px}.zb-tile strong{font-size:22px}}
+
+.zb-selection {margin:0 0 12px;background:#182333;border-color:#405977}
+.zb-selection p{font-size:12px;color:#c5cfde;line-height:1.6}
+.zb-selection small{display:block;color:var(--zb-muted);font-size:11px;line-height:1.5;margin-top:10px}
+.zb-select-actions{display:flex;flex-wrap:wrap;gap:8px}
+#zb-world-pick{flex:1;min-width:150px;border:1px solid #596c88;background:var(--surface-2);color:var(--ink);border-radius:6px;padding:9px;font:inherit;font-size:12px}

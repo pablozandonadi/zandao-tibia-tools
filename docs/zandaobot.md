@@ -49,3 +49,11 @@ Rashid, Yasir e Dream Court têm GIFs locais animados; criatura e boss boostados
 Dream Court agora confere também a expansão direta dos templates MediaWiki. Yasir compara duas rotas da mesma fonte e tem fallback; divergência não é ausência. A rotação continua sujeita a server saves extras, e a cidade de Yasir não é informada pela fonte. Investigação REA, documentação indicada pelo usuário e limites registrados em docs/rea-nabbot-zandaobot.md.
 
 325 testes passaram em develop sincronizada. Cinco GIFs carregados no navegador, layouts 1400/1100/850/380/320px sem overflow, busca rápida e concorrência verificados. Prévias locais: zandaobot-gifs-preview.png e zandaobot-gifs-mobile-preview.png.
+
+Atualização com GIFs e novo layout publicada na Beta 1.0.19-beta.5.1 em 12/10/2026. Commit 0be5460d1a809014d0c2677e14a54a67aaf41276; pipeline https://github.com/pablozandonadi/zandao-tibia-tools/actions/runs/38311995515 concluído com sucesso. Release https://github.com/pablozandonadi/zandao-tibia-tools/releases/tag/v1.0.19-beta.5.1 com instalador e portátil. Pacote oficial conferido: hash, sete GIFs com oito frames, JS/CSS iguais aos validados, canal/versão e ausência de dados pessoais.
+
+## Primeiro uso sem mundo
+
+Quando a instalação não tem personagem/mundo escolhido, Dream Court e Yasir retornam selecionar_mundo, em vez de apresentar falta de seleção como fonte indisponível. O painel oferece seletor de mundos, busca textual e cadastro de personagem. A lista de mundos com Yasir é consultada mesmo sem personagem e fica aberta para permitir busca rápida. Não escolhemos um mundo arbitrário nem copiamos dados da instalação estável para a Beta.
+
+Validado com 326 testes, fluxo de seleção inicial no navegador e consulta pública real sem mundo (dez mundos com Yasir) e em Lobera (presente, duas consultas concordantes), em 12/10/2026.

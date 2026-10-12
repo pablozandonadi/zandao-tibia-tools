@@ -35,19 +35,19 @@ function zbRender(r) {
     badge:b.velho?'Cache anterior':b.aguardando?'Aguardando fonte':'Hoje',note:b.velho?`Último dado: ${zbDate(b.dia)}`:b.aguardando?'Atualização após o server save pendente.':'Mesmo boost em todos os mundos.'});
   const globalCards=zbCard('Rashid',r.rashid||'Indisponível',{kind:'rashid',badge:'Hoje',note:'Localização do NPC neste dia.',sprite:'assets/zandaobot/rashid.gif',icon:'🐪'})
     +boosted('Criatura boostada',b.criatura,'creature','🐉')+boosted('Boss boostado',b.boss,'boss','⚔');
-  const dreamBadge=dream.estado==='inconsistente'?'Consulta divergente':dream.velho?'Regras em cache':dream.incerto?'Rotação incerta':dream.conferido?'Rotação conferida':'Rotação prevista';
+  const dreamBadge=dream.estado==='inconsistente'?'Consulta divergente':dream.velho?'Regras em cache':dream.incerto?'Rotação incerta':dream.estado==='selecionar_mundo'?'Selecione o mundo':dream.conferido?'Rotação conferida':'Rotação prevista';
   const dreamText=[dream.motivo,dream.conferido?'O boss foi conferido diretamente na resposta da TibiaWiki.':'',dream.atualizacao_fonte?`Revisão das regras: ${new Date(dream.atualizacao_fonte).toLocaleDateString('pt-BR')}.`:''].filter(Boolean).join(' ');
   const dreamSprite=zbDreamGifs[dream.nome]?'assets/zandaobot/'+zbDreamGifs[dream.nome]+'.gif':'';
-  const dreamCard=zbCard('Dream Court',dream.nome||'Indisponível',{kind:'dream',badge:dreamBadge,icon:'🌙',sprite:dreamSprite,
+  const dreamCard=zbCard('Dream Court',dream.nome||(dream.estado==='selecionar_mundo'?'Escolha um mundo':'Indisponível'),{kind:'dream',badge:dreamBadge,icon:'🌙',sprite:dreamSprite,
     note:dream.nome?`Rotação de hoje para ${world}.`:dream.motivo||'Atualize para consultar.',details:zbDetails('dream',dream,dreamText)});
-  const yasirValue=yasir.estado==='presente'?'Presente':yasir.estado==='ausente'?'Ausente':yasir.estado==='desatualizado'?`Último registro: ${yasir.presente?'presente':'ausente'}`:yasir.estado==='inconsistente'?'Consulta divergente':'Indisponível';
+  const yasirValue=yasir.estado==='presente'?'Presente':yasir.estado==='ausente'?'Ausente':yasir.estado==='desatualizado'?`Último registro: ${yasir.presente?'presente':'ausente'}`:yasir.estado==='inconsistente'?'Consulta divergente':yasir.estado==='selecionar_mundo'?'Escolha um mundo':'Indisponível';
   const yasirBadge=yasir.velho?'Dados anteriores':yasir.estado==='presente'||yasir.estado==='ausente'?'Consulta atual':'Verificar';
   const yasirNote=yasir.estado==='presente'?(yasir.cidade||'Carlin, Ankrahmun ou Liberty Bay · cidade não informada.')
     :yasir.estado==='ausente'?`Não está listado em ${world} nesta consulta.`:yasir.motivo||'Atualize para consultar.';
   const yasirText=[yasir.motivo,yasir.conferido?'A lista de mundos e a consulta deste mundo concordam.':'',yasir.velho?`Registro anterior de ${zbDate(yasir.dia)}; situação atual não confirmada.`:'','A fonte não informa o horário de coleta no jogo.'].filter(Boolean).join(' ');
   const yasirCard=zbCard('Yasir',yasirValue,{kind:'yasir',badge:yasirBadge,note:yasirNote,icon:'⛵',sprite:'assets/zandaobot/yasir.gif',details:zbDetails('yasir',yasir,yasirText)});
   const worlds=yasir.mundos_com_yasir||[];
-  const yasirWorlds=worlds.length?`<details class="zb-panel zb-worlds"><summary>Yasir em outros mundos <span>${worlds.length}${yasir.mundos_velhos?' · dados anteriores':''}</span></summary><div class="zb-world-buttons">${worlds.map(w=>`<button class="zb-world-button" data-zb-world="${esc(w)}">${esc(w)} ↗</button>`).join('')}</div></details>`:'';
+  const yasirWorlds=worlds.length?`<details class="zb-panel zb-worlds" ${!r.mundo?'open':''}><summary>Yasir em outros mundos <span>${worlds.length}${yasir.mundos_velhos?' · dados anteriores':''}</span></summary><div class="zb-world-buttons">${worlds.map(w=>`<button class="zb-world-button" data-zb-world="${esc(w)}">${esc(w)} ↗</button>`).join('')}</div></details>`:'';
   const changes=(yasir.mudancas||[]).filter(name=>name!=='Oriental Trader');
   const mini=changes.length?`<details class="zb-panel zb-extra"><summary>Mini World Changes em ${esc(world)} <span>${changes.length}${yasir.mudancas_velhas?' · consulta anterior':''}</span></summary><div class="zb-tags">${changes.map(name=>`<span class="zb-tag">${esc(name)}</span>`).join('')}</div></details>`:'';
   const alerts=r.avisos_mundo||[];
@@ -55,7 +55,19 @@ function zbRender(r) {
   const announcements=`<details class="zb-panel zb-extra"><summary>Últimos anúncios oficiais</summary><p class="zb-muted">${r.anuncios_velhos?'Falha ao atualizar. ':''}Consulta: ${esc(zbStamp(r.anuncios_consulta))}</p>${(r.anuncios||[]).map(x=>`<p><small>${esc(zbDate(x.data))}</small> ${esc(x.titulo)}${Number.isInteger(x.id)?` <a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler ↗</a>`:''}</p>`).join('')||'<p class="zb-muted">Nenhum anúncio disponível.</p>'}</details>`;
   const online=server.name?`${server.players_online??'—'} jogadores · ${server.status==='online'?'online':server.status||'status desconhecido'}`:'Status indisponível';
   const save=new Date(r.server_save_ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>Hoje em ${esc(world)}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div><div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta"><div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div><div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}${zbCalendar(r.calendario)}${notice}${mini}${announcements}`;
+  const selectWorld=!r.mundo?`<div class="zb-panel zb-selection"><h2>Selecione o mundo de Tibia</h2><p>Yasir e Dream Court variam por mundo. Escolha abaixo ou pesquise no campo acima.</p><div class="zb-select-actions"><select id="zb-world-pick" aria-label="Selecionar mundo para Yasir e Dream Court"><option value="">Carregando mundos…</option></select><button class="zb-world-button" id="zb-config-world">Cadastrar personagem</button></div><small>Para usar o mundo automaticamente, cadastre e escolha seu personagem nas configurações desta instalação.</small></div>`:'';
+  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>${r.mundo?'Hoje em '+esc(world):'Resumo de hoje'}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div>${selectWorld}<div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta">${r.mundo?`<div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div>`:''}<div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}${zbCalendar(r.calendario)}${notice}${mini}${announcements}`;
+  const picker=$('zb-world-pick');
+  if(picker) {
+    picker.onchange=()=>{if(picker.value){ZB.follow=false;ZB.world=picker.value;zbLoad();}};
+    if(api&&typeof api.zandaobot_mundos==='function') api.zandaobot_mundos().then(data=>{
+      if(!picker.isConnected)return;
+      picker.innerHTML='<option value="">Escolha um mundo…</option>'+(data.mundos||[]).map(w=>`<option value="${esc(w)}">${esc(w)}</option>`).join('');
+      if(!(data.mundos||[]).length)picker.innerHTML='<option value="">Digite o mundo no campo acima</option>';
+    }).catch(()=>{if(picker.isConnected)picker.innerHTML='<option value="">Digite o mundo no campo acima</option>';});
+    else picker.innerHTML='<option value="">Digite o mundo no campo acima</option>';
+    $('zb-config-world').onclick=()=>{ZB.follow=true;if(typeof irPara==='function')irPara('config');};
+  }
   $('zb-result').querySelectorAll('.zb-sprite img').forEach(img=>img.addEventListener('error',()=>{img.hidden=true;img.previousElementSibling.hidden=false;},{once:true}));
   $('zb-result').querySelectorAll('[data-zb-world]').forEach(btn=>btn.onclick=()=>{ZB.follow=false;ZB.world=btn.dataset.zbWorld;zbLoad();});
 }

@@ -92,7 +92,10 @@ def mini_changes(world, force=False):
     source = TRADE + '/mini-world-changes'
     unavailable = {'estado': 'indisponivel', 'motivo': 'Não foi possível consultar as Mini World Changes deste mundo.', 'fonte': source, 'consulta': None, 'mudancas': []}
     if not world:
-        return {**unavailable, 'motivo': 'Selecione um mundo para consultar Yasir.'}
+        available = cached('yasir-worlds', _yasir_worlds, force)
+        return {**unavailable, 'estado': 'selecionar_mundo', 'motivo': 'Escolha um mundo para ver a presença de Yasir.',
+                'mundos_com_yasir': available['dados'] or [], 'mundos_velhos': available['velho'], 'consulta': available['consulta']}
+
     worlds = cached('trade-worlds', _trade_worlds, force, 3600, daily=False)
     world_id = (worlds['dados'] or {}).get(world.lower())
     if world_id is None:
@@ -177,6 +180,8 @@ def expand_dream(world):
     return name
 
 def dream_court(world, force=False):
+    if not world:
+        return {'estado': 'selecionar_mundo', 'motivo': 'Escolha um mundo para ver o boss da Dream Court.', 'fonte': DREAM_SOURCE, 'consulta': None}
     r = cached('dream-rules', dream_rules, force, 3600, daily=False)
     rule = ((r['dados'] or {}).get('mundos') or {}).get(world.lower())
     if not rule:

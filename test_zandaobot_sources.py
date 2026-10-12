@@ -27,6 +27,15 @@ class TestSources(unittest.TestCase):
         network.start()
         self.addCleanup(network.stop)
 
+    def test_sem_mundo_pede_selecao_e_ainda_lista_yasir(self):
+        with patch.object(s,'_yasir_worlds',return_value=['Lobera']), patch.object(s,'dream_rules') as rules:
+            r=s.mini_changes('')
+            dream=s.dream_court('')
+        self.assertEqual(r['estado'],'selecionar_mundo')
+        self.assertEqual(r['mundos_com_yasir'],['Lobera'])
+        self.assertEqual(dream['estado'],'selecionar_mundo')
+        rules.assert_not_called()
+
     def test_yasir_presente_e_ausente_por_mundo(self):
         def api(method, args=None):
             if method == 'world.list':
