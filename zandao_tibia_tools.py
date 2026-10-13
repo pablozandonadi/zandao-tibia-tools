@@ -17,7 +17,7 @@ if getattr(sys, "frozen", False):
 
 import webview
 
-from web_api import API
+from web_api import API, ler_prefs, TAMANHO_NORMAL, TAMANHO_GADGET
 from versao import CANAL_APP, NOME_APP
 
 # web/ e icon.ico: no .exe ficam dentro do pacote (sys._MEIPASS); no código-fonte, ao lado deste arquivo.
@@ -37,17 +37,28 @@ if sys.platform == "win32":
 
 def main():
     api = API()
+    prefs = ler_prefs()
+    modo = prefs.get("modo", "normal")
+    tamanho = prefs.get("tamanhos", {}).get(modo, TAMANHO_GADGET if modo == "gadget" else TAMANHO_NORMAL)
+    api._modo_janela = modo
+    api._trocando_modo = True
     janela = webview.create_window(
         NOME_APP,
         os.path.join(PASTA_RECURSOS, "web", "index.html"),
         js_api=api,
         text_select=True,
-        width=1320,
-        height=840,
+        width=tamanho[0],
+        height=tamanho[1],
         min_size=(280, 320),  # bem pequena: vira um gadget num canto, por cima do Tibia (com o tamanho da interface menor)
         background_color="#14171c",
     )
     api._window = janela
+
+    def restaurar_janela():
+        api.janela_tamanho(modo)
+        janela.events.resized += api.janela_redimensionada
+
+    janela.events.shown += restaurar_janela
     webview.start(icon=os.path.join(PASTA_RECURSOS, "icon.ico"))
 
 

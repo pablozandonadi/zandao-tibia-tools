@@ -161,13 +161,50 @@ def _mover_janela(hwnd, x, y):
     u32.SetWindowPos(hwnd, None, int(x), int(y), 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
 
 
+PREFS_LOCK = threading.RLock()
+
+
 def ler_prefs():
+    with PREFS_LOCK:
+        try:
+            with open(PREFS_PATH, "r", encoding="utf-8") as f:
+                p = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            p = {}
+        if not isinstance(p, dict):
+            p = {}
+        prefs = {"por_cima": bool(p.get("por_cima", False)), "opacidade": int(p.get("opacidade", 100)), "escala": _escala(p.get("escala"))}
+        tamanhos = p.get("tamanhos", {})
+        if isinstance(tamanhos, dict):
+            validos = {modo: list(tamanho) for modo in ("normal", "gadget")
+                       if (tamanho := _tamanho_valido(tamanhos.get(modo)))}
+            if validos:
+                prefs["tamanhos"] = validos
+        if p.get("modo") in ("normal", "gadget"):
+            prefs["modo"] = p["modo"]
+        return prefs
+
+
+def _tamanho_valido(valor):
+    if not isinstance(valor, (list, tuple)) or len(valor) != 2:
+        return None
     try:
-        with open(PREFS_PATH, "r", encoding="utf-8") as f:
-            p = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        p = {}
-    return {"por_cima": bool(p.get("por_cima", False)), "opacidade": int(p.get("opacidade", 100)), "escala": _escala(p.get("escala"))}
+        w, h = map(int, valor)
+    except (ValueError, TypeError, OverflowError):
+        return None
+    return (w, h) if 280 <= w <= 16000 and 320 <= h <= 16000 else None
+
+
+def salvar_prefs(alteracoes):
+    with PREFS_LOCK:
+        prefs = ler_prefs()
+        prefs.update(alteracoes)
+        try:
+            with open(PREFS_PATH, "w", encoding="utf-8") as f:
+                json.dump(prefs, f, indent=2)
+        except OSError:
+            pass
+        return prefs
 
 
 ESCALA_MIN, ESCALA_MAX = 50, 130           # tamanho da interface em % (menor para virar um gadget no canto do Tibia)
@@ -1317,13 +1354,8 @@ class API:
 
     def janela_aplicar(self, por_cima, opacidade, escala=None):
         """Chamado pela página ao abrir e a cada mudança no 'Fixar por cima' / transparência / tamanho da interface."""
-        prefs = {"por_cima": bool(por_cima), "opacidade": max(40, min(100, int(opacidade))),
-                 "escala": ler_prefs()["escala"] if escala is None else _escala(escala)}
-        try:
-            with open(PREFS_PATH, "w", encoding="utf-8") as f:
-                json.dump(prefs, f, indent=2)
-        except OSError:
-            pass
+        prefs = salvar_prefs({"por_cima": bool(por_cima), "opacidade": max(40, min(100, int(opacidade))),
+                              "escala": ler_prefs()["escala"] if escala is None else _escala(escala)})
         hwnd = hwnd_do_app(self._window.title) if self._window else None
         if not hwnd:
             return False
@@ -1367,15 +1399,42 @@ class API:
         self._window.destroy()
         return True
 
-    def janela_tamanho(self, modo):
-        """Preset de tamanho da janela: 'gadget' (estreita, para ficar num canto do Tibia) ou 'normal'."""
-        tamanho = {"gadget": TAMANHO_GADGET, "normal": TAMANHO_NORMAL}.get(modo)
-        if not tamanho or not self._window:
+    def janela_redimensionada(self, width, height):
+        """Salva o tamanho atual no modo em uso, inclusive ao arrastar as bordas."""
+        if not self._window or getattr(self, "_trocando_modo", False):
             return False
+        with PREFS_LOCK:
+            # Eventos podem chegar atrasados; consulte o tamanho atual da janela.
+            tamanho = _tamanho_valido((getattr(self._window, "width", width),
+                                      getattr(self._window, "height", height)))
+            if not tamanho:
+                return False
+            modo = getattr(self, "_modo_janela", ler_prefs().get("modo", "normal"))
+            tamanhos = ler_prefs().get("tamanhos", {})
+            tamanhos[modo] = list(tamanho)
+            salvar_prefs({"modo": modo, "tamanhos": tamanhos})
+        return True
+
+    def janela_tamanho(self, modo):
+        """Alterna os modos restaurando o último tamanho escolhido em cada um."""
+        if modo not in ("normal", "gadget") or not self._window:
+            return False
+        atual = getattr(self, "_modo_janela", ler_prefs().get("modo", "normal"))
+        if modo != atual:
+            self.janela_redimensionada(getattr(self._window, "width", 0),
+                                      getattr(self._window, "height", 0))
+        prefs = ler_prefs()
+        tamanho = prefs.get("tamanhos", {}).get(modo, TAMANHO_GADGET if modo == "gadget" else TAMANHO_NORMAL)
+        self._trocando_modo = True
         try:
+            self.janela_moldura(modo == "normal")
             self._window.resize(*tamanho)
+            self._modo_janela = modo
+            salvar_prefs({"modo": modo})
         except Exception:
             return False
+        finally:
+            self._trocando_modo = False
         return True
 
 

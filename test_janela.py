@@ -54,12 +54,64 @@ class TestPrefsJanela(unittest.TestCase):
                 chamadas.append((w, h))
 
         api._window = Janela()
-        self.assertTrue(api.janela_tamanho("gadget"))
-        self.assertTrue(api.janela_tamanho("normal"))
-        self.assertFalse(api.janela_tamanho("outro"))
+        with mock.patch.object(api, "janela_moldura", return_value=True):
+            self.assertTrue(api.janela_tamanho("gadget"))
+            self.assertTrue(api.janela_tamanho("normal"))
+            self.assertFalse(api.janela_tamanho("outro"))
         self.assertEqual(chamadas, [web_api.TAMANHO_GADGET, web_api.TAMANHO_NORMAL])
         api._window = None
         self.assertFalse(api.janela_tamanho("gadget"))
+
+    def test_tamanhos_personalizados_sobrevivem_a_troca_e_reabertura(self):
+        api = object.__new__(web_api.API)
+
+        class Janela:
+            title = "teste"
+            width, height = 1000, 720
+
+            def resize(self, w, h):
+                self.width, self.height = w, h
+
+        api._window = Janela()
+        with mock.patch.object(api, "janela_moldura", return_value=True):
+            self.assertTrue(api.janela_tamanho("gadget"))
+            self.assertEqual((api._window.width, api._window.height), web_api.TAMANHO_GADGET)
+            api._window.width, api._window.height = 450, 580
+            api.janela_redimensionada(450, 580)
+            api.janela_tamanho("normal")
+            self.assertEqual((api._window.width, api._window.height), (1000, 720))
+            api.janela_tamanho("gadget")
+            self.assertEqual((api._window.width, api._window.height), (450, 580))
+        # Novas chamadas de escala/opacidade não podem apagar os tamanhos.
+        api._window = None
+        api.janela_aplicar(True, 90, 85)
+        prefs = web_api.ler_prefs()
+        self.assertEqual(prefs["modo"], "gadget")
+        self.assertEqual(prefs["tamanhos"], {"normal": [1000, 720], "gadget": [450, 580]})
+        outra_api = object.__new__(web_api.API)
+        outra_api._window = Janela()
+        with mock.patch.object(outra_api, "janela_moldura", return_value=True):
+            outra_api.janela_tamanho(prefs["modo"])
+        self.assertEqual((outra_api._window.width, outra_api._window.height), (450, 580))
+
+    def test_evento_atrasado_salva_tamanho_atual_e_ignora_transicao(self):
+        api = object.__new__(web_api.API)
+        api._window = mock.Mock(width=900, height=650)
+        api._modo_janela = "normal"
+        api.janela_redimensionada(800, 600)
+        self.assertEqual(web_api.ler_prefs()["tamanhos"]["normal"], [900, 650])
+        api._trocando_modo = True
+        api._window.width, api._window.height = 340, 640
+        self.assertFalse(api.janela_redimensionada(340, 640))
+        self.assertEqual(web_api.ler_prefs()["tamanhos"]["normal"], [900, 650])
+
+    def test_tamanhos_invalidos_nao_substituem_preferencia(self):
+        self._gravar({"modo": "gadget", "tamanhos": {"normal": [1000, 720], "gadget": [0, 0]}})
+        self.assertEqual(web_api.ler_prefs()["tamanhos"], {"normal": [1000, 720]})
+        api = object.__new__(web_api.API)
+        api._window = mock.Mock(width=0, height=0)
+        self.assertFalse(api.janela_redimensionada(0, 0))
+        self.assertEqual(web_api.ler_prefs()["tamanhos"]["normal"], [1000, 720])
 
 
 class TestMolduraDaJanela(unittest.TestCase):

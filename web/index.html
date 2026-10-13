@@ -3154,16 +3154,26 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === '0') { e.preventDefault(); mudarEscala(100); }
 });
 let modoGadget = false;
+let trocandoGadget = false;
 async function alternarGadget() {
-  modoGadget = !modoGadget;
-  if (modoGadget) { mudarEscala(70); janela.por_cima = true; }
-  else { mudarEscala(100); janela.por_cima = false; }
-  aplicarJanela();
-  await api.janela_tamanho(modoGadget ? 'gadget' : 'normal');
-  const semBarra = await api.janela_moldura(!modoGadget);   // gadget: some a barra de título do Windows; fica só a faixa do app
-  document.body.classList.toggle('gadget', modoGadget && semBarra);
-  $('j-gadget').classList.toggle('on', modoGadget);
-  toast(modoGadget ? 'Modo gadget: janela estreita, tamanho 70% e por cima do Tibia (duplo clique na faixa de cima volta ao normal)' : 'Janela normal');
+  if (trocandoGadget) return;
+  trocandoGadget = true;
+  try {
+    const proximo = !modoGadget;
+    if (!await api.janela_tamanho(proximo ? 'gadget' : 'normal')) {
+      toast('Não foi possível alternar o modo da janela.', true);
+      return;
+    }
+    modoGadget = proximo;
+    janela.por_cima = modoGadget;
+    aplicarJanela();
+    const semBarra = await api.janela_moldura(!modoGadget);
+    document.body.classList.toggle('gadget', modoGadget && semBarra);
+    $('j-gadget').classList.toggle('on', modoGadget);
+    toast(modoGadget ? 'Modo gadget: tamanho salvo e por cima do Tibia (duplo clique na faixa de cima volta ao normal)' : 'Janela normal');
+  } finally {
+    trocandoGadget = false;
+  }
 }
 $('j-gadget').addEventListener('click', alternarGadget);
 // faixa de cima do modo gadget: arrasta a janela; o X só aparece com o mouse em cima
@@ -3191,6 +3201,9 @@ $('j-gadget').addEventListener('click', alternarGadget);
 async function iniciar() {
   api = window.pywebview.api;
   janela = await api.janela_prefs();
+  modoGadget = janela.modo === 'gadget';
+  document.body.classList.toggle('gadget', modoGadget);
+  $('j-gadget').classList.toggle('on', modoGadget);
   aplicarJanela();
   const d = await api.carregar();
   IMBS = d.imbuements; GRUPOS = d.grupos; estado = d.dados;
