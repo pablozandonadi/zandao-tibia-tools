@@ -104,4 +104,20 @@ class TestRevisaoDano(unittest.TestCase):
    r=p.catalogo_visual()
   self.assertEqual([c['name'] for c in r['lista']],['Flimsy Lost Soul'])
 
+class TestInputIndependente(unittest.TestCase):
+ def test_input_alone_derives_creatures_and_normalized_weights(self):
+  text='Received Damage\nTotal: 20000000\nDamage Types:\nPhysical 20000000 (100%)\nDamage Sources:\nDragon 15000000 (75%)\nDragon Lord 5000000 (25%)'
+  with patch.object(p,'catalogo_visual',return_value={'lista':[{'name':'Dragon'},{'name':'Dragon Lord'}]}):r=p.importar_texto(text)
+  self.assertNotIn('erro',r);self.assertEqual(r['tipo'],'input');self.assertTrue(r['real'])
+  self.assertEqual(r['selecao'],[{'nome':'Dragon','peso':75},{'nome':'Dragon Lord','peso':25}])
+  self.assertIn('não informa quantos',r['avisos'][0])
+ def test_damage_without_sources_requires_full_input(self):
+  with patch.object(p,'catalogo_visual',return_value={'lista':[{'name':'Dragon'}]}):r=p.importar_texto('Received Damage\nDamage Types:\nPhysical 1000 (100%)')
+  self.assertIn('Damage Sources',r['erro'])
+ def test_unknown_sources_are_not_turned_into_creatures(self):
+  text='Received Damage\nDamage Types:\nPhysical 1000 (100%)\nDamage Sources:\nDragon 900 (90%)\nOther 100 (10%)'
+  with patch.object(p,'catalogo_visual',return_value={'lista':[{'name':'Dragon'}]}):r=p.importar_texto(text)
+  self.assertEqual(r['selecao'],[{'nome':'Dragon','peso':100}]);self.assertEqual(r['total_log'],1000)
+  self.assertTrue(any('Other' in a for a in r['avisos']))
+
 if __name__=='__main__': unittest.main()

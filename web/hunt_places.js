@@ -1,12 +1,12 @@
 let crPlaces=[],crPlaceToken=0,crPlaceDetail=null,crPlaceOrigin='',crPlaceLimit=20,crPlaceApplying=false;
-let crView='local',crLocalState=null;
+let crView='local',crLocalState=null,crPickerExpanded=false,crEntryMode='';
 function crCaptureLocal(){return {selection:crSelection.map(c=>({...c})),damage:$('cr-damage').value,useInput:$('cr-use-input').checked,origin:crPlaceOrigin,log:$('cr-log').value,history:$('cr-history').value,importStatus:$('cr-import-status').textContent};}
 function crShowView(view){crView=view;const publicView=view==='public';$('cr-result').hidden=false;const graphs=$('cr-result').querySelector('.cr-graphs');if(graphs)graphs.hidden=publicView;
   if(publicView&&graphs)graphs.after($('cr-place-info'));else if($('cr-result').contains($('cr-place-info')))$('cr-result').after($('cr-place-info'));$('cr-place-info').hidden=!publicView;
-  document.querySelector('.cr-view-tabs').hidden=!crPlaceDetail;
+  document.querySelector('.cr-view-tabs').hidden=!crPlaceDetail||crEntryMode!=='hunt';$('cr-place-title').hidden=!crPlaceDetail||crEntryMode!=='hunt';
   for(const [id,on] of [['cr-tab-local',!publicView],['cr-tab-public',publicView]]){$(id).classList.toggle('on',on);$(id).setAttribute('aria-selected',String(on));}}
 function crPlaceDetach(){crPlaceOrigin='';$('cr-place-notice').textContent='';crLocalState=null;crShowView('local');}
-function crPlaceOptions(){const q=crSlug($('cr-place-search').value);const list=crPlaces.filter(p=>crSlug([p.nome,p.regiao,...(p.aliases||[])].join(' ')).includes(q));const sorted=q?list:[...list].sort((a,b)=>b.sessoes-a.sessoes);$('cr-place-search-status').textContent=list.length?`${list.length} ${list.length===1?'local encontrado':'locais encontrados'}${list.length>crPlaceLimit?` · mostrando ${crPlaceLimit}`:''}`:'Nenhum local encontrado.';$('cr-place-results').innerHTML=sorted.slice(0,crPlaceLimit).map(p=>`<button class="cr-place-option ${$('cr-place').value===p.id?'on':''}" data-place-id="${esc(p.id)}"><span>${esc(p.nome)}</span><small>${p.sessoes} sessões</small></button>`).join('')+(list.length>crPlaceLimit?'<button class="btn btn-sm" data-place-more>Mostrar mais locais</button>':'');}
+function crPlaceOptions(){if(!crPickerExpanded&&!$('cr-place').value){$('cr-place-search-status').textContent='';$('cr-place-results').innerHTML='';return;}const q=crSlug($('cr-place-search').value);const list=crPlaces.filter(p=>crSlug([p.nome,p.regiao,...(p.aliases||[])].join(' ')).includes(q));const sorted=q?list:[...list].sort((a,b)=>b.sessoes-a.sessoes);const selected=crPlaces.find(p=>p.id===$('cr-place').value);if(selected&&!crPickerExpanded){$('cr-place-search-status').textContent='Local selecionado';$('cr-place-results').innerHTML=`<div class="cr-chosen-place"><strong>${esc(selected.nome)}</strong><button class="btn btn-sm" data-place-change>Trocar local</button></div>`;return;}$('cr-place-search-status').textContent=list.length?`${list.length} ${list.length===1?'local encontrado':'locais encontrados'}${list.length>crPlaceLimit?` · mostrando ${crPlaceLimit}`:''}`:'Nenhum local encontrado.';$('cr-place-results').innerHTML=sorted.slice(0,crPlaceLimit).map(p=>`<button class="cr-place-option ${$('cr-place').value===p.id?'on':''}" data-place-id="${esc(p.id)}"><span>${esc(p.nome)}</span><small>${p.sessoes} sessões</small></button>`).join('')+(list.length>crPlaceLimit?'<button class="btn btn-sm" data-place-more>Mostrar mais locais</button>':'');}
 async function crPlacesLoad(refresh=false){$('cr-place-feedback').textContent='Carregando locais…';try{const r=await window.pywebview.api.criaturas_locais(refresh);crPlaces=r.locais||[];crPlaceOptions();const m=r.metadata||{};$('cr-place-status').textContent=`${crPlaces.length} locais/setores · ${m.sessions_collected||0} sessões coletadas · ${m.sessions_confirmed||0} correlacionadas. ${(m.warnings||[]).join(' ')} ${r.aviso||''}`;$('cr-place-feedback').textContent=crPlaces.length?'':'Catálogo indisponível. A consulta manual continua disponível.';}catch(e){$('cr-place-feedback').textContent='Não foi possível carregar os locais. Tente atualizar.';}}
 function crPlaceRender(d){const p=d.local,profile=d.perfil,els=(profile.elements||[]).filter(e=>e.mean_pct>0),samples=d.amostras||[];$('cr-place-title').hidden=false;$('cr-place-title').textContent=`${p.name} — ${d.sessoes} sessões analisadas`;$('cr-tab-public').disabled=false;
 $('cr-place-info').innerHTML=`<div class="cr-place-columns"><section><h3>Dano observado nas sessões públicas</h3>${els.length?els.map(e=>`<div class="cr-bar-row"><div class="cr-bar-head">${crEl(e.element)}<b>${crNum(e.mean_pct)}%</b></div><div class="cr-bar"><span style="width:${Math.min(100,e.mean_pct)}%;background:${crColor[e.element]}"></span></div></div>`).join(''):'<p class="cr-note">Sem dados de dano para este tamanho de party.</p>'}</section><section><h3>Composição observada da hunt</h3>${Object.entries(d.composicao||{}).sort((a,b)=>b[1]-a[1]).map(([n,v])=>`<div class="cr-legend">${crImages[crSlug(n)]?crSprite(n):''}<span>${esc(n)}</span><b>${crNum(v)}%</b></div>`).join('')||'<p class="cr-note">Sem sessões para este tamanho de party.</p>'}</section></div>`;
@@ -16,19 +16,50 @@ ${samples.length?`<details class="cr-details"><summary>Consultar uma sessão e s
 function crPlaceSession(){const s=crPlaceDetail.amostras.find(s=>s.id===$('cr-place-session').value);if(!s)return;$('cr-place-input').innerHTML=s.inputs?Array.from({length:s.inputs},(_,i)=>`<option value="${i}">Registro ${i+1}${s.inputs_locais&&!s.inputs_locais.includes(i)?' · fora do perfil local':''}</option>`).join(''):'<option value="0">Sem Input</option>';if(s.inputs_locais&&s.inputs_locais.length)$('cr-place-input').value=String(s.inputs_locais[0]);$('cr-place-session-link').href=s.url;}
 async function crPlaceSelect(){const id=$('cr-place').value,token=++crPlaceToken;crPlaceDetail=null;crLocalState=null;if($('cr-result').contains($('cr-place-info')))$('cr-result').after($('cr-place-info'));crSelection=[];$('cr-damage').value='';$('cr-use-input').checked=false;crSelected();crOptions();const oldNotes=$('cr-report-information');if(oldNotes)oldNotes.remove();$('cr-tab-public').disabled=true;$('cr-place-info').innerHTML='';$('cr-place-metadata').innerHTML='';$('cr-place-title').hidden=true;$('cr-result').innerHTML='';crPlaceDetach();if(!id)return;$('cr-place-feedback').textContent='Consultando a hunt…';try{const d=await window.pywebview.api.criaturas_local_detalhes(id,$('cr-place-context').value,0);if(token!==crPlaceToken)return;if(d.erro){$('cr-place-feedback').textContent=d.erro;return;}crPlaceDetail=d;crPlaceRender(d);$('cr-place-feedback').textContent='';await crPlaceUse('wiki');}catch(e){if(token===crPlaceToken)$('cr-place-feedback').textContent='Não foi possível consultar esta hunt.';}}
 async function crPlaceUse(mode){if(crBusy||!crPlaceDetail)return;if(mode==='observed'&&!Object.keys(crPlaceDetail.composicao||{}).length){crShowView('public');return;}const token=crPlaceToken;crBusyState(true);$('cr-place-feedback').textContent='Carregando composição…';try{const r=await window.pywebview.api.criaturas_local_usar(crPlaceDetail.local.id,mode,mode==='session'?$('cr-place-session').value:'',mode==='session'?Number($('cr-place-input').value):0,$('cr-place-context').value,0);if(token!==crPlaceToken)return;if(r.erro){$('cr-place-feedback').textContent=r.erro;return;}crSelection=r.selecao;$('cr-log').value='';$('cr-history').value='';$('cr-damage').value=r.dano_texto||'';$('cr-use-input').checked=!!r.real;crPlaceOrigin=r.origem;$('cr-place-title').hidden=false;crSelected();crOptions();$('cr-import-status').textContent='';$('cr-place-notice').textContent=(r.avisos||[]).join(' ');$('cr-place-feedback').textContent='';crBusyState(false);crPlaceApplying=true;try{await crAnalyze();if(mode==='observed')crShowView('public');else{crLocalState=crCaptureLocal();crShowView('local');}}finally{crPlaceApplying=false;}}catch(e){$('cr-place-feedback').textContent='Não foi possível carregar a composição.';}finally{crBusyState(false);$('cr-tab-public').disabled=!crPlaceDetail;}}
-$('cr-place-search').addEventListener('input',()=>{crPlaceLimit=20;crPlaceOptions();});
-$('cr-place-results').addEventListener('click',e=>{if(crBusy)return;const more=e.target.closest('[data-place-more]');if(more){crPlaceLimit+=20;crPlaceOptions();return;}const b=e.target.closest('[data-place-id]');if(b){$('cr-place').value=b.dataset.placeId;crPlaceOptions();crPlaceSelect();}});
+$('cr-place-search').addEventListener('focus',()=>{crPickerExpanded=true;crPlaceOptions();});
+$('cr-place-search').addEventListener('keydown',e=>{if(e.key==='Escape'){crPickerExpanded=false;crPlaceOptions();$('cr-place-search').blur();}});
+$('cr-place-search').addEventListener('input',()=>{crPickerExpanded=true;crPlaceLimit=20;crPlaceOptions();});
+$('cr-place-results').addEventListener('click',e=>{if(crBusy)return;const change=e.target.closest('[data-place-change]');if(change){crPickerExpanded=true;crPlaceOptions();$('cr-place-search').focus({preventScroll:true});return;}const more=e.target.closest('[data-place-more]');if(more){crPlaceLimit+=20;crPlaceOptions();return;}const b=e.target.closest('[data-place-id]');if(b){$('cr-place').value=b.dataset.placeId;crPickerExpanded=false;crPlaceOptions();crPlaceSelect();}});
 $('cr-place-context').addEventListener('change',crPlaceSelect);
 $('cr-place-refresh').addEventListener('click',async()=>{await crPlacesLoad(true);if($('cr-place').value)await crPlaceSelect();});
 $('cr-place-metadata').addEventListener('click',e=>{const b=e.target.closest('[data-place-mode]');if(b)crPlaceUse(b.dataset.placeMode);});
-$('cr-tab-local').addEventListener('click',async()=>{if(crBusy)return;if(crView==='public'&&crLocalState){crSelection=crLocalState.selection.map(c=>({...c}));$('cr-damage').value=crLocalState.damage;$('cr-use-input').checked=crLocalState.useInput;crPlaceOrigin=crLocalState.origin;$('cr-log').value=crLocalState.log;$('cr-history').value=crLocalState.history;$('cr-import-status').textContent=crLocalState.importStatus;crSelected();crOptions();crPlaceApplying=true;try{await crAnalyze();}finally{crPlaceApplying=false;}}crShowView('local');});
-$('cr-tab-public').addEventListener('click',()=>{if(crBusy||!crPlaceDetail||crView==='public')return;crLocalState=crCaptureLocal();crPlaceUse('observed');});
+$('cr-tab-local').addEventListener('click',()=>crWithStableViewport(async()=>{if(crBusy)return;if(crView==='public'&&crLocalState){crSelection=crLocalState.selection.map(c=>({...c}));$('cr-damage').value=crLocalState.damage;$('cr-use-input').checked=crLocalState.useInput;crPlaceOrigin=crLocalState.origin;$('cr-log').value=crLocalState.log;$('cr-history').value=crLocalState.history;$('cr-import-status').textContent=crLocalState.importStatus;crSelected();crOptions();crPlaceApplying=true;try{await crAnalyze();}finally{crPlaceApplying=false;}}crShowView('local');}));
+$('cr-tab-public').addEventListener('click',()=>crWithStableViewport(async()=>{if(crBusy||!crPlaceDetail||crView==='public')return;crLocalState=crCaptureLocal();await crPlaceUse('observed');}));
 setInterval(()=>{if(crLoaded)crPlacesLoad();},86400000);
 
-function crOrganizeReport(){
+function crOrganizeReport(){$('cr-information').hidden=false;
   // Long provenance/explanations stay available at the end, without hiding actual results.
   let notes=$('cr-report-information');if(notes)notes.remove();
   const box=document.createElement('details');box.id='cr-report-information';box.className='cr-details';box.innerHTML='<summary>Como ler a análise das criaturas</summary>';
   const report=$('cr-result');report.querySelectorAll(':scope > .cr-note,:scope > .cr-warning,:scope > details.cr-details,:scope > section > .cr-note,:scope > .cr-graphs > section > .cr-note').forEach(n=>box.appendChild(n));
   if(box.children.length>1)$('cr-information').appendChild(box);
 }
+
+async function crWithStableViewport(action){
+  const scroll=$('content'),anchor=document.querySelector('.cr-view-tabs'),report=$('cr-result'),focus=document.activeElement;
+  const top=anchor.getBoundingClientRect().top,minHeight=report.style.minHeight,overflow=scroll.style.overflowAnchor;
+  scroll.style.overflowAnchor='none';report.style.minHeight=report.getBoundingClientRect().height+'px';
+  try{await action();}finally{
+    report.style.minHeight=minHeight;
+    await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+    scroll.scrollTop+=anchor.getBoundingClientRect().top-top;
+    if(focus&&focus.isConnected&&!focus.disabled)focus.focus({preventScroll:true});
+    scroll.style.overflowAnchor=overflow;
+  }
+}
+
+const crEntryStates={};
+async function crChooseEntry(mode){
+  if(crBusy||mode===crEntryMode)return;
+  if(crEntryMode)crEntryStates[crEntryMode]={...crCaptureLocal(),localState:crLocalState};
+  crEntryMode=mode;
+  $('cr-place-metadata').hidden=mode!=='hunt';$('cr-place-status').hidden=mode!=='hunt';$('cr-place-notice').hidden=mode!=='hunt';$('cr-entry-creatures').hidden=mode!=='creatures';$('cr-place-panel').hidden=mode!=='hunt';$('cr-entry-analysers').hidden=mode!=='analysers';
+  document.querySelectorAll('[data-cr-entry]').forEach(b=>b.classList.toggle('on',b.dataset.crEntry===mode));
+  if(mode==='hunt')$('cr-place-panel').open=true;
+  const state=crEntryStates[mode];crSelection=state?state.selection.map(c=>({...c})):[];
+  $('cr-log').value=state?state.log:'';$('cr-damage').value=state?state.damage:'';$('cr-use-input').checked=state?state.useInput:false;
+  $('cr-history').value=state?state.history:'';$('cr-import-status').textContent=state?state.importStatus:'';crPlaceOrigin=state?state.origin:'';crLocalState=state?state.localState:null;
+  crShowView('local');$('cr-result').innerHTML='';$('cr-information').hidden=true;crSelected();crOptions();
+  if(crSelection.length)await crAnalyze();
+}
+document.querySelector('.cr-entry-options').addEventListener('click',e=>{const b=e.target.closest('[data-cr-entry]');if(b&&!crBusy)crChooseEntry(b.dataset.crEntry);});

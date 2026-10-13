@@ -226,6 +226,21 @@ def importar_texto(texto):
     texto_dano = texto[inicio_dano.start():] if inicio_dano else texto
     dano = parse_damage_input(texto_dano)
     tem_dano = any(v['valor'] > 0 for e,v in dano['tipos'].items() if e != 'manadrain')
+    if tem_dano and not re.search(r'(?im)^\s*Killed Monsters\s*:',texto):
+        index={monstros.singularizar(c['name']):c['name'] for c in catalogo_visual()['lista']}
+        amounts={};unknown=[]
+        for source in dano['fontes']:
+            if source['valor']<=0:continue
+            name=index.get(monstros.singularizar(source['nome']))
+            if name:amounts[name]=amounts.get(name,0)+source['valor']
+            else:unknown.append(source['nome'])
+        if not amounts:return {'erro':'O Input precisa conter Damage Sources com nomes de criaturas reconhecidas. Cole o texto completo.'}
+        if len(amounts)>30:return {'erro':'Este Input contém mais de 30 criaturas. Selecione uma sessão menor.'}
+        total=sum(amounts.values())
+        return {'selecao':[{'nome':n,'peso':v/total*100} for n,v in sorted(amounts.items(),key=lambda x:-x[1])],
+                'total':total,'total_log':sum(s['valor'] for s in dano['fontes']),'dano_texto':texto_dano,'real':True,'tipo':'input',
+                'avisos':['A composição usa participação no dano recebido; o Input não informa quantos monstros foram mortos.']+
+                (['Fontes sem ficha/GIF: '+', '.join(unknown)] if unknown else [])}
     try:
         session = parse_solo_session(texto[:inicio_dano.start()] if inicio_dano else texto)
     except (ValueError, ParseError) as e: return {'erro': str(e)}
