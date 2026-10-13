@@ -45,3 +45,9 @@ Beta oficial **1.0.21-beta.15.1**: https://github.com/pablozandonadi/zandao-tibi
 ## Correção de delimitação — 13/10/2026
 
 A composição agregada e o carregamento de sessões passam pelo mesmo filtro de criaturas regulares do local/setor, sem herdar a lista do pai. Os registros públicos originais ficam intactos. Os percentuais são recalculados após excluir abates externos. O leitor aplica esse filtro também em snapshots/cache antigos. Avisos compactos informam os abates e Inputs excluídos. Fire e ice library voltam a carregar cinco criaturas observadas, com elementos, picos e resistências completos. Input misturado não é aplicado como dano do local. Hunt Analyser, importação manual e consulta individual preservam seu comportamento.
+
+Correção entregue na Beta oficial **1.0.21-beta.16.1**: https://github.com/pablozandonadi/zandao-tibia-tools/releases/tag/v1.0.21-beta.16.1. Código 5bf31d39b3bc03316c0083e961b9969906755168. 374 testes passaram; interface das duas livrarias validada com elementos, picos e resistências. Compilação 38344662400 e atualização central 38344662404 concluíram com sucesso. Instalador e portátil confirmados.
+
+## Organização da tela — 13/10/2026
+
+Ações no topo da composição; Hunt Analyser e Input Analyser agrupados em cards expansíveis ao lado. Busca de locais em largura inteira, com resultados clicáveis e contagem visível abaixo. Duas abas separam Local de hunt (análise de criaturas) e Hunts analisadas (dano público e composição observada). Todo o histórico é usado, sem seletor de período. O filtro por tamanho da party usa a quantidade exata de membros: solo, duo, três, quatro e cinco ou mais. Explicações, amostragem, exclusões, fontes e consulta de sessões ficam no card Informações ao fim da página, mantendo os critérios de validação existentes.

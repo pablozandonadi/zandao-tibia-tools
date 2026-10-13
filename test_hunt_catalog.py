@@ -96,6 +96,16 @@ class RuntimeTests(unittest.TestCase):
             if change=='url':d['records']['1']['public_url']='javascript:alert(1)'
             else:d['records']['1']['player']='Example'
             with self.assertRaises(ValueError):validate_snapshot(d)
+    def test_exact_party_size_and_all_history(self):
+        d=snapshot();old=copy.deepcopy(d['records']['1']);old['id']='2';old['date']='2020-01-01';old['members']=2;old['public_url']='https://www.hunt-analyser.com/hunt_sessions/2'
+        d['records']['2']=old;d['places']['cave']['observed']['sample_ids'].append('2')
+        for members in (3,4,5,6):
+            r=copy.deepcopy(old);r['id']=str(members);r['members']=members;d['records'][str(members)]=r;d['places']['cave']['observed']['sample_ids'].append(str(members))
+        with patch.object(runtime,'data',return_value=d):
+            self.assertEqual(runtime.detalhes('cave','size_2',0)['sessoes'],1)
+            self.assertEqual(runtime.detalhes('cave','size_4',0)['amostras'][0]['membros'],4)
+            self.assertEqual(runtime.detalhes('cave','size_5plus',0)['sessoes'],2)
+            self.assertEqual(runtime.detalhes('cave','all',0)['sessoes'],6)
     def test_context_and_empty_period(self):
         with patch.object(runtime,'data',return_value=snapshot()):
             d=runtime.detalhes('cave','party',0);self.assertEqual(d['sessoes'],0);self.assertEqual(d['perfil']['inputs'],0)

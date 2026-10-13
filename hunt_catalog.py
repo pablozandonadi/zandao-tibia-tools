@@ -91,13 +91,15 @@ def catalogo(atualizar=False):
 def detalhes(id,contexto='all',dias=90):
     d=data();p=d['places'].get(id)
     if not p:return {'erro':'Local não encontrado no catálogo.'}
-    if contexto not in ('all','solo','party','solo_EK','solo_ED','solo_RP','solo_MS','solo_EM'):return {'erro':'Contexto inválido.'}
+    if contexto not in ('all','solo','party','solo_EK','solo_ED','solo_RP','solo_MS','solo_EM','size_1','size_2','size_3','size_4','size_5plus'):return {'erro':'Contexto inválido.'}
     if dias not in (0,30,90,180,365):return {'erro':'Período inválido.'}
     samples=[d['records'][i] for i in p.get('observed',{}).get('sample_ids',[]) if i in d['records']]
     if dias:
         cutoff=(datetime.now()-timedelta(days=dias)).date().isoformat()
         samples=[r for r in samples if r.get('date','')>=cutoff]
-    if contexto=='solo':samples=[r for r in samples if r.get('members',1)==1]
+    if contexto=='size_5plus':samples=[r for r in samples if r.get('members',1)>=5]
+    elif contexto.startswith('size_'):samples=[r for r in samples if r.get('members',1)==int(contexto[5:])]
+    elif contexto=='solo':samples=[r for r in samples if r.get('members',1)==1]
     elif contexto=='party':samples=[r for r in samples if r.get('members',1)>1]
     elif contexto.startswith('solo_'):samples=[r for r in samples if r.get('members',1)==1 and r.get('vocation')==contexto[5:]]
     local=local_composition(p,samples)
