@@ -39,7 +39,7 @@ $iscc = @(
     "$env:ProgramFiles\Inno Setup 7\ISCC.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 nao encontrado." }
-$taskCompilerInfo = (& $iscc /? 2>&1 | Out-String)
+$taskCompilerInfo = (Get-Item -LiteralPath $iscc).VersionInfo.ProductVersion
 if ($taskCompilerInfo -notmatch '6\.7\.1') { throw 'Use Inno Setup 6.7.1 para este build fixado.' }
 
 # Também é usado pelo workflow de publicação; fixa o rasterizador incluído no executável.
@@ -95,3 +95,4 @@ $installerName = if ($Canal -eq "beta") { "ZandaoTibiaToolsBetaSetup.exe" } else
 & (Join-Path $PSScriptRoot 'assinar.ps1') -Arquivo (Join-Path $PastaBuild "output\$installerName") -Thumbprint $SigningThumbprint -Obrigatorio:$RequireSignature
 if ($LASTEXITCODE -ne 0) { throw 'Assinatura do instalador falhou' }
 Write-Host "Pronto: $(Join-Path $PastaBuild "output\$installerName")"
+
