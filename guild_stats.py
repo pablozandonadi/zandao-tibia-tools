@@ -84,7 +84,7 @@ def _browser_html(url, tab, interactive=False):
                     html = window.evaluate_js('document.documentElement.outerHTML')
                     if isinstance(html, str) and len(html) <= 2_000_000 and not _challenge(html):
                         parsed = parse(html, tab)
-                        valid = bool(profile(html).get('Level')) if tab == 'character' else bool(parsed['tables']) or 'charHistoryTurnstile' in html
+                        valid = bool(profile(html).get('Level')) if tab == 'character' else bool(parsed['tables'])
                         if valid:
                             window.hide()
                             return html
@@ -146,8 +146,8 @@ def parse(html, tab):
     result = {'tables': p.tables, 'updated': update.group(1) if update else '', 'notice': ''}
     if not p.tables and tab != 'character':
         result['notice'] = 'Nenhum registro público disponível nesta aba.'
-    if tab == 'history' and 'charHistoryTurnstile' in html:
-        result['notice'] = 'O histórico exige verificação do navegador no GuildStats. Use Abrir no site para consultar.'
+    if tab == 'history' and 'charHistoryTurnstile' in html and not p.tables:
+        result['notice'] = 'O histórico exige verificação dentro do aplicativo. Use Verificar acesso no app para consultar.'
     if tab == 'experience':
         days = []
         for table in p.tables:
@@ -191,7 +191,7 @@ def buscar(nome, tab='experience', forcar=False, pagina=1, interagir=False):
             try:
                 with urllib.request.urlopen(request, timeout=15) as response:
                     html = response.read(2_000_000).decode('utf-8', errors='replace')
-                if _challenge(html): raise VerificationRequired('Verificação necessária.')
+                if _challenge(html) or (tab == 'history' and 'charHistoryTurnstile' in html and not parse(html, tab)['tables']): raise VerificationRequired('Verificação necessária.')
             except (urllib.error.HTTPError, VerificationRequired) as blocked:
                 if isinstance(blocked, urllib.error.HTTPError) and blocked.code != 403: raise
                 if previous and not forcar:

@@ -74,6 +74,15 @@ class GuildStatsTests(unittest.TestCase):
                 gs._browser_html('https://guildstats.eu/character/Zandao','character')
         window.evaluate_js.assert_not_called()
 
+    def test_history_verification_stays_inside_app(self):
+        self.assertIn('dentro do aplicativo',gs.parse('<div id="charHistoryTurnstile"></div>','history')['notice'])
+        response = io.BytesIO(b'<div id="charHistoryTurnstile"></div>')
+        html = '<table><tr><td>History record</td></tr></table>'
+        with patch.object(gs.urllib.request,'urlopen',return_value=response), patch.object(gs,'_browser_html',return_value=html) as browser:
+            result = gs.buscar('Zandao','history',interagir=True)
+        browser.assert_called_once()
+        self.assertEqual(result['tables'][0]['rows'],[['History record']])
+
     def test_corrupt_cache_is_ignored(self):
         path = gs._cache_file(('zandao','experience'))
         path.parent.mkdir()
