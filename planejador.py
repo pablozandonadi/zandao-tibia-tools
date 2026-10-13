@@ -179,7 +179,7 @@ def calcular(rows, dano=None):
                 real=real, origem='Received Damage' if real else 'Estimativa da Wiki',
                 dano_total=(dano or {}).get('total'), max_dps=(dano or {}).get('max_dps'),
                 ponderacao_resistencias='abates + Damage Sources' if any(v['fonte']=='kills + log' for v in (referencia or {}).get('pesos', [])) else 'abates / pesos informados',
-                avisos=['Sem Received Damage: este perfil da Wiki não deve ser comparado com a distribuição real do Hunt Analyser.'] if not real else [])
+                avisos=['Perfil dos ataques da Wiki. A frequência de uso dos ataques não é informada; estes valores são estimativas, não dano recebido.'] if not real else [])
 
 
 def analisar(selection, atualizar=False, dano_texto=""):

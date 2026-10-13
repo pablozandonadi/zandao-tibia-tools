@@ -3,6 +3,15 @@ from unittest.mock import patch
 import planejador as p
 
 class TestPlanejador(unittest.TestCase):
+ def test_criatura_sozinha_sem_hunt_nem_input(self):
+  ficha={'nome':'Draken Warmaster','ataques':[dict(nome='Melee',elemento='physical',min=0,max=350)],'resist':{'ice':110}}
+  with patch.object(p,'ficha',return_value=ficha):
+   r=p.analisar([{'nome':'Draken Warmaster','peso':1}])
+  self.assertNotIn('erro',r)
+  self.assertFalse(r['real'])
+  self.assertEqual(r['criaturas'][0]['participacao'],100)
+  self.assertEqual(r['picos'][0]['max'],350)
+  self.assertEqual(r['resistencias'][0]['modificador'],110)
  def test_explicit_element_over_spell_name(self):
   f=p.parse_wiki('{{Infobox_Criatura|name=Medusa|hab_lifedrain=[[Terra Strike]] (100-250)|hab_physical=Melee (0-300), causando Poisoned em 40 hp/turno}}','Medusa')
   self.assertEqual(f['ataques'][1]['elemento'],'lifedrain')
