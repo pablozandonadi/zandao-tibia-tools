@@ -15,6 +15,7 @@ import damage_core
 import embuimentos as emb
 import loot_core as lc
 import solo_hunt_core as sc
+import task_items
 
 
 def detectar(texto):
@@ -219,6 +220,8 @@ def montar(entrada):
             "itens": [{"nome": i.name, "qtd": i.count} for i in solo.looted_items],
         }
         out["kills"] = [{"nome": k.name, "kills": k.count} for k in solo.killed_monsters]
+        if solo.looted_items:
+            out["task_itens"] = task_items.analyse(entrada["solo"])
     else:
         out["kills"] = []
     out["dano_input"] = dano

@@ -2103,8 +2103,11 @@ function renderHunt() {
   h += renderPerso();
   if (a.tem.party) h += renderMembros(a) + renderPagamentos(a) + renderDetalhes(a);
   h += renderMonstros(a) + renderDano(a);
+  if (a.tem.solo) h += sanfona('weekly-itens', '📦 Weekly Itens · loot desta hunt',
+    a.task_itens ? tiHtml(a.task_itens) : '<p class="dica">Nenhum item coletado nesta hunt. Copie o Hunting Analyser com a seção Looted Items.</p>');
   $('h-res').innerHTML = h;
   ligarHunt();
+  ligarLootHunt();
 }
 
 function renderMembros(a) {

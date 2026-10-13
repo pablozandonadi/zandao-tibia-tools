@@ -619,6 +619,9 @@ class API:
             return {"analise": a, "id": entrada.get("id")}
         ass = hunt.assinatura(entrada)
         id_ = self._mesma_hunt(entrada.get("id"), a)
+        salvo = historico.obter(id_) if id_ else None
+        if salvo and salvo.get("assinatura") == ass and salvo.get("task_itens"):
+            a["task_itens"] = salvo["task_itens"]
         # colou uma hunt de outro horário por cima de uma salva: o nome antigo não vale para ela
         nome = "" if (entrada.get("id") and not id_) else (entrada.get("nome") or "").strip()
         nome = nome or f"Hunt {a.get('data') or ''}".strip()
@@ -641,6 +644,7 @@ class API:
                         for k in ("party", "solo", "dano", "despesas", "excluidos", "duracao")},  # duracao: tempo real digitado
             "resumo": a["resumo"], "membros": a.get("personagens", []), "monstros": a.get("kills", [])[:20],
             "pagos": list(pagos or []),
+            "task_itens": a.get("task_itens"),
         }
         for campo in ("prey", "charms", "roda", "set", "postura"):  # None = o usuário não mexeu: o historico mantém o gravado
             if entrada.get(campo) is not None:
