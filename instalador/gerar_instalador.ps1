@@ -39,8 +39,6 @@ $iscc = @(
     "$env:ProgramFiles\Inno Setup 7\ISCC.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) { throw "Inno Setup 6 nao encontrado." }
-$taskCompilerInfo = (Get-Item -LiteralPath $iscc).VersionInfo.ProductVersion
-if ($taskCompilerInfo -notmatch '6\.7\.1') { throw 'Use Inno Setup 6.7.1 para este build fixado.' }
 
 # Também é usado pelo workflow de publicação; fixa o rasterizador incluído no executável.
 python -m pip install --require-hashes -r (Join-Path $raiz 'requirements-bootstrap.lock')
@@ -87,8 +85,9 @@ python (Join-Path $raiz 'package_tools.py') create $app $raiz $versao $Canal $So
 if ($LASTEXITCODE -ne 0) { throw 'Manifesto/pacote inválido' }
 Write-Host "3/3  Inno Setup..."
 & $iscc "/DMyAppVersion=$versao" "/DMyAppNumericVersion=$versaoInstalador" "/DMyAppChannel=$Canal" "/DSourceDistDir=$app" "/DOutputDir=$(Join-Path $PastaBuild 'output')" `
-    (Join-Path $PSScriptRoot "ZandaoTibiaToolsSetup.iss")
+    (Join-Path $PSScriptRoot "ZandaoTibiaToolsSetup.iss") 2>&1 | Tee-Object -Variable taskCompilerOutput
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup falhou" }
+if (($taskCompilerOutput | Out-String) -notmatch 'Compiler engine version: 6\.7\.1(?:\s|$)') { throw 'Use Inno Setup 6.7.1 para este build fixado.' }
 
 Write-Host ""
 $installerName = if ($Canal -eq "beta") { "ZandaoTibiaToolsBetaSetup.exe" } else { "ZandaoTibiaToolsSetup.exe" }
