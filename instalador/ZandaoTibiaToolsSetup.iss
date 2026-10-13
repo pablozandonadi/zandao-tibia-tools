@@ -58,11 +58,12 @@ DefaultDirName={localappdata}\Programs\Zandao Tibia Tools
 #endif
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
+UsePreviousGroup=no
 PrivilegesRequired=lowest
 OutputDir={#OutputDir}
 OutputBaseFilename={#InstallerName}
 SetupIconFile={#ProjDir}\icon.ico
-UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayIcon={app}\tibia-tudo.ico
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
@@ -77,6 +78,22 @@ Name: "desktopicon"; Description: "Criar um ícone na área de trabalho"; GroupD
 
 ; bibliotecas da versão anterior: apaga antes de copiar as novas (os dados do usuário ficam na pasta principal)
 [InstallDelete]
+; Remove somente atalhos antigos deste canal, sem tocar nos dados ou em outros apps.
+#ifndef ValidationBuild
+#if MyAppChannel == "beta"
+Type: files; Name: "{autodesktop}\Zandao Tibia Tools Beta.lnk"
+Type: files; Name: "{userprograms}\Zandao Tibia Tools Beta\Zandao Tibia Tools Beta.lnk"
+Type: files; Name: "{userprograms}\Zandao Tibia Tools Beta\Tibia Tudo Beta.lnk"
+Type: files; Name: "{userprograms}\Zandao Tibia Tools Beta\Desinstalar Zandao Tibia Tools Beta.lnk"
+Type: files; Name: "{userprograms}\Zandao Tibia Tools Beta\Desinstalar Tibia Tudo Beta.lnk"
+#else
+Type: files; Name: "{autodesktop}\Zandao Tibia Tools.lnk"
+Type: files; Name: "{userprograms}\Zandao Tibia Tools\Zandao Tibia Tools.lnk"
+Type: files; Name: "{userprograms}\Zandao Tibia Tools\Tibia Tudo.lnk"
+Type: files; Name: "{userprograms}\Zandao Tibia Tools\Desinstalar Zandao Tibia Tools.lnk"
+Type: files; Name: "{userprograms}\Zandao Tibia Tools\Desinstalar Tibia Tudo.lnk"
+#endif
+#endif
 Type: filesandordirs; Name: "{app}\_internal"
 ; o Simulated Keys saiu do app na v1.0.5: apaga o .exe dele e o atalho de iniciar com o Windows
 #if MyAppChannel == "stable"
@@ -85,12 +102,13 @@ Type: files; Name: "{userstartup}\ZandaoSimulatedKeys.lnk"
 #endif
 
 [Files]
+Source: "{#ProjDir}\icon.ico"; DestDir: "{app}"; DestName: "tibia-tudo.ico"; Flags: ignoreversion
 Source: "{#SourceDistDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\tibia-tudo.ico"; IconIndex: 0
+Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\tibia-tudo.ico"; IconIndex: 0
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\tibia-tudo.ico"; IconIndex: 0
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Abrir o {#MyAppName} agora"; Flags: nowait postinstall skipifsilent
