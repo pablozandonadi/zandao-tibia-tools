@@ -106,6 +106,42 @@ def totals_sources(records):
     return out
 
 
+def local_roster(place):
+    """Whitelist do setor escolhido; nunca usa a lista do local pai ou abates públicos."""
+    from monstros import singularizar
+    excluded={singularizar(n) for n in place.get('conditional',[])}
+    return {singularizar(n):n for n in place.get('creatures',[]) if singularizar(n) not in excluded}
+
+
+def local_kills(place,kills):
+    from monstros import singularizar
+    roster=local_roster(place);out=Counter()
+    for name,count in kills.items():
+        canonical=roster.get(singularizar(name))
+        if canonical and count>0:out[canonical]+=count
+    return dict(out)
+
+
+def local_composition(place,records):
+    """Cada sessão contribui com abates locais normalizados, sem contar o trajeto."""
+    shares=defaultdict(float);kills=Counter();excluded=0;species=set();sessions=0
+    for r in records:
+        selected=local_kills(place,r.get('kills',{}));total=sum(selected.values())
+        excluded+=sum(r.get('kills',{}).values())-total
+        species.update(n for n in r.get('kills',{}) if not local_kills(place,{n:r['kills'][n]}))
+        if not total:continue
+        sessions+=1;kills.update(selected)
+        for n,count in selected.items():shares[n]+=count/total
+    return {'sessions':sessions,'kills':dict(kills),'composition':{n:round(v/sessions*100,5) for n,v in shares.items()} if sessions else {},
+            'excluded_kills':excluded,'excluded_species':len(species)}
+
+
+def local_input(place,input_):
+    """Marginais não permitem subtrair dano por elemento de criaturas do caminho."""
+    sources={n:v for n,v in input_.get('sources',{}).items() if v>0}
+    return bool(sources) and sum(local_kills(place,sources).values())==sum(sources.values())
+
+
 def aggregate(places, records, metadata):
     groups=defaultdict(list);review=Counter();confirmed=0
     for record in records.values():
@@ -114,13 +150,10 @@ def aggregate(places, records, metadata):
             groups[assignment['place_id']].append(record);confirmed+=1
         else:review[assignment.get('reason','incompleto')]+=1
     for p in places.values():
-        samples=groups[p['id']];composition=defaultdict(float);kills=Counter()
-        for r in samples:
-            total=sum(r['kills'].values())
-            kills.update(r['kills'])
-            for n,c in r['kills'].items():composition[n]+=c/total if total else 0
+        samples=groups[p['id']];local=local_composition(p,samples)
         safe_samples=eligible_damage(p,samples)
-        p['observed']={'sessions':len(samples),'kills':dict(kills),'composition':{n:round(v/len(samples)*100,5) for n,v in composition.items()} if samples else {},
+        p['observed']={'sessions':len(samples),'kills':local['kills'],'composition':local['composition'],
+                       'excluded_kills':local['excluded_kills'],'excluded_species':local['excluded_species'],
                        'profile':profile(safe_samples),'profiles_by_context':{},'sample_ids':[r['id'] for r in sorted(samples,key=lambda r:r.get('date',''),reverse=True)],
                        'period':[min((r.get('date','') for r in samples),default=''),max((r.get('date','') for r in samples),default='')]}
         contexts=defaultdict(list)
@@ -135,18 +168,8 @@ def aggregate(places, records, metadata):
 
 
 def eligible_damage(place,records):
-    """Não atribui ao local dano dominado por criaturas de uma rota diferente."""
-    roster=set(place.get('creatures',[]));out=[]
-    for r in records:
-        inputs=[]
-        for p in r.get('inputs',[]):
-            sources=p.get('sources',{});total=sum(sources.values())
-            coverage=sum(v for n,v in sources.items() if n in roster)/total if total else None
-            if coverage is not None and coverage<.8:continue
-            if coverage is None and r.get('assignment',{}).get('coverage',0)<.95:continue
-            inputs.append(dict(p,location_damage_coverage=coverage))
-        out.append(dict(r,inputs=inputs))
-    return out
+    """Mantém somente Inputs cujas fontes positivas pertencem ao setor documentado."""
+    return [dict(r,inputs=[dict(p,location_damage_coverage=1.0) for p in r.get('inputs',[]) if local_input(place,p)]) for r in records]
 
 
 def validate_snapshot(data):

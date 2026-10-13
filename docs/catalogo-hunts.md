@@ -5,8 +5,8 @@ A seção **Criaturas da hunt > Locais de hunt** é opcional. A busca manual con
 O usuário pode buscar nome, região ou apelido, escolher o local/piso e filtrar contexto e período. Há três formas de carregar uma composição:
 
 - Wiki: criaturas documentadas, pesos iguais ajustáveis. Bosses/condições explicitamente separados nas fontes não entram automaticamente.
-- Observada: média da participação dos abates por sessão confirmada, sem favorecer sessões mais longas. Não determina quantidade de um respawn/pull.
-- Sessão pública: quantidades exatas daquela sessão e um Input real disponível. Parties com Input parcial têm aviso; não é inferido dano dos membros ausentes.
+- Observada: somente criaturas da lista regular das Wikis para o local/setor escolhido. Abates externos são excluídos antes da normalização por sessão, sem favorecer sessões mais longas. Não determina quantidade de um respawn/pull.
+- Sessão pública: quantidades exatas das criaturas daquele local na sessão, preservando o total original separadamente; o Input só é aplicado quando suas fontes pertencem ao local. Parties com Input parcial têm aviso; não é inferido dano dos membros ausentes.
 
 O painel de locais mostra o perfil público observado. Os gráficos de ataques abaixo continuam sendo estimativas da Wiki, exceto quando um Input real é selecionado/colado. A origem aparece na análise. Dados públicos refletem proteções, posição e comportamento dos jogadores. Não representam dano bruto nem uma previsão exata para outro personagem.
 
@@ -16,7 +16,7 @@ O painel de locais mostra o perfil público observado. Os gráficos de ataques a
 
 Uma sessão é confirmada quando título/apelido e composição são compatíveis (pelo menos 80% dos abates), ou quando uma composição sem título reconhecido corresponde a um único local principal com pelo menos duas criaturas e 95% de cobertura. Pisos semelhantes, títulos contraditórios e rotas sem correspondência ficam pendentes; não entram nos perfis.
 
-Para atribuir Input ao local, pelo menos 80% das fontes de dano devem ser criaturas documentadas ali. Sem tabela de fontes, exige-se pelo menos 95% de cobertura dos abates. A média é por registro de Input, com intervalo interquartil e contagem de amostras. Registros vinculados identificáveis são deduplicados pelo ID de origem e ordinal. Mana mantém o denominador original do Input e é identificada separadamente do HP. As tabelas de tipos/fontes são marginais: não existe cruzamento individual monstro × elemento disponível para inferir automaticamente.
+Para atribuir Input ao local, todas as fontes de dano positivas devem pertencer à lista regular das Wikis daquele local/setor. Inputs com fontes externas, desconhecidas ou sem tabela de fontes ficam fora do perfil. Não se subtrai nem redistribui o dano por elemento de um log misturado, pois os dados não contêm esse cruzamento. A média é por registro de Input, com intervalo interquartil e contagem de amostras. Registros vinculados identificáveis são deduplicados pelo ID de origem e ordinal. Mana mantém o denominador original do Input e é identificada separadamente do HP. As tabelas de tipos/fontes são marginais: não existe cruzamento individual monstro × elemento disponível para inferir automaticamente.
 
 O coletor não persiste nomes de autores/personagens, títulos livres, notas ou HTML. Nomes de criaturas não reconhecidos viram `(não catalogado)`, mantendo os totais. `hunt_catalog_publish.py` valida e publica exclusivamente o snapshot saneado e os checkpoints públicos necessários. Dados locais de histórico, personagens, timers e configurações não participam desse processo.
 
@@ -37,3 +37,11 @@ A entrega do aplicativo ocorre apenas na Beta oficial; a versão estável aguard
 ## Carga inicial — 12/10/2026
 
 4.467 sessões coletadas de 4.467 IDs públicos, sem falhas. 2.573 confirmadas; 1.426 ambíguas, 217 com título incompatível, 53 sem local compatível e 198 sem abates. 3.488 sessões contêm Input. Cadastro: 501 entradas no índice BR e 459 no EN; 1.527 locais/setores após extração e correlação, 1.433 com criaturas. Os demais mantêm a lacuna explícita.
+
+## Entrega Beta
+
+Beta oficial **1.0.21-beta.15.1**: https://github.com/pablozandonadi/zandao-tibia-tools/releases/tag/v1.0.21-beta.15.1 — instalador e portátil confirmados. Código: a03d458de4d3097946ea1bdac30608bf5de055b3. Compilação: execução 38340969643, sucesso. Coleta incremental central: execução 38340969778, sucesso. 366 testes passaram na cópia limpa de publicação; verificação da interface no Chrome também passou. O disparo manual do coletor na develop foi confirmado; a segunda execução de teste foi cancelada para evitar coleta redundante.
+
+## Correção de delimitação — 13/10/2026
+
+A composição agregada e o carregamento de sessões passam pelo mesmo filtro de criaturas regulares do local/setor, sem herdar a lista do pai. Os registros públicos originais ficam intactos. Os percentuais são recalculados após excluir abates externos. O leitor aplica esse filtro também em snapshots/cache antigos. Avisos compactos informam os abates e Inputs excluídos. Fire e ice library voltam a carregar cinco criaturas observadas, com elementos, picos e resistências completos. Input misturado não é aplicado como dano do local. Hunt Analyser, importação manual e consulta individual preservam seu comportamento.

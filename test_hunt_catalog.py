@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 import hunt_catalog as runtime
-from hunt_catalog_core import aggregate,correlate,eligible_damage,profile,sanitize_records,title_candidates,validate_snapshot
+from hunt_catalog_core import aggregate,correlate,eligible_damage,profile,sanitize_records,title_candidates,validate_snapshot,local_composition,local_kills
 from hunt_catalog_collect import parse_public_session,parse_wiki_place,normalize_places
 from hunt_catalog_publish import prepare
 
@@ -40,6 +40,24 @@ class CorrelationTests(unittest.TestCase):
         r=record();self.assertEqual(profile([r,copy.deepcopy(r),dict(record('2'),inputs=[])])['inputs'],1)
     def test_foreign_damage_excluded(self):
         r=record();r['inputs'][0]['sources']={'Rat':100}
+        self.assertEqual(profile(eligible_damage(place(),[r]))['inputs'],0)
+    def test_local_composition_excludes_trip_and_renormalizes_per_session(self):
+        a=record();a['kills']={'Dragon':90,'Dragon Lord':10,'Rat':25}
+        b=record('2');b['kills']={'Dragon':10,'Dragon Lord':90,'Rat':1}
+        original=copy.deepcopy([a,b]);local=local_composition(place(),[a,b])
+        self.assertEqual(local['composition'],{'Dragon':50,'Dragon Lord':50})
+        self.assertEqual(local['excluded_kills'],26);self.assertEqual(local['excluded_species'],1)
+        self.assertEqual(local['kills'],{'Dragon':100,'Dragon Lord':100});self.assertEqual([a,b],original)
+    def test_floor_roster_never_uses_parent_or_conditional_mobs(self):
+        p=place(roster=['Dragon','Boss Dragon']);p['conditional']=['Boss Dragon'];p['parent_id']='parent'
+        self.assertEqual(local_kills(p,{'Dragon':3,'Rat':2,'Boss Dragon':1}),{'Dragon':3})
+    def test_case_and_plural_match_wiki_roster(self):
+        self.assertEqual(local_kills(place(),{'dragons':4,'DRAGON LORD':2}),{'Dragon':4,'Dragon Lord':2})
+    def test_even_small_trip_damage_not_subtracted_or_attributed(self):
+        r=record();r['inputs'][0]['sources']={'Dragon':999,'Rat':1};original=copy.deepcopy(r)
+        self.assertEqual(profile(eligible_damage(place(),[r]))['inputs'],0);self.assertEqual(r,original)
+    def test_unknown_damage_sources_cannot_prove_local_scope(self):
+        r=record();r['inputs'][0]['sources']={}
         self.assertEqual(profile(eligible_damage(place(),[r]))['inputs'],0)
     def test_free_text_is_not_published(self):
         r=record();r['kills']['Someone Name']=3;r['inputs'][0]['sources']['Someone Name']=42
@@ -92,6 +110,27 @@ class RuntimeTests(unittest.TestCase):
         d=snapshot();d['places']['cave']['creatures']=['Creature '+str(i) for i in range(31)]
         with patch.object(runtime,'data',return_value=d),patch('planejador.catalogo_visual',return_value={'lista':[{'name':n} for n in d['places']['cave']['creatures']]}):
             self.assertIn('31',runtime.preset('cave','wiki',dias=0)['erro'])
+    def test_session_preset_filters_kills_and_rejects_mixed_input(self):
+        d=snapshot();r=d['records']['1'];r['kills']['Rat']=7;r['inputs'][0]['sources']['Rat']=1
+        with patch.object(runtime,'data',return_value=d),patch('planejador.catalogo_visual',return_value={'lista':[{'name':'Dragon'},{'name':'Dragon Lord'},{'name':'Rat'}]}):
+            detail=runtime.detalhes('cave',dias=0);self.assertEqual(set(detail['composicao']),{'Dragon','Dragon Lord'})
+            self.assertEqual(detail['abates_excluidos'],7);self.assertEqual(detail['inputs_excluidos'],1)
+            p=runtime.preset('cave','session','1',dias=0);self.assertEqual(p['total_log'],107);self.assertEqual(p['total_local'],100)
+            self.assertFalse(p['real']);self.assertEqual(p['dano_texto'],'');self.assertTrue(p['avisos'])
+            self.assertNotIn('Rat',{c['nome'] for c in p['selecao']})
+    def test_legacy_cached_observed_union_does_not_leak_trip_mobs(self):
+        d=snapshot();d['places']['cave']['observed']['composition']['Rat']=90;d['records']['1']['kills']['Rat']=7
+        with patch.object(runtime,'data',return_value=d),patch('planejador.catalogo_visual',return_value={'lista':[{'name':'Dragon'},{'name':'Dragon Lord'},{'name':'Rat'}]}):
+            p=runtime.preset('cave','observed',dias=0);self.assertEqual(len(p['selecao']),2);self.assertAlmostEqual(p['total_local'],100)
+    def test_both_libraries_load_with_only_their_documented_rosters(self):
+        d=json.loads((Path(__file__).parent/'data/hunt_catalog.json').read_text(encoding='utf-8'))
+        for name in ('Secret Library Fire Section','Secret Library Ice Section'):
+            p=next(p for p in d['places'].values() if p['name']==name)
+            with self.subTest(name=name),patch.object(runtime,'data',return_value=d),patch('planejador.catalogo_visual',return_value={'lista':[{'name':n} for n in p['creatures']]+[{'name':'Rat'},{'name':'Falcon Knight'}]}):
+                detail=runtime.detalhes(p['id'],dias=0);self.assertTrue(set(detail['composicao']).issubset(p['creatures']))
+                self.assertGreater(detail['abates_excluidos'],0)
+                preset=runtime.preset(p['id'],'observed',dias=0);self.assertNotIn('erro',preset)
+                self.assertLessEqual(len(preset['selecao']),6);self.assertAlmostEqual(sum(detail['composicao'].values()),100,places=3)
     def test_refresh_daily_ttl_does_not_request(self):
         root=Path(self.tmp.name);(root/'check.json').write_text(json.dumps({'at':time.time()}))
         with patch.object(runtime,'CHECK',str(root/'check.json')),patch('urllib.request.urlopen') as request:

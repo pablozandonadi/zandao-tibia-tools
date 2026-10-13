@@ -9,7 +9,7 @@ from collections import defaultdict
 from datetime import datetime,timedelta
 
 import monstros
-from hunt_catalog_core import SCHEMA, eligible_damage, key, profile, validate_snapshot
+from hunt_catalog_core import SCHEMA, eligible_damage, key, profile, validate_snapshot, local_composition, local_kills, local_roster, local_input
 from versao import CANAL_APP
 
 BASE=os.path.join(monstros.BASE_DIR,'data','hunt_catalog.json')
@@ -100,15 +100,14 @@ def detalhes(id,contexto='all',dias=90):
     if contexto=='solo':samples=[r for r in samples if r.get('members',1)==1]
     elif contexto=='party':samples=[r for r in samples if r.get('members',1)>1]
     elif contexto.startswith('solo_'):samples=[r for r in samples if r.get('members',1)==1 and r.get('vocation')==contexto[5:]]
-    composition=defaultdict(float)
-    for r in samples:
-        total=sum(r['kills'].values())
-        for n,c in r['kills'].items():composition[n]+=c/total if total else 0
-    observed={n:round(v/len(samples)*100,5) for n,v in composition.items()} if samples else {}
-    return {'local':p,'sessoes':len(samples),'composicao':observed,'perfil':profile(eligible_damage(p,samples)),
+    local=local_composition(p,samples)
+    safe=eligible_damage(p,samples)
+    ignored_inputs=sum(len(r.get('inputs',[])) for r in samples)-sum(len(r['inputs']) for r in safe)
+    return {'local':p,'sessoes':len(samples),'composicao':local['composition'],'perfil':profile(safe),
+            'abates_excluidos':local['excluded_kills'],'especies_excluidas':local['excluded_species'],'inputs_excluidos':ignored_inputs,
             'sessoes_com_input':sum(bool(r.get('inputs')) for r in samples),'party_parcial':sum(bool(r.get('input_partial')) for r in samples),
-            'amostras':[{'id':r['id'],'data':r.get('date',''),'membros':r.get('members',1),'inputs':len(r.get('inputs',[])),
-                         'url':r['public_url'],'abates':sum(r['kills'].values())} for r in sorted(samples,key=lambda r:r.get('date',''),reverse=True)],
+            'amostras':[{'id':r['id'],'data':r.get('date',''),'membros':r.get('members',1),'inputs':len(r.get('inputs',[])),'inputs_locais':[i for i,input_ in enumerate(r.get('inputs',[])) if local_input(p,input_)],
+                         'url':r['public_url'],'abates':sum(local_kills(p,r['kills']).values()),'abates_sessao':sum(r['kills'].values())} for r in sorted(samples,key=lambda r:r.get('date',''),reverse=True)],
             'dias':dias,'contexto':contexto,'atualizado':d['metadata'].get('collected_at')}
 
 
@@ -119,7 +118,7 @@ def preset(id,modo='wiki',sessao='',input_index=0,contexto='all',dias=90):
     if modo=='session':
         record=data()['records'].get(str(sessao))
         if not record or (record.get('assignment') or {}).get('place_id')!=id:return {'erro':'Sessão não confirmada neste local.'}
-        weights=record['kills']
+        weights=local_kills(p,record['kills'])
         if record.get('inputs'):
             if not isinstance(input_index,int) or not 0<=input_index<len(record['inputs']):return {'erro':'Registro de Input inválido.'}
             input_=record['inputs'][input_index]
@@ -127,7 +126,7 @@ def preset(id,modo='wiki',sessao='',input_index=0,contexto='all',dias=90):
     elif modo=='observed':
         weights=detail['composicao'];origem='Composição observada em '+str(detail['sessoes'])+' sessões'
         if not weights:return {'erro':'Sem amostras confirmadas neste período/contexto.'}
-    elif modo=='wiki':weights={n:1 for n in p['creatures']};origem='Criaturas documentadas na Wiki; pesos iguais, ajustáveis'
+    elif modo=='wiki':weights={n:1 for n in local_roster(p).values()};origem='Criaturas documentadas na Wiki; pesos iguais, ajustáveis'
     else:return {'erro':'Composição inválida.'}
     import planejador
     available={monstros.singularizar(c['name']):c['name'] for c in planejador.catalogo_visual()['lista']}
@@ -139,13 +138,22 @@ def preset(id,modo='wiki',sessao='',input_index=0,contexto='all',dias=90):
         else:missing.append(name)
     if len(selected)>30:return {'erro':f'Este local tem {len(selected)} criaturas disponíveis. Escolha um piso/setor ou monte a composição manualmente. Nenhuma criatura foi cortada.'}
     if not selected:return {'erro':'Ainda não há fichas/GIFs disponíveis para carregar este local. Consulte as fontes listadas.'}
+    warnings=[]
+    if record:
+        excluded=sum(record['kills'].values())-sum(weights.values())
+        if excluded:warnings.append(f'{excluded} abates de criaturas fora deste local foram excluídos da composição.')
+    elif modo=='observed' and detail['abates_excluidos']:
+        warnings.append(f"{detail['abates_excluidos']} abates fora deste local foram excluídos antes de calcular a composição.")
+    if input_ and not local_input(p,input_):
+        warnings.append('O Input desta sessão tem fontes externas ou não identificadas. Não foi aplicado ao local, pois não é possível separar seu dano por elemento. Consulte a sessão original.')
+        input_=None
     damage=''
     if input_:
         from damage_core import ROTULO
         total=sum(input_['types'].values())
         damage='Received Damage\nTotal: '+str(total)+'\nDamage Types:\n'+'\n'.join(f"{ROTULO[el] if el in ('lifedrain','manadrain') else el.title()} {v} ({v/total*100:.6f}%)" for el,v in input_['types'].items())
         damage+='\nDamage Sources:\n'+'\n'.join(f"{n} {v} ({v/total*100:.6f}%)" for n,v in input_.get('sources',{}).items())
-    warnings=['Criaturas não carregadas por falta de ficha/GIF: '+', '.join(missing)] if missing else []
+    if missing:warnings.append('Criaturas não carregadas por falta de ficha/GIF: '+', '.join(missing))
     if record and record.get('input_partial'):warnings.append('Input disponível de apenas parte dos membros da party; não representa o dano recebido por todos.')
     return {'selecao':selected,'dano_texto':damage,'real':bool(damage),'total':sum(v['peso'] for v in selected),
-            'total_log':sum(weights.values()),'origem':origem,'avisos':warnings,'public_url':record['public_url'] if record else None}
+            'total_local':sum(weights.values()),'total_log':sum(record['kills'].values()) if record else sum(weights.values()),'origem':origem,'avisos':warnings,'public_url':record['public_url'] if record else None}
