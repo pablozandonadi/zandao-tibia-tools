@@ -17,7 +17,8 @@
     --font-body: 'Work Sans', system-ui, sans-serif;
     --font-mono: 'Space Mono', 'Consolas', monospace;
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-user-select: text; user-select: text; }
+  .sidebar, .sidebar * { -webkit-user-select: none !important; user-select: none !important; }
   html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-body); overflow: hidden; font-size: 14px; }
   .app { display: flex; height: 100%; }
 
@@ -26,7 +27,7 @@
     padding: 20px 14px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
   .brand { font-family: var(--font-display); color: var(--accent); font-size: 1.1rem; line-height: 1.25; margin: 4px 4px 18px; }
   .brand span { color: var(--ink); }
-  .nav-item { font-weight: 700; font-size: 0.85rem; padding: 10px 12px; border: 3px solid transparent; border-radius: 8px; cursor: pointer; user-select: none; }
+  .nav-item { font-weight: 700; font-size: 0.85rem; padding: 10px 12px; border: 3px solid transparent; border-radius: 8px; cursor: pointer; user-select: text; }
   .nav-item.active { background: var(--accent); color: #1a1108; border-color: var(--ink); box-shadow: 4px 4px 0 var(--ink); }
   .nav-item:not(.active):hover { border-color: var(--ink-dim); }
   @keyframes entradaLateral { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
@@ -94,7 +95,7 @@
   input[type=text]:focus { border-color: var(--accent); box-shadow: 3px 3px 0 var(--accent); }
   input.num { font-family: var(--font-mono); text-align: right; padding: 6px 9px; font-size: .82rem; }
   label.campo-label { display: block; font-size: .72rem; font-weight: 700; color: var(--ink-dim); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 5px; }
-  .check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: .85rem; cursor: pointer; user-select: none; }
+  .check { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; font-size: .85rem; cursor: pointer; user-select: text; }
   .check input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 
   .chip { font-family: var(--font-mono); font-weight: 700; font-size: .7rem; padding: 4px 9px; border: 2px solid var(--ink); border-radius: 999px; white-space: nowrap; }
@@ -118,7 +119,7 @@
   .grupo-label:first-child { margin-top: 0; }
   .pilulas { display: flex; flex-wrap: wrap; gap: 7px; }
   .pilula { font-weight: 700; font-size: .78rem; padding: 6px 11px; border: 2px solid var(--ink-dim); border-radius: 999px; cursor: pointer;
-    color: var(--ink-dim); user-select: none; transition: transform .08s; }
+    color: var(--ink-dim); user-select: text; transition: transform .08s; }
   .pilula:hover { border-color: var(--ink); color: var(--ink); }
   .pilula.on { background: var(--accent-2); color: #1d1500; border-color: var(--ink); box-shadow: 2px 2px 0 var(--ink); }
   .pilula.on:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink); }
@@ -129,7 +130,7 @@
   .escolhidos .pilula b { margin-left: 3px; }
   .grupo { border: 2.5px solid var(--ink-dim); border-radius: 10px; margin-top: 8px; overflow: hidden; }
   .grupo.aberto { border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
-  .grupo-cab { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; user-select: none; background: var(--surface-2); }
+  .grupo-cab { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; user-select: text; background: var(--surface-2); }
   .grupo-cab:hover { background: #161a20; }
   .grupo-cab .seta { color: var(--accent); font-size: .8rem; transition: transform .15s; }
   .grupo.aberto .seta { transform: rotate(90deg); }
@@ -479,7 +480,7 @@
   /* modo gadget: sem barra de título do Windows; no lugar fica uma faixa fina para arrastar, e o X só aparece com o mouse em cima */
   #gadget-topo { display: none; }
   body.gadget #gadget-topo { display: flex; position: fixed; top: 0; left: 0; right: 0; height: 14px; z-index: 9000; align-items: center; justify-content: center;
-    background: rgba(10, 12, 16, .55); cursor: move; user-select: none; touch-action: none; }
+    background: rgba(10, 12, 16, .55); cursor: move; user-select: text; touch-action: none; }
   body.gadget #gadget-topo:hover { background: rgba(10, 12, 16, .9); }
   .gt-grip { font-size: 8px; letter-spacing: 2px; color: var(--ink-dim); opacity: .55; pointer-events: none; }
   #gadget-fechar { position: absolute; right: 0; top: 0; height: 14px; min-width: 24px; padding: 0 6px; border: 0; border-radius: 0; background: #c0392b; color: #fff;
@@ -512,7 +513,7 @@
   .grafico .dica-graf { position: absolute; pointer-events: none; background: var(--surface-2); border: 2px solid var(--ink);
     border-radius: 8px; padding: 6px 9px; font-size: .74rem; white-space: nowrap; display: none; z-index: 5; }
   .grafico .dica-graf b { font-family: var(--font-mono); }
-  table.pan th.ord { cursor: pointer; user-select: none; }
+  table.pan th.ord { cursor: pointer; user-select: text; }
   table.pan th.ord:hover { color: var(--ink); }
   table.pan th.ativa { color: var(--accent-2); }
   table.pan td.hunt-nome { cursor: pointer; }
@@ -680,7 +681,8 @@
       <div class="dia-linha txt">🐪 Rashid: <b id="dia-rashid">—</b></div>
       <div class="dia-linha txt">⏱ Server save em <b id="dia-ss">—</b></div>
     </div>
-    <div class="nav-item active" data-pagina="emb" title="Embuimentos">💎<span class="txt"> Embuimentos</span></div>
+    <div class="nav-item active" data-pagina="zandaobot" title="Home — Informações diárias do mundo">🏠<span class="txt"> Home</span></div>
+    <div class="nav-item" data-pagina="emb" title="Embuimentos">💎<span class="txt"> Embuimentos</span></div>
     <div class="nav-item" data-pagina="hunt" title="Hunt Analyser (Loot Split + Dano)">🪓<span class="txt"> Hunt Analyser</span></div>
     <div class="nav-item" data-pagina="taskitens" title="Task Itens Analyser">📦<span class="txt"> Task Itens Analyser</span></div>
     <div class="nav-item" data-pagina="criaturas" title="Planejar dano da hunt">🐉<span class="txt"> Criaturas da hunt</span></div>
@@ -688,7 +690,6 @@
     <div class="nav-item" data-pagina="ferr" title="Ferramentas">🧰<span class="txt"> Ferramentas</span></div>
     <div class="nav-item" data-pagina="audio" title="Timers de áudio">🔔<span class="txt"> Timers</span></div>
     <div class="nav-item" data-pagina="prints" title="Prints">📸<span class="txt"> Prints</span></div>
-    <div class="nav-item" data-pagina="zandaobot" title="Informações diárias do mundo">🤖<span class="txt"> ZandaoBot</span></div>
     <div class="nav-item" id="gs-menu" data-pagina="guildstats" tabindex="0" title="Guild Stats">📈<span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
     <div class="nav-item" data-pagina="config" title="Configurações">⚙️<span class="txt"> Configurações</span></div>
     <div class="sobrepor">
@@ -713,8 +714,8 @@
       </div>
       <div id="ti-result" aria-live="polite" style="margin-top:16px"></div>
     </section>
-    <section class="page" id="page-zandaobot">
-      <h1 class="titulo">ZandaoBot</h1>
+    <section class="page shown" id="page-zandaobot">
+      <h1 class="titulo">Home</h1>
       <div class="card calmo">
         <p class="dica">Seu resumo diário do Tibia. Acompanha o mundo do personagem em uso; você também pode consultar outro mundo.</p>
         <div class="acoes"><input id="zb-world" type="search" list="zb-worlds" maxlength="40" aria-label="Mundo do Tibia" placeholder="Pesquisar mundo, ex.: Rasteibra"><datalist id="zb-worlds"></datalist><button class="btn btn-primary" id="zb-find">Buscar mundo</button><button class="btn" id="zb-active">Personagem em uso</button><button class="btn" id="zb-refresh">Atualizar</button></div>
@@ -739,7 +740,7 @@
       <div id="cr-result" aria-live="polite"></div>
     </section>
     <!-- ================= EMBUIMENTOS ================= -->
-    <section class="page shown" id="page-emb">
+    <section class="page" id="page-emb">
       <h1 class="titulo">Embuimentos</h1>
       <div class="card calmo" id="emb-mundo" style="margin-bottom:12px"></div>
       <div class="card calmo">
@@ -3207,7 +3208,8 @@ async function iniciar() {
   setModo(d.prints.copy !== false);
   $('p-mes').checked = !!d.prints['by-month'];
   $('p-abrir').checked = !!d.prints['open-when-done'];
-  huntIniciar();
+  await huntIniciar();
+  irPara('zandaobot');
   iniciarPublicacaoBeta();
   api.versao_app().then((v) => { $('versao-app').textContent = 'v' + v; $('cfg-versao').textContent = 'v' + v; });
   carregarDia();

@@ -41,6 +41,7 @@ def main():
         NOME_APP,
         os.path.join(PASTA_RECURSOS, "web", "index.html"),
         js_api=api,
+        text_select=True,
         width=1320,
         height=840,
         min_size=(280, 320),  # bem pequena: vira um gadget num canto, por cima do Tibia (com o tamanho da interface menor)
