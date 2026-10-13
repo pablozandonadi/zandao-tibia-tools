@@ -148,7 +148,7 @@ def exportar(ids=None, personagem=None, caminho=None):
 def importar(dados, substituir=False, caminho=None):
     """Devolve (importadas, ignoradas_por_já_existirem). Levanta ValueError se não for um arquivo nosso."""
     if not isinstance(dados, dict) or dados.get("formato") != FORMATO or not isinstance(dados.get("hunts"), list):
-        raise ValueError("Esse arquivo não parece ser uma exportação de hunts do Zandao Tibia Tools.")
+        raise ValueError("Esse arquivo não parece ser uma exportação de hunts do Tibia Tudo.")
     with _trava:
         hunts = [] if substituir else carregar(caminho)
         ids = {h["id"] for h in hunts}

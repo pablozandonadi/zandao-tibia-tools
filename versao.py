@@ -25,5 +25,5 @@ if getattr(sys, "frozen", False):
             CANAL_APP = "beta"
             BUILD_SOURCE_SHA = _build.get("source_sha", "")
             VERSAO_APP = _build["versao"]
-NOME_APP = "Zandao Tibia Tools" + (" Beta" if CANAL_APP == "beta" else "")
+NOME_APP = "Tibia Tudo" + (" Beta" if CANAL_APP == "beta" else "")
 NOME_INSTALADOR = "ZandaoTibiaToolsBetaSetup.exe" if CANAL_APP == "beta" else "ZandaoTibiaToolsSetup.exe"

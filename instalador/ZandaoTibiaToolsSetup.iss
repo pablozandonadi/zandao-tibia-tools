@@ -12,18 +12,18 @@
   #define MyAppChannel "stable"
 #endif
 #if MyAppChannel == "beta"
-  #define MyAppName "Zandao Tibia Tools Beta"
+  #define MyAppName "Tibia Tudo Beta"
   #define MyAppId "{{851692E8-4DF1-4D0E-A224-48671A165A75}"
   #define InstallerName "ZandaoTibiaToolsBetaSetup"
 #else
-  #define MyAppName "Zandao Tibia Tools"
+  #define MyAppName "Tibia Tudo"
   #define MyAppId "{{5C7E2B91-3A4F-4D6B-8E1C-9F2A7B3D4E60}"
   #define InstallerName "ZandaoTibiaToolsSetup"
 #endif
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.0"
 #endif
-#define MyAppPublisher "Zandao"
+#define MyAppPublisher "Tibia Tudo"
 #define MyAppExeName "ZandaoTibiaTools.exe"
 #ifndef SourceDistDir
   #define SourceDistDir "dist\ZandaoTibiaTools"
@@ -42,7 +42,11 @@ VersionInfoVersion={#MyAppNumericVersion}
 #endif
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={localappdata}\Programs\{#MyAppName}
+#if MyAppChannel == "beta"
+DefaultDirName={localappdata}\Programs\Zandao Tibia Tools Beta
+#else
+DefaultDirName={localappdata}\Programs\Zandao Tibia Tools
+#endif
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
@@ -115,7 +119,7 @@ begin
   except
   end;
   if not WebView2Instalado then
-    MsgBox('Nao consegui instalar o componente WebView2 da Microsoft, que o Zandao Tibia Tools usa para desenhar a tela. ' +
+    MsgBox('Nao consegui instalar o componente WebView2 da Microsoft, que o Tibia Tudo usa para desenhar a tela. ' +
            'Se o programa nao abrir, instale o "WebView2 Runtime" pelo site da Microsoft e abra o programa de novo.',
            mbInformation, MB_OK);
 end;

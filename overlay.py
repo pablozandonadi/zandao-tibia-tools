@@ -203,7 +203,7 @@ class Barras:
         _u32.RegisterClassW(ctypes.byref(wc))
         self.hwnd = _u32.CreateWindowExW(
             WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-            wc.lpszClassName, "Zandao Tibia Tools - barras", WS_POPUP, 0, 0, 300, 40, None, None, hinst, None)
+            wc.lpszClassName, "Tibia Tudo - barras", WS_POPUP, 0, 0, 300, 40, None, None, hinst, None)
         self._fonte = _g32.CreateFontW(-13, 0, 0, 0, FW_BOLD, 0, 0, 0, 0, 0, 0, NONANTIALIASED_QUALITY, 0, "Verdana")
         self._pronto.set()
         msg = wintypes.MSG()
@@ -302,7 +302,7 @@ class Overlay:
         _u32.RegisterClassW(ctypes.byref(wc))
         self.hwnd = _u32.CreateWindowExW(
             WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
-            wc.lpszClassName, "Zandao Tibia Tools - alerta", WS_POPUP, 0, 0, self.LARGURA, self.ALTURA,
+            wc.lpszClassName, "Tibia Tudo - alerta", WS_POPUP, 0, 0, self.LARGURA, self.ALTURA,
             None, None, hinst, None)
         self._fontes = {}
         self._tamanho = 34

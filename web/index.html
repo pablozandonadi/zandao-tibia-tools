@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
 <meta charset="utf-8">
-<title>Zandao Tibia Tools</title>
+<title>Tibia Tudo</title>
 <link rel="stylesheet" href="criaturas.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -669,29 +669,31 @@
 <script src="beta_publicacao.js"></script>
 <link rel="stylesheet" href="zandaobot.css">
 <link rel="stylesheet" href="world_board.css">
+<link rel="stylesheet" href="brand.css">
+<script defer src="brand.js"></script>
 </head>
 <body>
 <div id="gadget-topo" title="Arraste para mover a janela · duplo clique volta ao tamanho normal"><span class="gt-grip">• • •</span><button id="gadget-fechar" title="Fechar o app">✕</button></div>
 <div class="app">
   <aside class="sidebar">
-    <div class="brand">⚔️ Zandao<br><span>Tibia Tools</span></div>
+    <div class="brand"><img class="brand-logo" src="assets/brand/dice.png" data-static-src="assets/brand/dice.png" data-animated-src="assets/brand/dice.gif" alt=""><span class="brand-name">Tibia<br>Tudo</span></div>
     <div class="dia-tibia" id="dia-tibia" style="cursor:pointer" title="Hoje no Tibia (atualiza sozinho depois do server save; clique para atualizar agora)">
       <div class="boost" id="boost-boss"></div>
       <div class="boost" id="boost-criatura"></div>
       <div class="dia-linha txt">🐪 Rashid: <b id="dia-rashid">—</b></div>
       <div class="dia-linha txt">⏱ Server save em <b id="dia-ss">—</b></div>
     </div>
-    <div class="nav-item active" data-pagina="zandaobot" title="Home — Informações diárias do mundo">🏠<span class="txt"> Home</span></div>
-    <div class="nav-item" data-pagina="emb" title="Embuimentos">💎<span class="txt"> Embuimentos</span></div>
-    <div class="nav-item" data-pagina="hunt" title="Hunt Analyser (Loot Split + Dano)">🪓<span class="txt"> Hunt Analyser</span></div>
-    <div class="nav-item" data-pagina="taskitens" title="Task Itens Analyser">📦<span class="txt"> Task Itens Analyser</span></div>
-    <div class="nav-item" data-pagina="criaturas" title="Planejar dano da hunt">🐉<span class="txt"> Criaturas da hunt</span></div>
-    <div class="nav-item" data-pagina="hist" title="Histórico de hunts">📜<span class="txt"> Histórico</span></div>
-    <div class="nav-item" data-pagina="ferr" title="Ferramentas">🧰<span class="txt"> Ferramentas</span></div>
-    <div class="nav-item" data-pagina="audio" title="Timers de áudio">🔔<span class="txt"> Timers</span></div>
-    <div class="nav-item" data-pagina="prints" title="Prints">📸<span class="txt"> Prints</span></div>
-    <div class="nav-item" id="gs-menu" data-pagina="guildstats" tabindex="0" title="Guild Stats">📈<span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
-    <div class="nav-item" data-pagina="config" title="Configurações">⚙️<span class="txt"> Configurações</span></div>
+    <div class="nav-item active" tabindex="0" data-pagina="zandaobot" title="Home — Informações diárias do mundo"><span class="nav-icon" aria-hidden="true">🏠</span><span class="txt"> Home</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="emb" title="Embuimentos"><span class="nav-icon" aria-hidden="true">💎</span><span class="txt"> Embuimentos</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="hunt" title="Hunt Analyser (Loot Split + Dano)"><span class="nav-icon" aria-hidden="true">🪓</span><span class="txt"> Hunt Analyser</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="taskitens" title="Task Itens Analyser"><span class="nav-icon" aria-hidden="true">📦</span><span class="txt"> Task Itens Analyser</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="criaturas" title="Planejar dano da hunt"><span class="nav-icon" aria-hidden="true">🐉</span><span class="txt"> Criaturas da hunt</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="hist" title="Histórico de hunts"><span class="nav-icon" aria-hidden="true">📜</span><span class="txt"> Histórico</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="ferr" title="Ferramentas"><span class="nav-icon" aria-hidden="true">🧰</span><span class="txt"> Ferramentas</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="audio" title="Timers de áudio"><span class="nav-icon" aria-hidden="true">🔔</span><span class="txt"> Timers</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="prints" title="Prints"><span class="nav-icon" aria-hidden="true">📸</span><span class="txt"> Prints</span></div>
+    <div class="nav-item" id="gs-menu" tabindex="0" data-pagina="guildstats" title="Guild Stats"><span class="nav-icon" aria-hidden="true">📈</span><span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
+    <div class="nav-item" tabindex="0" data-pagina="config" title="Configurações"><span class="nav-icon" aria-hidden="true">⚙️</span><span class="txt"> Configurações</span></div>
     <div class="sobrepor">
       <button class="pino" id="j-topo" title="Fixar por cima do Tibia (fica visível mesmo clicando no jogo)">📌<span class="txt"> Fixar por cima</span></button>
       <label class="campo-label" for="j-opac"><span class="txt">Transparência </span><b id="j-opac-val">100%</b></label>
@@ -700,7 +702,7 @@
       <input type="range" id="j-esc" min="50" max="130" step="5" value="100" title="Tamanho da interface (letras e tudo): menor para ficar como gadget no canto do Tibia. Também vale Ctrl + roda do mouse.">
       <button class="pino" id="j-gadget" title="Deixa a janela estreita, num tamanho bom para ficar num canto do Tibia (clique de novo para voltar ao normal)">🗔<span class="txt"> Modo gadget</span></button>
     </div>
-    <div class="assinatura">Zandao<br><span id="versao-app"></span></div>
+    <div class="assinatura"><div class="assinatura-texto">Created by Zandão<br><span id="versao-app"></span></div><button class="cafe-apoio" id="cafe-apoio" title="Apoie o Tibia Tudo" aria-label="Apoie o Tibia Tudo"><img src="assets/brand/coffee.png" data-static-src="assets/brand/coffee.png" data-animated-src="assets/brand/coffee.gif" alt=""></button></div>
   </aside>
 
   <main class="content" id="content">
@@ -1054,7 +1056,7 @@
 
         <div class="card calmo">
           <h2 class="sub">ℹ️ Programa</h2>
-          <p class="texto" style="margin:0 0 10px">Zandao Tibia Tools <b id="cfg-versao">v—</b>. O programa procura versão nova sozinho toda vez que abre.</p>
+          <p class="texto" style="margin:0 0 10px">Tibia Tudo <b id="cfg-versao">v—</b>. O programa procura versão nova sozinho toda vez que abre.</p>
           <div class="acoes"><button class="btn" id="cfg-atualizar">🔄 Procurar atualização agora</button><button class="btn" id="cfg-pasta">📂 Abrir pasta dos dados</button></div>
           <div id="beta-publicacao" style="display:none;margin-top:18px">
             <h3>Publicar a Beta aprovada</h3>
@@ -3112,7 +3114,7 @@ async function checarAtualizacao() {
   let info = null;
   try { info = await api.verificar_atualizacao(); } catch (e) { return false; }
   if (!info) return false;
-  $('atualizacao-texto').textContent = `Tem uma versão nova do Zandao Tibia Tools: ${info.versao} (você está na v${info.versao_atual}). ` +
+  $('atualizacao-texto').textContent = `Tem uma versão nova do Tibia Tudo: ${info.versao} (você está na v${info.versao_atual}). ` +
     'Baixar e instalar agora? O programa fecha durante a instalação. Seu histórico, preços e personagens continuam salvos.';
   $('atualizacao-notas').textContent = info.notas || '';
   $('atualizacao-status').textContent = '';
@@ -3255,5 +3257,6 @@ else window.addEventListener('pywebviewready', iniciar);
 <script src="criaturas.js"></script>
 <script src="hunt_places.js"></script>
 <script src="task_items.js"></script>
+<dialog id="apoio-dialog" class="apoio-dialog" aria-labelledby="apoio-titulo"><h2 id="apoio-titulo">Apoie o Tibia Tudo ☕</h2><p>Gostou das ferramentas? Sua contribuição ajuda a manter e melhorar o projeto. Qualquer valor é bem-vindo.</p><img class="apoio-qr" src="assets/brand/pix.png" alt="QR Code Pix para apoiar o Tibia Tudo"><p>Recebedor: <b>Pablo Zandonadi</b></p><label for="apoio-pix">Pix copia e cola</label><textarea id="apoio-pix" readonly spellcheck="false">00020126580014BR.GOV.BCB.PIX0136361fa425-8509-45c1-bf3f-b7ffe03417e25204000053039865802BR5915Pablo Zandonadi6009SAO PAULO62140510zsHJv5VizV630498CD</textarea><p id="apoio-status" role="status"></p><button class="btn btn-primary" id="apoio-copiar">Copiar Pix</button> <button class="btn" id="apoio-fechar">Fechar</button><p class="dica">Contribuição voluntária. Confira o recebedor no seu banco antes de confirmar.</p><p class="dica">Sprites: Lupus Aurelius (Dice) e Makadamia (Coffee), via Tibia Fanart.</p></dialog>
 </body>
 </html>

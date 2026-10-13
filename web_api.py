@@ -1032,7 +1032,7 @@ class API:
         sufixo = (personagem or "todas").replace(" ", "-").lower()
         tipo = getattr(getattr(webview, "FileDialog", None), "SAVE", None) or webview.SAVE_DIALOG
         r = self._window.create_file_dialog(tipo, save_filename=f"hunts-{sufixo}.json",
-                                            file_types=("Hunts do Zandao Tibia Tools (*.json)",))
+                                            file_types=("Hunts do Tibia Tudo (*.json)",))
         if not r:
             return {"ok": False, "cancelado": True}
         caminho = r if isinstance(r, str) else r[0]
@@ -1045,7 +1045,7 @@ class API:
 
     def hunt_importar(self, substituir=False):
         tipo = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
-        r = self._window.create_file_dialog(tipo, file_types=("Hunts do Zandao Tibia Tools (*.json)", "Todos os arquivos (*.*)"))
+        r = self._window.create_file_dialog(tipo, file_types=("Hunts do Tibia Tudo (*.json)", "Todos os arquivos (*.*)"))
         if not r:
             return {"ok": False, "cancelado": True}
         try:
@@ -1264,7 +1264,7 @@ class API:
         tipo = getattr(getattr(webview, "FileDialog", None), "SAVE", None) or webview.SAVE_DIALOG
         hoje = pacote["exportado_em"][:10]
         r = self._window.create_file_dialog(tipo, save_filename=f"zandao-tibia-tools-backup-{hoje}.json",
-                                            file_types=("Backup do Zandao Tibia Tools (*.json)",))
+                                            file_types=("Backup do Tibia Tudo (*.json)",))
         if not r:
             return {"ok": False, "cancelado": True}
         caminho = r if isinstance(r, str) else r[0]
@@ -1278,7 +1278,7 @@ class API:
     def config_ler_backup(self):
         """Escolhe o arquivo e mostra o que tem nele (a restauração só acontece em config_restaurar)."""
         tipo = getattr(getattr(webview, "FileDialog", None), "OPEN", None) or webview.OPEN_DIALOG
-        r = self._window.create_file_dialog(tipo, file_types=("Backup do Zandao Tibia Tools (*.json)", "Todos os arquivos (*.*)"))
+        r = self._window.create_file_dialog(tipo, file_types=("Backup do Tibia Tudo (*.json)", "Todos os arquivos (*.*)"))
         if not r:
             return {"ok": False, "cancelado": True}
         try:
@@ -1287,7 +1287,7 @@ class API:
         except (OSError, json.JSONDecodeError) as e:
             return {"ok": False, "erro": f"Não consegui ler o arquivo: {e}"}
         if not isinstance(dados, dict) or dados.get("formato") != backup.FORMATO:
-            return {"ok": False, "erro": "Esse arquivo não é um backup do Zandao Tibia Tools. "
+            return {"ok": False, "erro": "Esse arquivo não é um backup do Tibia Tudo. "
                                          "(Para importar só hunts, use Importar na aba Histórico.)"}
         self._backup_pendente = dados
         return {"ok": True, "itens": backup.resumo(dados), "exportado_em": dados.get("exportado_em", ""),
