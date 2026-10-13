@@ -1,0 +1,66 @@
+name: Atualizar catalogo de hunts
+on:
+  push:
+    branches: [develop]
+    paths: ['hunt_catalog_collect.py', 'hunt_catalog_core.py', 'hunt_catalog_publish.py', '.github/workflows/update-hunt-catalog.yml']
+  workflow_dispatch:
+    inputs:
+      revalidate:
+        description: Revalidar todas as sessoes publicas
+        type: boolean
+        default: false
+  schedule:
+    - cron: '40 8 * * *'
+permissions:
+  contents: write
+concurrency:
+  group: hunt-catalog-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  update:
+    if: github.ref_name == 'main' || github.ref_name == 'develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: python -m pip install beautifulsoup4==4.15.0
+      - name: Restaurar estado publico anterior
+        env:
+          CATALOG_BRANCH: ${{ github.ref_name == 'develop' && 'hunt-catalog-beta' || 'hunt-catalog-data' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/hunt-state"
+          if git fetch origin "$CATALOG_BRANCH"; then
+            git archive FETCH_HEAD state | tar -x -C "$RUNNER_TEMP/hunt-state"
+            cp "$RUNNER_TEMP/hunt-state/state/"*.json "$RUNNER_TEMP/hunt-state/"
+            git show FETCH_HEAD:catalog.json > data/hunt_catalog.json
+          fi
+      - name: Coletar e validar
+        env:
+          REVALIDATE: ${{ inputs.revalidate }}
+        run: |
+          args=()
+          if [ "$REVALIDATE" = true ]; then args+=(--revalidate); fi
+          python -u hunt_catalog_collect.py --work-dir "$RUNNER_TEMP/hunt-state" --output data/hunt_catalog.json "${args[@]}"
+          python -m unittest test_hunt_catalog
+      - name: Publicar somente dados do catalogo
+        env:
+          CATALOG_BRANCH: ${{ github.ref_name == 'develop' && 'hunt-catalog-beta' || 'hunt-catalog-data' }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python hunt_catalog_publish.py --snapshot data/hunt_catalog.json --state "$RUNNER_TEMP/hunt-state" --output "$RUNNER_TEMP/catalog-publish"
+          cd "$RUNNER_TEMP/catalog-publish"
+          git init -b "$CATALOG_BRANCH"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          gh auth setup-git
+          if git fetch origin "$CATALOG_BRANCH"; then
+            git reset --soft FETCH_HEAD
+          fi
+          git add catalog.json catalog.json.sha256 state README.md
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Atualiza dados publicos das hunts'
+          git push origin "HEAD:$CATALOG_BRANCH"

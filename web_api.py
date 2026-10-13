@@ -24,6 +24,7 @@ import hunt
 import itens_set
 import monstros
 import planejador
+import hunt_catalog
 import organizer
 import personagens
 import task_items
@@ -530,6 +531,15 @@ class API:
 
     def personagem_remover(self, nome):
         return self._timers_do_personagem(personagens.remover(nome))
+
+    def criaturas_locais(self, atualizar=False):
+        return hunt_catalog.catalogo(atualizar)
+
+    def criaturas_local_detalhes(self, id_, contexto='all', dias=90):
+        return hunt_catalog.detalhes(id_, contexto, dias)
+
+    def criaturas_local_usar(self, id_, modo='wiki', sessao='', input_index=0, contexto='all', dias=90):
+        return hunt_catalog.preset(id_, modo, sessao, input_index, contexto, dias)
 
     def criaturas_catalogo(self, atualizar=False):
         return planejador.catalogo_visual(atualizar)

@@ -48,3 +48,8 @@ docs/qa-*.cjs
 world_board_registros.json
 world_board_registros.json.tmp
 world_board_registros.json.antes-do-backup
+
+# Cache local do catálogo central de hunts
+cache_hunt_catalog*.json
+cache_hunt_catalog*.json.tmp
+hunt_catalog_work/

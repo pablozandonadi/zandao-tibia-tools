@@ -39,7 +39,7 @@ $iscc = @(
 if (-not $iscc) { throw "Inno Setup 6 nao encontrado." }
 
 # Também é usado pelo workflow de publicação; fixa o rasterizador incluído no executável.
-python -m pip install Pillow==12.3.0
+python -m pip install Pillow==12.3.0 beautifulsoup4==4.15.0
 if ($LASTEXITCODE -ne 0) { throw "Falha ao instalar o rasterizador dos timers." }
 
 Write-Host "1/3  Testes..."
@@ -67,6 +67,7 @@ New-Item -ItemType Directory -Force (Join-Path $app "data") | Out-Null
 Copy-Item (Join-Path $raiz "data\imbuements.json") (Join-Path $app "data") -Force
 Copy-Item (Join-Path $raiz "data\task_items.json") (Join-Path $app "data") -Force
 Copy-Item (Join-Path $raiz "data\creature_knowledge.json") (Join-Path $app "data") -Force
+Copy-Item (Join-Path $raiz "data\hunt_catalog.json") (Join-Path $app "data") -Force
 
 Write-Host "3/3  Inno Setup..."
 & $iscc "/DMyAppVersion=$versao" "/DMyAppNumericVersion=$versaoInstalador" "/DMyAppChannel=$Canal" "/DSourceDistDir=$app" "/DOutputDir=$(Join-Path $PastaBuild 'output')" `
