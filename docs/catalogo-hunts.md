@@ -51,3 +51,9 @@ Correção entregue na Beta oficial **1.0.21-beta.16.1**: https://github.com/pab
 ## Organização da tela — 13/10/2026
 
 Ações no topo da composição; Hunt Analyser e Input Analyser agrupados em cards expansíveis ao lado. Busca de locais em largura inteira, com resultados clicáveis e contagem visível abaixo. Duas abas separam Local de hunt (análise de criaturas) e Hunts analisadas (dano público e composição observada). Todo o histórico é usado, sem seletor de período. O filtro por tamanho da party usa a quantidade exata de membros: solo, duo, três, quatro e cinco ou mais. Explicações, amostragem, exclusões, fontes e consulta de sessões ficam no card Informações ao fim da página, mantendo os critérios de validação existentes.
+
+Tela reorganizada entregue na **Beta 1.0.21-beta.18.1**: https://github.com/pablozandonadi/zandao-tibia-tools/releases/tag/v1.0.21-beta.18.1. Commit d13639e94d653720d5401f2f86c1dcf3183d4496; compilação 38348172185 concluída com sucesso. Instalador e portátil confirmados. 375 testes e verificação no Chrome passaram: resultados da busca visíveis, abas separadas, histórico inteiro, filtro por membros, detalhes ao final, layout responsivo e título da hunt oculto na consulta manual.
+
+## Alternância dos cards — 13/10/2026
+
+As abas aparecem após escolher um local e alternam somente os dois cards de perfil de dano e composição. Resumo, elementos, picos, resistências e fichas permanecem visíveis. A composição manual é preservada/restaurada ao voltar de Hunts analisadas. O título é Perfil estimado dos ataques das criaturas do Tibia; a proveniência das Wikis permanece em Informações. Para Dragolisk, Mega Dragon e Wardragon, as revisões BR/EN consultadas não fornecem faixas de ataque: o app informa a lacuna e mostra traços, sem inventar números ou confundir ausência com zero.
