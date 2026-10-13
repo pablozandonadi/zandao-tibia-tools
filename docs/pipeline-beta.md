@@ -38,3 +38,7 @@ O pipeline verifica a prerelease e o commit, exige que a main seja ancestral da 
 ## Integridade e dados por canal (13/10/2026)
 
 O novo build usa LocalAppData/TibiaTudo/beta ou stable para dados e preserva a instalação antiga ao migrar. O atualizador exige hash/tamanho da release e verifica Authenticode por política local do build. CI fixa ferramentas, valida recursos e publica SHA256SUMS.txt, package-manifest.json e sbom.json. Sem certificado do proprietário, a Beta continua explicitamente não assinada. Configure TIBIA_SIGNING_THUMBPRINT / TIBIA_REQUIRE_SIGNATURE para builds assinados. Detalhes, recuperação e limites de teste: docs/instalacao-segura-e-validacao.md.
+
+## Reconciliação após promoção anterior (13/10/2026)
+
+A Beta 32 foi criada paralelamente à promoção da Beta 27 como estável 1.0.22. A promoção da Beta 32 foi corretamente bloqueada por divergência, mas o diagnóstico estava genérico. A develop incorpora agora a main por merge, preservando código e histórico, e a próxima Beta usa base 1.0.22. A Beta antiga permanece bloqueada; analisar e promover a nova Beta. O erro de ancestralidade agora explica a necessidade de reconciliação. A main não é alterada nesta correção.

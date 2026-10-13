@@ -133,6 +133,14 @@ class PromocaoPipelineTests(unittest.TestCase):
                 finalizar(SHA, '1.0.20')
             self.assertFalse(any('push' in c.args or 'commit' in c.args for c in run.call_args_list))
 
+    def test_main_divergente_explica_bloqueio_sem_alterar_checkout(self):
+        release = json.dumps({'isPrerelease': True, 'isDraft': False, 'assets': [{'name': 'ZandaoTibiaToolsBetaSetup.exe'}]})
+        responses = [release, '', SHA, 'b' * 40, 'VERSAO_APP = "1.0.22"', RuntimeError('ancestralidade'), RuntimeError('ancestralidade')]
+        with patch('instalador.promover_beta.run', side_effect=responses) as run:
+            with self.assertRaisesRegex(ValueError, 'Integre a main em develop'):
+                preparar(TAG, SHA)
+            self.assertFalse(any('checkout' in c.args or 'push' in c.args for c in run.call_args_list))
+
     def test_tag_sha_divergente_nao_altera_fonte(self):
         release = json.dumps({'isPrerelease': True, 'isDraft': False, 'assets': [{'name': 'ZandaoTibiaToolsBetaSetup.exe'}]})
         with patch('instalador.promover_beta.run', side_effect=[release, '', 'b' * 40]) as run:

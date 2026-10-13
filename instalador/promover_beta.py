@@ -12,7 +12,7 @@ BETA_RE = r'v\d+\.\d+\.\d+-beta\.\d+\.\d+'
 def run(*args):
     result = subprocess.run(args, capture_output=True, text=True, encoding='utf-8', errors='replace')
     if result.returncode:
-        raise RuntimeError(f'Falha em {args[0]}: {result.stderr.strip()}')
+        raise RuntimeError(f'Falha em {args[0]} (código {result.returncode}): {result.stderr.strip() or result.stdout.strip() or chr(32).join(args[1:])}')
     return result.stdout.strip()
 
 
@@ -45,7 +45,10 @@ def preparar(tag, sha):
     except RuntimeError:
         # A publicação dos artefatos pode falhar depois do push. Retomar só se
         # main contém exatamente a mesma Beta mais versão/notas desta promoção.
-        run('git', 'merge-base', '--is-ancestor', sha, base)
+        try:
+            run('git', 'merge-base', '--is-ancestor', sha, base)
+        except RuntimeError as error:
+            raise ValueError('A versão estável foi publicada em uma linha diferente da Beta aprovada. Integre a main em develop, publique uma nova Beta e analise essa versão antes de promover.') from error
         current = re.search(r'^VERSAO_APP\s*=\s*"(\d+\.\d+\.\d+)"', main_source, re.M)
         if not current:
             raise ValueError('Versão inválida na main.')
