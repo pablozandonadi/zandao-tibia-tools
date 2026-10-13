@@ -20,6 +20,15 @@
   #define MyAppId "{{5C7E2B91-3A4F-4D6B-8E1C-9F2A7B3D4E60}"
   #define InstallerName "ZandaoTibiaToolsSetup"
 #endif
+; Identidade exclusiva para instalação de teste, nunca usada no workflow oficial.
+#ifdef ValidationBuild
+  #undef MyAppId
+  #define MyAppId "{{6F230E2B-B382-4E90-9885-13A0EFD4328B}"
+  #undef MyAppName
+  #define MyAppName "Tibia Tudo Validation"
+  #undef InstallerName
+  #define InstallerName "TibiaTudoValidationSetup"
+#endif
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.0"
 #endif

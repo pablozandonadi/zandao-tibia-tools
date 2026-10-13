@@ -87,7 +87,7 @@ Write-Host "3/3  Inno Setup..."
 & $iscc "/DMyAppVersion=$versao" "/DMyAppNumericVersion=$versaoInstalador" "/DMyAppChannel=$Canal" "/DSourceDistDir=$app" "/DOutputDir=$(Join-Path $PastaBuild 'output')" `
     (Join-Path $PSScriptRoot "ZandaoTibiaToolsSetup.iss") 2>&1 | Tee-Object -Variable taskCompilerOutput
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup falhou" }
-if (($taskCompilerOutput | Out-String) -notmatch 'Compiler engine version: 6\.7\.1(?:\s|$)') { throw 'Use Inno Setup 6.7.1 para este build fixado.' }
+if (($taskCompilerOutput | Out-String) -notmatch 'Compiler engine version: (?:Inno Setup )?6\.7\.1(?:\s|$)') { throw 'Use Inno Setup 6.7.1 para este build fixado.' }
 
 Write-Host ""
 $installerName = if ($Canal -eq "beta") { "ZandaoTibiaToolsBetaSetup.exe" } else { "ZandaoTibiaToolsSetup.exe" }
