@@ -26,3 +26,13 @@ Cache em memória por personagem, aba e página, com validade de 15 minutos. Atu
 236 testes Python passaram, incluindo seis testes específicos do adaptador. Interface validada no Chrome em 1320×840 e 400×800; busca independente, mudança do personagem e escape dos dados passaram sem erros JavaScript. Consulta pública real de XP e segunda página de mortes confirmadas.
 
 Arquivos: guild_stats.py, web/guild_stats.js, web/index.html, web_api.py e test_guild_stats.py. Não foi criada uma aplicação nova.
+
+## Consulta interna e continuidade (13/10/2026)
+
+HTTP 403/desafio Cloudflare abre uma janela WebView do aplicativo quando a consulta foi iniciada pelo usuário. O usuário conclui a verificação nessa janela; o adaptador lê o HTML no mesmo contexto, sem copiar cookies ao Python. A janela não recebe js_api nem funções privilegiadas. Hover nunca cria janela e aguarda pelo menos 60 segundos entre falhas. A janela fecha/oculta após os dados serem reconhecidos; cancelamento e timeout de dois minutos preservam os dados anteriores.
+
+Sessão WebView persistida em webview_session e consultas em cache_guild_stats dentro do diretório de dados do canal. Pastas privadas ignoradas pelo Git e não incluídas nos recursos distribuídos. Cache limitado às 128 consultas recentes; gravação atômica e tolerante a corrupção/falta de acesso. Data original permanece visível no fallback. Sem consulta anterior não se inventam dados. O Cloudflare pode rejeitar WebViews: verificação interna é uma tentativa compatível com a preferência do usuário, não garantia de acesso.
+
+O botão Verificar acesso no app substitui Abrir no site. Não há lançamento de navegador externo pelo fluxo GuildStats. Testes cobrem persistência, HTTP 403, cancelamento, cache corrompido e espera após falhas. Validação interativa do desafio real depende de aceitação do WebView2 pelo site.
+
+Validação local: 416 testes passaram com dependências fixadas; JavaScript e diff sem erros. WebView2 real carregou o desafio do GuildStats e confirmou API remota vazia. O desafio humano não foi concluído nessa checagem; não se afirma acesso real aos dados após verificação.

@@ -17,6 +17,7 @@ function gsTiles(items) { return `<div class="gs-tiles">${items.map(([label,valu
 function gsRender(r) {
   if(r.erro) { $('gs-result').innerHTML=`<div class="card">${esc(r.erro)}</div>`; return; }
   let body=`<div class="card calmo"><h2 class="sub">${esc(r.name)} · ${GS_TABS[r.tab]}</h2><p class="dica">Atualização na fonte: ${esc(r.updated || 'não informada')} · Consulta: ${esc(r.fetched)}${r.stale?' · Cache anterior (falha ao atualizar)':''}</p><p class="dica">${esc(r.notice||'')}</p></div>`;
+  if(r.erro_cache) body+=`<div class="card" role="status">${esc(r.erro_cache)}</div>`;
   if(r.tab==='experience') {
     const days=r.days||[];
     const exact=n=>days.find(d=>d.date===gsDate(n));
@@ -45,8 +46,8 @@ async function gsLoad(force=false) {
   $('gs-tabs').querySelectorAll('[data-gs-tab]').forEach(b=>b.onclick=()=>{GS.tab=b.dataset.gsTab;GS.page=1;gsLoad();});
   const serial=++GS.serial;
   if(!name) {$('gs-result').innerHTML='<div class="card">Escolha um personagem nas configurações ou busque um nome acima.</div>';return;}
-  $('gs-result').innerHTML='<div class="card dica">Consultando GuildStats…</div>';
-  try { const r=await api.guildstats_buscar(name,GS.tab,force,GS.page); if(serial===GS.serial) gsRender(r); }
+  $('gs-result').innerHTML='<div class="card dica">Consultando GuildStats… Se aparecer a verificação, conclua na janela do aplicativo.</div>';
+  try { const r=await api.guildstats_buscar(name,GS.tab,force,GS.page,true); if(serial===GS.serial) gsRender(r); }
   catch(e) { if(serial===GS.serial) $('gs-result').innerHTML='<div class="card">Falha na consulta. Tente atualizar novamente.</div>'; }
 }
 async function gsHover(force=false) {
@@ -64,8 +65,8 @@ async function gsHover(force=false) {
 $('gs-find').onclick=()=>{const name=$('gs-search').value.trim();if(!name)return;GS.follow=false;GS.name=name;GS.page=1;gsLoad();};
 $('gs-search').onkeydown=e=>{if(e.key==='Enter') $('gs-find').click();};
 $('gs-active').onclick=()=>{GS.follow=true;GS.page=1;gsLoad();};
-$('gs-refresh').onclick=()=>{gsLoad(true);gsHover(true);};
-$('gs-site').onclick=()=>{if(GS.name) api.guildstats_abrir(GS.name,GS.tab);};
+$('gs-refresh').onclick=async()=>{await gsLoad(true);gsHover();};
+$('gs-site').onclick=()=>{gsLoad(true);};
 $('gs-menu').addEventListener('mouseenter',()=>gsHover());
 $('gs-menu').addEventListener('focus',()=>gsHover());
 PERS_OUVINTES.push(()=>{GS.follow=true;GS.page=1;GS.name=MEUS.atual;GS.serial++;gsHover();if($('page-guildstats').classList.contains('shown'))gsLoad();else $('gs-result').innerHTML='';});

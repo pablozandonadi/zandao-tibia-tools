@@ -567,15 +567,11 @@ class API:
     def criaturas_analisar(self, selecao, atualizar=False, dano_texto=""):
         return planejador.analisar(selecao, atualizar, dano_texto)
 
-    def guildstats_buscar(self, nome="", aba="experience", atualizar=False, pagina=1):
-        return guild_stats.buscar(nome or personagens.carregar()["atual"], aba, atualizar, pagina)
+    def guildstats_buscar(self, nome="", aba="experience", atualizar=False, pagina=1, interagir=False):
+        return guild_stats.buscar(nome or personagens.carregar()["atual"], aba, atualizar, pagina, interagir)
 
     def guildstats_abrir(self, nome, aba="experience"):
-        import webbrowser
-        from urllib.parse import quote
-        if aba not in guild_stats.TABS: aba = "experience"
-        webbrowser.open(guild_stats.BASE + "character/" + quote((nome or "").strip(), safe="") + "#" + aba)
-        return True
+        return guild_stats.buscar(nome or personagens.carregar()["atual"], aba, True, 1, True)
 
     def personagem_usar(self, nome):
         return self._timers_do_personagem(personagens.usar(nome))

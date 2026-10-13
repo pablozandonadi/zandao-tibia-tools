@@ -83,7 +83,8 @@ def main():
     except Exception:
         pass  # If tray setup fails, the X still closes normally.
     try:
-        webview.start(icon=os.path.join(PASTA_RECURSOS, "icon.ico"))
+        webview.start(icon=os.path.join(PASTA_RECURSOS, "icon.ico"), private_mode=False,
+                      storage_path=os.path.join(data_dir(), "webview_session"))
     finally:
         if tray is not None:
             tray.stop()

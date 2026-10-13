@@ -1,5 +1,11 @@
-"""Read-only adapter for GuildStats public character tabs (no remote JS execution)."""
+"""GuildStats public tabs with private cache and an isolated verification WebView."""
 import re
+import json
+import hashlib
+import os
+from pathlib import Path
+from app_paths import data_dir
+import urllib.error
 import time
 import threading
 import urllib.request
@@ -9,7 +15,86 @@ from html.parser import HTMLParser
 BASE = 'https://guildstats.eu/'
 TABS = {'character', 'experience', 'deaths', 'timeonline', 'highscore', 'insomnia', 'drome', 'history'}
 _cache = {}
-_lock = threading.Lock()
+_lock = threading.RLock()
+_browser_lock = threading.Lock()
+_browser = None
+_failures = {}
+
+class VerificationRequired(Exception):
+    pass
+
+def _cache_file(key):
+    digest = hashlib.sha256(json.dumps(key).encode()).hexdigest()
+    return Path(data_dir()) / 'cache_guild_stats' / (digest + '.json')
+
+def _read_cache(key):
+    try:
+        path = _cache_file(key)
+        if path.stat().st_size > 2_000_000: return None
+        item = json.loads(path.read_text(encoding='utf-8'))
+        if item['key'] == list(key) and isinstance(item['data'], dict) and not item['data'].get('erro'):
+            return (float(item['time']), item['data'])
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    return None
+
+def _save_cache(key, data):
+    try:
+        path = _cache_file(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp = path.with_suffix('.tmp')
+        temp.write_text(json.dumps({'key':key, 'time':time.time(), 'data':data}, ensure_ascii=False), encoding='utf-8')
+        os.replace(temp, path)
+        # Bound disk usage; keep the latest 128 successful queries.
+        files = sorted(path.parent.glob('*.json'), key=lambda p:p.stat().st_mtime, reverse=True)
+        for old in files[128:]: old.unlink(missing_ok=True)
+    except OSError:
+        pass  # A successful online query remains usable if the disk is unavailable.
+
+def _challenge(html):
+    return 'cf-chl-' in html or 'Just a moment' in html
+
+def _browser_html(url, tab, interactive=False):
+    """Read in the same WebView session; never expose the application's Python API."""
+    global _browser
+    with _browser_lock:
+        if _browser is None:
+            if not interactive: raise VerificationRequired('Verifique o acesso dentro do aplicativo.')
+            import webview
+            window = webview.create_window('GuildStats · verifique o acesso para continuar', url,
+                js_api=None, width=900, height=700, min_size=(400, 400))
+            _browser = window
+            def closed():
+                global _browser
+                if _browser is window: _browser = None
+            window.events.closed += closed
+        else:
+            window = _browser
+            if interactive: window.show()
+            window.load_url(url)
+        deadline = time.monotonic() + (120 if interactive else 12)
+        while time.monotonic() < deadline:
+            if _browser is not window: raise VerificationRequired('Verificação cancelada. Tente novamente dentro do app.')
+            try:
+                current = urllib.parse.urlsplit(window.get_current_url() or '')
+                expected = urllib.parse.urlsplit(url)
+                query = urllib.parse.parse_qs(current.query)
+                matches = all(query.get(k) == v for k, v in urllib.parse.parse_qs(expected.query).items())
+                if current.scheme == 'https' and current.hostname == 'guildstats.eu' and current.path == expected.path and matches:
+                    html = window.evaluate_js('document.documentElement.outerHTML')
+                    if isinstance(html, str) and len(html) <= 2_000_000 and not _challenge(html):
+                        parsed = parse(html, tab)
+                        valid = bool(profile(html).get('Level')) if tab == 'character' else bool(parsed['tables']) or 'charHistoryTurnstile' in html
+                        if valid:
+                            window.hide()
+                            return html
+            except VerificationRequired:
+                raise
+            except Exception:
+                pass
+            time.sleep(0.5)
+        raise VerificationRequired('O GuildStats ainda exige verificação. Conclua na janela do app e tente atualizar.')
+
 
 class Tables(HTMLParser):
     def __init__(self):
@@ -86,7 +171,7 @@ def parse(html, tab):
         if summary: result['summary'] = list(summary.groups())
     return result
 
-def buscar(nome, tab='experience', forcar=False, pagina=1):
+def buscar(nome, tab='experience', forcar=False, pagina=1, interagir=False):
     nome = ' '.join((nome or '').split())
     if not nome or len(nome)>60 or any(ord(c)<32 for c in nome): return {'erro': 'Digite um nome de personagem válido.'}
     if tab not in TABS: return {'erro': 'Aba inválida.'}
@@ -94,15 +179,25 @@ def buscar(nome, tab='experience', forcar=False, pagina=1):
     except (TypeError, ValueError): pagina = 1
     key = (nome.casefold(), tab) if pagina == 1 else (nome.casefold(), tab, pagina)
     with _lock:
-        previous = _cache.get(key)
+        previous = _cache.get(key) or _read_cache(key)
         if previous and not forcar and time.time()-previous[0]<900: return previous[1]
+        failure = _failures.get(key)
+        if failure and not forcar and not interagir and time.time()-failure[0]<60:
+            return {**previous[1], 'stale': True, 'erro_cache': failure[1], 'verification_required': failure[2]} if previous else {'erro':failure[1], 'verification_required':failure[2]}
         url = BASE + ('character/' + urllib.parse.quote(nome, safe='') if tab=='character' else 'include/character/tab.php?' + urllib.parse.urlencode({'nick': nome, 'tab': tab}))
         try:
             if tab == 'deaths' and pagina > 1: url += '&part=table&page=' + str(pagina)
             request = urllib.request.Request(url, headers={'User-Agent': 'ZandaoTibiaTools/1.0', 'Accept-Language': 'en'})
-            with urllib.request.urlopen(request, timeout=25) as response:
-                html = response.read(2_000_000).decode('utf-8', errors='replace')
-            if 'cf-chl-' in html or 'Just a moment' in html: raise ValueError('O site exige verificação no navegador.')
+            try:
+                with urllib.request.urlopen(request, timeout=15) as response:
+                    html = response.read(2_000_000).decode('utf-8', errors='replace')
+                if _challenge(html): raise VerificationRequired('Verificação necessária.')
+            except (urllib.error.HTTPError, VerificationRequired) as blocked:
+                if isinstance(blocked, urllib.error.HTTPError) and blocked.code != 403: raise
+                if previous and not forcar:
+                    raise VerificationRequired('O GuildStats exige verificação. Use Verificar acesso no app para atualizar.')
+                html = _browser_html(url, tab, interagir)
+            if _challenge(html): raise VerificationRequired('Verificação necessária.')
             data = parse(html, tab)
             if tab == 'deaths':
                 paging = re.search(r'deathPagination\((\d+),\s*(\d+)\)', html)
@@ -115,10 +210,15 @@ def buscar(nome, tab='experience', forcar=False, pagina=1):
                 data['profile'] = profile(html)
             if len(_cache)>128: _cache.clear()
             _cache[key] = (time.time(), data)
+            _save_cache(key, data)
+            _failures.pop(key, None)
             return data
         except Exception as e:
-            if previous: return {**previous[1], 'stale': True, 'erro_cache': 'Falha na atualização; exibindo a última consulta.'}
-            return {'erro': 'Não foi possível consultar o GuildStats. Tente novamente ou abra o site.', 'detail': str(e)}
+            verification = isinstance(e, VerificationRequired)
+            message = str(e) if verification else 'Não foi possível atualizar o GuildStats. Tente novamente em instantes.'
+            _failures[key] = (time.time(), message, verification)
+            if previous: return {**previous[1], 'stale': True, 'erro_cache': message + ' Exibindo a última consulta salva.', 'verification_required': verification}
+            return {'erro': message, 'verification_required': verification, 'detail': str(e)}
 
 
 def profile(html):

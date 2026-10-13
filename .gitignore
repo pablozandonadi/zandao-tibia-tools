@@ -53,3 +53,7 @@ world_board_registros.json.antes-do-backup
 cache_hunt_catalog*.json
 cache_hunt_catalog*.json.tmp
 hunt_catalog_work/
+
+# GuildStats: consultas e sessão privadas por instalação
+cache_guild_stats/
+webview_session/
