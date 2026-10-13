@@ -140,7 +140,7 @@ def janela_do_tibia():
 
 
 BARRA_PADRAO = {"largura": 320, "espessura": 14, "x": 50, "y": 78, "nome": True, "tempo": True,
-                "estilo": "classica", "texto_estilo": "contorno", "familia": "Verdana", "cor_tempo": False}
+                "estilo": "classica", "texto_estilo": "contorno", "familia": "Verdana", "cor_tempo": False, "orientacao": "horizontal"}
 
 
 def normalizar_barra(b):
@@ -150,14 +150,14 @@ def normalizar_barra(b):
             "x": max(0, min(100, float(b["x"]))), "y": max(0, min(100, float(b["y"]))), "nome": bool(b["nome"]), "tempo": tempo,
             "estilo": b["estilo"] if b["estilo"] in timer_visual.ESTILOS_BARRA else "classica",
             "texto_estilo": b["texto_estilo"] if b["texto_estilo"] in timer_visual.ESTILOS_TEXTO else "contorno",
-            "familia": b["familia"] if b["familia"] in timer_visual.FONTES else "Verdana", "cor_tempo": bool(b["cor_tempo"])}
+            "familia": b["familia"] if b["familia"] in timer_visual.FONTES else "Verdana", "cor_tempo": bool(b["cor_tempo"]),
+            "orientacao": b.get("orientacao") if b.get("orientacao") in ("horizontal", "vertical") else "horizontal"}
 
 
 def layout_barras(n, cfg, alvo):
     """Onde fica a janela das barras: (x, y, largura, altura, altura_de_cada_linha). x/y em % da janela do Tibia."""
     esq, topo, dir_, base = alvo
-    linha = cfg["espessura"] + (18 if cfg["nome"] or cfg.get("tempo", cfg["nome"]) else 0) + 6
-    larg, alt = cfg["largura"] + 8, linha * n + 4
+    larg, alt, linha = timer_visual.dimensoes_barras(n, cfg)
     cx = esq + (dir_ - esq) * cfg["x"] / 100
     cy = topo + (base - topo) * cfg["y"] / 100
     x = int(min(max(cx - larg / 2, esq), dir_ - larg))
@@ -269,7 +269,7 @@ class Overlay:
         if self.hwnd:
             _u32.PostMessageW(self.hwnd, WM_APP + 2, 0, 0)
 
-    def mostrar(self, texto, cor="amarelo", segundos=3.0, so_tibia=True, tamanho=34, pos=None, piscar=False, visual=None):
+    def mostrar(self, texto, cor="amarelo", segundos=3.0, so_tibia=True, tamanho=34, pos=None, piscar=False, visual=None, progresso=None):
         """Mostra o alerta. segundos=0: fica até esconder(). piscar: aparece e some suave (fade).
         Devolve False se o Tibia não está aberto (e so_tibia)."""
         alvo = janela_do_tibia() if sys.platform == "win32" else None
@@ -279,7 +279,7 @@ class Overlay:
             alvo = (0, 0, _u32.GetSystemMetrics(0), _u32.GetSystemMetrics(1))
         with self._trava:
             self._pedido = (str(texto), cor_rgb(cor), float(segundos), alvo,
-                            max(14, min(96, int(tamanho))), normalizar_alerta(pos), bool(piscar), timer_visual.aparencia(visual))
+                            max(14, min(96, int(tamanho))), normalizar_alerta(pos), bool(piscar), timer_visual.aparencia(visual), progresso)
         if self.hwnd:
             _u32.PostMessageW(self.hwnd, WM_APP + 1, 0, 0)
         return True
@@ -318,8 +318,14 @@ class Overlay:
             with self._trava:
                 pedido, self._pedido = self._pedido, None
             if pedido:
-                self._texto, self._cor, segundos, (esq, topo, dir_, base), self._tamanho, pos, piscar, self._visual = pedido
+                self._texto, self._cor, segundos, (esq, topo, dir_, base), self._tamanho, pos, piscar, self._visual, progresso = pedido
                 _u32.KillTimer(hwnd, 2)
+                _u32.KillTimer(hwnd, 3)
+                self._progresso = progresso
+                self._progresso_ini = time.monotonic()
+                self._largura_texto = dir_ - esq
+                if progresso:
+                    _u32.SetTimer(hwnd, 3, 100, None)
                 self._alfa(255)
                 if piscar:
                     self._pisca_ini = time.monotonic()
@@ -336,6 +342,16 @@ class Overlay:
                 if segundos > 0:
                     _u32.SetTimer(hwnd, 1, int(segundos * 1000), None)
             return 0
+        if msg == WM_TIMER and wparam == 3:
+            if self._progresso:
+                elapsed = (time.monotonic() - self._progresso_ini) / max(.1, self._progresso["duracao"])
+                frac = self._progresso["fracao"] - (elapsed % 1 if self._progresso.get("loop") else elapsed)
+                cor = timer_visual.cor_progresso(frac)
+                if cor != self._cor:
+                    self._cor = cor
+                    self._image = timer_visual.texto(self._texto, cor, self._tamanho, self._visual, self._largura_texto)
+                    layered_image.mostrar(hwnd, self._image, getattr(self, "_alpha", 255))
+            return 0
         if msg == WM_TIMER and wparam == 2:   # piscando: some e aparece suave
             fase = ((time.monotonic() - self._pisca_ini) % PISCA_PERIODO) / PISCA_PERIODO
             self._alfa(int(25 + 230 * (0.5 + 0.5 * math.cos(2 * math.pi * fase))))
@@ -343,6 +359,7 @@ class Overlay:
         if msg == WM_APP + 2 or msg == WM_TIMER:
             _u32.KillTimer(hwnd, 1)
             _u32.KillTimer(hwnd, 2)
+            _u32.KillTimer(hwnd, 3)
             _u32.ShowWindow(hwnd, SW_HIDE)
             self._alfa(255)
             return 0

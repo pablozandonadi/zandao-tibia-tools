@@ -1191,13 +1191,13 @@ class API:
             self._audio.tocar(som, volume)
         return True
 
-    def audio_testar_alerta(self, cor="amarelo", texto="", fonte=34, alerta=None, segundos=4, piscar=False, visual=None):
+    def audio_testar_alerta(self, cor="amarelo", texto="", fonte=34, alerta=None, segundos=4, piscar=False, visual=None, progresso=None):
         """Mostra o alerta por 4 s (com a posição da tela, mesmo antes de salvar)."""
         if not self._audio:
             return False
         if alerta:
             self._audio.cfg["alerta"] = audio_timers.overlay.normalizar_alerta(alerta)
-        return bool(self._audio.testar_alerta(cor, texto, fonte, segundos, bool(piscar), visual))
+        return bool(self._audio.testar_alerta(cor, texto, fonte, segundos, bool(piscar), visual, progresso))
 
     def audio_parar_teste(self):
         if self._audio:
@@ -1226,13 +1226,13 @@ class API:
         r = self.audio_salvar(cfg)
         return {"ok": True, "timers": len(add), "repetidos": len(novos) - len(add), **r, "sons_novos": sons}
 
-    def audio_testar_barras(self, barra=None, nome=None, cor=None, loop=False):
+    def audio_testar_barras(self, barra=None, nome=None, cor=None, loop=False, cor_tempo=None):
         """Mostra barras de exemplo por 6 s (com a configuração da tela, mesmo antes de salvar)."""
         if not self._audio:
             return False
         if barra:
             self._audio.cfg["barra"] = audio_timers.overlay.normalizar_barra(barra)
-        self._audio.testar_barras(nome=nome, cor=cor, loop=loop)
+        self._audio.testar_barras(nome=nome, cor=cor, loop=loop, cor_tempo=cor_tempo)
         return True
 
     def audio_parar_todos(self):

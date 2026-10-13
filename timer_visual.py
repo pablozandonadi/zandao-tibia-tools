@@ -9,11 +9,33 @@ ESTILOS_BARRA = ("classica", "arredondada", "minimalista", "glow")
 FONTES = {"Verdana": "verdanab.ttf", "Segoe UI": "segoeuib.ttf", "Tahoma": "tahomabd.ttf", "Arial": "arialbd.ttf"}
 
 
+def cor_efeito(valor, padrao=""):
+    if isinstance(valor, str) and len(valor) == 7 and valor.startswith("#"):
+        try:
+            int(valor[1:], 16)
+            return valor.upper()
+        except ValueError:
+            pass
+    return padrao
+
+
 def aparencia(d=None):
     d = d or {}
-    return {"estilo": d.get("estilo") if d.get("estilo") in ESTILOS_TEXTO else "contorno",
+    estilo = d.get("estilo") if d.get("estilo") in ESTILOS_TEXTO else "contorno"
+    explicito = any(k in d for k in ("glow", "sombra", "borda"))
+    return {"estilo": estilo,
             "familia": d.get("familia") if d.get("familia") in FONTES else "Verdana",
-            "intensidade": max(1, min(30, int(d.get("intensidade") or 22)))}
+            "intensidade": max(1, min(30, int(d.get("intensidade") or 22))),
+            "glow": bool(d.get("glow", False)) if explicito else estilo == "glow",
+            "sombra": bool(d.get("sombra", False)) if explicito else estilo == "sombra",
+            "borda": bool(d.get("borda", False)) if explicito else estilo == "contorno",
+            "cor_glow": cor_efeito(d.get("cor_glow")),
+            "cor_sombra": cor_efeito(d.get("cor_sombra"), "#000000"),
+            "cor_borda": cor_efeito(d.get("cor_borda"), "#000000")}
+
+
+def rgb_efeito(valor, padrao):
+    return tuple(int(valor[i:i+2], 16) for i in (1, 3, 5)) if valor else padrao
 
 
 @lru_cache(maxsize=128)
@@ -29,20 +51,25 @@ def texto(text, rgb, tamanho=34, visual=None, largura=None):
     v = aparencia(visual)
     f = fonte(v["familia"], tamanho)
     bbox = f.getbbox(text or " ")
-    pad = max(6, v["intensidade"] * 2 if v["estilo"] == "glow" else 6)
+    pad = max(6, v["intensidade"] * 2 if v["glow"] else 6)
     mask = Image.new("L", (max(1, bbox[2] - bbox[0]) + pad * 2, max(1, bbox[3] - bbox[1]) + pad * 2))
     ImageDraw.Draw(mask).text((pad - bbox[0], pad - bbox[1]), text, font=f, fill=255)
     out = Image.new("RGBA", mask.size)
-    if v["estilo"] == "glow":
-        # Duas camadas: halo amplo e brilho próximo à letra (sem borda preta).
+    if v["glow"]:
         halo = mask.filter(ImageFilter.GaussianBlur(v["intensidade"] / 3)).point(lambda a: min(217, a * 3))
-        out.paste((*rgb, 255), (0, 0), halo)
-    elif v["estilo"] == "contorno":
-        out.paste((0, 0, 0, 255), (0, 0), mask.filter(ImageFilter.MaxFilter(5)))
-    elif v["estilo"] == "sombra":
+        glow = Image.new("RGBA", mask.size, (*rgb_efeito(v["cor_glow"], rgb), 0))
+        glow.putalpha(halo)
+        out = Image.alpha_composite(out, glow)
+    if v["sombra"]:
         shadow = Image.new("L", mask.size)
         shadow.paste(mask, (3, 3))
-        out.paste((0, 0, 0, 230), (0, 0), shadow.filter(ImageFilter.GaussianBlur(2)))
+        layer = Image.new("RGBA", mask.size, (*rgb_efeito(v["cor_sombra"], (0, 0, 0)), 0))
+        layer.putalpha(shadow.filter(ImageFilter.GaussianBlur(2)).point(lambda a: a * 230 // 255))
+        out = Image.alpha_composite(out, layer)
+    if v["borda"]:
+        edge = Image.new("RGBA", mask.size, (*rgb_efeito(v["cor_borda"], (0, 0, 0)), 0))
+        edge.putalpha(mask.filter(ImageFilter.MaxFilter(5)))
+        out = Image.alpha_composite(out, edge)
     face = Image.new("RGBA", mask.size, (*rgb, 0))
     face.putalpha(mask)
     out = Image.alpha_composite(out, face)
@@ -57,14 +84,17 @@ def cor_progresso(frac):
 
 
 def barras(itens, cfg, cores):
+    if cfg.get("orientacao") == "vertical":
+        return barras_verticais(itens, cfg, cores)
     labels = cfg["nome"] or cfg.get("tempo", cfg["nome"])
     linha = cfg["espessura"] + (18 if labels else 0) + 6
     image = Image.new("RGBA", (cfg["largura"] + 8, linha * len(itens) + 4))
     draw = ImageDraw.Draw(image)
     style = cfg.get("estilo", "classica")
-    for i, (nome, frac, tempo, cor) in enumerate(itens):
+    for i, item in enumerate(itens):
+        nome, frac, tempo, cor = item[:4]
         frac = max(0, min(1, frac))
-        rgb = cor_progresso(frac) if cfg.get("cor_tempo") else cores(cor)
+        rgb = cor_progresso(frac) if (item[4] if len(item) > 4 and item[4] is not None else cfg.get("cor_tempo")) else cores(cor)
         y = 2 + i * linha
         if labels:
             textos = ([(nome, (255,255,255), False)] if cfg["nome"] else []) + ([(tempo, rgb, True)] if cfg.get("tempo", cfg["nome"]) else [])
@@ -89,6 +119,49 @@ def barras(itens, cfg, cores):
                 image = Image.alpha_composite(image, fill.filter(ImageFilter.GaussianBlur(2)))
             image = Image.alpha_composite(image, fill)
             draw = ImageDraw.Draw(image)
+    return image
+
+
+def dimensoes_barras(n, cfg):
+    if cfg.get("orientacao") == "vertical":
+        coluna = max(cfg["espessura"] + 8, 120 if cfg["nome"] or cfg.get("tempo", cfg["nome"]) else 0)
+        altura = cfg["largura"] + 8 + (18 if cfg["nome"] else 0) + (18 if cfg.get("tempo", cfg["nome"]) else 0)
+        return coluna * n + 4, altura, coluna
+    linha = cfg["espessura"] + (18 if cfg["nome"] or cfg.get("tempo", cfg["nome"]) else 0) + 6
+    return cfg["largura"] + 8, linha * n + 4, linha
+
+
+def barras_verticais(itens, cfg, cores):
+    largura, altura, coluna = dimensoes_barras(len(itens), cfg)
+    image = Image.new("RGBA", (largura, altura))
+    draw = ImageDraw.Draw(image)
+    style = cfg.get("estilo", "classica")
+    y = 4 + (18 if cfg["nome"] else 0)
+    radius = min(6, cfg["espessura"] // 2) if style in ("arredondada", "glow") else 0
+    for i, item in enumerate(itens):
+        nome, frac, tempo, cor = item[:4]
+        frac = max(0, min(1, frac))
+        dinamica = item[4] if len(item) > 4 and item[4] is not None else cfg.get("cor_tempo")
+        rgb = cor_progresso(frac) if dinamica else cores(cor)
+        x = 2 + i * coluna + (coluna - cfg["espessura"]) // 2
+        if style == "classica":
+            draw.rectangle((x-2, y-2, x+cfg["espessura"]+1, y+cfg["largura"]+1), fill=(0,0,0,255))
+        draw.rounded_rectangle((x,y,x+cfg["espessura"]-1,y+cfg["largura"]-1), radius,
+                               fill=(40,44,52,210), outline=(180,190,200,150) if style == "arredondada" else None)
+        fill_height = round(frac * cfg["largura"])
+        if fill_height:
+            fill = Image.new("RGBA", image.size)
+            ImageDraw.Draw(fill).rounded_rectangle((x,y+cfg["largura"]-fill_height,x+cfg["espessura"]-1,y+cfg["largura"]-1), min(radius, fill_height//2), fill=(*rgb,255))
+            if style == "glow":
+                image = Image.alpha_composite(image, fill.filter(ImageFilter.GaussianBlur(2)))
+            image = Image.alpha_composite(image, fill)
+            draw = ImageDraw.Draw(image)
+        for label, color, label_y in ([(nome,(255,255,255),2)] if cfg["nome"] else []) + ([(tempo,rgb,y+cfg["largura"]+2)] if cfg.get("tempo",cfg["nome"]) else []):
+            im = texto(label, color, 13, {"estilo":cfg.get("texto_estilo","contorno"),"familia":cfg.get("familia","Verdana"),"intensidade":6}, coluna-8)
+            box = im.getbbox()
+            if box:
+                im = im.crop(box)
+                image.alpha_composite(im,(2+i*coluna+(coluna-im.width)//2,label_y))
     return image
 
 

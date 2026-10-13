@@ -1,8 +1,9 @@
 import json
 import tempfile
+import threading
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import audio_timers as at
 import overlay
@@ -24,7 +25,7 @@ class TimerVisualTests(unittest.TestCase):
             for k,v in old.items():
                 self.assertEqual(cfg['timers'][0][k],v,k)
             self.assertEqual(cfg['timers'][0]['visual']['estilo'],'contorno')
-            cfg['timers'][0]['visual']={'estilo':'glow','familia':'Segoe UI','intensidade':22}
+            cfg['timers'][0]['visual']=visual.aparencia({'estilo':'glow','familia':'Segoe UI','intensidade':22})
             cfg['barra'].update(estilo='arredondada',cor_tempo=True,texto_estilo='sombra')
             at.salvar(cfg,str(path))
             self.assertEqual(at.carregar(str(path)),cfg)
@@ -68,6 +69,111 @@ class TimerVisualTests(unittest.TestCase):
         self.assertEqual(motor.alerta.mostrar.call_args.kwargs['visual'],t['visual'])
         motor.testar_alerta(visual=t['visual'])
         self.assertEqual(motor.alerta.mostrar.call_args.kwargs['visual'],t['visual'])
+
+    def test_cores_independentes_e_opcoes_sobrevivem_a_reabertura(self):
+        antigo=at.normalizar({'cor':'#345678'})
+        self.assertEqual((antigo['cor_texto'],antigo['cor_barra']),('#345678','#345678'))
+        self.assertFalse(antigo['sem_som'])
+        t=at.normalizar({**antigo,'cor_texto':'#FF0000','cor_barra':'#0000FF',
+                        'texto_cor_tempo':True,'barra_cor_tempo':False,'sem_som':True,
+                        'visual':{'estilo':'simples','glow':True,'sombra':True,'borda':True,
+                                  'cor_glow':'#00FF00','cor_sombra':'#888888','cor_borda':'#FFFF00'}})
+        cfg={**at.PADRAO,'timers':[t],'barra':overlay.normalizar_barra({'orientacao':'vertical'})}
+        with tempfile.TemporaryDirectory() as d:
+            path=str(Path(d)/'timers.json')
+            at.salvar(cfg,path)
+            self.assertEqual(at.carregar(path),cfg)
+        self.assertEqual(at.cor_alerta(t,1),'#00E63C')
+        self.assertEqual(at.cor_alerta(t,0),'#FF003C')
+        self.assertEqual(at.cor_alerta({**t,'texto_cor_tempo':False},.5),'#FF0000')
+
+    def test_efeitos_combinados_preservam_cor_da_face(self):
+        image=visual.texto('TEXTO',(255,0,0),34,{'estilo':'simples','glow':True,'sombra':True,'borda':True,
+                           'cor_glow':'#00FF00','cor_sombra':'#0000FF','cor_borda':'#FFFF00'})
+        pixels=list(image.get_flattened_data())
+        self.assertIn((255,0,0,255),pixels)
+        self.assertIn((255,255,0,255),pixels)
+        self.assertTrue(any(g>r and g>b and a>0 for r,g,b,a in pixels))
+        self.assertTrue(any(b>r and b>g and a>0 for r,g,b,a in pixels))
+        simples=visual.texto('TEXTO',(255,0,0),34,{'estilo':'simples'})
+        self.assertFalse(any(a and (g or b) for r,g,b,a in simples.get_flattened_data()))
+        self.assertEqual(visual.aparencia({'estilo':'glow','glow':False,'sombra':False,'borda':False})['glow'],False)
+
+    def test_barras_verticais_preenchem_de_baixo_e_rotulos_nao_giram(self):
+        for nome,tempo in ((False,False),(True,False),(False,True),(True,True)):
+            cfg=overlay.normalizar_barra({'orientacao':'vertical','largura':100,'espessura':8,'nome':nome,'tempo':tempo,'estilo':'minimalista'})
+            itens=[('A',.5,'0:05','#0000FF',False),('B',1,'0:10','#FF0000',False)]
+            image=visual.barras(itens,cfg,overlay.cor_rgb)
+            self.assertEqual(image.size,overlay.layout_barras(2,cfg,(0,0,800,800))[2:4])
+            _,_,coluna=visual.dimensoes_barras(2,cfg)
+            x=2+(coluna-8)//2
+            y=4+(18 if nome else 0)
+            self.assertEqual(image.getpixel((x+3,y+75)),(0,0,255,255))
+            self.assertNotEqual(image.getpixel((x+3,y+25)),(0,0,255,255))
+
+    def test_barra_cor_por_tempo_independe_da_opcao_global(self):
+        cfg=overlay.normalizar_barra({'largura':100,'espessura':8,'nome':False,'tempo':False,'estilo':'minimalista','cor_tempo':True})
+        image=visual.barras([('A',.5,'','#0000FF',False)],cfg,overlay.cor_rgb)
+        self.assertEqual(image.getpixel((10,5)),(0,0,255,255))
+        cfg['cor_tempo']=False
+        image=visual.barras([('A',.5,'','#0000FF',True)],cfg,overlay.cor_rgb)
+        self.assertEqual(image.getpixel((10,5)),(*visual.cor_progresso(.5),255))
+
+    def _motor_falso(self, sem_som=True):
+        t=at.normalizar({'id':'p','personagem':'Teste','duracao':10,'antes':3,'alerta':True,'barra':True,'fixo':True,
+                        'sem_som':sem_som,'cor_texto':'#FF0000','cor_barra':'#0000FF',
+                        'tecla':{'vk':75,'nome':'K','ctrl':True}})
+        e=at.EstadoTimer(t);e.apertou(0)
+        m=at.Motor.__new__(at.Motor)
+        m.cfg={**at.PADRAO,'timers':[t]};m.estados={'p':e}
+        m._trava=threading.Lock();m._apertadas=set();m._ao_mudar=None;m._ultimo_envio=0
+        m._alerta_fixo=m._pisca_dono=None;m._piscou={}
+        m._barras_ate=m._ultima_barra=0;m._barras_visiveis=False
+        m.tocador=Mock();m.alerta=Mock();m.barras=Mock()
+        return m,e
+
+    def test_sem_som_mantem_contagem_texto_e_barra(self):
+        for mute in (True,False):
+            m,e=self._motor_falso(mute)
+            with patch.object(at.time,'monotonic',return_value=7),patch.object(at,'tecla_apertada',return_value=False):
+                m._passo()
+            self.assertEqual(m.tocador.tocar.call_count,0 if mute else 1)
+            self.assertTrue(e.rodando)
+            self.assertEqual(m.alerta.mostrar.call_args.args[1],'#FF0000')
+            self.assertEqual(m.barras.atualizar.call_args.args[0][0][3],'#0000FF')
+            self.assertEqual(m.alerta.mostrar.call_args.args[2],0)
+
+    def test_aviso_fixo_so_some_com_o_atalho_completo_do_timer(self):
+        m,e=self._motor_falso()
+        with patch.object(at.time,'monotonic',return_value=7),patch.object(at,'tecla_apertada',return_value=False):
+            m._passo()
+        with patch.object(at.time,'monotonic',return_value=8),patch.object(at,'tecla_apertada',side_effect=lambda vk:vk==77):
+            m._passo()
+        m.alerta.esconder.assert_not_called()
+        with patch.object(at.time,'monotonic',return_value=8),patch.object(at,'tecla_apertada',side_effect=lambda vk:vk==75):
+            m._passo()
+        m.alerta.esconder.assert_not_called()
+        with patch.object(at.time,'monotonic',return_value=8),patch.object(at,'tecla_apertada',return_value=False):
+            m._passo()
+        with patch.object(at.time,'monotonic',return_value=8),patch.object(at,'tibia_em_foco',return_value=True),patch.object(at,'tecla_apertada',side_effect=lambda vk:vk in (75,at.VK_CONTROL)):
+            m._passo()
+        m.alerta.esconder.assert_called_once()
+        self.assertEqual(e.fim,18)
+
+    def test_texto_muda_cor_sem_reiniciar_pisca_ou_tempo_de_exibicao(self):
+        instance=overlay.Overlay.__new__(overlay.Overlay)
+        instance._progresso={'fracao':1,'duracao':10}
+        instance._progresso_ini=0;instance._cor=(0,230,60)
+        instance._texto='Aviso';instance._tamanho=34
+        instance._visual=visual.aparencia({'estilo':'simples'})
+        instance._largura_texto=800;instance._alpha=80
+        with patch.object(overlay,'_u32') as native,patch.object(overlay.time,'monotonic',return_value=5),patch.object(overlay.layered_image,'mostrar') as display:
+            instance._wndproc(1,overlay.WM_TIMER,3,0)
+            self.assertEqual(instance._cor,visual.cor_progresso(.5))
+            display.assert_called_once()
+            self.assertEqual(display.call_args.args[2],80)
+            native.SetTimer.assert_not_called()
+            native.KillTimer.assert_not_called()
 
 
 if __name__=='__main__':

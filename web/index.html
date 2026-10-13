@@ -966,17 +966,18 @@
           <div><label class="campo-label" for="aub-estilo">Formato da barra</label><select id="aub-estilo"><option value="classica">Clássica com borda</option><option value="arredondada">Arredondada</option><option value="minimalista">Minimalista</option><option value="glow">Com brilho</option></select></div>
           <div><label class="campo-label" for="aub-texto-estilo">Formato do nome e tempo</label><select id="aub-texto-estilo"><option value="contorno">Contorno</option><option value="glow">Brilho (glow)</option><option value="sombra">Sombra</option><option value="simples">Simples</option></select></div>
           <div><label class="campo-label" for="aub-familia">Fonte da barra</label><select id="aub-familia"><option>Verdana</option><option>Segoe UI</option><option>Tahoma</option><option>Arial</option></select></div>
-          <label class="check"><input type="checkbox" id="aub-cor-tempo"> Cor pelo tempo: verde → amarelo → vermelho</label>
+
         </div>
         <div class="campos" style="grid-template-columns:repeat(2,minmax(0,1fr))">
-          <div><label class="campo-label" for="aub-larg">Largura: <b id="aub-larg-v"></b></label><input type="range" id="aub-larg" min="80" max="1200" step="10"></div>
+          <div><label class="campo-label" for="aub-larg">Comprimento: <b id="aub-larg-v"></b></label><input type="range" id="aub-larg" min="80" max="1200" step="10"></div>
           <div><label class="campo-label" for="aub-esp">Espessura: <b id="aub-esp-v"></b></label><input type="range" id="aub-esp" min="4" max="48" step="1"></div>
 
 
         </div>
         <label class="check" style="margin-top:8px"><input type="checkbox" id="aub-nome"> Mostrar nome do timer na barra</label>
         <label class="check" style="margin-top:8px"><input type="checkbox" id="aub-tempo"> Mostrar tempo restante na barra</label>
-        </details><details class="au-section"><summary>Posição da barra · todos os timers</summary>
+        </details><details class="au-section"><summary>Posição e orientação · todos os timers</summary>
+        <div class="au-visual-options"><label class="campo-label" for="aub-orientacao">Orientação</label><select id="aub-orientacao"><option value="horizontal">Horizontal</option><option value="vertical">Vertical</option></select></div>
         <p class="dica">Posição em porcentagem da janela; o alerta e as barras têm posições independentes.</p>
         <div class="campos au-global-campos" style="margin-top:12px">          <div><label class="campo-label" for="aub-y">Barras: posição vertical: <b id="aub-y-v"></b></label><input type="range" id="aub-y" min="0" max="100" step="1"></div>          <div><label class="campo-label" for="aub-x">Barras: posição horizontal: <b id="aub-x-v"></b></label><input type="range" id="aub-x" min="0" max="100" step="1"></div>
 
@@ -2743,11 +2744,11 @@ function renderAudio() {
   atualizarEditorAudio();
   const meus = doPers(c.timers, MEUS.atual).slice().sort((a, b) => Number(b.ativo) - Number(a.ativo));   // os timers são do personagem em uso; os outros ficam escondidos e parados
   $('au-lista').innerHTML = htmlDonoDaLista(c.timers, MEUS.atual, 'os timers') + (meus.length ? meus.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
-      <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDurMs(t.duracao)}${t.antes ? ` · avisa ${fmtDurMs(t.antes)} antes` : ''} · 🔊 ${esc(nomeSom(t.som))} ${t.volume}%${t.alerta ? ' · 📢 alerta' : ''}${t.barra ? ' · ▬ barra' : ''}</div></div>
+      <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDurMs(t.duracao)}${t.antes ? ` · avisa ${fmtDurMs(t.antes)} antes` : ''} · ${t.sem_som ? '🔇 Sem som' : `🔊 ${esc(nomeSom(t.som))} ${t.volume}%`}${t.alerta ? ' · 📢 alerta' : ''}${t.barra ? ' · ▬ barra' : ''}</div></div>
       <span class="au-tecla" title="Tecla que começa o timer">${esc(AU.teclas[t.id] || '—')}</span>
       <div class="au-tempo"><span class="barra-el"><i style="width:0%"></i></span><b>${fmtDur(t.duracao)}</b></div>
       <div class="au-acoes"><label class="check" title="Ativo"><input type="checkbox" data-au-ativo="${t.id}" ${t.ativo ? 'checked' : ''}></label>
-        <button class="btn btn-sm" data-au-ouvir="${t.id}" title="Ouvir o som">▶</button>
+        <button class="btn btn-sm" data-au-ouvir="${t.id}" ${t.sem_som ? 'disabled' : ''} title="Ouvir o som">▶</button>
         <button class="btn btn-sm" data-au-editar="${t.id}">✎ Editar</button>
         <button class="btn btn-sm btn-danger" data-au-apagar="${t.id}" title="Apagar">✕</button></div></div>`).join('')
     : '<div class="card calmo"><div class="vazio">Nenhum timer para este personagem ainda. Clique em <b>+ Novo timer</b>.</div></div>')
@@ -2781,7 +2782,7 @@ window.audioEstado = (est) => { if (AU) { AU.estado = est; mostrarEstadoAudio(es
 
 function abrirFormAudio(id) {
   const base = id ? AU.cfg.timers.find((t) => t.id === id) : null;
-  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'padrao:Potion.mp3', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo', mensagem: '', fonte: 34, visual: {estilo: 'glow', familia: 'Segoe UI', intensidade: 22}, fixo: false, piscar: 0 }));
+  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'padrao:Potion.mp3', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo', mensagem: '', fonte: 34, visual: {estilo: 'simples', familia: 'Segoe UI', intensidade: 22, glow: false, sombra: false, borda: false}, fixo: false, piscar: 0 }));
   auEditando._teclaTexto = id ? AU.teclas[id] : '';
   desenharFormAudio();
   $('au-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2789,7 +2790,7 @@ function abrirFormAudio(id) {
 function desenharFormAudio() {
   const t = auEditando;
   atualizarEditorAudio();
-  if (!t) { $('au-form').innerHTML = ''; $('au-form-visual').innerHTML = ''; $('au-form-acoes').innerHTML = ''; $('au-form-bar').innerHTML = ''; $('au-form-cor').innerHTML = ''; atualizarPreviaAudio(); return; }
+  if (!t) { $('au-form').innerHTML = ''; $('au-form-visual').innerHTML = ''; $('au-form-acoes').innerHTML = ''; $('au-form-bar').innerHTML = ''; $('au-form-cor').innerHTML = ''; atualizarEditorAudio(); atualizarPreviaAudio(); return; }
   $('au-form').innerHTML = `<div class="card au-form" style="margin-top:16px">
     <h2 class="sub">${t.id ? 'Editar timer' : 'Novo timer'}</h2>
     <div class="campos">
@@ -2804,7 +2805,7 @@ function desenharFormAudio() {
       <div><label class="campo-label" for="auf-som">Som</label><div class="linha-pasta" style="margin:0">
         <select id="auf-som">${AU.sons.map((x) => `<option value="${esc(x.id)}" ${x.id === t.som ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select>
         <button class="btn btn-sm" id="auf-ouvir" title="Ouvir">▶</button></div>
-        <button class="btn btn-sm" id="auf-importar" style="margin-top:6px">🎵 Importar som</button></div>
+        <button class="btn btn-sm" id="auf-importar" style="margin-top:6px">🎵 Importar som</button><label class="check" style="margin-top:10px"><input type="checkbox" id="auf-sem-som" ${t.sem_som ? 'checked' : ''}> Sem aviso sonoro</label></div>
       <div><label class="campo-label" for="auf-vol">Volume do timer: <b id="auf-vol-val">${t.volume}%</b></label><input type="range" id="auf-vol" min="0" max="100" step="5" value="${t.volume}"></div>
       ${campoMs('auf-antes', 'Avisar antes de acabar', t.antes || 0)}
     </div>
@@ -2828,7 +2829,7 @@ function desenharFormAudio() {
       <div><label class="campo-label" for="auf-piscar">Piscar nos últimos segundos</label>
         <select id="auf-piscar">${[[0, 'Não pisca'], [1, 'Último 1 segundo'], [2, 'Últimos 2 segundos'], [3, 'Últimos 3 segundos'], [5, 'Últimos 5 segundos']]
           .map(([v, n2]) => `<option value="${v}" ${(t.piscar || 0) === v ? 'selected' : ''}>${n2}</option>`).join('')}</select>
-        <label class="check" style="margin-top:8px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Manter até a próxima tecla</label></div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Manter o aviso até renovar o aviso ${infoAudio('O aviso só é removido ao pressionar novamente o atalho configurado para este timer, com os mesmos modificadores.')}</label></div>
     </div>
   </div>`;
   $('au-form-acoes').innerHTML = `<div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>`;
@@ -2839,10 +2840,12 @@ function desenharFormAudio() {
     $('auf-antes-' + k).addEventListener('input', () => { t.antes = lerMs('auf-antes'); });
   });
   $('auf-som').addEventListener('change', () => { t.som = $('auf-som').value; });
+  const atualizarSom = () => {t.sem_som = $('auf-sem-som').checked; ['auf-som','auf-ouvir','auf-vol','auf-importar'].forEach(id => $(id).disabled = t.sem_som);};
+  $('auf-sem-som').addEventListener('change', atualizarSom);
+  atualizarSom();
   $('auf-alerta').addEventListener('change', () => { t.alerta = $('auf-alerta').checked; });
   $('auf-barra').addEventListener('change', () => { t.barra = $('auf-barra').checked; });
-  $('auf-cor').addEventListener('input', () => { t.cor = $('auf-cor').value.toUpperCase(); });
-  document.querySelectorAll('[data-auf-cor]').forEach((b) => b.addEventListener('click', () => { t.cor = b.dataset.aufCor; $('auf-cor').value = corHex(t.cor); }));
+
   $('auf-msg').addEventListener('input', () => { t.mensagem = $('auf-msg').value; });
   $('auf-fonte').addEventListener('input', () => { t.fonte = +$('auf-fonte').value; $('auf-fonte-v').textContent = t.fonte; });
   $('auf-fixo').addEventListener('change', () => { t.fixo = $('auf-fixo').checked; });
@@ -2869,11 +2872,12 @@ function desenharFormAudio() {
     if (!r.ok) { toast(r.erro, true); return; }
     AU.sons = r.sons; t.som = r.som; desenharFormAudio(); toast('Som adicionado!');
   });
-  $('auf-cancelar').addEventListener('click', () => { auEditando = null; desenharFormAudio(); });
+  $('auf-cancelar').addEventListener('click', async () => { await pararTesteVivo(); auEditando = null; desenharFormAudio(); });
   $('auf-salvar').addEventListener('click', async () => {
     if (!t.tecla || !t.tecla.vk) { toast('Grave a tecla do timer.', true); return; }
     if (!(lerMs('auf-dur') >= 0.1)) { toast('Coloque a duração do timer (mínimo 100 ms).', true); return; }
     if (t.antes >= t.duracao) { toast('O aviso tem que ser antes do fim: menor que a duração.', true); return; }
+    await pararTesteVivo();
     const limpo = { ...t }; delete limpo._teclaTexto;
     const i = AU.cfg.timers.findIndex((x) => x.id && x.id === t.id);
     if (i >= 0) AU.cfg.timers[i] = limpo;
@@ -2895,7 +2899,7 @@ function mostrarCfgBarra() {
   $('aub-y').value = b.y; $('aub-y-v').textContent = Math.round(b.y) + '%';
   $('aub-nome').checked = !!b.nome; $('aub-tempo').checked = b.tempo == null ? !!b.nome : !!b.tempo;
   $('aub-estilo').value = b.estilo || 'classica'; $('aub-texto-estilo').value = b.texto_estilo || 'contorno';
-  $('aub-familia').value = b.familia || 'Verdana'; $('aub-cor-tempo').checked = !!b.cor_tempo;
+  $('aub-familia').value = b.familia || 'Verdana'; $('aub-orientacao').value = b.orientacao || 'horizontal';
   atualizarPreviaAudio();
   const a = AU.cfg.alerta;
   $('aua-x').value = a.x; $('aua-x-v').textContent = Math.round(a.x) + '%';
@@ -2913,9 +2917,9 @@ function mudouAlertaPos() {
 function testarMsg(t, vivo) {
   const antes = Math.min(t.antes || 0, t.duracao || 60);
   const auto = antes ? `${t.nome || 'Poção'} acaba em ${antes}s` : `${t.nome || 'Poção'} acabou!`;
-  api.audio_testar_alerta(t.cor || 'amarelo', (t.mensagem || '').trim() || auto, t.fonte || 34, AU.cfg.alerta, vivo ? 0 : 4, !!t.piscar, t.visual);
+  api.audio_testar_alerta(t.texto_cor_tempo ? corProgressoAudio(1) : (t.cor_texto || t.cor || 'amarelo'), (t.mensagem || '').trim() || auto, t.fonte || 34, AU.cfg.alerta, vivo ? 0 : 4, !!t.piscar, t.visual, t.texto_cor_tempo ? {fracao:1,duracao:vivo ? 6 : 4,loop:!!vivo} : null);
 }
-function testarBarra(t, vivo) { api.audio_testar_barras(AU.cfg.barra, t.nome || 'Timer', t.cor || 'amarelo', !!vivo); }
+function testarBarra(t, vivo) { api.audio_testar_barras(AU.cfg.barra, t.nome || 'Timer', t.cor_barra || t.cor || 'amarelo', !!vivo, t.barra_cor_tempo ?? AU.cfg.barra.cor_tempo); }
 
 // "Testar alerta" liga/desliga: enquanto ligado, mensagem e barra ficam na tela e mudam junto com a configuração
 let auVivo = false, tVivo = null;
@@ -2935,9 +2939,9 @@ function atualizarTesteVivo() {
 }
 function agendarTesteVivo() { if (auVivo) { clearTimeout(tVivo); tVivo = setTimeout(atualizarTesteVivo, 40); } }
 function pararTesteVivo() {
-  if (!auVivo) return;
-  auVivo = false; clearTimeout(tVivo); api.audio_parar_teste();
+  auVivo = false; clearTimeout(tVivo); const parada = api.audio_parar_teste();
   const b = $('au-alerta-testar'); b.classList.remove('btn-primary'); b.textContent = '👁 Testar alerta';
+  return parada;
 }
 $('au-alerta-testar').addEventListener('click', () => {
   if (auVivo) { pararTesteVivo(); return; }
@@ -2967,11 +2971,12 @@ $('au-tv').addEventListener('click', async () => {
     ${r.perfis.length ? r.perfis.map((pf) => `<div class="pers-item"><div class="info"><b>${esc(pf.nome)}</b><div class="dica">${pf.timers} timer(s)</div></div>
       <button class="btn btn-sm btn-primary" data-tv="${esc(pf.arquivo)}">Importar</button></div>`).join('') : '<div class="dica">Nenhum perfil com timers.</div>'}
     ${r.instalado ? '<div class="acoes" style="margin-top:10px"><button class="btn btn-sm" id="au-tv-sons">🎵 Importar só os sons</button></div>' : ''}</div>`;
-  $('au-tv-fechar').addEventListener('click', () => { $('au-form').innerHTML = ''; });
+  atualizarEditorAudio();
+  $('au-tv-fechar').addEventListener('click', () => { $('au-form').innerHTML = ''; atualizarEditorAudio(); });
   document.querySelectorAll('[data-tv]').forEach((b) => b.addEventListener('click', async () => {
     const x = await api.audio_tv_importar(b.dataset.tv);
     if (!x.ok) { toast(x.erro, true); return; }
-    AU = x; renderAudio(); $('au-form').innerHTML = '';
+    AU = x; renderAudio(); $('au-form').innerHTML = ''; atualizarEditorAudio();
     toast(`${x.timers} timer(s) importado(s)${x.repetidos ? `, ${x.repetidos} já existiam` : ''}; ${x.sons_novos} som(ns) novo(s).`);
   }));
   if ($('au-tv-sons')) $('au-tv-sons').addEventListener('click', async () => {
@@ -2984,13 +2989,13 @@ function mudouBarra() {
   const b = AU.cfg.barra;
   b.largura = +$('aub-larg').value; b.espessura = +$('aub-esp').value;
   b.x = +$('aub-x').value; b.y = +$('aub-y').value; b.nome = $('aub-nome').checked; b.tempo = $('aub-tempo').checked;
-  b.estilo = $('aub-estilo').value; b.texto_estilo = $('aub-texto-estilo').value; b.familia = $('aub-familia').value; b.cor_tempo = $('aub-cor-tempo').checked;
+  b.estilo = $('aub-estilo').value; b.texto_estilo = $('aub-texto-estilo').value; b.familia = $('aub-familia').value; b.orientacao = $('aub-orientacao').value;
   mostrarCfgBarra();
   if (!auVivo) api.audio_testar_barras(b);   // mostra o exemplo na hora, em cima do Tibia (no teste ligado, ele mesmo atualiza)
   clearTimeout(tBarra); tBarra = setTimeout(salvarAudio, 600);
 }
 ['aub-larg', 'aub-esp', 'aub-x', 'aub-y'].forEach((id) => $(id).addEventListener('input', mudouBarra));
-['aub-nome','aub-tempo','aub-estilo','aub-texto-estilo','aub-familia','aub-cor-tempo'].forEach(id => $(id).addEventListener('change', mudouBarra));
+['aub-nome','aub-tempo','aub-estilo','aub-texto-estilo','aub-familia','aub-orientacao'].forEach(id => $(id).addEventListener('change', mudouBarra));
 
 $('au-novo').addEventListener('click', () => abrirFormAudio(null));
 $('au-ligado').addEventListener('click', () => { AU.cfg.ligado = !AU.cfg.ligado; salvarAudio(); });
