@@ -28,6 +28,16 @@ class TestPlanejador(unittest.TestCase):
   self.assertEqual(p.calcular([dict(peso=1,ficha=f)])['elementos'],p.calcular([dict(peso=100,ficha=f)])['elementos'])
 
 class TestImportacao(unittest.TestCase):
+ def test_mesma_hunt_completa_e_dano_colado_junto(self):
+  names=['Draken Warmaster','Lizard High Guard','Draken Spellweaver','Lizard Legionnaire','Lizard Dragon Priest','Lizard Zaogun']
+  text='XP Gain: 123\nKilled Monsters:\n  126x draken warmasters\n  104x lizard high guards\n  86x draken spellweavers\n  47x lizard legionnaires\n  31x lizard dragon priests\n  14x lizard zaoguns\n  5x lizard magistratus\n  2x lizard noble\nLooted Items:\n  100x gold coins\nReceived Damage\nTotal: 50,178\nMax-DPS: 2,043\nDamage Types:\nPhysical 28,752 (57.3%)\nFire 8,781 (17.5%)\nEarth 7,175 (14.3%)\nEnergy 3,864 (7.7%)\nLife Drain 1,606 (3.2%)'
+  with patch.object(p,'catalogo_visual',return_value={'lista':[{'name':n} for n in names]}):
+   r=p.importar_texto(text)
+  self.assertEqual((r['total'],r['total_log']),(408,415))
+  self.assertEqual([c['peso'] for c in r['selecao']],[126,104,86,47,31,14])
+  self.assertTrue(r['real'])
+  self.assertTrue(r['dano_texto'].startswith('Received Damage'))
+  self.assertIn('lizard magistratus',r['avisos'][0])
  def test_abates_pesam_e_loot_nao_entra(self):
   text="XP Gain: 123\nKilled Monsters:\n  200x flimsy lost souls\n  50x freakish lost souls\n  10x flimsy lost soul\nLooted Items:\n  999x gold coins"
   with patch.object(p,'catalogo_visual',return_value={'lista':[{'name':'Flimsy Lost Soul'},{'name':'Freakish Lost Soul'}]}):
@@ -47,6 +57,19 @@ class TestImportacao(unittest.TestCase):
   self.assertEqual(f['resist'],{'fire':110,'earth':0})
 
 class TestRevisaoDano(unittest.TestCase):
+ def test_dano_medido_e_pesos_seguem_o_hunt_analyser(self):
+  import damage_core
+  rows=[{'peso':126,'ficha':{'nome':'Draken Warmaster','ataques':[dict(nome='Fire',elemento='fire',min=0,max=600)],'resist':{'ice':100}}},
+        {'peso':86,'ficha':{'nome':'Draken Spellweaver','ataques':[dict(nome='Melee',elemento='physical',min=0,max=350)],'resist':{'ice':120}}}]
+  dano=p.parse_damage_input('Received Damage\nTotal: 50,178\nDamage Types:\nPhysical 28,752 (57.3%)\nFire 8,781 (17.5%)\nEarth 7,175 (14.3%)\nEnergy 3,864 (7.7%)\nLife Drain 1,606 (3.2%)\nDamage Sources:\ndraken warmasters 10,000 (20%)\ndraken spellweavers 40,178 (80%)')
+  expected=damage_core.analisar([{'nome':r['ficha']['nome'],'kills':r['peso'],'ficha':r['ficha']} for r in rows],dano,p.monstros.singularizar)
+  result=p.calcular(rows,dano)
+  for e in expected['elementos']:
+   actual=next(v for v in result['elementos'] if v['elemento']==e['elemento'])
+   self.assertAlmostEqual(actual['pct'],e['parte']*100)
+  self.assertAlmostEqual(result['resistencias'][0]['modificador'],sum(r['ficha']['resist']['ice']*e['peso'] for r,e in zip(rows,expected['pesos'])))
+  self.assertEqual(result['ponderacao_resistencias'],'abates + Damage Sources')
+  self.assertAlmostEqual(result['criaturas'][0]['participacao'],126/212*100)
  def _rows(self):
   return [{'peso':1,'ficha':{'nome':'X','ataques':[dict(nome='Melee',elemento='physical',min=0,max=700),dict(nome='Death',elemento='death',min=400,max=600)],'resist':{'energy':115,'earth':75,'physical':100}}}]
  def test_real_damage_overrides_wiki_distribution_without_changing_peaks(self):

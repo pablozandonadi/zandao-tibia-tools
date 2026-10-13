@@ -500,6 +500,25 @@ class API:
     def criaturas_importar(self, texto):
         return planejador.importar_texto(texto)
 
+    def criaturas_hunts(self):
+        """Só leitura: lista logs salvos com composição para comparar a mesma sessão."""
+        return [{'id':h['id'], 'nome':h.get('nome') or 'Hunt sem nome', 'personagem':h.get('personagem') or '',
+                 'data':h.get('data_hunt') or '', 'tem_dano':bool((h.get('entrada') or {}).get('dano'))}
+                for h in historico.ordenar(historico.carregar()) if (h.get('entrada') or {}).get('solo')]
+
+    def criaturas_importar_hunt(self, id_):
+        h = historico.obter(id_)
+        if not h:
+            return {'erro':'Hunt não encontrada no histórico.'}
+        entrada = h.get('entrada') or {}
+        r = planejador.importar_texto(entrada.get('solo') or '')
+        if 'erro' not in r:
+            dano = entrada.get('dano') or ''
+            parsed = damage_core.parse_damage_input(dano)
+            real = any(v['valor'] > 0 for e,v in parsed['tipos'].items() if e != 'manadrain')
+            r.update(log_texto=entrada.get('solo') or '', dano_texto=dano if real else '', real=real, hunt_nome=h.get('nome') or 'Hunt salva')
+        return r
+
     def criaturas_analisar(self, selecao, atualizar=False, dano_texto=""):
         return planejador.analisar(selecao, atualizar, dano_texto)
 

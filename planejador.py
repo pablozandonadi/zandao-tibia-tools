@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlencode, quote
 import monstros
 import creature_sources
+import damage_core
 from damage_core import ROTULO, parse_damage_input
 
 API = 'https://www.tibiawiki.com.br/api.php'
@@ -148,22 +149,26 @@ def calcular(rows, dano=None):
             for e in ELEMENTOS:
                 if e != 'manadrain': shares[e] += weight*local[e]/hp_sum
         creatures.append(dict(f, peso=row['peso'], participacao=weight*100))
+    referencia = damage_core.analisar([{'nome':c['nome'], 'kills':c['peso'], 'ficha':c} for c in creatures], dano, monstros.singularizar)
+    pesos_ofensivos = {monstros.singularizar(v['nome']):v['peso'] for v in (referencia or {}).get('pesos', [])}
+    for c in creatures:
+        c['peso_ofensivo'] = pesos_ofensivos.get(monstros.singularizar(c['nome']), c['participacao']/100)*100
     resistencias = []
     for el in ELEMENTOS:
         known = [c for c in creatures if el in c.get('resist', {})]
-        covered = sum(c['participacao'] for c in known)
+        covered = sum(c['peso_ofensivo'] for c in known)
         if covered:
-            modifier = sum(c['resist'][el]*c['participacao'] for c in known)/covered
+            modifier = sum(c['resist'][el]*c['peso_ofensivo'] for c in known)/covered
             resistencias.append(dict(elemento=el, modificador=modifier, cobertura=covered))
     known_share = sum(shares.values())
     measured = (dano or {}).get('tipos') or {}
     real = any(e != 'manadrain' and v['valor'] > 0 for e,v in measured.items())
-    hp_measured = sum(v['pct'] for e,v in measured.items() if e != 'manadrain')
+    partes_reais = {e['elemento']:e['parte']*100 for e in (referencia or {}).get('elementos', [])}
     elements = []
     for e in ELEMENTOS:
         estimated_pct = shares[e]/known_share*100 if known_share and e != 'manadrain' else (None if e == 'manadrain' else 0)
         actual = measured.get(e, {})
-        pct = ((actual.get('pct', 0)/hp_measured*100) if hp_measured and e != 'manadrain' else None) if real else estimated_pct
+        pct = (partes_reais.get(e, 0) if e != 'manadrain' else None) if real else estimated_pct
         elements.append(dict(elemento=e, rotulo=ROTULO[e], media=values[e], pct=pct,
                              estimativa_pct=estimated_pct, valor=actual.get('valor', 0)))
     elements.sort(key=lambda e: -(e['valor'] if real else e['media']))
@@ -172,7 +177,9 @@ def calcular(rows, dano=None):
                 picos=sorted(peaks,key=lambda a:a['max'],reverse=True),
                 cobertura=sum(c['participacao'] for c in creatures if c['ataques']),
                 real=real, origem='Received Damage' if real else 'Estimativa da Wiki',
-                dano_total=(dano or {}).get('total'), avisos=[])
+                dano_total=(dano or {}).get('total'), max_dps=(dano or {}).get('max_dps'),
+                ponderacao_resistencias='abates + Damage Sources' if any(v['fonte']=='kills + log' for v in (referencia or {}).get('pesos', [])) else 'abates / pesos informados',
+                avisos=['Sem Received Damage: este perfil da Wiki não deve ser comparado com a distribuição real do Hunt Analyser.'] if not real else [])
 
 
 def analisar(selection, atualizar=False, dano_texto=""):
@@ -215,8 +222,12 @@ def importar_texto(texto):
     from solo_hunt_core import parse_solo_session
     from loot_core import ParseError
     if not isinstance(texto, str) or len(texto) > 500000: return {'erro': 'Texto inválido ou muito grande.'}
+    inicio_dano = re.search(r'(?im)^\s*(?:Received Damage|Damage Input)\s*:?\s*$', texto)
+    texto_dano = texto[inicio_dano.start():] if inicio_dano else texto
+    dano = parse_damage_input(texto_dano)
+    tem_dano = any(v['valor'] > 0 for e,v in dano['tipos'].items() if e != 'manadrain')
     try:
-        session = parse_solo_session(texto)
+        session = parse_solo_session(texto[:inicio_dano.start()] if inicio_dano else texto)
     except (ValueError, ParseError) as e: return {'erro': str(e)}
     if not session.killed_monsters:
         return {'erro': 'Não encontrei Killed Monsters. Cole o Hunting Analyser, com a lista de criaturas mortas.'}
@@ -231,4 +242,6 @@ def importar_texto(texto):
     if not counts: return {'erro': 'Não encontrei abates de criaturas com GIF disponível. Confira os nomes ou escolha criaturas na busca.'}
     if len(counts) > 30: return {'erro': 'Este log tem mais de 30 criaturas diferentes. Reduza a lista para analisar todas as selecionadas.'}
     return {'selecao': [{'nome':n, 'peso':v} for n,v in sorted(counts.items(), key=lambda x:x[1], reverse=True)],
-            'total':sum(counts.values()), 'avisos':(['Criaturas sem GIF disponível foram removidas da composição: '+', '.join(unknown)] if unknown else [])}
+            'total':sum(counts.values()), 'total_log':sum(k.count for k in session.killed_monsters if k.count > 0),
+            'dano_texto':texto_dano if tem_dano else '', 'real':tem_dano,
+            'avisos':(['Criaturas sem GIF disponível foram removidas da composição: '+', '.join(unknown)] if unknown else [])}
