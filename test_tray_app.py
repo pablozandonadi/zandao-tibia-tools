@@ -33,3 +33,23 @@ class TestTray(unittest.TestCase):
     def test_failure_never_strands_hidden_window(self):
         window,tray=self.make();tray.error=RuntimeError('tray unavailable')
         self.assertTrue(tray.on_closing());self.assertFalse(window.hidden)
+
+    def test_late_tray_failure_restores_window(self):
+        import threading
+        window,tray=self.make()
+        done=threading.Event()
+        def failed_run(setup):
+            setup(tray.icon)
+            window.hide()
+            raise RuntimeError('tray crashed')
+        tray.icon.run=failed_run
+        original_restore=window.restore
+        def restored():
+            original_restore()
+            done.set()
+        window.restore=restored
+        tray.start()
+        self.assertTrue(done.wait(2))
+        self.assertFalse(window.hidden)
+        self.assertIsNotNone(tray.error)
+        self.assertFalse(tray.ready.is_set())

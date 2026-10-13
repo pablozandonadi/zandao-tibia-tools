@@ -22,6 +22,15 @@ class TrayController:
                 self.icon.run(setup=lambda icon: self.ready.set())
             except Exception as exc:
                 self.error = exc
+            finally:
+                self.ready.clear()
+                if not self.exiting:
+                    self.error = self.error or RuntimeError("Tray loop stopped")
+                    try:
+                        self.window.show()
+                        self.window.restore()
+                    except Exception:
+                        pass
         threading.Thread(target=run, name='tibia-tudo-tray', daemon=True).start()
     def on_closing(self):
         if self.exiting:
