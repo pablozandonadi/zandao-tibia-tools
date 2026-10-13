@@ -1,3 +1,20 @@
+// Ajuda compacta: aparece ao passar o mouse ou focar o ícone.
+function infoAudio(texto) {
+  return `<span class="au-help" tabindex="0" aria-label="${esc(texto)}">i<span class="au-tooltip" role="tooltip">${esc(texto)}</span></span>`;
+}
+function compactarAjudaAudio(root) {
+  root.querySelectorAll('.dica, .au-preview-note').forEach(note => {
+    const texto = note.textContent.trim();
+    if (!texto) return;
+    const help = document.createElement('span');
+    help.innerHTML = infoAudio(texto);
+    const container = note.parentElement;
+    const heading = container.querySelector(':scope > h3, :scope > h4, :scope > summary, :scope > .h-titulo h2, :scope > .linha-pasta');
+    (heading || container).append(help.firstElementChild);
+    note.remove();
+  });
+}
+
 // Organiza os controles existentes sem substituir suas ações e estados.
 function organizarFormAudio(t) {
   t.visual ||= {estilo: 'contorno', familia: 'Verdana', intensidade: 22};
@@ -10,12 +27,13 @@ function organizarFormAudio(t) {
     const heading = document.createElement(collapsible ? 'summary' : 'h3');
     heading.textContent = title; el.append(heading, ...nodes); return el;
   };
-  card.append(sec('1. Ativação e contagem', children.slice(1,4)), sec('2. Som e momento do aviso', [children[4]], true));
+  card.append(sec('1. Ativação e contagem', children.slice(1,4)), sec('2. Som e aviso', [children[4]]));
   const visual = document.querySelector('#au-form-visual > .au-form');
+  visual.querySelector(':scope > .dica')?.remove();
   visual.style.borderBottom = 'none';
   const groups = visual.querySelectorAll(':scope > .campos');
   const [alert, bar, color] = [...groups[0].children];
-  const text = sec('Aviso de texto — mensagem e aparência deste timer', [alert, groups[1]], true);
+  const text = sec('Mensagem e estilo', [alert, groups[1]], true);
   text.id = 'au-aviso-editor';
   text.insertAdjacentHTML('beforeend', `<div class="campos au-visual-options">
     <div><label class="campo-label" for="auf-estilo">Formato da escrita</label><select id="auf-estilo">${[['glow','Brilho (glow)'],['contorno','Contorno preto'],['sombra','Sombra'],['simples','Simples']].map(([v,n])=>`<option value="${v}">${n}</option>`).join('')}</select></div>
@@ -24,8 +42,8 @@ function organizarFormAudio(t) {
   </div>`);
   groups[0].remove();
   visual.append(text);
-  $('au-form-bar').replaceChildren(sec('Ativação da barra · deste timer', [bar]));
-  $('au-form-cor').replaceChildren(sec('Cor deste timer · usada nos dois avisos', [color]));
+  $('au-form-bar').replaceChildren(sec('Barra deste timer', [bar]));
+  $('au-form-cor').replaceChildren(sec('Cor do timer', [color]));
   $('auf-estilo').value=t.visual.estilo; $('auf-familia').value=t.visual.familia;
   function update() {
     t.visual={estilo:$('auf-estilo').value,familia:$('auf-familia').value,intensidade:+$('auf-intensidade').value};
@@ -35,6 +53,8 @@ function organizarFormAudio(t) {
   }
   ['auf-estilo','auf-familia','auf-intensidade'].forEach(id=>$(id).addEventListener('input',update));
   update();
+  compactarAjudaAudio(card);
+  compactarAjudaAudio($('au-visual'));
 }
 
 function atualizarPreviaAudio() {
@@ -46,7 +66,7 @@ function atualizarPreviaAudio() {
   const shadow=(style,color,radius=22)=>({glow:`0 0 ${radius/3}px ${color},0 0 ${radius}px ${color}`,contorno:'-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000',sombra:'3px 3px 3px #000',simples:'none'}[style] || 'none');
   const msg=(t.mensagem || '').trim() || (t.antes ? `${t.nome || 'Timer'} acaba em ${Math.min(t.antes,t.duracao)}s` : `${t.nome || 'Timer'} acabou!`);
   el.innerHTML=`<span class="au-preview-caption">Prévia do aviso de texto</span>
-    <div class="au-preview-text" style="color:${cor};font-family:'${v.familia}';font-size:${Math.min(48,t.fonte || 34)}px;text-shadow:${shadow(v.estilo,cor,v.intensidade)};opacity:${t.alerta?1:.3}">${esc(msg)}</div>`;
+    <div class="au-preview-text" style="color:${cor};font-family:'${v.familia}';font-size:${Math.min(28,t.fonte || 34)}px;text-shadow:${shadow(v.estilo,cor,v.intensidade)};opacity:${t.alerta?1:.3}">${esc(msg)}</div>`;
   const tempo=b.tempo == null ? b.nome : b.tempo;
   $('au-bar-preview').innerHTML=`<span class="au-preview-caption">Prévia da barra de contagem</span>
     <div style="opacity:${t.barra?1:.3};margin-top:30px">
@@ -57,24 +77,29 @@ function atualizarPreviaAudio() {
     </div>`;
 }
 
-function abrirAvisoAudio(id) {
-  if (auEditando && (auEditando.id || null)!==id && !confirm('Trocar de timer? As alterações ainda não salvas do timer aberto serão descartadas.')) {
-    atualizarEscolhaAviso(); return;
-  }
-  if (!auEditando || (auEditando.id || null)!==id) abrirFormAudio(id);
-  const editor=document.getElementById('au-aviso-editor');
-  if (editor) {
-    editor.open=true;
-    editor.scrollIntoView({behavior:'smooth',block:'center'});
-    document.getElementById('auf-msg').focus({preventScroll:true});
-  }
+function atualizarEditorAudio() {
+  const editando = Boolean(auEditando);
+  document.querySelector('.au-editor-layout').hidden = !editando;
+  $('au-visual').hidden = !editando;
 }
 
-function atualizarEscolhaAviso() {
-  if (!AU) return;
-  const escolha=document.getElementById('au-aviso-timer');
-  if (escolha) {
-    escolha.innerHTML='<option value="">Escolha um timer…</option>'+AU.cfg.timers.map(t=>`<option value="${esc(t.id)}">${esc(t.nome)}${t.personagem ? ' · '+esc(t.personagem) : ''}</option>`).join('');
-    escolha.value=auEditando?.id || '';
-  }
-}
+document.addEventListener('DOMContentLoaded', () => {
+  const page = $('page-audio');
+  compactarAjudaAudio(page);
+  atualizarEditorAudio();
+  const posicionarAjuda = event => {
+    const help = event.target.closest('.au-help');
+    if (!help) return;
+    const tip = help.querySelector('.au-tooltip');
+    const area = document.querySelector('.content').getBoundingClientRect();
+    const rect = help.getBoundingClientRect();
+    const width = Math.min(240, area.width - 24);
+    tip.style.width = width + 'px';
+    tip.style.maxWidth = 'none';
+    tip.style.left = (Math.max(area.left + 12, Math.min(rect.left, area.right - width - 12)) - rect.left) + 'px';
+    tip.style.right = 'auto';
+    tip.style.top = rect.bottom + tip.offsetHeight + 8 > area.bottom ? (-tip.offsetHeight - 8) + 'px' : 'calc(100% + 8px)';
+  };
+  page.addEventListener('mouseover', posicionarAjuda);
+  page.addEventListener('focusin', posicionarAjuda);
+});

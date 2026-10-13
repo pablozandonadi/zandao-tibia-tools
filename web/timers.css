@@ -1,5 +1,5 @@
-#page-audio .au-editor-layout {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:20px;align-items:start;margin-top:18px}
-#page-audio .au-editor-layout .card {margin-top:0!important;box-shadow:none;border:1px solid #414956;border-radius:14px}
+#page-audio .au-editor-layout {display:block;margin-top:18px}
+#page-audio .au-editor-layout .card,#page-audio .au-timers-list .card {margin-top:0!important;box-shadow:none;border:1px solid #414956;border-radius:14px}
 #page-audio .au-form .campos {grid-template-columns:repeat(2,minmax(0,1fr))}
 #page-audio input[type=number] {background:var(--surface-2);color:var(--ink);border:1px solid #505866;border-radius:7px;padding:8px}
 #page-audio .au-modos {grid-template-columns:1fr}
@@ -66,3 +66,22 @@
   #page-audio .au-tecla {justify-self:start}
 }
 @media(max-width:760px) {.content {padding:14px 12px}}
+
+/* Fluxo vertical: lista, ativação, som e aparência do mesmo timer. */
+#page-audio [hidden] {display:none!important}
+#page-audio .au-timers-list {margin-top:20px;container-type:inline-size;container-name:timer-list}
+#page-audio .au-timers-list > .sub {margin-bottom:12px}
+#page-audio #au-visual {margin-top:18px!important}
+#page-audio .au-modo {display:flex;align-items:center;justify-content:space-between;gap:12px}
+#page-audio .au-modo b {margin:0}
+#page-audio .au-help {position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;width:18px;height:18px;margin-left:8px;border:1px solid var(--ink-dim);border-radius:50%;font:700 12px var(--font-body);color:var(--ink-dim);cursor:help;text-transform:none;letter-spacing:normal;vertical-align:middle}
+#page-audio .au-help:hover,#page-audio .au-help:focus {color:var(--accent);border-color:var(--accent);outline:2px solid transparent}
+#page-audio .au-tooltip {position:absolute;right:0;top:calc(100% + 8px);z-index:100;width:240px;max-width:70vw;padding:10px 12px;border:1px solid #505866;border-radius:8px;background:var(--surface-2);color:var(--ink);box-shadow:0 6px 20px #0008;font:400 12px/1.5 var(--font-body);white-space:normal;text-align:left;opacity:0;visibility:hidden;pointer-events:none}
+#page-audio .au-help:hover .au-tooltip,#page-audio .au-help:focus .au-tooltip {opacity:1;visibility:visible}
+#page-audio .au-help:focus-visible {outline-color:var(--accent);outline-offset:3px}
+#page-audio .au-preview {min-height:110px;padding:24px 16px 14px}
+#page-audio .au-preview-text {margin:14px 0}
+#page-audio .au-preview-caption {text-transform:none;letter-spacing:0}
+#page-audio .au-alert-section > h3 {display:flex;align-items:center}
+
+#page-audio .au-help:hover .au-tooltip,#page-audio .au-help:focus .au-tooltip {pointer-events:auto}

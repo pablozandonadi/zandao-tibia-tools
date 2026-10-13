@@ -946,19 +946,14 @@
         <p class="dica" style="margin:12px 0 0;line-height:1.5">Aperte a tecla do timer no Tibia e ele começa a contar; quando acaba, toca o som. Funciona com o app minimizado.
           O app só confere as teclas que você cadastrou aqui: não grava o que você digita e não manda tecla nenhuma para o jogo.</p>
       </div>
-      <div class="au-editor-layout"><div class="au-editor-main"><div id="au-form"></div><div id="au-lista" style="margin-top:16px"></div></div>
+      <div class="au-timers-list"><h2 class="sub">Seus timers</h2><div id="au-lista"></div></div>
+      <div class="au-editor-layout"><div class="au-editor-main"><div id="au-form"></div></div>
       <div class="card calmo" style="margin-top:16px" id="au-visual">
-        <div class="h-titulo" style="margin-bottom:8px"><h2 class="sub" style="margin:0">Aparência no Tibia</h2>
+        <div class="h-titulo" style="margin-bottom:8px"><h2 class="sub" style="margin:0">3. Aparência no Tibia</h2>
           <button class="btn btn-sm" id="au-alerta-testar" title="Mostra a mensagem e a barra do jeito que estão configuradas">👁 Testar alerta</button></div>
         <section class="au-alert-section" id="au-text-section"><h3>Aviso de texto na tela</h3>
         <div id="au-text-preview" class="au-preview"></div>
         <p class="au-preview-note">Mensagem independente da barra. Você pode ligar um dos avisos ou os dois.</p>
-        <div class="au-section au-aviso-escolha">
-          <h4>Escolha o timer para editar</h4>
-          <p class="dica">Este aviso é independente do nome e do tempo mostrados na barra. Escolha um timer para editar a mensagem, fonte, tamanho, brilho e comportamento do aviso.</p>
-          <label class="campo-label" for="au-aviso-timer">Editar o aviso deste timer</label>
-          <div class="linha-pasta"><select id="au-aviso-timer"><option value="">Escolha um timer…</option></select><button class="btn btn-sm" id="au-aviso-novo">+ Novo timer</button></div>
-        </div>
         <div id="au-form-visual"></div>
         <div class="au-section"><h4>Posição do aviso de texto · todos os timers</h4><div id="au-text-position" class="au-global-campos">          <div><label class="campo-label" for="aua-y">Alerta: posição vertical <b id="aua-y-v"></b></label><input type="range" id="aua-y" min="0" max="100" step="1"></div>          <div><label class="campo-label" for="aua-x">Alerta: posição horizontal <b id="aua-x-v"></b></label><input type="range" id="aua-x" min="0" max="100" step="1"></div></div></div>
         </section>
@@ -2745,8 +2740,8 @@ function renderAudio() {
   $('au-vol').value = c.volume; $('au-vol-val').textContent = c.volume + '%';
   $('au-sotibia').checked = !!c.so_tibia;
   mostrarCfgBarra();
-  atualizarEscolhaAviso();
-  const meus = doPers(c.timers, MEUS.atual);   // os timers são do personagem em uso; os outros ficam escondidos e parados
+  atualizarEditorAudio();
+  const meus = doPers(c.timers, MEUS.atual).slice().sort((a, b) => Number(b.ativo) - Number(a.ativo));   // os timers são do personagem em uso; os outros ficam escondidos e parados
   $('au-lista').innerHTML = htmlDonoDaLista(c.timers, MEUS.atual, 'os timers') + (meus.length ? meus.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
       <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDurMs(t.duracao)}${t.antes ? ` · avisa ${fmtDurMs(t.antes)} antes` : ''} · 🔊 ${esc(nomeSom(t.som))} ${t.volume}%${t.alerta ? ' · 📢 alerta' : ''}${t.barra ? ' · ▬ barra' : ''}</div></div>
       <span class="au-tecla" title="Tecla que começa o timer">${esc(AU.teclas[t.id] || '—')}</span>
@@ -2793,23 +2788,23 @@ function abrirFormAudio(id) {
 }
 function desenharFormAudio() {
   const t = auEditando;
-  atualizarEscolhaAviso();
+  atualizarEditorAudio();
   if (!t) { $('au-form').innerHTML = ''; $('au-form-visual').innerHTML = ''; $('au-form-acoes').innerHTML = ''; $('au-form-bar').innerHTML = ''; $('au-form-cor').innerHTML = ''; atualizarPreviaAudio(); return; }
   $('au-form').innerHTML = `<div class="card au-form" style="margin-top:16px">
     <h2 class="sub">${t.id ? 'Editar timer' : 'Novo timer'}</h2>
     <div class="campos">
-      <div><label class="campo-label" for="auf-nome">Nome</label><input type="text" id="auf-nome" value="${esc(t.nome)}" placeholder="ex.: Poção, Utito, Food"></div>
+      <div><label class="campo-label" for="auf-nome">Nome</label><input type="text" id="auf-nome" value="${esc(t.nome)}" placeholder="Nome do timer"></div>
       <div><label class="campo-label">Tecla</label><div class="linha-pasta" style="margin:0">
         <span class="au-tecla" id="auf-tecla">${esc(t._teclaTexto || '—')}</span><button class="btn btn-sm" id="auf-gravar">⌨ Gravar tecla</button></div></div>
       ${campoMs('auf-dur', 'Duração', t.duracao)}
     </div>
-    <label class="campo-label" style="margin-top:12px">Modo</label>
-    <div class="au-modos">${MODOS_AU.map(([k, nm, d]) => `<div class="au-modo ${t.modo === k ? 'on' : ''}" data-auf-modo="${k}"><b>${nm}</b>${d}</div>`).join('')}</div>
+    <label class="campo-label" style="margin-top:12px">Ativação</label>
+    <div class="au-modos">${MODOS_AU.map(([k, nm, d]) => `<div class="au-modo ${t.modo === k ? 'on' : ''}" data-auf-modo="${k}"><b>${nm}</b>${infoAudio(d)}</div>`).join('')}</div>
     <div class="campos" style="margin-top:12px">
       <div><label class="campo-label" for="auf-som">Som</label><div class="linha-pasta" style="margin:0">
         <select id="auf-som">${AU.sons.map((x) => `<option value="${esc(x.id)}" ${x.id === t.som ? 'selected' : ''}>${esc(x.nome)}</option>`).join('')}</select>
         <button class="btn btn-sm" id="auf-ouvir" title="Ouvir">▶</button></div>
-        <button class="btn btn-sm" id="auf-importar" style="margin-top:6px">🎵 Usar um som meu (.mp3/.wav)</button></div>
+        <button class="btn btn-sm" id="auf-importar" style="margin-top:6px">🎵 Importar som</button></div>
       <div><label class="campo-label" for="auf-vol">Volume do timer: <b id="auf-vol-val">${t.volume}%</b></label><input type="range" id="auf-vol" min="0" max="100" step="5" value="${t.volume}"></div>
       ${campoMs('auf-antes', 'Avisar antes de acabar', t.antes || 0)}
     </div>
@@ -2828,12 +2823,12 @@ function desenharFormAudio() {
         ${CORES_AU.map(([k, n2]) => `<span class="pilula" data-auf-cor="${k}" title="${n2}" style="padding:4px 9px;background:${corHex(k)};border-color:var(--ink)">&nbsp;</span>`).join('')}</div></div>
     </div>
     <div class="campos" style="margin-top:12px">
-      <div><label class="campo-label" for="auf-msg">Mensagem do alerta</label><input type="text" id="auf-msg" maxlength="60" value="${esc(t.mensagem || '')}" placeholder="automática: &quot;${esc(t.nome || 'Poção')} acaba em 3s&quot;"></div>
+      <div><label class="campo-label" for="auf-msg">Mensagem do alerta</label><input type="text" id="auf-msg" maxlength="60" value="${esc(t.mensagem || '')}" placeholder="Mensagem automática"></div>
       <div><label class="campo-label" for="auf-fonte">Tamanho da letra: <b id="auf-fonte-v">${t.fonte || 34}</b></label><input type="range" id="auf-fonte" min="14" max="96" step="2" value="${t.fonte || 34}"></div>
       <div><label class="campo-label" for="auf-piscar">Piscar nos últimos segundos</label>
         <select id="auf-piscar">${[[0, 'Não pisca'], [1, 'Último 1 segundo'], [2, 'Últimos 2 segundos'], [3, 'Últimos 3 segundos'], [5, 'Últimos 5 segundos']]
           .map(([v, n2]) => `<option value="${v}" ${(t.piscar || 0) === v ? 'selected' : ''}>${n2}</option>`).join('')}</select>
-        <label class="check" style="margin-top:8px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Alerta fica na tela até apertar a tecla de novo</label></div>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Manter até a próxima tecla</label></div>
     </div>
   </div>`;
   $('au-form-acoes').innerHTML = `<div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>`;
@@ -2998,10 +2993,6 @@ function mudouBarra() {
 ['aub-nome','aub-tempo','aub-estilo','aub-texto-estilo','aub-familia','aub-cor-tempo'].forEach(id => $(id).addEventListener('change', mudouBarra));
 
 $('au-novo').addEventListener('click', () => abrirFormAudio(null));
-$('au-aviso-timer').addEventListener('change', () => {
-  if ($('au-aviso-timer').value) abrirAvisoAudio($('au-aviso-timer').value);
-});
-$('au-aviso-novo').addEventListener('click', () => abrirAvisoAudio(null));
 $('au-ligado').addEventListener('click', () => { AU.cfg.ligado = !AU.cfg.ligado; salvarAudio(); });
 $('au-sotibia').addEventListener('change', () => { AU.cfg.so_tibia = $('au-sotibia').checked; salvarAudio(); });
 let tAuVol = null;
