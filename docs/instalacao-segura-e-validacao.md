@@ -45,11 +45,11 @@ Roteiro de recuperação: sair pelo menu da bandeja; preservar/backup da pasta d
 | Publicador errado/assinatura obrigatória ausente | Tests simulados bloqueiam; certificado próprio pendente |
 | Migração de dados, canal e sons | Tests com arquivos artificiais preservam origem e dados existentes |
 | Manifesto/layout/private files | Tests recusam conteúdo extra/privado e bytes modificados |
-| Instância dupla | Lock real de arquivos no Windows testado por duas instâncias do guard; smoke do executável pendente |
+| Instância dupla | Aprovada também no executável oficial Beta 32: segunda instância encerrou com código zero e primeira permaneceu |
 | Snapshot rollback | Test artificial preserva versão antiga sem dados privados |
 | Abertura da janela Windows 11 | Cópia temporária abriu, confirmada no inventário de janelas; sem dados reais |
-| Captura/ações de UI | Aprovação do controle do app expirou; interações visuais não executadas |
-| Instalação primeira/segunda atualização | A executar com instaladores oficiais em diretório temporário e LocalAppData isolado |
+| Captura/ações de UI | Home da Beta oficial 32 renderizada e conferida; usuário interrompeu por Esc a ação seguinte. Demais páginas e bandeja pendentes |
+| Instalação primeira/segunda atualização | Aprovadas com payloads oficiais Beta 27 e 32, instaladores de AppId exclusivo e LocalAppData artificial; compilador de validação local 6.7.3, CI oficial 6.7.1 |
 | Windows 10 / WebView2 ausente | Ambiente indisponível; não desinstalar WebView2 do computador do usuário |
 | Escala 100/150/200%, modo gadget | Pendente teste visual Windows; escala da UI interna não equivale ao DPI do Windows |
 | X/bandeja/restaurar/Sair e timers/overlay recolhido | Testes de controlador existem; smoke real depende de captura/controle autorizado |
@@ -57,3 +57,13 @@ Roteiro de recuperação: sair pelo menu da bandeja; preservar/backup da pasta d
 | Todos os módulos pela UI | Pendente registrar smoke funcional em Home, hunts, loot, task itens, criaturas, histórico, sets/rodas, classificador, prints, Guild Stats e backup |
 
 Dados de teste devem ser artificiais; não executar organizador sobre prints reais. Falhas da etapa 1 do plano (histórico/backup/screenshots/classificador) seguem como tarefas próprias; esta entrega não declara esses problemas resolvidos.
+
+## Entrega e evidências finais
+
+Beta **1.0.21-beta.32.1**, commit `3ccc276ffc16e9a0f6b64cb8ad08c6abe5db9430`. [Release oficial](https://github.com/pablozandonadi/zandao-tibia-tools/releases/tag/v1.0.21-beta.32.1). Pipeline `38405750183` concluído com sucesso; cinco artefatos publicados. ZIP baixado: SHA-256 `b3aa52b2e104884804117ad8e7221fbb9dec65e372e899eeed3638ea782d8dae`, igual à API da release. Manifesto interno validado arquivo por arquivo.
+
+Teste nativo em Windows 11 build 26100: primeira instalação, atualização, preservação dos arquivos antigos, migração para perfil artificial, inicialização das duas versões e recusa de segunda instância passaram. AppId de validação diferente das instalações reais; o canal estável não foi criado no perfil artificial. Relatório: validacao-windows-resultados.json.
+
+Validação criptográfica real: bootstrap Microsoft assinado retornou Valid e fingerprint; uma cópia adulterada retornou Invalid / 80096010. O instalador oficial não assinado da Beta foi baixado e passou em hash/tamanho; o modo de análise permite NotSigned por decisão explícita de ausência de certificado. Não foi emitida assinatura digital própria.
+
+UI: Home da cópia oficial isolada conferida visualmente. Usuário pressionou Esc e interrompeu Computer Use antes da próxima navegação; nenhum comando de interface foi emitido depois disso. Os demais smoke tests continuam pendentes. Esta entrega não declara a etapa 3 integralmente concluída nem valida Windows 10/DPI/reinício/antivírus sem ambiente dedicado.

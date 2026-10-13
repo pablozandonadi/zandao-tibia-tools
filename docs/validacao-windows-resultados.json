@@ -1,0 +1,18 @@
+{
+  "windows": "10.0.26100.0",
+  "new_version": "1.0.21-beta.32.1",
+  "test_installer_identity": "Tibia Tudo Validation",
+  "production_installation_untouched": true,
+  "checks": {
+    "first_install": "passed (isolated validation AppId)",
+    "old_process_started": true,
+    "second_install_preserved_legacy": true,
+    "migration_preserved_fixture": true,
+    "new_process_started": true,
+    "second_instance_rejected": true,
+    "stable_channel_untouched": true,
+    "native_ui": "Home rendered; subsequent interaction interrupted by user Escape"
+  },
+  "public_release": "1.0.21-beta.32.1",
+  "validation_compiler": "6.7.3 (official pipeline: 6.7.1)"
+}
