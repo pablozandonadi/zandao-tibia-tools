@@ -7,7 +7,7 @@ import atualizacoes as a
 
 def release(tag, beta=True, name='ZandaoTibiaToolsBetaSetup.exe', draft=False):
     return dict(tag_name=tag, prerelease=beta, draft=draft,
-                assets=[dict(name=name, browser_download_url='https://example.com/'+name)])
+                assets=[dict(name=name, browser_download_url=f'https://github.com/{a.REPO_GITHUB}/releases/download/{tag}/{name}',digest='sha256:'+'a'*64,size=100)])
 
 
 class TestCanais(unittest.TestCase):

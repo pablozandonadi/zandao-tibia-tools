@@ -9,8 +9,9 @@ import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-BASE = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-RESOURCES = getattr(sys, '_MEIPASS', BASE)
+from app_paths import data_dir, resource_dir
+BASE = data_dir()
+RESOURCES = str(resource_dir())
 ASSETS = os.path.join(RESOURCES, 'web', 'assets')
 CACHE = os.path.join(BASE, 'cache_task_images')
 HEADERS = {'User-Agent': 'Mozilla/5.0'}

@@ -17,7 +17,8 @@ if getattr(sys, "frozen", False):
 
 import webview
 
-from web_api import API, ler_prefs, TAMANHO_NORMAL, TAMANHO_GADGET
+from app_paths import initialize_data, data_dir
+from single_instance import InstanceGuard
 from versao import CANAL_APP, NOME_APP
 
 # web/ e icon.ico: no .exe ficam dentro do pacote (sys._MEIPASS); no código-fonte, ao lado deste arquivo.
@@ -36,6 +37,14 @@ if sys.platform == "win32":
 
 
 def main():
+    guard = InstanceGuard(data_dir()) if getattr(sys, "frozen", False) else None
+    if guard is not None and not guard.acquire():
+        guard.request_activation()
+        return
+    initialize_data()
+    from recovery import record_startup
+    record_startup()
+    from web_api import API, ler_prefs, TAMANHO_NORMAL, TAMANHO_GADGET
     api = API()
     prefs = ler_prefs()
     modo = prefs.get("modo", "normal")
@@ -64,6 +73,8 @@ def main():
         janela.events.resized += api.janela_redimensionada
 
     janela.events.shown += restaurar_janela
+    if guard is not None:
+        guard.watch(lambda: (janela.show(), janela.restore()))
     from tray_app import TrayController
     tray = None
     try:
@@ -76,6 +87,8 @@ def main():
     finally:
         if tray is not None:
             tray.stop()
+        if guard is not None:
+            guard.close()
 
 
 if __name__ == "__main__":

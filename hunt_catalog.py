@@ -1,3 +1,4 @@
+from app_paths import install_dir
 """Leitor do catálogo distribuído. Não coleta milhares de páginas em cada computador."""
 import hashlib
 import json
@@ -12,7 +13,7 @@ import monstros
 from hunt_catalog_core import SCHEMA, eligible_damage, key, profile, validate_snapshot, local_composition, local_kills, local_roster, local_input
 from versao import CANAL_APP
 
-BASE=os.path.join(monstros.BASE_DIR,'data','hunt_catalog.json')
+BASE=os.path.join(install_dir(),'data','hunt_catalog.json')
 CACHE=os.path.join(monstros.BASE_DIR,'cache_hunt_catalog.json')
 CHECK=os.path.join(monstros.BASE_DIR,'cache_hunt_catalog_check.json')
 REMOTE='https://raw.githubusercontent.com/pablozandonadi/zandao-tibia-tools/'+('hunt-catalog-beta' if CANAL_APP=='beta' else 'hunt-catalog-data')+'/catalog.json'

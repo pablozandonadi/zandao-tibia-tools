@@ -34,3 +34,7 @@ Ao terminar uma mudança no aplicativo, validar e publicar automaticamente a Bet
 O botão “Publicar na versão original”, em Configurações da Beta, representa a aprovação do usuário para promover a Beta instalada. Usa o GitHub CLI autenticado do computador, com permissão de escrita no repositório; credenciais nunca entram no executável. O acionamento informa a tag e o commit registrados no build, executando o workflow dessa tag. Não promove automaticamente a develop mais recente.
 
 O pipeline verifica a prerelease e o commit, exige que a main seja ancestral da Beta (divergência exige reconciliação e nova análise), aumenta o patch da versão estável, gera notas, testa, recompila instalador e portátil estáveis, e somente então faz commit/push em main e publica a release. Não troca a branch da pasta compartilhada. A interface acompanha a execução e só informa conclusão após a publicação dos dois artefatos. Beta local sem commit de origem não permite promoção.
+
+## Integridade e dados por canal (13/10/2026)
+
+O novo build usa LocalAppData/TibiaTudo/beta ou stable para dados e preserva a instalação antiga ao migrar. O atualizador exige hash/tamanho da release e verifica Authenticode por política local do build. CI fixa ferramentas, valida recursos e publica SHA256SUMS.txt, package-manifest.json e sbom.json. Sem certificado do proprietário, a Beta continua explicitamente não assinada. Configure TIBIA_SIGNING_THUMBPRINT / TIBIA_REQUIRE_SIGNATURE para builds assinados. Detalhes, recuperação e limites de teste: docs/instalacao-segura-e-validacao.md.

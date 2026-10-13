@@ -34,10 +34,8 @@ import sets as _sets
 import stats_set as _stats_set
 from datetime import datetime
 
-if getattr(sys, "frozen", False):
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from app_paths import data_dir, install_dir, resource_dir
+BASE_DIR = data_dir()
 
 HIST_PATH = os.path.join(BASE_DIR, "historico_hunts.json")
 FORMATO = "zandao-tibia-tools-hunts"

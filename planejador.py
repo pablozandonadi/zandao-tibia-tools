@@ -1,3 +1,4 @@
+from app_paths import install_dir
 """Planejamento de hunt: dados atuais da Tibia Wiki BR, sem frequência inventada."""
 import json
 import math
@@ -16,7 +17,7 @@ from damage_core import ROTULO, parse_damage_input
 API = 'https://www.tibiawiki.com.br/api.php'
 CACHE = os.path.join(monstros.BASE_DIR, 'cache_planejador.json')
 ELEMENTOS = [e for e in ROTULO if e != 'healing']
-BASE_CONHECIMENTO = os.path.join(monstros.BASE_DIR, 'data', 'creature_knowledge.json')
+BASE_CONHECIMENTO = os.path.join(install_dir(), 'data', 'creature_knowledge.json')
 _base_conhecimento = None
 
 def _read():

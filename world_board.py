@@ -11,7 +11,8 @@ from datetime import date, datetime, timedelta, timezone
 
 import tibia_info
 
-BASE = os.path.dirname(sys.executable if getattr(sys, 'frozen', False) else os.path.abspath(__file__))
+from app_paths import data_dir
+BASE = data_dir()
 ARQUIVO = os.path.join(BASE, 'world_board_registros.json')
 FONTE = 'https://www.tibiawiki.com.br/wiki/Mini_World_Changes'
 _LOCK = threading.Lock()

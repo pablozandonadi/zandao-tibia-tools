@@ -1,0 +1,43 @@
+import json
+from pathlib import Path
+import tempfile
+import unittest
+import package_tools as p
+from recovery import prepare_snapshot
+class DeliveryTests(unittest.TestCase):
+    def source(self,directory):
+        source=Path(directory)/'source';source.mkdir();(source/'web').mkdir();(source/'sons_padrao').mkdir()
+        (source/'web/index.html').write_text('app');(source/'icon.ico').write_bytes(b'icon')
+        (source/'packaging-resources.json').write_text(json.dumps({'files':['web/index.html','icon.ico']}))
+        return source
+    def app(self,directory):
+        app=Path(directory)/'app';app.mkdir();(app/'ZandaoTibiaTools.exe').write_bytes(b'MZ executable')
+        (app/'_internal/web').mkdir(parents=True);(app/'_internal/web/index.html').write_text('app')
+        return app
+    def test_manifest_detects_changed_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source=self.source(directory);app=self.app(directory)
+            p.create_manifest(app,source,'1-beta','beta','a'*40)
+            (app/'_internal/web/index.html').write_text('bad')
+            with self.assertRaises(ValueError):p.verify_manifest(app)
+    def test_private_data_rejected_even_nested(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source=self.source(directory);app=self.app(directory)
+            (app/'_internal/web/historico_hunts.json').write_text('{}')
+            with self.assertRaises(ValueError):p.validate_layout(app,source)
+    def test_unknown_resource_and_root_files_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source=self.source(directory);app=self.app(directory)
+            (source/'web/private.txt').write_text('secret')
+            with self.assertRaises(ValueError):p.validate_resources(source)
+            (app/'passwords.txt').write_text('private')
+            with self.assertRaises(ValueError):p.validate_layout(app,source)
+    def test_rollback_preserves_old_version_without_private_data(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app=self.app(directory);(app/'preferencias.json').write_text('private')
+            storage=Path(directory)/'user'
+            snapshot=Path(prepare_snapshot('1.1.0',source=app,storage=storage))
+            self.assertEqual((snapshot/'ZandaoTibiaTools.exe').read_bytes(),b'MZ executable')
+            self.assertTrue((app/'ZandaoTibiaTools.exe').exists())
+            self.assertFalse((snapshot/'preferencias.json').exists())
+            self.assertTrue((storage/'atualizacao-pendente.json').exists())

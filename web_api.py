@@ -44,12 +44,10 @@ import world_board
 import zandaobot_report
 from versao import VERSAO_APP
 
-if getattr(sys, "frozen", False):
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from app_paths import data_dir, install_dir, resource_dir
+BASE_DIR = data_dir()
 
-IMBUEMENTS_PATH = os.path.join(BASE_DIR, "data", "imbuements.json")
+IMBUEMENTS_PATH = os.path.join(install_dir(), "data", "imbuements.json")
 DADOS_PATH = os.path.join(BASE_DIR, "dados_embuimentos.json")
 
 PREFS_PATH = os.path.join(BASE_DIR, "preferencias.json")
@@ -1345,16 +1343,17 @@ class API:
 
     def _trabalho_instalar_atualizacao(self):
         info = self._atualizacao_info
-        caminho = atualizacoes.baixar_instalador(info["url_instalador"],
-                                                 lambda pct: self._emit("onProgressoAtualizacao", {"pct": pct}))
-        if not caminho:
-            self._emit("onFalhaAtualizacao", {"mensagem": "Não consegui baixar a atualização agora.",
-                                              "url_release": info["url_release"]})
-            return
         try:
+            caminho = atualizacoes.baixar_instalador(info["url_instalador"],
+                lambda pct: self._emit("onProgressoAtualizacao", {"pct": pct}),
+                sha256=info.get("sha256"), tamanho=info.get("tamanho"))
+            # Recheck immediately before execution, including Authenticode policy.
+            atualizacoes.validar_instalador(caminho, info.get("sha256"), info.get("tamanho"))
+            from recovery import prepare_snapshot
+            prepare_snapshot(info["versao"])
             subprocess.Popen([caminho])
         except Exception as e:
-            self._emit("onFalhaAtualizacao", {"mensagem": f"Erro ao abrir o instalador: {e}", "url_release": info["url_release"]})
+            self._emit("onFalhaAtualizacao", {"mensagem": f"Atualização não instalada: {e}", "url_release": info["url_release"]})
             return
         os._exit(0)
 

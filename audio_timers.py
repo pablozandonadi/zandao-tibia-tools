@@ -37,16 +37,14 @@ import wave
 
 import overlay
 
-if getattr(sys, "frozen", False):
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from app_paths import data_dir, install_dir, resource_dir
+BASE_DIR = data_dir()
 
 ARQUIVO = os.path.join(BASE_DIR, "audio_timers.json")
 PASTA_SONS = os.path.join(BASE_DIR, "sons")
 PASTA_SONS_USUARIO = os.path.join(BASE_DIR, "sons_usuario")
 # sons que vêm com o app (no .exe ficam dentro do pacote, sys._MEIPASS)
-PASTA_SONS_PADRAO = os.path.join(getattr(sys, "_MEIPASS", BASE_DIR), "sons_padrao")
+PASTA_SONS_PADRAO = os.path.join(resource_dir(), "sons_padrao")
 SOM_PADRAO = "padrao:Potion.mp3"
 MODOS = ("reinicia", "ignora", "loop")
 PROCESSOS_TIBIA = ("client.exe", "tibia.exe")

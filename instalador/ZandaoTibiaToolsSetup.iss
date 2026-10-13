@@ -2,7 +2,7 @@
 ; Não compile na mão: use instalador\gerar_instalador.ps1, que faz o build e passa SourceDistDir/OutputDir.
 ;
 ; Instala por usuário (AppData\Local\Programs), sem pedir administrador: o programa grava ao lado do
-; .exe o histórico de hunts, os preços dos embuimentos, os personagens etc.
+; dados ficam em LocalAppData\TibiaTudo\beta ou stable; os arquivos antigos são preservados.
 ;
 ; Instalador "limpo": nenhum dado pessoal vai junto (historico_hunts.json, dados_embuimentos.json,
 ; settings.json, preferencias.json, meus_personagens.json). Cada pessoa começa do zero, e numa
@@ -100,6 +100,20 @@ begin
   Result := (Versao <> '') and (Versao <> '0.0.0.0');
 end;
 
+function MicrosoftInstallerValid(const FileName: String): Boolean;
+var
+  Script, QuotedPath: String;
+  ExitCode: Integer;
+begin
+  QuotedPath := FileName;
+  StringChangeEx(QuotedPath, #39, #39 + #39, True);
+  Script := '$s=Get-AuthenticodeSignature -LiteralPath ' + #39 + QuotedPath + #39 +
+    '; if($s.Status -eq ' + #39 + 'Valid' + #39 +
+    ' -and $s.SignerCertificate.Subject -match ' + #39 + 'O=Microsoft Corporation(?:,|$)' + #39 + ') {exit 0} else {exit 1}';
+  Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    '-NoProfile -NonInteractive -Command "' + Script + '"', '', SW_HIDE, ewWaitUntilTerminated, ExitCode) and (ExitCode = 0);
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   CodigoSaida: Integer;
@@ -114,12 +128,12 @@ begin
   try
     WizardForm.StatusLabel.Caption := 'Baixando o componente WebView2 da Microsoft...';
     DownloadTemporaryFile('https://go.microsoft.com/fwlink/p/?LinkId=2124703', 'MicrosoftEdgeWebview2Setup.exe', '', nil);
+    if not MicrosoftInstallerValid(ExpandConstant('{tmp}\MicrosoftEdgeWebview2Setup.exe')) then
+      RaiseException('O instalador WebView2 não possui assinatura válida da Microsoft.');
     WizardForm.StatusLabel.Caption := 'Instalando o componente WebView2...';
     Exec(ExpandConstant('{tmp}\MicrosoftEdgeWebview2Setup.exe'), '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, CodigoSaida);
   except
   end;
   if not WebView2Instalado then
-    MsgBox('Nao consegui instalar o componente WebView2 da Microsoft, que o Tibia Tudo usa para desenhar a tela. ' +
-           'Se o programa nao abrir, instale o "WebView2 Runtime" pelo site da Microsoft e abra o programa de novo.',
-           mbInformation, MB_OK);
+    Result := 'WebView2 da Microsoft não instalado. A instalação foi interrompida antes de substituir os arquivos do app. Instale o WebView2 Runtime oficial e tente novamente.';
 end;

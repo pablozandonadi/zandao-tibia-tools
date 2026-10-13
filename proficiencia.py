@@ -19,10 +19,8 @@ import urllib.request
 
 import monstros
 
-if getattr(sys, "frozen", False):
-    BASE_DIR = os.path.dirname(sys.executable)
-else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+from app_paths import data_dir, install_dir, resource_dir
+BASE_DIR = data_dir()
 
 CACHE_PATH = os.path.join(BASE_DIR, "cache_proficiencia.json")
 VALIDADE = 30 * 86400
