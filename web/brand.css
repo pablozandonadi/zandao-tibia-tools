@@ -3,11 +3,10 @@
 .brand-logo { width:48px; height:48px; object-fit:contain; image-rendering:pixelated; flex:none; }
 .brand-name { color:var(--ink); }
 .nav-icon { display:inline-block; transform-origin:center; }
-.nav-item:hover .nav-icon, .nav-item:focus-visible .nav-icon { animation:iconeHover .65s ease-in-out infinite alternate; }
-@keyframes iconeHover { from { transform:rotate(-8deg) translateY(0); } to { transform:rotate(8deg) translateY(-3px); } }
 .assinatura { display:flex; align-items:center; justify-content:space-between; gap:8px; }
 .cafe-apoio { border:0; background:transparent; padding:4px; cursor:pointer; border-radius:8px; }
-.cafe-apoio:hover, .cafe-apoio:focus-visible { background:var(--surface); outline:2px solid var(--accent); }
+.cafe-apoio:hover, .cafe-apoio:focus-visible { background:transparent; outline:none; }
+.cafe-apoio:focus-visible img { filter:drop-shadow(0 0 4px var(--accent)); }
 .cafe-apoio img { width:36px; height:36px; image-rendering:pixelated; }
 .apoio-dialog { width:min(440px,calc(100vw - 24px)); max-height:90vh; overflow:auto; background:var(--surface); color:var(--ink); border:3px solid var(--ink); border-radius:14px; padding:24px; }
 .apoio-dialog::backdrop { background:#000a; }
@@ -16,3 +15,38 @@
 .apoio-dialog textarea { width:100%; min-height:90px; overflow-wrap:anywhere; font-size:12px; }
 @media(max-width:760px) { .brand { justify-content:center; } .brand-logo { width:40px;height:40px; } .brand-name {display:none;} .assinatura {display:flex;padding:0;justify-content:center;} .assinatura-texto {display:none;} }
 @media(prefers-reduced-motion:reduce) { .nav-item:hover .nav-icon,.nav-item:focus-visible .nav-icon {animation:none;} }
+
+.nav-item[data-pagina="zandaobot"]:is(:hover,:focus-visible) .nav-icon { animation:casa 1s ease-in-out infinite; }
+@keyframes casa {0%,100%{transform:translateY(0)}40%{transform:translateY(-4px) scale(1.12)}70%{transform:translateY(1px)}}
+
+.nav-item[data-pagina="emb"]:is(:hover,:focus-visible) .nav-icon { animation:gema 1s ease-in-out infinite; }
+@keyframes gema {0%,100%{filter:brightness(1);transform:scale(1)}50%{filter:brightness(1.6) drop-shadow(0 0 5px #65eaff);transform:scale(1.18)}}
+
+.nav-item[data-pagina="hunt"]:is(:hover,:focus-visible) .nav-icon { animation:machado 1s ease-in-out infinite; }
+@keyframes machado {0%,100%{transform:rotate(0)}30%{transform:rotate(-35deg)}55%{transform:rotate(25deg)}}
+
+.nav-item[data-pagina="taskitens"]:is(:hover,:focus-visible) .nav-icon { animation:caixa 1s ease-in-out infinite; }
+@keyframes caixa {0%,100%{transform:scale(1)}35%{transform:scale(1.18,.82)}65%{transform:translateY(-4px) scale(.9,1.15)}}
+
+.nav-item[data-pagina="criaturas"]:is(:hover,:focus-visible) .nav-icon { animation:dragao 1s ease-in-out infinite; }
+@keyframes dragao {0%,100%{transform:translateX(0);filter:drop-shadow(0 0 0 transparent)}35%{transform:translateX(-3px) rotate(-8deg)}65%{transform:translateX(3px);filter:drop-shadow(3px 0 4px #ff843b)}}
+
+.nav-item[data-pagina="hist"]:is(:hover,:focus-visible) .nav-icon { animation:pergaminho 1s ease-in-out infinite; }
+@keyframes pergaminho {0%,100%{transform:scaleY(1) rotate(0)}50%{transform:scaleY(1.2) rotate(-6deg)}}
+
+.nav-item[data-pagina="ferr"]:is(:hover,:focus-visible) .nav-icon { animation:ferramentas 1s ease-in-out infinite; }
+@keyframes ferramentas {0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}
+
+.nav-item[data-pagina="audio"]:is(:hover,:focus-visible) .nav-icon { animation:sino 1s ease-in-out infinite; }
+@keyframes sino {0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-22deg)}40%,80%{transform:rotate(22deg)}}
+
+.nav-item[data-pagina="prints"]:is(:hover,:focus-visible) .nav-icon { animation:camera 1s ease-in-out infinite; }
+@keyframes camera {0%,70%,100%{filter:brightness(1);transform:scale(1)}30%{filter:brightness(2.5) drop-shadow(0 0 6px white);transform:scale(1.12)}}
+
+.nav-item[data-pagina="guildstats"]:is(:hover,:focus-visible) .nav-icon { animation:grafico 1s ease-in-out infinite; }
+@keyframes grafico {0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.3) translateY(-2px);filter:drop-shadow(0 0 3px #3ecf8e)}}
+
+.nav-item[data-pagina="config"]:is(:hover,:focus-visible) .nav-icon { animation:engrenagem 1s ease-in-out infinite; }
+@keyframes engrenagem {from{transform:rotate(0)}to{transform:rotate(180deg)}}
+
+@media(prefers-reduced-motion:reduce) { .nav-item[data-pagina]:is(:hover,:focus-visible) .nav-icon {animation:none;} }

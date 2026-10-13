@@ -54,12 +54,28 @@ def main():
     )
     api._window = janela
 
+    restaurada = False
     def restaurar_janela():
+        nonlocal restaurada
+        if restaurada:
+            return
+        restaurada = True
         api.janela_tamanho(modo)
         janela.events.resized += api.janela_redimensionada
 
     janela.events.shown += restaurar_janela
-    webview.start(icon=os.path.join(PASTA_RECURSOS, "icon.ico"))
+    from tray_app import TrayController
+    tray = None
+    try:
+        tray = TrayController(janela, os.path.join(PASTA_RECURSOS, "icon.ico"), NOME_APP)
+        tray.start()
+    except Exception:
+        pass  # If tray setup fails, the X still closes normally.
+    try:
+        webview.start(icon=os.path.join(PASTA_RECURSOS, "icon.ico"))
+    finally:
+        if tray is not None:
+            tray.stop()
 
 
 if __name__ == "__main__":
