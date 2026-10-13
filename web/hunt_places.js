@@ -1,6 +1,6 @@
 let crPlaces=[],crPlaceToken=0,crPlaceDetail=null,crPlaceOrigin='',crPlaceLimit=20,crPlaceApplying=false;
 let crView='local',crLocalState=null;
-function crCaptureLocal(){return {selection:crSelection.map(c=>({...c})),damage:$('cr-damage').value,useInput:$('cr-use-input').checked,origin:crPlaceOrigin};}
+function crCaptureLocal(){return {selection:crSelection.map(c=>({...c})),damage:$('cr-damage').value,useInput:$('cr-use-input').checked,origin:crPlaceOrigin,log:$('cr-log').value,history:$('cr-history').value,importStatus:$('cr-import-status').textContent};}
 function crShowView(view){crView=view;const publicView=view==='public';$('cr-result').hidden=false;const graphs=$('cr-result').querySelector('.cr-graphs');if(graphs)graphs.hidden=publicView;
   if(publicView&&graphs)graphs.after($('cr-place-info'));else if($('cr-result').contains($('cr-place-info')))$('cr-result').after($('cr-place-info'));$('cr-place-info').hidden=!publicView;
   document.querySelector('.cr-view-tabs').hidden=!crPlaceDetail;
@@ -21,7 +21,7 @@ $('cr-place-results').addEventListener('click',e=>{if(crBusy)return;const more=e
 $('cr-place-context').addEventListener('change',crPlaceSelect);
 $('cr-place-refresh').addEventListener('click',async()=>{await crPlacesLoad(true);if($('cr-place').value)await crPlaceSelect();});
 $('cr-place-metadata').addEventListener('click',e=>{const b=e.target.closest('[data-place-mode]');if(b)crPlaceUse(b.dataset.placeMode);});
-$('cr-tab-local').addEventListener('click',async()=>{if(crBusy)return;if(crView==='public'&&crLocalState){crSelection=crLocalState.selection.map(c=>({...c}));$('cr-damage').value=crLocalState.damage;$('cr-use-input').checked=crLocalState.useInput;crPlaceOrigin=crLocalState.origin;crSelected();crOptions();crPlaceApplying=true;try{await crAnalyze();}finally{crPlaceApplying=false;}}crShowView('local');});
+$('cr-tab-local').addEventListener('click',async()=>{if(crBusy)return;if(crView==='public'&&crLocalState){crSelection=crLocalState.selection.map(c=>({...c}));$('cr-damage').value=crLocalState.damage;$('cr-use-input').checked=crLocalState.useInput;crPlaceOrigin=crLocalState.origin;$('cr-log').value=crLocalState.log;$('cr-history').value=crLocalState.history;$('cr-import-status').textContent=crLocalState.importStatus;crSelected();crOptions();crPlaceApplying=true;try{await crAnalyze();}finally{crPlaceApplying=false;}}crShowView('local');});
 $('cr-tab-public').addEventListener('click',()=>{if(crBusy||!crPlaceDetail||crView==='public')return;crLocalState=crCaptureLocal();crPlaceUse('observed');});
 setInterval(()=>{if(crLoaded)crPlacesLoad();},86400000);
 
