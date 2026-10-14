@@ -46,3 +46,11 @@ Código: e057b9a8be10b4da174960ade8ef86c25bf6c920. Pipeline concluído com suces
 A develop incorporou a estável 1.0.23 já publicada (7f3865c), mantendo a main como ancestral; main não foi modificada por esta entrega. Checkout compartilhado permaneceu na branch original. Somente mudanças deste fluxo foram publicadas por cópia temporária.
 
 Teste pendente pelo usuário na Beta: concluir o desafio real do GuildStats na janela interna e confirmar retorno dos dados. A WebView real carregou o desafio; sua aceitação após interação humana ainda não foi comprovada. Cache permite continuidade apenas após uma consulta válida.
+
+## Comparar personagens (14/10/2026)
+
+A aba Guild Stats > Comparar personagens consulta o comparador oficial https://guildstats.eu/compare-characters com dois a cinco nomes. Os campos 3, 4 e 5 são opcionais; Personagem em uso preenche o primeiro campo. Comparar, Atualizar e Verificar acesso no app usam o grupo informado, sem trocar para a consulta individual.
+
+A tabela preserva os indicadores e períodos da fonte, traduz os rótulos e mantém os nomes oficiais dos personagens. HTML remoto não é inserido na interface: células são extraídas e renderizadas como texto escapado. O cache é separado por grupo e ordem dos nomes; falhas mostram a consulta anterior identificada como desatualizada. Nomes duplicados ou inválidos são rejeitados e uma resposta com personagens diferentes não é aceita.
+
+Validação: consulta HTTP real do comparador retornou dois personagens e 33 indicadores; testes cobrem dois/cinco nomes, codificação da URL, cache, respostas parciais e verificação interna. Interface conferida no Chrome em janela estreita com dados fictícios. O acesso após desafio humano continua sujeito à aceitação do WebView2 pela fonte.

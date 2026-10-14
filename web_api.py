@@ -567,6 +567,9 @@ class API:
     def criaturas_analisar(self, selecao, atualizar=False, dano_texto=""):
         return planejador.analisar(selecao, atualizar, dano_texto)
 
+    def guildstats_comparar(self, nomes, atualizar=False, interagir=False):
+        return guild_stats.comparar(nomes, atualizar, interagir)
+
     def guildstats_buscar(self, nome="", aba="experience", atualizar=False, pagina=1, interagir=False):
         return guild_stats.buscar(nome or personagens.carregar()["atual"], aba, atualizar, pagina, interagir)
 

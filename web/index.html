@@ -653,6 +653,11 @@
   #gs-menu { position:relative; }
   #gs-hover { display:none; position:fixed; left:230px; max-width:310px; padding:14px; background:var(--bg); color:var(--ink); border:2px solid var(--ink-dim); border-radius:8px; z-index:999; box-shadow:4px 4px 0 #000; font-size:.8rem; pointer-events:none; }
   #gs-menu:hover #gs-hover, #gs-menu:focus #gs-hover { display:block; }
+  .gs-compare-fields {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px;margin-top:16px}
+  .gs-compare-fields[hidden] {display:none}
+  .gs-compare-fields > div {min-width:0}
+  .gs-compare-table td,.gs-compare-table th {white-space:normal;overflow-wrap:anywhere;min-width:100px}
+  .gs-compare-table .gs-section td {font-weight:800;background:var(--surface-2)}
   .gs-scroll { overflow:auto; max-height:520px; }
   .gs-table { width:100%; border-collapse:collapse; font-size:.82rem; }
   .gs-table td, .gs-table th { padding:9px; border-bottom:1px solid var(--ink-dim); text-align:left; white-space:nowrap; }
@@ -730,6 +735,7 @@
       <div class="card calmo">
         <div class="acoes"><input type="text" id="gs-search" aria-label="Nome do personagem" placeholder="Nome do personagem" maxlength="60"><button class="btn btn-primary" id="gs-find">Buscar</button><button class="btn" id="gs-active">Personagem em uso</button><button class="btn" id="gs-refresh">Atualizar</button><button class="btn" id="gs-site">Verificar acesso no app</button></div>
         <p class="dica" id="gs-follow"></p><div class="acoes" id="gs-tabs"></div>
+        <div id="gs-compare-fields" class="gs-compare-fields" hidden></div>
       </div>
       <div id="gs-result" aria-live="polite" style="margin-top:16px"></div>
     </section>

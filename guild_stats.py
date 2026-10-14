@@ -239,3 +239,90 @@ def profile(html):
     guild = re.search(r'Guild (.*?) since (\d{2}-\d{2}-\d{4})', fulltext)
     if guild: fields['Guild'] = guild.group(1) + ' · desde ' + guild.group(2)
     return fields
+
+def nomes_comparacao(nomes):
+    if not isinstance(nomes, (list, tuple)) or len(nomes) > 5:
+        raise ValueError('Informe de 2 a 5 personagens para comparar.')
+    validos = []
+    for nome in nomes:
+        if not isinstance(nome, str) or any(ord(c) < 32 for c in nome):
+            raise ValueError('Digite nomes de personagens válidos.')
+        nome = ' '.join(nome.split())
+        if not nome:
+            continue
+        if len(nome) > 60:
+            raise ValueError('O nome de cada personagem deve ter até 60 caracteres.')
+        if nome.casefold() in {n.casefold() for n in validos}:
+            raise ValueError('Escolha personagens diferentes para comparar.')
+        validos.append(nome)
+    if len(validos) < 2:
+        raise ValueError('Informe pelo menos 2 personagens para comparar.')
+    return validos
+
+
+def url_comparacao(nomes):
+    nomes = nomes_comparacao(nomes)
+    return BASE + 'compare-characters?' + urllib.parse.urlencode(
+        {f'char{i}': nomes[i] if i < len(nomes) else '' for i in range(5)})
+
+
+def parse_comparacao(html, nomes):
+    data = parse(html, 'compare')
+    expected = [n.casefold() for n in nomes]
+    tables = [t for t in data['tables'] if
+              [' '.join(h.split()).casefold() for h in t['headers'][1:]] == expected
+              and t['rows']]
+    if not tables:
+        raise ValueError('O GuildStats não retornou a comparação desses personagens. Confira a grafia dos nomes e tente atualizar.')
+    table = tables[0]
+    data['tables'] = [{'headers': ['Indicador', *table['headers'][1:]], 'rows': table['rows']}]
+    data['characters'] = table['headers'][1:]
+    data['notice'] = 'Comparação oficial do GuildStats. Os períodos são os informados em cada indicador; “-” significa que a fonte não disponibilizou esse dado.'
+    return data
+
+
+def comparar(nomes, forcar=False, interagir=False):
+    try:
+        nomes = nomes_comparacao(nomes)
+    except ValueError as error:
+        return {'erro': str(error)}
+    key = ('compare', *[n.casefold() for n in nomes])
+    url = url_comparacao(nomes)
+    with _lock:
+        previous = _cache.get(key) or _read_cache(key)
+        if previous and not forcar and time.time() - previous[0] < 900:
+            return previous[1]
+        failure = _failures.get(key)
+        if failure and not forcar and not interagir and time.time() - failure[0] < 60:
+            return {**previous[1], 'stale': True, 'erro_cache': failure[1], 'verification_required': failure[2]} if previous else {'erro': failure[1], 'verification_required': failure[2]}
+        try:
+            request = urllib.request.Request(url, headers={'User-Agent': 'ZandaoTibiaTools/1.0', 'Accept-Language': 'en'})
+            try:
+                with urllib.request.urlopen(request, timeout=15) as response:
+                    html = response.read(2_000_000).decode('utf-8', errors='replace')
+                if _challenge(html):
+                    raise VerificationRequired('Verificação necessária.')
+            except (urllib.error.HTTPError, VerificationRequired) as blocked:
+                if isinstance(blocked, urllib.error.HTTPError) and blocked.code != 403:
+                    raise
+                if previous and not forcar:
+                    raise VerificationRequired('O GuildStats exige verificação. Use Verificar acesso no app para atualizar.')
+                html = _browser_html(url, 'compare', interagir)
+            if _challenge(html):
+                raise VerificationRequired('Verificação necessária.')
+            data = parse_comparacao(html, nomes)
+            data.update({'name': ' × '.join(data['characters']), 'tab': 'compare', 'url': url,
+                         'fetched': time.strftime('%Y-%m-%d %H:%M:%S'), 'stale': False})
+            if len(_cache) > 128:
+                _cache.clear()
+            _cache[key] = (time.time(), data)
+            _save_cache(key, data)
+            _failures.pop(key, None)
+            return data
+        except Exception as error:
+            verification = isinstance(error, VerificationRequired)
+            message = str(error) if isinstance(error, (VerificationRequired, ValueError)) else 'Não foi possível atualizar a comparação do GuildStats. Tente novamente em instantes.'
+            _failures[key] = (time.time(), message, verification)
+            if previous:
+                return {**previous[1], 'stale': True, 'erro_cache': message + ' Exibindo a última comparação salva.', 'verification_required': verification}
+            return {'erro': message, 'verification_required': verification}
