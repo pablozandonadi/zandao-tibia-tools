@@ -29,26 +29,33 @@ LABELS = {"checking": "Verificando", "healthy": "Conectado", "degraded": "Conect
           "unavailable": "Medição indisponível", "paused": "Pausada"}
 
 
+U32 = C.c_uint32
+class SockAddr(C.Structure):
+    _fields_ = [("ptr", C.c_void_p), ("length", C.c_int)]
+class Unicast(C.Structure):
+    pass
+Unicast._fields_ = [("alignment", C.c_uint64), ("next", C.POINTER(Unicast)), ("address", SockAddr)]
+class Adapter(C.Structure):
+    pass
+Adapter._fields_ = [("length", U32), ("index", U32), ("next", C.POINTER(Adapter)),
+    ("name", C.c_char_p), ("unicast", C.POINTER(Unicast)), ("anycast", C.c_void_p),
+    ("multicast", C.c_void_p), ("dns", C.c_void_p), ("suffix", C.c_wchar_p),
+    ("description", C.c_wchar_p), ("friendly", C.c_wchar_p), ("physical", C.c_ubyte * 8),
+    ("physical_length", U32), ("flags", U32), ("mtu", U32), ("kind", U32), ("status", U32)]
+
+_ADAPTER_API = None
+
 def adapters():
     """GetAdaptersAddresses, without subprocesses or third-party dependencies."""
     if sys.platform != "win32":
         raise OSError("Monitor disponível no Windows.")
-    U32 = C.c_uint32
-    class SockAddr(C.Structure):
-        _fields_ = [("ptr", C.c_void_p), ("length", C.c_int)]
-    class Unicast(C.Structure):
-        pass
-    Unicast._fields_ = [("alignment", C.c_uint64), ("next", C.POINTER(Unicast)), ("address", SockAddr)]
-    class Adapter(C.Structure):
-        pass
-    Adapter._fields_ = [("length", U32), ("index", U32), ("next", C.POINTER(Adapter)),
-        ("name", C.c_char_p), ("unicast", C.POINTER(Unicast)), ("anycast", C.c_void_p),
-        ("multicast", C.c_void_p), ("dns", C.c_void_p), ("suffix", C.c_wchar_p),
-        ("description", C.c_wchar_p), ("friendly", C.c_wchar_p), ("physical", C.c_ubyte * 8),
-        ("physical_length", U32), ("flags", U32), ("mtu", U32), ("kind", U32), ("status", U32)]
-    api = C.WinDLL("iphlpapi").GetAdaptersAddresses
-    api.argtypes = [U32, U32, C.c_void_p, C.c_void_p, C.POINTER(U32)]
-    api.restype = U32
+    global _ADAPTER_API
+    if _ADAPTER_API is None:
+        api = C.WinDLL("iphlpapi").GetAdaptersAddresses
+        api.argtypes = [U32, U32, C.c_void_p, C.c_void_p, C.POINTER(U32)]
+        api.restype = U32
+        _ADAPTER_API = api
+    api = _ADAPTER_API
     size = U32(16384)
     for _ in range(3):
         buf = C.create_string_buffer(size.value)

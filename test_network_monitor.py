@@ -160,6 +160,15 @@ class MonitorTests(unittest.TestCase):
 
 class ConnectionRegressionTests(unittest.TestCase):
     setUp = MonitorTests.setUp
+    @unittest.skipUnless(n.sys.platform == 'win32', 'Windows adapter API')
+    def test_frequent_inventory_reuses_native_types_and_function(self):
+        n.adapters()  # warm any ctypes/runtime caches once
+        api=n._ADAPTER_API
+        count=len(n.C._pointer_type_cache)
+        for _ in range(20): n.adapters()
+        self.assertIs(n._ADAPTER_API,api)
+        self.assertEqual(len(n.C._pointer_type_cache),count)
+
     def test_old_preferences_cannot_change_interval_or_ping_limit(self):
         self.m.path.write_text(json.dumps({'interval':5,'threshold':900}))
         loaded=n.Monitor(self.m.path)
