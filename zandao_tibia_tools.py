@@ -94,6 +94,8 @@ def main():
                       storage_path=os.path.join(data_dir(), "webview_session", VERSAO_APP))
     finally:
         api._rede.close()
+        if getattr(api, "_mirror", None) is not None:
+            api._mirror.close()
         if tray is not None:
             tray.stop()
         if guard is not None:

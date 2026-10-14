@@ -66,3 +66,7 @@ prints_schedule.json
 prints_schedule.tmp
 prints_schedule.json.tmp
 prints_schedule.json.antes-do-backup
+
+# Perfis Mirror privados
+mirrors.json
+mirrors.json.*

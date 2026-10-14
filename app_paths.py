@@ -7,7 +7,7 @@ import sys
 from versao import CANAL_APP
 PRIVATE_FILES = ('historico_hunts.json','meus_personagens.json','settings.json','preferencias.json',
     'hunt_atual.json','sets.json','rodas.json','audio_timers.json','world_board_registros.json',
-    'dados_embuimentos.json','precos_historico.json','sessoes_classificador.json','prints_schedule.json')
+    'dados_embuimentos.json','precos_historico.json','sessoes_classificador.json','prints_schedule.json','mirrors.json','mirrors.json.bak')
 PRIVATE_DIRS = ('sons_usuario',)
 
 def install_dir():

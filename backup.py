@@ -34,6 +34,7 @@ ITENS = {
     "prints_rotina": "Rotina de salvamento dos prints",
     "janela": "Fixar por cima e transparência",
     "audio": "Timers de áudio",
+    "mirror": "Perfis e recortes Mirror por personagem",
     "precos": "Histórico de preços dos embuimentos",
     "rodas": "Minhas rodas (Wheel of Destiny)",
     "sets": "Meus sets de equipamento",

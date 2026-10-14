@@ -1611,6 +1611,8 @@
     "web/guild_stats.js",
     "web/hunt_places.js",
     "web/index.html",
+    "web/mirror.css",
+    "web/mirror.js",
     "web/network.css",
     "web/network.js",
     "web/radio.css",

@@ -5,6 +5,7 @@
 <title>Tibia Tudo</title>
 <link rel="stylesheet" href="criaturas.css">
 <link rel="stylesheet" href="radio.css">
+<link rel="stylesheet" href="mirror.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Work+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -700,6 +701,7 @@
     <div class="nav-item" tabindex="0" data-pagina="hist" title="Histórico de hunts"><span class="nav-icon" aria-hidden="true">📜</span><span class="txt"> Histórico</span></div>
     <div class="nav-item" tabindex="0" data-pagina="ferr" title="Ferramentas"><span class="nav-icon" aria-hidden="true">🧰</span><span class="txt"> Ferramentas</span></div>
     <div class="nav-item" tabindex="0" data-pagina="radio" title="Brasil Hits"><span class="nav-icon" aria-hidden="true">📻</span><span class="txt"> Rádio</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="mirror" title="Mirror — recortes do Tibia"><span class="nav-icon" aria-hidden="true">▣</span><span class="txt"> Mirror</span></div>
     <div class="nav-item" tabindex="0" data-pagina="audio" title="Timers de áudio"><span class="nav-icon" aria-hidden="true">🔔</span><span class="txt"> Timers</span></div>
     <div class="nav-item" tabindex="0" data-pagina="prints" title="Prints"><span class="nav-icon" aria-hidden="true">📸</span><span class="txt"> Prints</span></div>
     <div class="nav-item" id="gs-menu" tabindex="0" data-pagina="guildstats" title="Guild Stats"><span class="nav-icon" aria-hidden="true">📈</span><span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
@@ -727,6 +729,7 @@
       </div>
       <div id="ti-result" aria-live="polite" style="margin-top:16px"></div>
     </section>
+    <section class="page" id="page-mirror"><div id="mirror-root"></div></section>
     <section class="page" id="page-radio">
       <div class="radio-panel">
         <h2>📻 Brasil Hits</h2><p>Rádio ao vivo para acompanhar sua hunt.</p>
@@ -1185,6 +1188,7 @@ function irPara(pagina) {
   document.querySelectorAll('.page').forEach((p) => p.classList.toggle('shown', p.id === 'page-' + pagina));
   $('content').scrollTop = 0;
   if (pagina === 'radio') radioLoad();
+  if (pagina === 'mirror') mirrorLoad();
   if (pagina === 'criaturas') crLoad();
   if (pagina === 'guildstats') gsLoad();
   if (pagina === 'zandaobot') zbLoad();
@@ -3380,6 +3384,8 @@ else window.addEventListener('pywebviewready', iniciar);
 <script src="task_items.js"></script>
 <div id="radio-mini" class="radio-mini" hidden><button class="btn btn-sm" id="radio-mini-open"><span id="radio-mini-channel">Brasil Hits</span></button><button class="btn btn-primary btn-sm" id="radio-mini-toggle" disabled>▶ Tocar</button></div>
 <script src="radio.js"></script>
+<script src="mirror.js"></script>
+<script>PERS_OUVINTES.push(() => mirrorLoad()); window.addEventListener("pywebviewready", () => mirrorLoad());</script>
 <dialog id="apoio-dialog" class="apoio-dialog" aria-labelledby="apoio-titulo"><h2 id="apoio-titulo">Apoie o Tibia Tudo ☕</h2><p>Gostou das ferramentas? Sua contribuição ajuda a manter e melhorar o projeto. Qualquer valor é bem-vindo.</p><img class="apoio-qr" src="assets/brand/pix.png" alt="QR Code Pix para apoiar o Tibia Tudo"><p>Recebedor: <b>Pablo Zandonadi</b></p><label for="apoio-pix">Pix copia e cola</label><textarea id="apoio-pix" readonly spellcheck="false">00020126580014BR.GOV.BCB.PIX0136361fa425-8509-45c1-bf3f-b7ffe03417e25204000053039865802BR5915Pablo Zandonadi6009SAO PAULO62140510zsHJv5VizV630498CD</textarea><p id="apoio-status" role="status"></p><button class="btn btn-primary" id="apoio-copiar">Copiar Pix</button> <button class="btn" id="apoio-fechar">Fechar</button><p class="dica">Contribuição voluntária. Confira o recebedor no seu banco antes de confirmar.</p><p class="dica">Sprites: Lupus Aurelius (Dice) e Makadamia (Coffee), via Tibia Fanart.</p></dialog>
 </body>
 </html>

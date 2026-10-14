@@ -30,7 +30,7 @@ def validate_layout(app,source):
         if path.is_symlink():raise ValueError('Link não permitido no pacote')
         if not path.is_file():continue
         name=path.relative_to(app).as_posix()
-        if path.name in PRIVATE_FILES or any(part.startswith(('cache_','sons_usuario')) for part in path.relative_to(app).parts):
+        if path.name in PRIVATE_FILES or path.name.startswith('mirrors.json.') or any(part.startswith(('cache_','sons_usuario')) for part in path.relative_to(app).parts):
             raise ValueError('Dados privados/cache no pacote: '+name)
         if '/' not in name and name not in {'ZandaoTibiaTools.exe','sbom.json','package-manifest.json'}:
             raise ValueError('Arquivo não autorizado na raiz: '+name)

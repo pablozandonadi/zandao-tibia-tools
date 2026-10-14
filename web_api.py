@@ -15,6 +15,8 @@ import atualizacoes
 import publicacao_beta
 import radio_brasilhits
 import audio_timers
+import mirror_core
+from mirror_service import MirrorService
 import backup
 import damage_core
 import embuimentos as emb
@@ -303,11 +305,48 @@ class API:
         self._atualizacao_info = None  # release lida em verificar_atualizacao, até instalar_atualizacao
         self._dano_cache = {}  # assinatura da hunt -> monstros/dano já analisados (para o Salvar)
         self._audio = None      # motor dos timers de áudio (liga em audio_iniciar)
+        self._mirror = None
+        self._mirror_api_lock = threading.Lock()
         self._capturas = {}     # tipo ('party'/'solo'/'dano') -> {"texto", "t"}: últimos textos do Tibia copiados
         self._trava_capturas = threading.Lock()
         self._monitor = False
         from network_monitor import Monitor
         self._rede = Monitor(os.path.join(BASE_DIR, "rede_config.json"))
+
+    # ================= mirrors por personagem e perfil =================
+    def _mirror_obter(self):
+        with self._mirror_api_lock:
+            if self._mirror is None:
+                self._mirror = MirrorService(personagens.carregar().get("atual", ""),
+                                             emit=lambda state: self._emit("mirrorEstado", state))
+            return self._mirror
+
+    def _mirror_chamar(self, method, *args):
+        try:
+            return getattr(self._mirror_obter(), method)(*args)
+        except (ValueError, TypeError, OSError, RuntimeError) as error:
+            return {"erro": str(error)}
+
+    def mirror_carregar(self):
+        return self._mirror_chamar("carregar")
+
+    def mirror_perfil(self, acao, id="", nome=""):
+        return self._mirror_chamar("perfil", acao, id, nome)
+
+    def mirror_recorte(self, acao, id="", dados=None):
+        return self._mirror_chamar("recorte", acao, id, dados)
+
+    def mirror_todos(self, acao):
+        return self._mirror_chamar("todos", acao)
+
+    def mirror_vincular(self, hwnd):
+        return self._mirror_chamar("vincular", hwnd)
+
+    def mirror_cancelar(self):
+        return self._mirror_chamar("cancelar")
+
+    def mirror_selecionar(self, modo, id=""):
+        return self._mirror_chamar("selecionar", modo, id)
 
     def radio_catalogo(self):
         return self._radio.catalog()
@@ -1257,6 +1296,8 @@ class API:
         """Os timers só valem para o personagem em uso: avisa o motor quando ele muda. Devolve d."""
         if getattr(self, "_audio", None):
             self._audio.definir_personagem((d or {}).get("atual", ""))
+        if getattr(self, "_mirror", None):
+            self._mirror.definir_personagem((d or {}).get("atual", ""))
         return d
 
     def audio_carregar(self):
@@ -1351,7 +1392,7 @@ class API:
     # ================= configurações: backup de tudo =================
     def _caminhos_backup(self):
         return {"world_board": world_board.ARQUIVO, "historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
-                "prints": organizer.SETTINGS_PATH, "prints_rotina": prints_schedule.ARQUIVO, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO,
+                "prints": organizer.SETTINGS_PATH, "prints_rotina": prints_schedule.ARQUIVO, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO, "mirror": mirror_core.ARQUIVO,
                 "precos": precos.PRECOS_PATH, "rodas": roda.RODAS_PATH, "sets": sets.SETS_PATH, "classificador": classificador.SESSOES_PATH}
 
     def config_exportar(self):
@@ -1407,6 +1448,13 @@ class API:
             self._backup_pendente = None
             if backup.ITENS['prints_rotina'] in feitos:
                 self._prints_agenda = None
+        if backup.ITENS["mirror"] in feitos and self._mirror is not None:
+            try:
+                self._mirror.reload()
+            except (ValueError, OSError) as error:
+                self._mirror.close()
+                self._mirror = None
+                return {"ok": False, "erro": str(error), "itens": feitos}
         return {"ok": True, "itens": feitos}
 
     def config_abrir_pasta(self):
