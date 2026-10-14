@@ -16,8 +16,16 @@ import time
 
 TARGETS = (("Cloudflare", "1.1.1.1", 443), ("Google", "8.8.8.8", 443))
 MAX_INTERFACES = 8
-LABELS = {"checking": "Verificando", "healthy": "Saudável", "degraded": "Instável",
-          "offline": "Sem acesso confirmado", "disconnected": "Desconectada",
+READ_INTERVAL = 1.0
+HIGH_PING_MS = 100
+ADAPTER_INTERVAL = 0.25
+
+
+def connection(state):
+    return True if state in ("healthy", "degraded") else False if state in ("offline", "disconnected") else None
+
+LABELS = {"checking": "Verificando", "healthy": "Conectado", "degraded": "Conectado",
+          "offline": "Desconectado", "disconnected": "Desconectado",
           "unavailable": "Medição indisponível", "paused": "Pausada"}
 
 
@@ -121,8 +129,46 @@ class Link:
         self.history = deque(maxlen=900)
         self.minutes = deque(maxlen=1440)
         self.seen = time.time()
+        self.generation = 0
+        self.announced = None
+        self.high_event = None
+        self.loss_event = None
+        self.started = None
+        self.total_mono = None
+        self.total_connection = None
+        self.total_high = False
+        self.totals = {"readings": 0, "latency_n": 0, "latency_sum": 0., "maximum": None,
+                       "attempts": 0, "failures": 0, "timeouts": 0, "measurement_errors": 0,
+                       "high_readings": 0, "high_episodes": 0, "outages": 0,
+                       "observed_seconds": 0., "connected_seconds": 0., "disconnected_seconds": 0.,
+                       "unknown_seconds": 0., "high_seconds": 0.}
+
+    def _accumulate(self, mono):
+        if self.total_mono is not None:
+            elapsed = mono - self.total_mono
+            if 0 <= elapsed <= 3:
+                self.totals["observed_seconds"] += elapsed
+                key = "connected_seconds" if self.total_connection is True else "disconnected_seconds" if self.total_connection is False else "unknown_seconds"
+                self.totals[key] += elapsed
+                if self.total_high:
+                    self.totals["high_seconds"] += elapsed
+        self.total_mono = mono
+
+    def _remember(self, mono, high=False):
+        self.total_mono = mono
+        self.total_connection = connection(self.state)
+        self.total_high = high
 
     def reset(self):
+        if self.loss_event is not None:
+            self.loss_event["active"] = False
+            self.loss_event = None
+        self.total_mono = None
+        self.total_high = False
+        if self.high_event is not None:
+            self.high_event["active"] = False
+            self.high_event = None
+        self.generation += 1
         self.failures = self.successes = 0
         self.healthy_since = self.last_success = None
         self.state = "checking"
@@ -132,6 +178,8 @@ class Link:
 
     def record(self, results, now, mono, threshold):
         old = self.state
+        self.started = self.started or now
+        self._accumulate(mono)
         if self.last_mono is not None and mono - self.last_mono > 15:
             self.reset()  # suspend/resume is not an ISP outage
             self.history.append({"t": now - .01, "ms": None, "loss": None, "state": "unavailable"})
@@ -142,7 +190,7 @@ class Link:
             self.state = "disconnected"
             self.failures = self.successes = 0
             self.healthy_since = None
-        elif not self.adapter.get("ip") or len(valid) != len(TARGETS):
+        elif not self.adapter.get("ip") or (not good and len(valid) != len(TARGETS)):
             self.state = "unavailable"
             self.failures = self.successes = 0
             self.healthy_since = None
@@ -150,21 +198,37 @@ class Link:
             self.failures += 1
             self.successes = 0
             self.healthy_since = None
-            self.state = "offline" if self.failures >= 3 else "checking"
+            self.state = "offline" if self.failures >= 2 else "checking"
         else:
             self.failures = 0
             self.last_success = now
-            all_good = len(good) == len(TARGETS) and max(good) < threshold
+            all_good = len(good) == len(TARGETS) and max(good) <= HIGH_PING_MS
             self.successes = self.successes + 1 if all_good else 0
             if all_good:
                 self.healthy_since = self.healthy_since or now
-                self.state = "healthy" if self.successes >= 5 else "checking"
+                self.state = "healthy"
             else:
-                self.healthy_since = None
+                self.healthy_since = self.healthy_since or now
                 self.state = "degraded"
+        if results:
+            self.totals["readings"] += 1
+            self.totals["attempts"] += len(valid)
+            self.totals["failures"] += len(valid) - len(good)
+            self.totals["timeouts"] += sum(r["error"] == "timeout" for r in valid)
+            self.totals["measurement_errors"] += len(results) - len(valid)
+        high = any(v > HIGH_PING_MS for v in good)
+        if high:
+            self.totals["high_readings"] += 1
+            if not self.total_high:
+                self.totals["high_episodes"] += 1
+        self._remember(mono, high)
         # Fixed primary target for chart/latency: never alternate targets silently.
         primary = results[0]["ms"] if results and self.state not in ("unavailable", "disconnected") else None
         loss = round(100 * (len(valid) - len(good)) / len(valid), 1) if len(valid) == len(TARGETS) else None
+        if primary is not None:
+            self.totals["latency_n"] += 1
+            self.totals["latency_sum"] += primary
+            self.totals["maximum"] = max(self.totals["maximum"] or 0, primary)
         sample = {"t": now, "ms": primary, "loss": loss, "state": self.state}
         if self.state == "disconnected":
             sample.update(ms=None, loss=None)
@@ -197,15 +261,22 @@ class Link:
             points = [{"t": b["t"], "ms": round(b["sum"] / b["n"], 1) if b["n"] and not b["gap"] else None,
                        "max": b["max"], "loss": round(b["loss_sum"] / b["loss_n"], 1) if b["loss_n"] else None}
                       for b in self.minutes if b["t"] >= now - window]
+        totals = dict(self.totals)
+        totals["average"] = round(totals["latency_sum"] / totals["latency_n"], 1) if totals["latency_n"] else None
+        totals["failure_percent"] = round(100 * totals["failures"] / totals["attempts"], 1) if totals["attempts"] else None
+        totals["high_percent"] = round(100 * totals["high_readings"] / totals["readings"], 1) if totals["readings"] else None
+        totals["since"] = self.started
         return {**self.adapter, "state": self.state, "label": LABELS[self.state],
+            "connected": connection(self.state),
+            "quality": "Ping acima de 100 ms ou resposta parcial" if self.state == "degraded" else None,
             "current": recent[-1]["ms"] if recent and self.state not in ("unavailable", "disconnected") else None,
             "average": round(statistics.mean(values), 1) if values else None,
             "maximum": max(values) if values else None,
             "p95": sorted(values)[max(0, math.ceil(len(values)*.95)-1)] if values else None,
             "loss": round(statistics.mean(losses), 1) if losses else None,
             "jitter": round(statistics.mean(deltas), 1) if deltas else None,
-            "healthy_for": max(0, int(now - self.healthy_since)) if self.healthy_since else 0,
-            "last_success": self.last_success, "points": points}
+            "connected_for": max(0, int(now - self.healthy_since)) if self.healthy_since else 0,
+            "last_success": self.last_success, "points": points, "totals": totals}
 
 
 class Monitor:
@@ -215,14 +286,18 @@ class Monitor:
         self.lock = threading.RLock()
         self.stop_event = threading.Event()
         self.thread = None
+        self.inventory_thread = None
+        self.inventory_ready = threading.Event()
         self.links = {}
         self.events = deque(maxlen=200)
         self.error = None
-        self.config = {"enabled": False, "sound": True, "notifications": True, "interval": 2,
-                       "threshold": 150, "excluded": [], "aliases": {}, "preferred": ""}
+        self.config = {"enabled": False, "sound": True, "notifications": True, "interval": 1,
+                       "threshold": HIGH_PING_MS, "excluded": [], "aliases": {}, "preferred": ""}
         try:
             saved = json.loads(self.path.read_text(encoding="utf-8"))
             self.config.update(self.validate(saved))
+            self.config["interval"] = 1
+            self.config["threshold"] = HIGH_PING_MS
         except (OSError, ValueError, TypeError):
             pass
 
@@ -236,15 +311,11 @@ class Monitor:
                 if not isinstance(changes[key], bool):
                     raise ValueError("Opção inválida.")
                 result[key] = changes[key]
+        # Cadence is fixed; old saved intervals are deliberately ignored.
         if "interval" in changes:
-            if changes["interval"] not in (1, 2, 5):
-                raise ValueError("Intervalo inválido.")
-            result["interval"] = changes["interval"]
+            result["interval"] = 1
         if "threshold" in changes:
-            value = int(changes["threshold"])
-            if not 30 <= value <= 2000:
-                raise ValueError("Limiar deve estar entre 30 e 2000 ms.")
-            result["threshold"] = value
+            result["threshold"] = HIGH_PING_MS
         if "excluded" in changes:
             if not isinstance(changes["excluded"], list) or len(changes["excluded"]) > 64:
                 raise ValueError("Seleção inválida.")
@@ -265,7 +336,7 @@ class Monitor:
             temp = self.path.with_suffix(".tmp")
             temp.write_text(json.dumps(config, ensure_ascii=False), encoding="utf-8")
             os.replace(temp, self.path)
-            if any(config[k] != self.config[k] for k in ("enabled", "excluded", "threshold")):
+            if any(config[k] != self.config[k] for k in ("enabled", "excluded")):
                 for link in self.links.values():
                     link.reset()
             self.config = config
@@ -275,24 +346,80 @@ class Monitor:
     def start(self):
         with self.lock:
             if self.thread is None:
+                self.inventory_thread = threading.Thread(target=self._watch_adapters, name="network-adapters", daemon=True)
                 self.thread = threading.Thread(target=self._run, name="network-monitor", daemon=True)
+                self.inventory_thread.start()
                 self.thread.start()
 
     def close(self):
         self.stop_event.set()
-        if self.thread:
-            self.thread.join(timeout=4)
+        for thread in (self.inventory_thread, self.thread):
+            if thread:
+                thread.join(timeout=4)
+
+    def _selected(self):
+        return [x for x in self.links.values() if x.adapter["id"] not in self.config["excluded"]][:MAX_INTERFACES]
+
+    def _event(self, link, physical=False):
+        """Called under lock. Quality changes never produce connection notifications."""
+        status = connection(link.state)
+        if not self.config["enabled"] or link not in self._selected() or status is None:
+            return None
+        if not physical and link.announced is status:
+            return None
+        if status is False and link.announced is not False:
+            link.totals["outages"] += 1
+        link.announced = status
+        name = self.config["aliases"].get(link.adapter["id"]) or link.adapter["name"]
+        event = {"t": time.time(), "name": name, "state": "healthy" if status else "disconnected",
+                 "kind": "connection", "message": name + (": Conectado" if status else ": Desconectado")}
+        self.events.appendleft(event)
+        return event
+
+    def _quality_event(self, link, results, now):
+        high = [r for r in results if r["ms"] is not None and r["ms"] > HIGH_PING_MS]
+        if high:
+            name = self.config["aliases"].get(link.adapter["id"]) or link.adapter["name"]
+            if link.high_event is None:
+                link.high_event = {"t": now, "name": name, "state": "degraded", "kind": "quality",
+                                   "peak": 0, "samples": 0, "duration": 0, "active": True}
+                self.events.appendleft(link.high_event)
+            event = link.high_event
+            event["peak"] = max(event["peak"], max(r["ms"] for r in high))
+            event["samples"] += 1
+            event["duration"] = max(0, round(now - event["t"], 1))
+            event["message"] = (name + ": ping acima de 100 ms · pico " + str(round(event["peak"])) +
+                                " ms · " + str(event["samples"]) + " leituras · " + str(event["duration"]) + " s")
+        elif link.high_event is not None:
+            link.high_event["active"] = False
+            link.high_event = None
+
+        failed = [r for r in results if r["error"] in ("timeout", "unreachable")]
+        if failed:
+            name = self.config["aliases"].get(link.adapter["id"]) or link.adapter["name"]
+            if link.loss_event is None:
+                link.loss_event = {"t": now, "name": name, "state": "degraded", "kind": "probe_failure",
+                                   "failures": 0, "timeouts": 0, "samples": 0, "active": True}
+                self.events.appendleft(link.loss_event)
+            event = link.loss_event
+            event["failures"] += len(failed)
+            event["timeouts"] += sum(r["error"] == "timeout" for r in failed)
+            event["samples"] += 1
+            event["message"] = (name + ": falhas nas sondas · " + str(event["failures"]) + " falhas · " +
+                                str(event["timeouts"]) + " timeouts · " + str(event["samples"]) + " leituras")
+        elif link.loss_event is not None:
+            link.loss_event["active"] = False
+            link.loss_event = None
 
     def _refresh(self):
         rows = self.inventory()
         now = time.time()
+        alerts = []
         with self.lock:
             ids = {a["id"] for a in rows}
-            # Preserve recently unplugged interfaces, with a bounded registry.
-            for link in self.links.values():
-                if link.adapter["id"] not in ids:
-                    link.adapter = dict(link.adapter, up=False, ip=None)
-            for a in rows[:64]:
+            updates = list(rows[:64]) + [dict(x.adapter, up=False, ip=None)
+                       for x in self.links.values() if x.adapter["id"] not in ids]
+            for a in updates:
                 key = a["id"]
                 if key not in self.links:
                     if len(self.links) >= 64:
@@ -306,42 +433,65 @@ class Monitor:
                             self.config["excluded"].append(key)
                 else:
                     link = self.links[key]
-                    if (link.adapter["ip"], link.adapter["index"]) != (a["ip"], a["index"]):
-                        link.reset()
+                    old = link.adapter
+                    changed = (old["up"], old["ip"], old["index"]) != (a["up"], a["ip"], a["index"])
+                    if changed:
+                        link._accumulate(time.monotonic())
+                        last_success = link.last_success
+                        link.reset()  # invalidate any probe from before the cable/IP change
                     link.adapter = a
+                    if not a["up"]:
+                        link.state = "disconnected"
+                        if changed:
+                            link.last_success = last_success
+                            link._remember(time.monotonic())
+                        if old["up"]:
+                            # This path never waits for external probes, even if already offline.
+                            event = self._event(link, physical=True)
+                            if event:
+                                alerts.append(event)
                 self.links[key].seen = now
             self.error = None
+            config = dict(self.config)
+        for event in alerts:
+            self._notify(event, config)
+
+    def _watch_adapters(self):
+        while not self.stop_event.is_set():
+            try:
+                self._refresh()
+            except Exception:
+                with self.lock:
+                    self.error = "Não foi possível consultar os adaptadores. Tentando novamente."
+            finally:
+                self.inventory_ready.set()
+            self.stop_event.wait(ADAPTER_INTERVAL)
 
     def _run(self):
-        next_scan = 0
-        with ThreadPoolExecutor(max_workers=8, thread_name_prefix="network-probe") as pool:
+        self.inventory_ready.wait(2)
+        # Both targets for all selected interfaces can run together, with a fixed socket cap.
+        with ThreadPoolExecutor(max_workers=MAX_INTERFACES * len(TARGETS), thread_name_prefix="network-probe") as pool:
             while not self.stop_event.is_set():
                 began = time.monotonic()
                 try:
-                    if began >= next_scan:
-                        self._refresh()
-                        next_scan = began + 5
                     with self.lock:
-                        config = dict(self.config)
-                        active = [x for x in self.links.values() if x.adapter["id"] not in config["excluded"]][:MAX_INTERFACES]
-                    if config["enabled"]:
-                        pending = [(link, dict(link.adapter),
-                                    [pool.submit(self.prober, dict(link.adapter), t) for t in TARGETS]
-                                    if link.adapter["up"] and link.adapter["ip"] else []) for link in active]
-                        alerts = []
-                        for link, identity, futures in pending:
+                        config = dict(self.config, excluded=list(self.config["excluded"]), aliases=dict(self.config["aliases"]))
+                        pending = [(link, link.generation,
+                                    [pool.submit(self.prober, dict(link.adapter), t, .8) for t in TARGETS]
+                                    if link.adapter["up"] and link.adapter["ip"] else [])
+                                   for link in self._selected()] if config["enabled"] else []
+                    for link, generation, futures in pending:
+                        try:
                             results = [f.result() for f in futures]
-                            with self.lock:
-                                if self.config != config:
-                                    continue
-                                changed = link.record(results, time.time(), time.monotonic(), config["threshold"])
-                                if changed and link.state in ("healthy", "offline", "disconnected", "degraded", "unavailable"):
-                                    name = config["aliases"].get(identity["id"]) or identity["name"]
-                                    message = name + ": " + LABELS[link.state]
-                                    event = {"t": time.time(), "name": name, "state": link.state, "message": message}
-                                    self.events.appendleft(event)
-                                    alerts.append(event)
-                        for event in alerts:
+                        except Exception:
+                            results = [{"target": t[0], "ms": None, "error": "measurement"} for t in TARGETS]
+                        with self.lock:
+                            if self.config != config or link.generation != generation:
+                                continue
+                            link.record(results, time.time(), time.monotonic(), config["threshold"])
+                            self._quality_event(link, results, time.time())
+                            event = self._event(link)
+                        if event:
                             self._notify(event, config)
                 except Exception:
                     with self.lock:
@@ -349,10 +499,11 @@ class Monitor:
                         for link in self.links.values():
                             link.reset()
                             link.state = "unavailable"
-                    next_scan = 0
-                self.stop_event.wait(max(.1, (config.get("interval", 2) if 'config' in locals() else 2) - (time.monotonic()-began)))
+                self.stop_event.wait(max(.01, READ_INTERVAL - (time.monotonic() - began)))
 
     def _notify(self, event, config):
+        if event.get("kind") != "connection":
+            return
         if config["notifications"] and self.notifier:
             try:
                 self.notifier(event["message"])
@@ -377,9 +528,9 @@ class Monitor:
                 x["selected"] = x["id"] in selected
                 x["alias"] = self.config["aliases"].get(x["id"]) or x["name"]
                 if not self.config["enabled"] or not x["selected"]:
-                    x.update(state="paused", label=LABELS["paused"], current=None, healthy_for=0)
-            return {"config": dict(self.config), "links": links, "events": list(self.events),
+                    x.update(state="paused", label=LABELS["paused"], current=None, connected=None, connected_for=0)
+            return {"config": dict(self.config), "links": links, "events": [dict(e) for e in self.events],
                     "error": self.error, "now": now, "window": window,
-                    "healthy": sum(x["state"] == "healthy" for x in links),
+                    "connected": sum(x["selected"] and x["connected"] is True for x in links),
                     "selected": len(selected), "limit": MAX_INTERFACES,
                     "method": "TCP IPv4 · Cloudflare 1.1.1.1:443 e Google 8.8.8.8:443"}
