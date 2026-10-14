@@ -12,6 +12,11 @@ from PIL import Image
 
 
 class TimerVisualTests(unittest.TestCase):
+    def setUp(self):
+        focus = patch.object(overlay, 'janela_tibia_em_foco', return_value=(0, 0, 800, 600))
+        focus.start()
+        self.addCleanup(focus.stop)
+
     def test_arquivo_antigo_preserva_configuracao_e_ganha_contorno(self):
         old = {"id":"po", "nome":"Potion", "personagem":"Zandao", "duracao":5.125,
                "antes":.2, "modo":"loop", "som":"usuario:meu.wav", "volume":35,
@@ -208,6 +213,7 @@ class TimerVisualTests(unittest.TestCase):
     def test_texto_muda_cor_sem_reiniciar_pisca_ou_tempo_de_exibicao(self):
         instance=overlay.Overlay.__new__(overlay.Overlay)
         instance._visivel=True
+        instance._ativo=True
         instance._progresso={'fracao':1,'duracao':10}
         instance._progresso_ini=0;instance._cor=(0,230,60)
         instance._texto='Aviso';instance._tamanho=34
@@ -223,6 +229,11 @@ class TimerVisualTests(unittest.TestCase):
 
 
 class TimerAlertLifecycleTests(unittest.TestCase):
+    def setUp(self):
+        focus = patch.object(overlay, 'janela_tibia_em_foco', return_value=(0, 0, 800, 600))
+        focus.start()
+        self.addCleanup(focus.stop)
+
     def motor_expirado(self):
         m, e = TimerVisualTests()._motor_falso()
         m.personagem = 'Teste'
@@ -284,6 +295,9 @@ class TimerAlertLifecycleTests(unittest.TestCase):
         obj._trava = threading.Lock()
         obj._pedido = ('exibição pendente',)
         obj._visivel = True
+        obj._ativo = True
+        obj._fim_exibicao = None
+        obj._pos = dict(overlay.ALERTA_PADRAO)
         obj._image = Image.new('RGBA', (40, 20))
         obj._alpha = 80
         obj._progresso = {'fracao': 1, 'duracao': 10}
@@ -308,6 +322,8 @@ class TimerAlertLifecycleTests(unittest.TestCase):
         for msg, param in [(overlay.WM_APP + 2, 0), (overlay.WM_TIMER, 1)]:
             with self.subTest(msg=msg):
                 obj = self.janela()
+                if param == 1:
+                    obj._fim_exibicao = 0
                 with patch.object(overlay, '_u32') as native, patch.object(overlay.layered_image, 'mostrar') as draw:
                     obj._wndproc(1, msg, param, 0)
                     obj._wndproc(1, overlay.WM_TIMER, 2, 0)

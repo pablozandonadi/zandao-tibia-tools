@@ -75,6 +75,15 @@ if sys.platform == "win32":
     _u32.KillTimer.argtypes = [wintypes.HWND, ctypes.c_size_t]
     _u32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
     _u32.SetLayeredWindowAttributes.argtypes = [wintypes.HWND, wintypes.COLORREF, ctypes.c_ubyte, wintypes.DWORD]
+    _u32.GetForegroundWindow.restype = wintypes.HWND
+    _u32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.c_void_p]
+    _u32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.c_void_p]
+    _u32.IsWindowVisible.argtypes = [wintypes.HWND]
+    _u32.IsIconic.argtypes = [wintypes.HWND]
+    _k32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    _k32.OpenProcess.restype = wintypes.HANDLE
+    _k32.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.c_void_p]
+    _k32.CloseHandle.argtypes = [wintypes.HANDLE]
     _k32.GetModuleHandleW.restype = wintypes.HMODULE
     _u32.GetMessageW.argtypes = [ctypes.c_void_p, wintypes.HWND, wintypes.UINT, wintypes.UINT]
     _u32.TranslateMessage.argtypes = [ctypes.c_void_p]
@@ -139,6 +148,71 @@ def janela_do_tibia():
     return max(achadas, key=lambda r: (r[2] - r[0]) * (r[3] - r[1])) if achadas else None
 
 
+def janela_tibia_em_foco():
+    """Retângulo do cliente Tibia em primeiro plano; nunca usa título de janela."""
+    if sys.platform != 'win32':
+        return None
+    hwnd = _u32.GetForegroundWindow()
+    if not hwnd or not _u32.IsWindowVisible(hwnd) or _u32.IsIconic(hwnd):
+        return None
+    pid = wintypes.DWORD()
+    _u32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    process = _k32.OpenProcess(0x1000, False, pid.value)
+    if not process:
+        return None
+    try:
+        path = ctypes.create_unicode_buffer(520)
+        size = wintypes.DWORD(520)
+        if not _k32.QueryFullProcessImageNameW(process, 0, path, ctypes.byref(size)):
+            return None
+        if os.path.basename(path.value).lower() not in PROCESSOS_TIBIA:
+            return None
+        rect = wintypes.RECT()
+        if not _u32.GetWindowRect(hwnd, ctypes.byref(rect)):
+            return None
+        if rect.right - rect.left <= 200 or rect.bottom - rect.top <= 150:
+            return None
+        return (rect.left, rect.top, rect.right, rect.bottom)
+    finally:
+        _k32.CloseHandle(process)
+
+
+class _FocoTibia:
+    """Oculta só a janela ao perder foco, preservando o aviso e seu prazo original."""
+    def _sincronizar_foco(self, hwnd):
+        if not self._ativo:
+            return
+        due = getattr(self, '_fim_exibicao', None)
+        if due is not None and time.monotonic() >= due:
+            self._wndproc(hwnd, WM_APP + 2, 0, 0)
+            return
+        rect = janela_tibia_em_foco()
+        layout = self._layout_foco(rect) if rect else None
+        if layout is None:
+            if self._visivel:
+                _u32.ShowWindow(hwnd, SW_HIDE)
+            self._visivel = False
+            return
+        if not self._visivel or layout != getattr(self, '_layout_visivel', None):
+            _u32.SetWindowPos(hwnd, ctypes.c_void_p(-1), *layout, SWP_NOACTIVATE | SWP_SHOWWINDOW)
+            self._layout_visivel = layout
+            self._visivel = True
+            _u32.InvalidateRect(hwnd, None, True)
+
+    def _pode_desenhar(self, hwnd):
+        if not self._visivel:
+            return False
+        due = getattr(self, '_fim_exibicao', None)
+        if due is not None and time.monotonic() >= due:
+            self._wndproc(hwnd, WM_APP + 2, 0, 0)
+            return False
+        if janela_tibia_em_foco() is None:
+            _u32.ShowWindow(hwnd, SW_HIDE)
+            self._visivel = False
+            return False
+        return True
+
+
 BARRA_PADRAO = {"largura": 320, "espessura": 14, "x": 50, "y": 78, "nome": True, "tempo": True,
                 "estilo": "classica", "texto_estilo": "contorno", "familia": "Verdana", "cor_tempo": False, "orientacao": "horizontal"}
 
@@ -165,7 +239,7 @@ def layout_barras(n, cfg, alvo):
     return x, y, larg, alt, linha
 
 
-class Barras:
+class Barras(_FocoTibia):
     """Barras de contagem por cima do Tibia (uma por timer rodando), que não dá para clicar."""
 
     def __init__(self):
@@ -174,6 +248,7 @@ class Barras:
         self._pronto = threading.Event()
         self.hwnd = None
         self._visivel = False
+        self._ativo = False
         threading.Thread(target=self._rodar, daemon=True).start()
         self._pronto.wait(3)
 
@@ -183,13 +258,15 @@ class Barras:
         if itens and alvo is None and not so_tibia:
             alvo = (0, 0, _u32.GetSystemMetrics(0), _u32.GetSystemMetrics(1))
         if not itens or alvo is None:
-            if self._visivel and self.hwnd:
-                _u32.PostMessageW(self.hwnd, WM_APP + 2, 0, 0)
+            with self._trava:
+                self._dados = ([], normalizar_barra(cfg), None)
+                if self.hwnd:
+                    _u32.PostMessageW(self.hwnd, WM_APP + 2, 0, 0)
             return alvo is not None or not itens
         with self._trava:
             self._dados = (list(itens), normalizar_barra(cfg), alvo)
-        if self.hwnd:
-            _u32.PostMessageW(self.hwnd, WM_APP + 1, 0, 0)
+            if self.hwnd:
+                _u32.PostMessageW(self.hwnd, WM_APP + 1, 0, 0)
         return True
 
     def _rodar(self):
@@ -227,16 +304,28 @@ class Barras:
         r = wintypes.RECT(int(x1), int(y1), int(x2), int(y2))
         _u32.DrawTextW(hdc, texto, -1, ctypes.byref(r), flags)
 
+    def _layout_foco(self, alvo):
+        with self._trava:
+            itens, cfg, _ = self._dados
+        return layout_barras(len(itens), cfg, alvo)[:4] if itens else None
+
     def _wndproc(self, hwnd, msg, wparam, lparam):
         if msg == WM_APP + 1:
             with self._trava:
                 itens, cfg, alvo = self._dados
-            x, y, larg, alt, _ = layout_barras(len(itens), cfg, alvo)
-            _u32.SetWindowPos(hwnd, ctypes.c_void_p(-1), x, y, larg, alt, SWP_NOACTIVATE | SWP_SHOWWINDOW)
-            self._visivel = True
-            _u32.InvalidateRect(hwnd, None, True)
+            self._ativo = bool(itens)
+            if self._ativo:
+                _u32.SetTimer(hwnd, 4, 100, None)
+                self._sincronizar_foco(hwnd)
+                if self._visivel:
+                    _u32.InvalidateRect(hwnd, None, True)
+            return 0
+        if msg == WM_TIMER and wparam == 4:
+            self._sincronizar_foco(hwnd)
             return 0
         if msg == WM_APP + 2:
+            self._ativo = False
+            _u32.KillTimer(hwnd, 4)
             _u32.ShowWindow(hwnd, SW_HIDE)
             self._visivel = False
             return 0
@@ -245,14 +334,14 @@ class Barras:
             hdc = _u32.BeginPaint(hwnd, ctypes.byref(ps))
             with self._trava:
                 itens, cfg, _ = self._dados
-            if itens:
+            if itens and self._pode_desenhar(hwnd):
                 layered_image.mostrar(hwnd, timer_visual.barras(itens, cfg, cor_rgb))
             _u32.EndPaint(hwnd, ctypes.byref(ps))
             return 0
         return _u32.DefWindowProcW(hwnd, msg, wparam, lparam)
 
 
-class Overlay:
+class Overlay(_FocoTibia):
     """Uma janela de alerta com a própria thread (o Windows exige o loop de mensagens na thread que a criou)."""
 
     LARGURA, ALTURA = 900, 90
@@ -260,6 +349,8 @@ class Overlay:
     def __init__(self):
         self._pedido = None
         self._visivel = False
+        self._ativo = False
+        self._fim_exibicao = None
         self._trava = threading.Lock()
         self._pronto = threading.Event()
         self.hwnd = None
@@ -290,7 +381,7 @@ class Overlay:
     # ---------------- thread da janela ----------------
     def _alfa(self, a):
         self._alpha = max(0, min(255, a))
-        if self._visivel and getattr(self, "_image", None) is not None:
+        if getattr(self, "_image", None) is not None and self._pode_desenhar(self.hwnd):
             layered_image.mostrar(self.hwnd, self._image, self._alpha)
 
     def _rodar(self):
@@ -316,17 +407,31 @@ class Overlay:
             _u32.TranslateMessage(ctypes.byref(msg))
             _u32.DispatchMessageW(ctypes.byref(msg))
 
+    def _layout_foco(self, alvo):
+        esq, topo, dir_, base = alvo
+        if self._image is None:
+            return None
+        if self._largura_texto != dir_ - esq:
+            self._largura_texto = dir_ - esq
+            self._image = timer_visual.texto(self._texto, self._cor, self._tamanho, self._visual, self._largura_texto)
+        larg, alt = self._image.size
+        cx = esq + (dir_ - esq) * self._pos['x'] / 100
+        cy = topo + (base - topo) * self._pos['y'] / 100
+        return (int(min(max(cx - larg / 2, esq), dir_ - larg)),
+                int(min(max(cy - alt / 2, topo), base - alt)), larg, alt)
+
     def _wndproc(self, hwnd, msg, wparam, lparam):
         if msg == WM_APP + 1:
             with self._trava:
                 pedido, self._pedido = self._pedido, None
             if pedido:
-                self._visivel = True
+                self._ativo = True
                 self._texto, self._cor, segundos, (esq, topo, dir_, base), self._tamanho, pos, piscar, self._visual, progresso = pedido
                 _u32.KillTimer(hwnd, 2)
                 _u32.KillTimer(hwnd, 3)
                 self._progresso = progresso
                 self._progresso_ini = time.monotonic()
+                self._fim_exibicao = self._progresso_ini + segundos if segundos > 0 else None
                 self._largura_texto = dir_ - esq
                 if progresso:
                     _u32.SetTimer(hwnd, 3, 100, None)
@@ -335,19 +440,22 @@ class Overlay:
                     self._pisca_ini = time.monotonic()
                     _u32.SetTimer(hwnd, 2, 30, None)
                 self._image = timer_visual.texto(self._texto, self._cor, self._tamanho, self._visual, dir_ - esq)
-                larg, alt = self._image.size
-                cx = esq + (dir_ - esq) * pos["x"] / 100
-                cy = topo + (base - topo) * pos["y"] / 100
-                x = int(min(max(cx - larg / 2, esq), dir_ - larg))
-                y = int(min(max(cy - alt / 2, topo), base - alt))
-                _u32.SetWindowPos(hwnd, ctypes.c_void_p(-1), x, y, larg, alt, SWP_NOACTIVATE | SWP_SHOWWINDOW)
-                _u32.InvalidateRect(hwnd, None, True)
+                self._pos = pos
                 _u32.KillTimer(hwnd, 1)
                 if segundos > 0:
-                    _u32.SetTimer(hwnd, 1, int(segundos * 1000), None)
+                    _u32.SetTimer(hwnd, 1, max(1, int(segundos * 1000)), None)
+                _u32.SetTimer(hwnd, 4, 100, None)
+                self._sincronizar_foco(hwnd)
+                if self._visivel:
+                    _u32.InvalidateRect(hwnd, None, True)
             return 0
-        if msg == WM_TIMER and not self._visivel:
+        if msg == WM_TIMER and wparam == 4:
+            self._sincronizar_foco(hwnd)
+            return 0
+        if msg == WM_TIMER and not self._ativo:
             return 0  # KillTimer não remove WM_TIMER já enfileirado
+        if msg == WM_TIMER and wparam in (2, 3) and not self._pode_desenhar(hwnd):
+            return 0
         if msg == WM_TIMER and wparam == 3:
             if self._progresso:
                 elapsed = (time.monotonic() - self._progresso_ini) / max(.1, self._progresso["duracao"])
@@ -362,10 +470,15 @@ class Overlay:
             fase = ((time.monotonic() - self._pisca_ini) % PISCA_PERIODO) / PISCA_PERIODO
             self._alfa(int(25 + 230 * (0.5 + 0.5 * math.cos(2 * math.pi * fase))))
             return 0
+        if msg == WM_TIMER and wparam == 1 and (self._fim_exibicao is None or time.monotonic() < self._fim_exibicao):
+            return 0  # Ignora expiração enfileirada de um aviso anterior.
         if msg == WM_APP + 2 or msg == WM_TIMER:
             _u32.KillTimer(hwnd, 1)
             _u32.KillTimer(hwnd, 2)
             _u32.KillTimer(hwnd, 3)
+            _u32.KillTimer(hwnd, 4)
+            self._ativo = False
+            self._fim_exibicao = None
             self._visivel = False
             self._progresso = None
             self._image = None
@@ -375,7 +488,7 @@ class Overlay:
         if msg == WM_PAINT:
             ps = _PAINTSTRUCT()
             hdc = _u32.BeginPaint(hwnd, ctypes.byref(ps))
-            if self._visivel and getattr(self, "_image", None) is not None:
+            if getattr(self, "_image", None) is not None and self._pode_desenhar(hwnd):
                 layered_image.mostrar(hwnd, self._image, getattr(self, "_alpha", 255))
             _u32.EndPaint(hwnd, ctypes.byref(ps))
             return 0
