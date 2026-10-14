@@ -19,7 +19,7 @@ import webview
 
 from app_paths import initialize_data, data_dir
 from single_instance import InstanceGuard
-from versao import CANAL_APP, NOME_APP
+from versao import CANAL_APP, NOME_APP, VERSAO_APP
 
 # web/ e icon.ico: no .exe ficam dentro do pacote (sys._MEIPASS); no código-fonte, ao lado deste arquivo.
 if getattr(sys, "frozen", False):
@@ -91,7 +91,7 @@ def main():
         api._rede.start()
     try:
         webview.start(icon=os.path.join(PASTA_RECURSOS, "icon.ico"), private_mode=False,
-                      storage_path=os.path.join(data_dir(), "webview_session"))
+                      storage_path=os.path.join(data_dir(), "webview_session", VERSAO_APP))
     finally:
         api._rede.close()
         if tray is not None:

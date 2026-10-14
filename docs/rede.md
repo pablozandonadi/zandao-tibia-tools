@@ -1,6 +1,6 @@
 # Rede: monitoramento por conexão
 
-Abra **Rede** e clique em **Iniciar monitoramento**. Vivo Fibra e iPhone USB são testados independentemente; não é necessário retirar nenhum cabo. A coleta continua com a janela minimizada e volta a iniciar com o aplicativo se você a deixou habilitada. Para encerrar a coleta, use Pausar monitoramento ou Sair no ícone da bandeja.
+Abra **Networking** e clique em **Iniciar monitoramento**. Vivo Fibra e iPhone USB são testados independentemente; não é necessário retirar nenhum cabo. A coleta continua com a janela minimizada e volta a iniciar com o aplicativo se você a deixou habilitada. Para encerrar a coleta, use Pausar monitoramento ou Sair no ícone da bandeja.
 
 - Saudável: cinco rodadas completas abaixo do limiar configurado.
 - Instável: latência alta ou somente um dos destinos respondendo.
