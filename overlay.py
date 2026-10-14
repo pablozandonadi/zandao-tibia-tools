@@ -259,6 +259,7 @@ class Overlay:
 
     def __init__(self):
         self._pedido = None
+        self._visivel = False
         self._trava = threading.Lock()
         self._pronto = threading.Event()
         self.hwnd = None
@@ -266,8 +267,10 @@ class Overlay:
         self._pronto.wait(3)
 
     def esconder(self):
-        if self.hwnd:
-            _u32.PostMessageW(self.hwnd, WM_APP + 2, 0, 0)
+        with self._trava:
+            self._pedido = None  # cancela também uma exibição ainda na fila
+            if self.hwnd:
+                _u32.PostMessageW(self.hwnd, WM_APP + 2, 0, 0)
 
     def mostrar(self, texto, cor="amarelo", segundos=3.0, so_tibia=True, tamanho=34, pos=None, piscar=False, visual=None, progresso=None):
         """Mostra o alerta. segundos=0: fica até esconder(). piscar: aparece e some suave (fade).
@@ -280,14 +283,14 @@ class Overlay:
         with self._trava:
             self._pedido = (str(texto), cor_rgb(cor), float(segundos), alvo,
                             max(14, min(96, int(tamanho))), normalizar_alerta(pos), bool(piscar), timer_visual.aparencia(visual), progresso)
-        if self.hwnd:
-            _u32.PostMessageW(self.hwnd, WM_APP + 1, 0, 0)
+            if self.hwnd:
+                _u32.PostMessageW(self.hwnd, WM_APP + 1, 0, 0)
         return True
 
     # ---------------- thread da janela ----------------
     def _alfa(self, a):
         self._alpha = max(0, min(255, a))
-        if getattr(self, "_image", None) is not None:
+        if self._visivel and getattr(self, "_image", None) is not None:
             layered_image.mostrar(self.hwnd, self._image, self._alpha)
 
     def _rodar(self):
@@ -318,6 +321,7 @@ class Overlay:
             with self._trava:
                 pedido, self._pedido = self._pedido, None
             if pedido:
+                self._visivel = True
                 self._texto, self._cor, segundos, (esq, topo, dir_, base), self._tamanho, pos, piscar, self._visual, progresso = pedido
                 _u32.KillTimer(hwnd, 2)
                 _u32.KillTimer(hwnd, 3)
@@ -342,6 +346,8 @@ class Overlay:
                 if segundos > 0:
                     _u32.SetTimer(hwnd, 1, int(segundos * 1000), None)
             return 0
+        if msg == WM_TIMER and not self._visivel:
+            return 0  # KillTimer não remove WM_TIMER já enfileirado
         if msg == WM_TIMER and wparam == 3:
             if self._progresso:
                 elapsed = (time.monotonic() - self._progresso_ini) / max(.1, self._progresso["duracao"])
@@ -360,13 +366,16 @@ class Overlay:
             _u32.KillTimer(hwnd, 1)
             _u32.KillTimer(hwnd, 2)
             _u32.KillTimer(hwnd, 3)
+            self._visivel = False
+            self._progresso = None
+            self._image = None
+            self._alpha = 255
             _u32.ShowWindow(hwnd, SW_HIDE)
-            self._alfa(255)
             return 0
         if msg == WM_PAINT:
             ps = _PAINTSTRUCT()
             hdc = _u32.BeginPaint(hwnd, ctypes.byref(ps))
-            if getattr(self, "_image", None) is not None:
+            if self._visivel and getattr(self, "_image", None) is not None:
                 layered_image.mostrar(hwnd, self._image, getattr(self, "_alpha", 255))
             _u32.EndPaint(hwnd, ctypes.byref(ps))
             return 0

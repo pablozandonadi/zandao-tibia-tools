@@ -2756,6 +2756,7 @@ function renderAudio() {
     : '<div class="card calmo"><div class="vazio">Nenhum timer para este personagem ainda. Clique em <b>+ Novo timer</b>.</div></div>')
     + htmlAntigos(semDono(c.timers), 'timer', (t) => `<div class="roda-nome"><b>${esc(t.nome)}</b> <span class="chip chip-neutro">${esc(AU.teclas[t.id] || '—')}</span> <span class="chip chip-neutro">${fmtDur(t.duracao)}</span></div>`, 'os timers');
   $('au-lista').querySelectorAll('[data-au-ativo]').forEach((c2) => c2.addEventListener('change', () => {
+    if (!c2.checked && auVivo) pararTesteVivo();
     AU.cfg.timers.find((t) => t.id === c2.dataset.auAtivo).ativo = c2.checked; salvarAudio();
   }));
   $('au-lista').querySelectorAll('[data-au-ouvir]').forEach((b) => b.addEventListener('click', () => {
@@ -3010,14 +3011,14 @@ function mudouBarra() {
 ['aub-nome','aub-tempo','aub-estilo','aub-texto-estilo','aub-familia','aub-orientacao'].forEach(id => $(id).addEventListener('change', mudouBarra));
 
 $('au-novo').addEventListener('click', () => abrirFormAudio(null));
-$('au-ligado').addEventListener('click', async () => { $('au-ligado').disabled=true; try { AU.cfg.ligado = !AU.cfg.ligado; await salvarAudio(); } finally { $('au-ligado').disabled=false; } });
+$('au-ligado').addEventListener('click', async () => { $('au-ligado').disabled=true; try { AU.cfg.ligado = !AU.cfg.ligado; if (!AU.cfg.ligado) pararTesteVivo(); await salvarAudio(); } finally { $('au-ligado').disabled=false; } });
 $('au-sotibia').addEventListener('change', () => { AU.cfg.so_tibia = $('au-sotibia').checked; salvarAudio(); });
 let tAuVol = null;
 $('au-vol').addEventListener('input', () => {
   AU.cfg.volume = +$('au-vol').value; $('au-vol-val').textContent = AU.cfg.volume + '%';
   clearTimeout(tAuVol); tAuVol = setTimeout(salvarAudio, 400);
 });
-$('au-parar').addEventListener('click', () => { api.audio_parar_todos(); toast('Contagens paradas.'); });
+$('au-parar').addEventListener('click', () => { pararTesteVivo(); api.audio_parar_todos(); toast('Contagens paradas.'); });
 
 // ================= hoje no Tibia (menu lateral + Ferramentas) =================
 let DIA = null;

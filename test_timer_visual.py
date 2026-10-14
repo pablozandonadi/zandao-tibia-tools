@@ -207,6 +207,7 @@ class TimerVisualTests(unittest.TestCase):
 
     def test_texto_muda_cor_sem_reiniciar_pisca_ou_tempo_de_exibicao(self):
         instance=overlay.Overlay.__new__(overlay.Overlay)
+        instance._visivel=True
         instance._progresso={'fracao':1,'duracao':10}
         instance._progresso_ini=0;instance._cor=(0,230,60)
         instance._texto='Aviso';instance._tamanho=34
@@ -219,6 +220,115 @@ class TimerVisualTests(unittest.TestCase):
             self.assertEqual(display.call_args.args[2],80)
             native.SetTimer.assert_not_called()
             native.KillTimer.assert_not_called()
+
+
+class TimerAlertLifecycleTests(unittest.TestCase):
+    def motor_expirado(self):
+        m, e = TimerVisualTests()._motor_falso()
+        m.personagem = 'Teste'
+        with patch.object(at.time, 'monotonic', return_value=11), patch.object(at, 'tecla_apertada', return_value=False):
+            m._passo()
+        self.assertFalse(e.rodando)
+        self.assertEqual(m._alerta_fixo, 'p')
+        m.alerta.reset_mock()
+        return m, e
+
+    def test_desativar_timer_expirado_remove_aviso_fixo_e_previa(self):
+        m, e = self.motor_expirado()
+        other = Mock()
+        m._avisos['outro'] = other
+        preview = m._avisos['previa:p'] = Mock()
+        m._previas = [dict(e.cfg)]
+        cfg = {**m.cfg, 'timers': [{**e.cfg, 'ativo': False}]}
+        with patch.object(at, 'salvar'):
+            m.atualizar_cfg(cfg)
+        m.alerta.esconder.assert_called_once()
+        preview.esconder.assert_called_once()
+        other.esconder.assert_not_called()
+        self.assertIsNone(m._alerta_fixo)
+        self.assertIsNone(m._pisca_dono)
+        self.assertEqual(m._previas, [])
+        self.assertFalse(m.estados['p'].rodando)
+
+    def test_desligar_global_encerra_tambem_teste_persistente(self):
+        m, e = self.motor_expirado()
+        m.alerta = Mock()  # janela de teste independente do aviso do timer
+        preview = m._avisos['previa:p'] = Mock()
+        m._previas_ate = m._barras_ate = 999
+        with patch.object(at, 'salvar'):
+            m.atualizar_cfg({**m.cfg, 'ligado': False})
+        m.alerta.esconder.assert_called_once()
+        self.assertTrue(preview.esconder.called)
+        self.assertEqual((m._previas_ate, m._barras_ate), (0, 0))
+        self.assertIsNone(m._alerta_fixo)
+
+    def test_parar_contagens_remove_teste_e_aviso_expirado(self):
+        m, e = self.motor_expirado()
+        m._previas_ate = m._barras_ate = 999
+        m.parar_todos()
+        self.assertTrue(m.alerta.esconder.called)
+        self.assertEqual((m._previas_ate, m._barras_ate), (0, 0))
+        self.assertIsNone(m._alerta_fixo)
+
+    def test_desligar_apenas_aviso_remove_texto_sem_parar_contagem(self):
+        m, e = TimerVisualTests()._motor_falso()
+        m.personagem = 'Teste'
+        with patch.object(at, 'salvar'):
+            m.atualizar_cfg({**m.cfg, 'timers': [{**e.cfg, 'alerta': False}]})
+        m.alerta.esconder.assert_called_once()
+        self.assertTrue(e.rodando)
+
+    def janela(self):
+        obj = overlay.Overlay.__new__(overlay.Overlay)
+        obj.hwnd = 1
+        obj._trava = threading.Lock()
+        obj._pedido = ('exibição pendente',)
+        obj._visivel = True
+        obj._image = Image.new('RGBA', (40, 20))
+        obj._alpha = 80
+        obj._progresso = {'fracao': 1, 'duracao': 10}
+        obj._pisca_ini = obj._progresso_ini = 0
+        obj._cor = (0, 230, 60)
+        obj._texto = 'Aviso'
+        obj._tamanho = 34
+        obj._visual = visual.aparencia({'estilo': 'simples'})
+        obj._largura_texto = 800
+        return obj
+
+    def test_esconder_cancela_mostrar_que_ainda_esta_na_fila(self):
+        obj = self.janela()
+        with patch.object(overlay, '_u32') as native:
+            obj.esconder()
+            self.assertIsNone(obj._pedido)
+            obj._wndproc(1, overlay.WM_APP + 1, 0, 0)
+            native.SetWindowPos.assert_not_called()
+            native.PostMessageW.assert_called_once_with(1, overlay.WM_APP + 2, 0, 0)
+
+    def test_ocultar_ou_expirar_nao_redesenha_e_ignora_eventos_atrasados(self):
+        for msg, param in [(overlay.WM_APP + 2, 0), (overlay.WM_TIMER, 1)]:
+            with self.subTest(msg=msg):
+                obj = self.janela()
+                with patch.object(overlay, '_u32') as native, patch.object(overlay.layered_image, 'mostrar') as draw:
+                    obj._wndproc(1, msg, param, 0)
+                    obj._wndproc(1, overlay.WM_TIMER, 2, 0)
+                    obj._wndproc(1, overlay.WM_TIMER, 3, 0)
+                    obj._wndproc(1, overlay.WM_PAINT, 0, 0)
+                    draw.assert_not_called()
+                    native.ShowWindow.assert_called_once_with(1, overlay.SW_HIDE)
+                    self.assertFalse(obj._visivel)
+                    self.assertIsNone(obj._image)
+                    self.assertIsNone(obj._progresso)
+
+    def test_alerta_pode_ser_mostrado_de_novo_apos_ocultar(self):
+        obj = self.janela()
+        with patch.object(overlay, '_u32') as native, patch.object(overlay, 'janela_do_tibia', return_value=(0, 0, 800, 600)), patch.object(overlay.layered_image, 'mostrar') as draw:
+            obj._wndproc(1, overlay.WM_APP + 2, 0, 0)
+            obj.mostrar('Novo aviso', so_tibia=False)
+            obj._wndproc(1, overlay.WM_APP + 1, 0, 0)
+            obj._wndproc(1, overlay.WM_PAINT, 0, 0)
+            self.assertTrue(obj._visivel)
+            self.assertEqual(obj._texto, 'Novo aviso')
+            self.assertTrue(draw.called)
 
 
 if __name__=='__main__':

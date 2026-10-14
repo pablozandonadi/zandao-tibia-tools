@@ -463,8 +463,24 @@ class Motor:
                 novos[t["id"]] = EstadoTimer(t)
         for tid, antigo in self.estados.items():
             if tid not in novos or not novos[tid].cfg["ativo"]:
+                antigo.fim = None
+                self._piscou.pop(tid, None)
+                if self._alerta_fixo == tid:
+                    self._alerta_fixo = None
+                if self._pisca_dono == tid:
+                    self._pisca_dono = None
+                self._previas = [t for t in self._previas if t["id"] != tid]
+                for key in (tid, "previa:" + tid):
+                    if key in self._avisos:
+                        self._avisos[key].esconder()
+            elif not novos[tid].cfg["alerta"]:
+                self._piscou.pop(tid, None)
                 if tid in self._avisos:
                     self._avisos[tid].esconder()
+                if self._alerta_fixo == tid:
+                    self._alerta_fixo = None
+                if self._pisca_dono == tid:
+                    self._pisca_dono = None
         self.estados = novos
 
     def definir_personagem(self, nome):
@@ -479,6 +495,7 @@ class Motor:
         with self._trava:
             self.cfg = cfg
             if not cfg["ligado"]:
+                self.parar_teste()
                 for e in self.estados.values():
                     e.fim = None
                 self._alerta_fixo = self._pisca_dono = None
@@ -577,6 +594,7 @@ class Motor:
 
     def parar_todos(self):
         with self._trava:
+            self.parar_teste()
             for e in self.estados.values():
                 e.fim = None
             self._alerta_fixo = self._pisca_dono = None
