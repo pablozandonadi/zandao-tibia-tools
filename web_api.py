@@ -26,6 +26,7 @@ import monstros
 import planejador
 import hunt_catalog
 import organizer
+import prints_schedule
 import personagens
 import task_items
 import task_item_images
@@ -292,6 +293,9 @@ class API:
         self._window = None  # preenchido em zandao_tibia_tools.py (nunca público: o pywebview recursa nele)
         self._imbs = emb.carregar_imbuements(IMBUEMENTS_PATH)
         self._organizando = False
+        self._prints_lock = threading.Lock()
+        self._prints_agenda = None
+        self._prints_agenda_lock = threading.Lock()
         self._atualizacao_info = None  # release lida em verificar_atualizacao, até instalar_atualizacao
         self._dano_cache = {}  # assinatura da hunt -> monstros/dano já analisados (para o Salvar)
         self._audio = None      # motor dos timers de áudio (liga em audio_iniciar)
@@ -475,27 +479,90 @@ class API:
             return True
         return False
 
+    def _agenda_prints(self):
+        with self._prints_agenda_lock:
+            if self._prints_agenda is None:
+                self._prints_agenda = prints_schedule.Agendador(self._organizar_agendado)
+                self._prints_agenda.iniciar()
+            return self._prints_agenda
+
+    def prints_rotina_estado(self):
+        return self._agenda_prints().estado()
+
+    def prints_rotina_salvar(self, rotina, cfg):
+        try:
+            rotina = prints_schedule.normalizar(rotina)
+            cfg = {key: cfg.get(key, default) for key, default in organizer.DEFAULTS.items()}
+            if rotina['enabled']:
+                if not cfg['print-dir'] or not os.path.isdir(cfg['print-dir']):
+                    raise ValueError('Escolha uma pasta de prints existente antes de ativar a rotina.')
+                if not cfg['destination']:
+                    raise ValueError('Escolha a pasta de destino antes de ativar a rotina.')
+                if os.path.normcase(os.path.realpath(cfg['print-dir'])) == os.path.normcase(os.path.realpath(cfg['destination'])):
+                    raise ValueError('A pasta de destino deve ser diferente da pasta de origem.')
+            agenda = self._agenda_prints()
+            organizer.salvar_config(cfg)
+            return {'ok': True, 'estado': agenda.configurar(rotina, cfg)}
+        except (OSError, ValueError, TypeError, AttributeError) as error:
+            return {'ok': False, 'erro': str(error)}
+
+    def prints_rotina_pausar(self):
+        try:
+            agenda = self._agenda_prints()
+            estado = agenda.estado()
+            return {'ok': True, 'estado': agenda.configurar({**estado['config'], 'enabled': False}, estado['prints'])}
+        except (OSError, ValueError) as error:
+            return {'ok': False, 'erro': str(error)}
+
+    def _emit_prints(self, funcao, dados):
+        try:
+            self._emit(funcao, dados)
+        except Exception:
+            pass  # A operação continua se a janela estiver minimizada/recarregando.
+
     def organizar(self, cfg):
-        if self._organizando:
+        if not self._prints_lock.acquire(blocking=False):
             return {"ok": False, "erro": "Já está organizando."}
         try:
             organizer.salvar_config(cfg)
-        except OSError as e:
-            return {"ok": False, "erro": f"Não consegui salvar as configurações: {e}"}
-        self._organizando = True
-        threading.Thread(target=self._trabalho_organizar, args=(cfg,), daemon=True).start()
-        return {"ok": True}
+            self._organizando = True
+            threading.Thread(target=self._trabalho_organizar, args=(cfg,), daemon=True).start()
+            return {"ok": True}
+        except Exception as error:
+            self._organizando = False
+            self._prints_lock.release()
+            return {"ok": False, "erro": f"Não consegui iniciar a organização: {error}"}
+
+    def _executar_prints(self, cfg, agendado=False):
+        try:
+            if agendado:
+                self._emit_prints('inicioPrints', {'automatico': True})
+            resultado, por_tipo = organizer.organizar(cfg, lambda m: self._emit_prints("logPrints", m))
+            if not agendado and cfg.get("open-when-done") and resultado["processadas"]:
+                self.abrir_pasta(cfg["destination"])
+            self._emit_prints("fimPrints", {"resultado": dict(resultado), "porTipo": por_tipo.most_common()})
+            return {'ok': not bool(resultado['erros']),
+                    'mensagem': f"{resultado['processadas']} prints novos; {resultado['existentes']} já salvos; {resultado['erros']} erros."}
+        except Exception as error:
+            self._emit_prints("erroPrints", str(error))
+            return {'ok': False, 'mensagem': str(error)}
 
     def _trabalho_organizar(self, cfg):
         try:
-            resultado, por_tipo = organizer.organizar(cfg, lambda m: self._emit("logPrints", m))
-            if cfg.get("open-when-done") and resultado["processadas"]:
-                self.abrir_pasta(cfg["destination"])
-            self._emit("fimPrints", {"resultado": dict(resultado), "porTipo": por_tipo.most_common()})
-        except Exception as e:
-            self._emit("erroPrints", str(e))
+            self._executar_prints(cfg)
         finally:
             self._organizando = False
+            self._prints_lock.release()
+
+    def _organizar_agendado(self, cfg):
+        if not self._prints_lock.acquire(blocking=False):
+            return {'ocupado': True}
+        try:
+            self._organizando = True
+            return self._executar_prints(cfg, agendado=True)
+        finally:
+            self._organizando = False
+            self._prints_lock.release()
 
     # ================= hunt analyser (loot split + dano) =================
     # ================= meus personagens (conferidos no tibia.com) =================
@@ -1262,7 +1329,7 @@ class API:
     # ================= configurações: backup de tudo =================
     def _caminhos_backup(self):
         return {"world_board": world_board.ARQUIVO, "historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
-                "prints": organizer.SETTINGS_PATH, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO,
+                "prints": organizer.SETTINGS_PATH, "prints_rotina": prints_schedule.ARQUIVO, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO,
                 "precos": precos.PRECOS_PATH, "rodas": roda.RODAS_PATH, "sets": sets.SETS_PATH, "classificador": classificador.SESSOES_PATH}
 
     def config_exportar(self):
@@ -1305,11 +1372,19 @@ class API:
         dados = getattr(self, "_backup_pendente", None)
         if not dados:
             return {"ok": False, "erro": "Escolha o arquivo de backup de novo."}
-        try:
-            feitos = backup.importar(dados, self._caminhos_backup())
-        except (OSError, ValueError, KeyError) as e:
-            return {"ok": False, "erro": str(e)}
-        self._backup_pendente = None
+        with self._prints_agenda_lock:
+            agenda = self._prints_agenda if 'prints_rotina' in dados.get('arquivos', {}) else None
+            if agenda is not None:
+                agenda.parar(esperar=True)  # Não deixa uma execução sobrescrever o backup restaurado.
+            try:
+                feitos = backup.importar(dados, self._caminhos_backup())
+            except (OSError, ValueError, KeyError) as e:
+                if agenda is not None:
+                    agenda.iniciar()
+                return {"ok": False, "erro": str(e)}
+            self._backup_pendente = None
+            if backup.ITENS['prints_rotina'] in feitos:
+                self._prints_agenda = None
         return {"ok": True, "itens": feitos}
 
     def config_abrir_pasta(self):

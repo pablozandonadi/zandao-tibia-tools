@@ -31,6 +31,7 @@ ITENS = {
     "personagens": "Meus personagens",
     "embuimentos": "Preços e escolhas dos embuimentos",
     "prints": "Pastas e opções dos prints",
+    "prints_rotina": "Rotina de salvamento dos prints",
     "janela": "Fixar por cima e transparência",
     "audio": "Timers de áudio",
     "precos": "Histórico de preços dos embuimentos",

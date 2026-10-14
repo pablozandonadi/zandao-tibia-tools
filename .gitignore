@@ -61,3 +61,8 @@ webview_session/
 # Preferências privadas do monitor de rede
 rede_config.json
 rede_config.tmp
+# Preferências privadas da rotina de prints
+prints_schedule.json
+prints_schedule.tmp
+prints_schedule.json.tmp
+prints_schedule.json.antes-do-backup

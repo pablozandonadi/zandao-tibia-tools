@@ -184,6 +184,8 @@
   .vazio { color: var(--ink-dim); padding: 24px 0; text-align: center; }
 
   /* ---- prints ---- */
+  #page-prints input[type=number], #page-prints input[type=time] {border:2px solid var(--ink-dim);border-radius:8px;outline:none;color-scheme:dark}
+  #page-prints input[type=number]:focus, #page-prints input[type=time]:focus {border-color:var(--accent)}
   .linha-pasta { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
   .linha-pasta input { flex: 1; }
   .segmentado { display: inline-flex; border: 2.5px solid var(--ink); border-radius: 10px; overflow: hidden; box-shadow: 3px 3px 0 var(--ink); }
@@ -940,6 +942,22 @@
         <div class="resumo-chips" id="p-resumo"></div>
         <div class="log" id="p-log">Pronto para organizar.</div>
       </div>
+      <div class="card calmo" style="margin-top:18px">
+        <h2 class="sub">Rotina de salvamento</h2>
+        <p class="dica">Organiza automaticamente os prints que o Tibia já gerou, usando as pastas e opções acima. Funciona com o aplicativo aberto ou minimizado, sem abrir a pasta a cada execução. Os horários seguem o relógio do seu computador.</p>
+        <label class="check"><input type="checkbox" id="p-rotina-enabled"> Ativar rotina automática</label>
+        <div class="campos" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
+          <div><label class="campo-label" for="p-rotina-mode">Quando salvar</label><select id="p-rotina-mode"><option value="interval">A cada tantos minutos</option><option value="daily">Quantidade de vezes por dia</option><option value="times">Horários exatos</option></select></div>
+          <div id="p-rotina-interval"><label class="campo-label" for="p-rotina-minutes">Intervalo em minutos</label><input class="num" type="number" id="p-rotina-minutes" min="1" max="1440" value="30" style="width:100%;background:var(--surface-2);color:var(--ink)"></div>
+          <div id="p-rotina-daily" hidden><label class="campo-label" for="p-rotina-count">Vezes por dia</label><input class="num" type="number" id="p-rotina-count" min="1" max="1440" value="3" style="width:100%;background:var(--surface-2);color:var(--ink)"><label class="campo-label" for="p-rotina-start" style="margin-top:8px">Horário de referência</label><input type="time" id="p-rotina-start" value="08:00" style="width:100%;background:var(--surface-2);color:var(--ink);padding:8px;border:2px solid var(--ink-dim);border-radius:8px"></div>
+          <div id="p-rotina-times" hidden><label class="campo-label" for="p-rotina-hours">Horários separados por vírgula</label><input type="text" id="p-rotina-hours" value="09:00, 18:00" placeholder="09:00, 12:30, 18:00"></div>
+        </div>
+        <p class="dica" id="p-rotina-preview"></p>
+        <div class="acoes"><button class="btn btn-primary" id="p-rotina-save">Salvar rotina</button><button class="btn" id="p-rotina-pause" disabled>Pausar rotina</button></div>
+        <p class="dica">As pastas, opções e horários só entram na rotina ao clicar em Salvar rotina. Ao reabrir o aplicativo, horários que já passaram são ignorados; após suspensão do computador, executa uma vez e segue o agendamento.</p>
+        <p class="texto" id="p-rotina-status" role="status" aria-live="polite">Rotina desativada.</p>
+        <p class="dica" id="p-rotina-last"></p>
+      </div>
     </section>
 
     <!-- ================= TIMERS DE ÁUDIO ================= -->
@@ -1452,6 +1470,64 @@ window.fimPrints = ({ resultado, porTipo }) => {
 };
 window.erroPrints = (msg) => { fimOrganizar(); logPrints('\nERRO: ' + msg); toast(msg, true); };
 window.logPrints = logPrints;
+
+// Rotina de prints: a execução vive no Python, inclusive com a janela minimizada.
+let pRotinaTimer = null;
+function previewRotinaPrints() {
+  const mode=$('p-rotina-mode').value;
+  $('p-rotina-interval').hidden=mode!=='interval';
+  $('p-rotina-daily').hidden=mode!=='daily';
+  $('p-rotina-times').hidden=mode!=='times';
+  if(mode==='daily') {
+    const count=Number($('p-rotina-count').value), start=$('p-rotina-start').value;
+    if(!Number.isInteger(count)||count<1||count>1440||!start) {$('p-rotina-preview').textContent='Informe a quantidade e o horário de referência.';return;}
+    const [hour,minute]=start.split(':').map(Number);
+    const values=Array.from({length:count},(_,i)=>(hour*60+minute+Math.floor(i*1440/count))%1440).sort((a,b)=>a-b);
+    const format=n=>`${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;
+    $('p-rotina-preview').textContent=`Distribuído ao longo de 24 horas: ${values.slice(0,24).map(format).join(', ')}${values.length>24?'…':''}. Pode incluir a madrugada.`;
+  } else $('p-rotina-preview').textContent=mode==='interval'?'O primeiro salvamento acontece após o intervalo escolhido.':'Salva uma vez em cada horário informado, todos os dias.';
+}
+function estadoRotinaPrints(state, preencher=false) {
+  if(preencher) {
+    const cfg=state.config;
+    $('p-rotina-enabled').checked=cfg.enabled;
+    $('p-rotina-mode').value=cfg.mode;
+    $('p-rotina-minutes').value=cfg.interval_minutes;
+    $('p-rotina-count').value=cfg.daily_count;
+    $('p-rotina-start').value=cfg.daily_start;
+    $('p-rotina-hours').value=cfg.times.join(', ');
+    previewRotinaPrints();
+  }
+  const format=value=>value?new Date(value).toLocaleString('pt-BR'):'';
+  $('p-rotina-pause').disabled=!state.config.enabled;
+  $('p-rotina-status').textContent=state.running?'Salvando os prints agora…':state.config.enabled?`Rotina ativa. Próximo salvamento: ${format(state.next)}.`:'Rotina desativada.';
+  $('p-rotina-last').textContent=(state.last?`Última execução: ${format(state.last)}. `:'')+(state.result||'Ainda não houve execução automática.');
+}
+async function atualizarRotinaPrints(preencher=false) {
+  try { estadoRotinaPrints(await api.prints_rotina_estado(),preencher); }
+  catch(error) { $('p-rotina-status').textContent='Não foi possível consultar a rotina. Tente salvar novamente.'; }
+}
+function iniciarRotinaPrints() {
+  atualizarRotinaPrints(true);
+  clearInterval(pRotinaTimer);
+  pRotinaTimer=setInterval(()=>{if($('page-prints').classList.contains('shown')) atualizarRotinaPrints();},15000);
+}
+['p-rotina-mode','p-rotina-minutes','p-rotina-count','p-rotina-start','p-rotina-hours'].forEach(id=>$(id).addEventListener('input',previewRotinaPrints));
+$('p-rotina-save').addEventListener('click',async()=>{
+  const mode=$('p-rotina-mode').value, cfg={enabled:$('p-rotina-enabled').checked,mode};
+  if(mode==='interval') cfg.interval_minutes=$('p-rotina-minutes').value;
+  else if(mode==='daily') {cfg.daily_count=$('p-rotina-count').value;cfg.daily_start=$('p-rotina-start').value;}
+  else cfg.times=$('p-rotina-hours').value;
+  $('p-rotina-save').disabled=true;
+  try {const result=await api.prints_rotina_salvar(cfg,cfgPrints());if(!result.ok){toast(result.erro,true);return;}estadoRotinaPrints(result.estado,true);toast(cfg.enabled?'Rotina salva e ativada.':'Rotina salva e desativada.');}
+  catch(error) {toast('Não foi possível salvar a rotina.',true);}
+  finally {$('p-rotina-save').disabled=false;}
+});
+$('p-rotina-pause').addEventListener('click',async()=>{
+  try {const result=await api.prints_rotina_pausar();if(result.ok){estadoRotinaPrints(result.estado,true);toast('Rotina pausada.');}else toast(result.erro,true);}
+  catch(error) {toast('Não foi possível pausar a rotina.',true);}
+});
+window.inicioPrints=()=>{$('p-log').textContent='Rotina automática de prints iniciada.\n';$('p-barra').classList.add('on');$('p-organizar').disabled=true;};
 
 // ================= HUNT ANALYSER (loot split + dano) =================
 const EL = {
@@ -3257,6 +3333,7 @@ async function iniciar() {
   setModo(d.prints.copy !== false);
   $('p-mes').checked = !!d.prints['by-month'];
   $('p-abrir').checked = !!d.prints['open-when-done'];
+  iniciarRotinaPrints();
   await huntIniciar();
   irPara('zandaobot');
   iniciarPublicacaoBeta();
