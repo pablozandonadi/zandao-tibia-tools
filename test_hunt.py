@@ -1095,6 +1095,7 @@ class TestTimersAudio(unittest.TestCase):
 
         m = at.Motor.__new__(at.Motor)
         m.alerta, m.cfg = AlertaFalso(), {"alerta": {"x": 50, "y": 30}}
+        m._avisos = {"p": m.alerta}
         m._piscou, m._pisca_dono, m._alerta_fixo = {}, None, None
         e = at.EstadoTimer(at.normalizar({"id": "p", "nome": "Poção", "duracao": 10, "alerta": True, "piscar": 3}))
         e.apertou(0)

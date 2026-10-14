@@ -1189,9 +1189,10 @@ class API:
         """Mostra o alerta por 4 s (com a posição da tela, mesmo antes de salvar)."""
         if not self._audio:
             return False
-        if alerta:
-            self._audio.cfg["alerta"] = audio_timers.overlay.normalizar_alerta(alerta)
-        return bool(self._audio.testar_alerta(cor, texto, fonte, segundos, bool(piscar), visual, progresso))
+        return bool(self._audio.testar_alerta(cor, texto, fonte, segundos, bool(piscar), visual, progresso, pos=alerta))
+
+    def audio_testar_timers(self, timers, segundos=0):
+        return bool(self._audio and self._audio.testar_timers(timers, segundos))
 
     def audio_parar_teste(self):
         if self._audio:
@@ -1224,9 +1225,7 @@ class API:
         """Mostra barras de exemplo por 6 s (com a configuração da tela, mesmo antes de salvar)."""
         if not self._audio:
             return False
-        if barra:
-            self._audio.cfg["barra"] = audio_timers.overlay.normalizar_barra(barra)
-        self._audio.testar_barras(nome=nome, cor=cor, loop=loop, cor_tempo=cor_tempo)
+        self._audio.testar_barras(nome=nome, cor=cor, loop=loop, cor_tempo=cor_tempo, cfg=barra)
         return True
 
     def audio_parar_todos(self):

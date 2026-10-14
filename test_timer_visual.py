@@ -61,7 +61,7 @@ class TimerVisualTests(unittest.TestCase):
 
     def test_estilo_encaminhado_no_aviso_piscando_e_no_teste(self):
         motor=at.Motor.__new__(at.Motor)
-        motor.alerta=Mock(); motor.cfg={'alerta':{'x':50,'y':30}}
+        motor.alerta=Mock(); motor._avisos={'p':motor.alerta}; motor.cfg={'alerta':{'x':50,'y':30}}
         motor._piscou={};motor._pisca_dono=motor._alerta_fixo=None
         t=at.normalizar({'id':'p','alerta':True,'piscar':3,'duracao':10,'visual':{'estilo':'glow'}})
         e=at.EstadoTimer(t);e.apertou(0)
@@ -130,6 +130,8 @@ class TimerVisualTests(unittest.TestCase):
         m._alerta_fixo=m._pisca_dono=None;m._piscou={}
         m._barras_ate=m._ultima_barra=0;m._barras_visiveis=False
         m.tocador=Mock();m.alerta=Mock();m.barras=Mock()
+        m._avisos={'p':m.alerta};m._barras_individuais={'timer:p':m.barras}
+        m._previas_ate=0;m._previas=[];m._ultima_individual=0
         return m,e
 
     def test_sem_som_mantem_contagem_texto_e_barra(self):
@@ -159,6 +161,49 @@ class TimerVisualTests(unittest.TestCase):
             m._passo()
         m.alerta.esconder.assert_called_once()
         self.assertEqual(e.fim,18)
+
+    def test_desligado_nao_dispara_nem_reaproveita_tecla_segurada(self):
+        m,e=self._motor_falso();m.cfg['ligado']=False
+        m._ao_mudar=Mock()
+        with patch.object(at.time,'monotonic',return_value=8),patch.object(at,'tecla_apertada',side_effect=lambda vk:vk in (75,at.VK_CONTROL)),patch.object(at,'tibia_em_foco',return_value=True):
+            m._passo()
+            self.assertFalse(e.rodando)
+            m.tocador.tocar.assert_not_called()
+            m.cfg['ligado']=True;m._passo()
+            self.assertFalse(e.rodando)
+        with patch.object(at.time,'monotonic',return_value=9),patch.object(at,'tecla_apertada',return_value=False):
+            m._passo()
+        with patch.object(at.time,'monotonic',return_value=10),patch.object(at,'tecla_apertada',side_effect=lambda vk:vk in (75,at.VK_CONTROL)),patch.object(at,'tibia_em_foco',return_value=True):
+            m._passo()
+        self.assertEqual(e.fim,20)
+        self.assertIsNone(m._ao_mudar.call_args_list[0].args[0]['timers']['p']['restante'])
+
+    def test_posicoes_individuais_migradas_e_persistidas_sem_arredondar(self):
+        cfg={**at.PADRAO,'alerta':{'x':12.345,'y':67.89},
+             'barra':overlay.normalizar_barra({'x':23.456,'y':7.89,'orientacao':'vertical'}),
+             'timers':[{'id':'a'}, {'id':'b','pos_alerta':{'x':80.123,'y':32.987},
+                         'cfg_barra':{'x':90.876,'y':10.234,'orientacao':'horizontal'}}]}
+        with tempfile.TemporaryDirectory() as d:
+            path=str(Path(d)/'timers.json');at.salvar(cfg,path);loaded=at.carregar(path)
+            self.assertEqual(loaded['timers'][0]['pos_alerta'],cfg['alerta'])
+            self.assertEqual(loaded['timers'][0]['cfg_barra'],cfg['barra'])
+            at.salvar(loaded,path);self.assertEqual(at.carregar(path),loaded)
+        a,b=loaded['timers']
+        self.assertNotEqual(a['pos_alerta'],b['pos_alerta'])
+        self.assertEqual(b['cfg_barra']['x'],90.876)
+        before=overlay.layout_barras(1,b['cfg_barra'],(0,0,1920,1080))
+        self.assertEqual(before,overlay.layout_barras(1,loaded['timers'][1]['cfg_barra'],(0,0,1920,1080)))
+
+    def test_previa_simultanea_nao_altera_configuracao_salva(self):
+        m,e=self._motor_falso()
+        t=at.normalizar({**e.cfg,'id':'q','pos_alerta':{'x':80,'y':90},'cfg_barra':{'x':70,'y':60}})
+        original=json.loads(json.dumps(m.cfg))
+        with patch.object(at.overlay,'Overlay',return_value=Mock()),patch.object(at.overlay,'Barras',return_value=Mock()),patch.object(at.time,'monotonic',return_value=10):
+            m.testar_timers([e.cfg,t]);m._desenhar_individuais([(e.cfg,.5,5,True),(t,.5,5,True)])
+        self.assertEqual(m.cfg,original)
+        self.assertIn('previa:p',m._avisos);self.assertIn('previa:q',m._avisos)
+        self.assertIn('previa:p',m._barras_individuais);self.assertIn('previa:q',m._barras_individuais)
+        self.assertEqual(m._avisos['previa:q'].mostrar.call_args.kwargs['pos'],t['pos_alerta'])
 
     def test_texto_muda_cor_sem_reiniciar_pisca_ou_tempo_de_exibicao(self):
         instance=overlay.Overlay.__new__(overlay.Overlay)

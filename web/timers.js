@@ -91,7 +91,7 @@ function atualizarPreviaAudio() {
   if (!el || typeof AU==='undefined' || !AU) return;
   const t=auEditando || {nome:'Timer',fonte:34,cor:'amarelo',alerta:true,barra:true};
   const v=t.visual || {estilo:'simples',familia:'Verdana',intensidade:22};
-  const b=AU.cfg.barra;
+  const b=t.cfg_barra || AU.cfg.barra;
   const texto=t.texto_cor_tempo?corProgressoAudio(.65):corHex(t.cor_texto || t.cor);
   const barra=(t.barra_cor_tempo ?? b.cor_tempo)?corProgressoAudio(.65):corHex(t.cor_barra || t.cor);
   const msg=(t.mensagem || '').trim() || (t.antes ? `${t.nome || 'Timer'} acaba em ${Math.min(t.antes,t.duracao)}s` : `${t.nome || 'Timer'} acabou!`);

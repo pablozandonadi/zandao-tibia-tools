@@ -63,7 +63,7 @@ def carregar(caminho=None):
     except (OSError, json.JSONDecodeError):
         d = {}
     cfg = {**PADRAO, **{k: v for k, v in d.items() if k in PADRAO}}
-    cfg["timers"] = [normalizar(t) for t in cfg.get("timers") or [] if isinstance(t, dict)]
+    cfg["timers"] = [normalizar({**t, "pos_alerta": t.get("pos_alerta") or cfg["alerta"], "cfg_barra": t.get("cfg_barra") or cfg["barra"]}) for t in cfg.get("timers") or [] if isinstance(t, dict)]
     cfg["barra"] = overlay.normalizar_barra(cfg.get("barra"))
     cfg["alerta"] = overlay.normalizar_alerta(cfg.get("alerta"))
     return cfg
@@ -111,6 +111,8 @@ def normalizar(t):
         "mensagem": str(t.get("mensagem") or "").strip()[:60],   # texto do alerta (vazio = automático)
         "fonte": max(14, min(96, int(t.get("fonte") or 34))),    # tamanho da letra do alerta
         "visual": overlay.timer_visual.aparencia(t.get("visual")),
+        "pos_alerta": overlay.normalizar_alerta(t.get("pos_alerta")),
+        "cfg_barra": overlay.normalizar_barra(t.get("cfg_barra")),
         "fixo": bool(t.get("fixo", False)),                      # alerta fica na tela até apertar a tecla de novo
         "piscar": _piscar(t.get("piscar")),                       # alerta pisca nos últimos N segundos (0 = não)
         "personagem": str(t.get("personagem") or "").strip()[:40],   # só dispara quando este personagem está em uso ("" = antigo, sem vínculo: parado)
@@ -433,6 +435,12 @@ class Motor:
         self.tocador = Tocador()
         self.alerta = overlay.Overlay()
         self.barras = overlay.Barras()
+        self._avisos = {}
+        self._barras_individuais = {}
+        self._previas = []
+        self._previas_ini = 0
+        self._previas_ate = 0
+        self._ultima_individual = 0
         self._barras_ate = 0          # teste de posição: mostra barras de exemplo até esse instante
         self._ultima_barra = 0
         self._barras_visiveis = False
@@ -453,6 +461,10 @@ class Motor:
                 novos[t["id"]] = antigo
             else:
                 novos[t["id"]] = EstadoTimer(t)
+        for tid, antigo in self.estados.items():
+            if tid not in novos or not novos[tid].cfg["ativo"]:
+                if tid in self._avisos:
+                    self._avisos[tid].esconder()
         self.estados = novos
 
     def definir_personagem(self, nome):
@@ -466,16 +478,23 @@ class Motor:
     def atualizar_cfg(self, cfg):
         with self._trava:
             self.cfg = cfg
+            if not cfg["ligado"]:
+                for e in self.estados.values():
+                    e.fim = None
+                self._alerta_fixo = self._pisca_dono = None
+                self._piscou.clear()
+                for aviso in list(self._avisos.values()):
+                    aviso.esconder()
             salvar(cfg)
             self._sincronizar()
 
     def tocar(self, som_id, volume_timer=100):
         self.tocador.tocar(caminho_do_som(som_id), volume_timer * self.cfg["volume"] / 100)
 
-    def testar_alerta(self, cor="amarelo", texto="Poção acaba em 3s", fonte=34, segundos=4, piscar=False, visual=None, progresso=None):
+    def testar_alerta(self, cor="amarelo", texto="Poção acaba em 3s", fonte=34, segundos=4, piscar=False, visual=None, progresso=None, pos=None):
         """segundos=0: o alerta fica na tela até parar_teste() (teste ao vivo)."""
         return self.alerta.mostrar(texto or "Poção acaba em 3s", cor, segundos, so_tibia=False, tamanho=fonte,
-                                   pos=self.cfg["alerta"], piscar=piscar, visual=visual, progresso=progresso)
+                                   pos=pos or self.cfg["alerta"], piscar=piscar, visual=visual, progresso=progresso)
 
     def _talvez_piscar(self, e, agora):
         """Nos últimos N s da volta o alerta pisca até acabar. Devolve True se está piscando nesta volta."""
@@ -491,23 +510,59 @@ class Motor:
         self._pisca_dono = c["id"]
         if c["fixo"]:
             self._alerta_fixo = c["id"]
-        self.alerta.mostrar(texto_piscando(c), cor_alerta(c, max(0, resta) / c["duracao"]), 0 if c["fixo"] else resta,
-                            tamanho=c["fonte"], pos=self.cfg["alerta"], piscar=True, visual=c.get("visual"), progresso=progresso_alerta(c, max(0, resta) / c["duracao"]))
+        self._aviso(c["id"]).mostrar(texto_piscando(c), cor_alerta(c, max(0, resta) / c["duracao"]), 0 if c["fixo"] else resta,
+                            tamanho=c["fonte"], pos=c["pos_alerta"], piscar=True, visual=c.get("visual"), progresso=progresso_alerta(c, max(0, resta) / c["duracao"]))
         return True
 
     def parar_teste(self):
         """Some com o alerta e as barras de exemplo."""
         self._barras_ate = 0
+        self._previas_ate = 0
         self._ultima_barra = 0
         self.alerta.esconder()
+        for key, aviso in list(self._avisos.items()):
+            if key.startswith("previa:"):
+                aviso.esconder()
 
-    def testar_barras(self, segundos=6, nome=None, cor=None, loop=False, cor_tempo=None):
+    def testar_barras(self, segundos=6, nome=None, cor=None, loop=False, cor_tempo=None, cfg=None):
         """Mostra barras de exemplo (com a configuração atual) para ajustar a posição.
         Com nome/cor, mostra só a barra daquele timer, do jeito que vai aparecer."""
+        self._cfg_barra_teste = cfg or self.cfg["barra"]
         self._barras_exemplo = (nome or "Timer", _cor(cor), cor_tempo) if (nome or cor) else None
         self._barras_ini = time.monotonic()
         self._barras_ate = self._barras_ini + (10 ** 9 if loop else segundos)   # loop: até parar_teste()
         self._ultima_barra = 0
+
+    def _aviso(self, key):
+        if key not in self._avisos:
+            self._avisos[key] = overlay.Overlay()
+        return self._avisos[key]
+
+    def testar_timers(self, timers, segundos=0):
+        self.parar_teste()
+        self._previas = [normalizar({**t, "id": t.get("id") or "editor"}) for t in timers]
+        self._previas_ini = time.monotonic()
+        self._previas_ate = self._previas_ini + (segundos or 10 ** 9)
+        for t in self._previas:
+            if t["alerta"]:
+                self._aviso("previa:" + t["id"]).mostrar(
+                    texto_alerta(t), cor_alerta(t, 1), segundos, so_tibia=False,
+                    tamanho=t["fonte"], pos=t["pos_alerta"], visual=t["visual"], piscar=bool(t["piscar"]))
+        return True
+
+    def _desenhar_individuais(self, itens):
+        presentes = set()
+        for t, frac, restante, previa in itens:
+            key = ("previa:" if previa else "timer:") + t["id"]
+            presentes.add(key)
+            if key not in self._barras_individuais:
+                self._barras_individuais[key] = overlay.Barras()
+            self._barras_individuais[key].atualizar(
+                [(t["nome"], frac, fmt_tempo(restante), t["cor_barra"], t["barra_cor_tempo"])],
+                t["cfg_barra"], so_tibia=not previa)
+        for key, barra in self._barras_individuais.items():
+            if key not in presentes:
+                barra.atualizar([], self.cfg["barra"])
 
     def _itens_barras(self, agora):
         if agora < self._barras_ate:
@@ -524,6 +579,12 @@ class Motor:
         with self._trava:
             for e in self.estados.values():
                 e.fim = None
+            self._alerta_fixo = self._pisca_dono = None
+            self._piscou.clear()
+            for aviso in list(self._avisos.values()):
+                aviso.esconder()
+        if self._ao_mudar:
+            self._ao_mudar(self.estado())
 
     def estado(self):
         agora = time.monotonic()
@@ -546,22 +607,25 @@ class Motor:
         with self._trava:
             ligado = self.cfg["ligado"]
             ativos = [e for e in self.estados.values() if e.cfg["ativo"] and e.cfg["tecla"]["vk"]]
-            if ligado and ativos:
+            if ativos:
                 vks = {e.cfg["tecla"]["vk"] for e in ativos}
                 agora_apertadas = {vk for vk in vks if tecla_apertada(vk)}
                 novas = agora_apertadas - self._apertadas   # só a borda (apertou agora), não o segurar
                 self._apertadas = agora_apertadas
-                if novas and (not self.cfg["so_tibia"] or tibia_em_foco()):
+                if ligado and novas and (not self.cfg["so_tibia"] or tibia_em_foco()):
                     ctrl, shift, alt = tecla_apertada(VK_CONTROL), tecla_apertada(VK_SHIFT), tecla_apertada(VK_MENU)
                     for e in ativos:
                         t = e.cfg["tecla"]
                         if t["vk"] in novas and (t["ctrl"], t["shift"], t["alt"]) == (ctrl, shift, alt):
                             e.apertou(agora)
+                            self._aviso(e.cfg["id"]).esconder()
                             if self._alerta_fixo == e.cfg["id"] or self._pisca_dono == e.cfg["id"]:
                                 self._alerta_fixo = self._pisca_dono = None   # recomeçou: tira o alerta da tela
-                                self.alerta.esconder()
                             mudou = True
             for e in self.estados.values():
+                if not ligado or not e.cfg["ativo"]:
+                    e.fim = None
+                    continue
                 fim_volta = e.fim
                 piscando = self._talvez_piscar(e, agora)
                 if e.tick(agora):
@@ -572,14 +636,21 @@ class Motor:
                         fixo = e.cfg["fixo"]
                         if self._pisca_dono == e.cfg["id"]:
                             self._pisca_dono = None
-                        self.alerta.mostrar(texto_alerta(e.cfg), cor_alerta(e.cfg, max(0, (fim_volta or agora) - agora) / e.cfg["duracao"]), 0 if fixo else 3,
-                                            tamanho=e.cfg["fonte"], pos=self.cfg["alerta"], visual=e.cfg.get("visual"),
+                        self._aviso(e.cfg["id"]).mostrar(texto_alerta(e.cfg), cor_alerta(e.cfg, max(0, (fim_volta or agora) - agora) / e.cfg["duracao"]), 0 if fixo else 3,
+                                            tamanho=e.cfg["fonte"], pos=e.cfg["pos_alerta"], visual=e.cfg.get("visual"),
                                             progresso=progresso_alerta(e.cfg, max(0, (fim_volta or agora) - agora) / e.cfg["duracao"]))
                         self._alerta_fixo = e.cfg["id"] if fixo else None
                     mudou = True
-            rodando = any(e.rodando for e in self.estados.values())
-            itens = self._itens_barras(agora)
-            cfg_barra = self.cfg["barra"]
+            itens = self._itens_barras(agora) if agora < self._barras_ate else []
+            cfg_barra = getattr(self, "_cfg_barra_teste", self.cfg["barra"])
+            individuais = [(e.cfg, e.restante(agora) / e.cfg["duracao"], e.restante(agora), False)
+                           for e in self.estados.values() if e.rodando and e.cfg["barra"]]
+            if agora < self._previas_ate:
+                individuais += [(t, 1 - ((agora-self._previas_ini) % 6)/6, 6-((agora-self._previas_ini)%6), True)
+                                for t in self._previas if t["barra"]]
+        if agora - self._ultima_individual >= .1:
+            self._ultima_individual = agora
+            self._desenhar_individuais(individuais)
         # barras por cima do Tibia: 10x por segundo enquanto há alguma (e some quando não há mais)
         if itens and agora - self._ultima_barra > .1:
             self._ultima_barra = agora
@@ -588,8 +659,8 @@ class Motor:
         elif not itens and self._barras_visiveis:
             self._barras_visiveis = False
             self.barras.atualizar([], cfg_barra)
-        # manda o estado para a tela: na hora quando muda, e 4x por segundo enquanto algo conta
-        if self._ao_mudar and (mudou or (rodando and agora - self._ultimo_envio > .25)):
+        # Atualiza também ao terminar/parar: o último segundo não pode ficar congelado na tela.
+        if self._ao_mudar and (mudou or agora - self._ultimo_envio > .25):
             self._ultimo_envio = agora
             self._ao_mudar(self.estado())
 

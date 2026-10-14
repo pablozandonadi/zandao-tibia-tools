@@ -198,7 +198,7 @@ class Barras:
         wc = _WNDCLASS()
         wc.lpfnWndProc = self._proc
         wc.hInstance = hinst
-        wc.lpszClassName = "ZandaoTibiaToolsBarras"
+        wc.lpszClassName = f"ZandaoTibiaToolsBarras_{id(self)}"
         wc.hbrBackground = None
         _u32.RegisterClassW(ctypes.byref(wc))
         self.hwnd = _u32.CreateWindowExW(
@@ -297,7 +297,7 @@ class Overlay:
         wc = _WNDCLASS()
         wc.lpfnWndProc = self._proc
         wc.hInstance = hinst
-        wc.lpszClassName = "ZandaoTibiaToolsAlerta"
+        wc.lpszClassName = f"ZandaoTibiaToolsAlerta_{id(self)}"
         wc.hbrBackground = None
         _u32.RegisterClassW(ctypes.byref(wc))
         self.hwnd = _u32.CreateWindowExW(
