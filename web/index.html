@@ -941,8 +941,9 @@
         <div class="barra" id="p-barra"><i></i></div>
         <div class="resumo-chips" id="p-resumo"></div>
       </div>
-      <div class="card calmo" style="margin-top:18px">
-        <h2 class="sub">Rotina de salvamento</h2>
+      <details class="card calmo" style="margin-top:18px" id="p-rotina-card">
+        <summary style="cursor:pointer;font-weight:800">Rotina de salvamento</summary>
+        <div style="margin-top:12px">
         <p class="dica">Organiza automaticamente os prints que o Tibia já gerou, usando as pastas e opções acima. Funciona com o aplicativo aberto ou minimizado, sem abrir a pasta a cada execução. Os horários seguem o relógio do seu computador.</p>
         <label class="check"><input type="checkbox" id="p-rotina-enabled"> Ativar rotina automática</label>
         <div class="campos" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))">
@@ -956,7 +957,8 @@
         <p class="dica">As pastas, opções e horários só entram na rotina ao clicar em Salvar rotina. Ao reabrir o aplicativo, horários que já passaram são ignorados; após suspensão do computador, executa uma vez e segue o agendamento.</p>
         <p class="texto" id="p-rotina-status" role="status" aria-live="polite">Rotina desativada.</p>
         <p class="dica" id="p-rotina-last"></p>
-      </div>
+        </div>
+      </details>
       <details class="card calmo" style="margin-top:18px" id="p-registros">
         <summary style="cursor:pointer;font-weight:700">Registros da organização</summary>
         <div class="log" id="p-log" style="height:160px;max-height:24vh">Pronto para organizar.</div>
