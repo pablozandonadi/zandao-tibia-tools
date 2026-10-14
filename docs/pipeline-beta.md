@@ -42,3 +42,13 @@ O novo build usa LocalAppData/TibiaTudo/beta ou stable para dados e preserva a i
 ## Reconciliação após promoção anterior (13/10/2026)
 
 A Beta 32 foi criada paralelamente à promoção da Beta 27 como estável 1.0.22. A promoção da Beta 32 foi corretamente bloqueada por divergência, mas o diagnóstico estava genérico. A develop incorpora agora a main por merge, preservando código e histórico, e a próxima Beta usa base 1.0.22. A Beta antiga permanece bloqueada; analisar e promover a nova Beta. O erro de ancestralidade agora explica a necessidade de reconciliação. A main não é alterada nesta correção.
+
+## Reconciliação automática após cada promoção (14/10/2026)
+
+Causa raiz da divergência recorrente: ao promover, o pipeline gravava o commit "Publicar Beta aprovada como vX.Y.Z" (versao.py e notas da release) só na main. A develop nunca o recebia, então qualquer commit novo na develop depois de uma promoção criava uma Beta divergente da main, e promover essa Beta era bloqueado (Beta 41 após a promoção da Beta 39 como 1.0.24). Antes era preciso fazer o merge à mão.
+
+Agora o último passo do job original, "Devolver a promoção para a develop", executa `python instalador/promover_beta.py reconciliar <versão>` depois que os pacotes estáveis foram publicados: traz o commit de promoção para a develop (avanço rápido se a develop não andou; senão um merge "Reconcilia estável X.Y.Z na develop") e faz push. A próxima Beta já nasce com a base estável nova (por exemplo 1.0.25-beta.N). O push feito com o token do Actions não dispara outra Beta; a próxima Beta é a do próximo trabalho.
+
+O passo usa continue-on-error de propósito: a release já saiu e o app (publicacao_beta.estado) lê a conclusão geral da execução; uma falha de reconciliação aparece como aviso no log e não transforma uma publicação bem-sucedida em "falhou". Se o aviso aparecer, faça o merge da main na develop antes da próxima Beta, ou `preparar` bloqueará a promoção com a mensagem "Integre a main em develop". Um conflito real (alguém alterou versao.py ou as notas na develop) não é resolvido sozinho: o passo aborta o merge e não envia nada. Os testes ficam em `ReconciliacaoDevelopTests` (test_publicacao_beta.py), com repositórios git locais.
+
+Regra de uso: nunca reaproveite uma Beta bloqueada. Depois de reconciliar, a promoção vale para a primeira Beta nova (base já atualizada), não para a antiga; promover a antiga continua barrado de propósito.

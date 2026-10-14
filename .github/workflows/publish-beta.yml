@@ -105,3 +105,14 @@ jobs:
           $sha = git rev-parse HEAD
           gh release create "v$env:STABLE_VERSION" $installer $zip "$env:RUNNER_TEMP/zandao-original/output/SHA256SUMS.txt" "$env:RUNNER_TEMP/zandao-original/output/package-manifest.json" "$env:RUNNER_TEMP/zandao-original/output/sbom.json" --target "$sha" --latest --title "Tibia Tudo v$env:STABLE_VERSION" --notes-file "docs/releases/v$env:STABLE_VERSION.md"
           if ($LASTEXITCODE -ne 0) { throw 'Falha na publicação dos pacotes estáveis' }
+      - name: Devolver a promoção para a develop
+        continue-on-error: true
+        shell: pwsh
+        env:
+          STABLE_VERSION: ${{ steps.promover.outputs.version }}
+        run: |
+          python instalador/promover_beta.py reconciliar "$env:STABLE_VERSION"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host '::warning::A versão estável foi publicada, mas a develop não recebeu a promoção. Faça o merge da main na develop antes da próxima Beta, ou ela ficará bloqueada.'
+            exit 1
+          }

@@ -202,5 +202,112 @@ class PromocaoIntegracaoTests(unittest.TestCase):
                 os.chdir(original_cwd)
 
 
+class ReconciliacaoDevelopTests(unittest.TestCase):
+    """Após promover, a develop precisa receber a promoção; senão a próxima Beta diverge da main."""
+
+    def git(self, *args, cwd=None):
+        return subprocess.run(['git', *map(str, args)], cwd=cwd, check=True,
+                              capture_output=True, text=True, encoding='utf-8').stdout.strip()
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        self.remote, self.source, self.checkout = root / 'remote.git', root / 'source', root / 'checkout'
+        git = self.git
+        git('init', '--bare', self.remote)
+        git('init', '--initial-branch=main', self.source)
+        git('config', 'user.name', 'Teste', cwd=self.source)
+        git('config', 'user.email', 'teste@example.com', cwd=self.source)
+        (self.source / 'versao.py').write_text('VERSAO_APP = "1.0.19"\n', encoding='utf-8')
+        (self.source / 'feature.txt').write_text('stable', encoding='utf-8')
+        git('add', '.', cwd=self.source)
+        git('commit', '-m', 'base', cwd=self.source)
+        git('remote', 'add', 'origin', self.remote, cwd=self.source)
+        git('push', 'origin', 'main', cwd=self.source)
+        git('checkout', '-b', 'develop', cwd=self.source)
+        self.sha = self.commit_na_fonte('feature.txt', 'beta aprovada', 'beta')
+        git('tag', TAG, cwd=self.source)
+        git('push', 'origin', 'develop', '--tags', cwd=self.source)
+        git('clone', '--branch', 'develop', '--single-branch', self.remote, self.checkout)
+        original_run = pipeline.run
+
+        def runner(*args):
+            if args[0] == 'gh':
+                return json.dumps({'isPrerelease': True, 'isDraft': False, 'body': 'Beta de teste', 'assets': [{'name': 'ZandaoTibiaToolsBetaSetup.exe'}]})
+            return original_run(*args)
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.checkout)
+        for item in (patch.object(pipeline, 'run', side_effect=runner), patch.dict(os.environ, {'GITHUB_OUTPUT': str(root / 'output')})):
+            item.start()
+            self.addCleanup(item.stop)
+        preparar(TAG, self.sha)
+        finalizar(git('rev-parse', 'origin/main'), '1.0.20')
+        self.promovido = git('rev-parse', 'HEAD')
+
+    def commit_na_fonte(self, arquivo, conteudo, mensagem):
+        (self.source / arquivo).write_text(conteudo, encoding='utf-8')
+        self.git('add', arquivo, cwd=self.source)
+        self.git('commit', '-m', mensagem, cwd=self.source)
+        return self.git('rev-parse', 'HEAD', cwd=self.source)
+
+    def nova_beta(self, tag, arquivo, conteudo):
+        """Simula novo trabalho na develop (como outro assistente) e a Beta publicada dele."""
+        self.git('fetch', 'origin', cwd=self.source)
+        self.git('merge', '--ff-only', 'origin/develop', cwd=self.source)
+        sha = self.commit_na_fonte(arquivo, conteudo, 'novo trabalho ' + tag)
+        self.git('tag', tag, cwd=self.source)
+        self.git('push', 'origin', 'develop', '--tags', cwd=self.source)
+        return sha
+
+    def develop_remota(self):
+        return self.git('ls-remote', 'origin', 'refs/heads/develop').split()[0]
+
+    def test_sem_reconciliar_a_proxima_beta_fica_bloqueada(self):
+        sha = self.nova_beta('v1.0.20-beta.6.1', 'novo.txt', 'a')
+        with self.assertRaisesRegex(ValueError, 'Integre a main em develop'):
+            preparar('v1.0.20-beta.6.1', sha)
+
+    def test_reconciliar_traz_a_promocao_e_a_proxima_beta_pode_ser_promovida(self):
+        self.nova_beta('v1.0.20-beta.6.1', 'novo.txt', 'trabalho que entrou depois')
+        pipeline.reconciliar('1.0.20')
+        self.git('fetch', 'origin', cwd=self.source)
+        self.git('merge-base', '--is-ancestor', self.promovido, 'origin/develop', cwd=self.source)
+        self.assertEqual(self.git('show', 'origin/develop:novo.txt', cwd=self.source), 'trabalho que entrou depois')
+        self.assertIn('"1.0.20"', self.git('show', 'origin/develop:versao.py', cwd=self.source))
+        self.assertTrue(self.git('show', 'origin/develop:docs/releases/v1.0.20.md', cwd=self.source))
+        sha = self.nova_beta('v1.0.20-beta.7.1', 'novo.txt', 'outra rodada')
+        preparar('v1.0.20-beta.7.1', sha)
+        self.assertIn('"1.0.21"', Path('versao.py').read_text(encoding='utf-8'))
+        self.assertEqual(Path('novo.txt').read_text(encoding='utf-8'), 'outra rodada')
+
+    def test_reconciliar_avanca_sem_commit_extra_quando_a_develop_nao_andou(self):
+        pipeline.reconciliar('1.0.20')
+        self.assertEqual(self.develop_remota(), self.promovido)
+
+    def test_reconciliar_e_idempotente(self):
+        pipeline.reconciliar('1.0.20')
+        antes = self.develop_remota()
+        self.assertIn('já contém', pipeline.reconciliar('1.0.20'))
+        self.assertEqual(self.develop_remota(), antes)
+
+    def test_conflito_nao_publica_e_limpa_o_checkout(self):
+        self.git('fetch', 'origin', cwd=self.source)
+        self.git('merge', '--ff-only', 'origin/develop', cwd=self.source)
+        self.commit_na_fonte('versao.py', 'VERSAO_APP = "1.0.99"\n', 'versao divergente')
+        self.git('push', 'origin', 'develop', cwd=self.source)
+        antes = self.develop_remota()
+        with self.assertRaisesRegex(ValueError, 'conflito'):
+            pipeline.reconciliar('1.0.20')
+        self.assertEqual(self.develop_remota(), antes)
+        self.assertEqual(self.git('status', '--porcelain'), '')
+
+    def test_versao_invalida_nao_executa_comandos(self):
+        with patch.object(pipeline, 'run') as run:
+            with self.assertRaises(ValueError):
+                pipeline.reconciliar('v1.0.20')
+            run.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()

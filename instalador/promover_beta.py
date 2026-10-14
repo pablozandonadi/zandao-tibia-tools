@@ -89,12 +89,49 @@ def finalizar(base, version):
     run('git', 'push', 'origin', 'HEAD:refs/heads/main')
 
 
+def reconciliar(version):
+    """Devolve a promoção à develop; sem isso a próxima Beta diverge da main e preparar() a bloqueia."""
+    if not re.fullmatch(r'\d+\.\d+\.\d+', version):
+        raise ValueError('Versão estável inválida.')
+    promovido = run('git', 'rev-parse', 'HEAD')
+    run('git', 'config', 'user.name', 'github-actions[bot]')
+    run('git', 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
+    for tentativa in range(3):
+        run('git', 'fetch', 'origin', 'refs/heads/develop:refs/remotes/origin/develop')
+        try:
+            run('git', 'merge-base', '--is-ancestor', promovido, 'origin/develop')
+            return 'A develop já contém a promoção.'
+        except RuntimeError:
+            pass
+        run('git', 'checkout', '--detach', 'origin/develop')
+        try:
+            # Avança sem commit extra se a develop não andou; senão cria o merge.
+            run('git', 'merge', '-m', f'Reconcilia estável {version} na develop', promovido)
+        except RuntimeError as error:
+            try:
+                run('git', 'merge', '--abort')
+            except RuntimeError:
+                pass
+            raise ValueError(f'A develop não aceitou a promoção {version} (conflito). Faça o merge da main na develop manualmente antes da próxima Beta.') from error
+        try:
+            run('git', 'push', 'origin', 'HEAD:refs/heads/develop')
+            return f'A develop recebeu a promoção {version}.'
+        except RuntimeError:
+            # Outro push na develop entre o fetch e o push: tenta de novo com a develop atualizada.
+            if tentativa == 2:
+                raise
+
+
 if __name__ == '__main__':
+    sys.stderr.reconfigure(encoding='utf-8')
+    sys.stdout.reconfigure(encoding='utf-8')
     try:
         if sys.argv[1] == 'preparar':
             preparar(sys.argv[2], sys.argv[3])
         elif sys.argv[1] == 'finalizar':
             finalizar(sys.argv[2], sys.argv[3])
+        elif sys.argv[1] == 'reconciliar':
+            print(reconciliar(sys.argv[2]))
         else:
             raise ValueError('Operação inválida.')
     except Exception as error:
