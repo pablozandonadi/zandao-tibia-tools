@@ -2359,7 +2359,7 @@ async function carregarHistorico() {
         ${s.balance_h !== undefined ? `<span>Balance/h <b class="${cls(s.balance_h)}">${n(s.balance_h)}</b></span>` : ''}</div>
       <div class="hist-mons">${h.monstros.map((m) => m.imagem ? `<img src="${esc(m.imagem)}" alt="" title="${esc(m.kills + 'x ' + m.nome)}">` : `<span class="chip chip-neutro">${esc(m.kills + 'x ' + m.nome)}</span>`).join('')}
         ${h.protecoes.length ? `<span class="dica" style="margin-left:8px">🛡️ ${esc(h.protecoes.join(', '))}</span>` : ''}</div>
-    </div><div class="hist-acoes"><label class="check" style="font-size:.8rem"><input type="checkbox" data-comp="${h.id}" ${compSel.includes(h.id) ? 'checked' : ''}> Comparar</label>
+    </div><div class="hist-acoes"><label class="check" style="font-size:.8rem"><input type="checkbox" data-comp="${h.id}" ${compSel.includes(h.id) ? 'checked' : ''}> Selecionar</label>
       <button class="btn btn-sm btn-primary" data-abrir="${h.id}">Abrir</button><button class="btn btn-sm btn-danger" data-apagar="${h.id}">Apagar</button></div></div>`;
   }).join('');
   $('hi-lista').querySelectorAll('[data-abrir]').forEach((b) => b.addEventListener('click', () => abrirHunt(b.dataset.abrir)));
@@ -2372,7 +2372,6 @@ async function carregarHistorico() {
   }));
   $('hi-lista').querySelectorAll('[data-comp]').forEach((c) => c.addEventListener('change', () => {
     const id = c.dataset.comp;
-    if (c.checked && compSel.length >= 4) { c.checked = false; toast('Lado a lado vão até 4 hunts. Para mais, use 📊 Comparar todas.', true); return; }
     compSel = c.checked ? [...compSel, id] : compSel.filter((x) => x !== id);
     document.querySelector(`[data-card="${id}"]`).classList.toggle('sel', c.checked);
     atualizarBarraComparar();
@@ -2537,12 +2536,13 @@ let compSel = [];  // ids na ordem em que foram marcados (a 1ª é a referência
 function atualizarBarraComparar() {
   const k = compSel.length;
   $('hi-comp-barra').classList.toggle('ativa', k > 0);
-  $('hi-comp-ir').disabled = k < 2;
+  $('hi-comp-ir').disabled = k < 2 || k > 4;
+  $('hi-exportar').textContent = k ? `📤 Exportar selecionadas (${k})` : '📤 Exportar tudo';
   $('hi-comp-ir').textContent = k >= 2 ? `⚖️ Comparar ${k} hunts` : '⚖️ Comparar';
   $('hi-comp-limpar').style.display = k ? '' : 'none';
-  $('hi-comp-texto').innerHTML = k === 0 ? '⚖️ Marque <b>Comparar</b> em 2 a 4 hunts para ver lado a lado (por hora e por membro).'
-    : k === 1 ? 'Marque mais uma hunt (dica: use o filtro <b>Tamanho da party</b> para achar hunts parecidas).'
-    : `${k} hunts marcadas.`;
+  $('hi-comp-texto').innerHTML = k === 0 ? 'Marque <b>Selecionar</b> nas hunts que deseja exportar. Sem seleção, exporta todo o histórico. Para comparar lado a lado, selecione de 2 a 4 hunts.'
+    : k === 1 ? '1 hunt selecionada para exportar. Para comparar, selecione mais uma hunt.'
+    : `${k} hunts selecionadas para exportar.${k > 4 ? ' Para comparar lado a lado, selecione de 2 a 4 hunts.' : ''}`;
 }
 $('hi-comp-limpar').addEventListener('click', () => {
   compSel = []; $('hi-comparar').innerHTML = '';
@@ -2619,7 +2619,7 @@ $('hi-filtro').addEventListener('change', carregarHistorico);
 $('hi-tamanho').addEventListener('change', carregarHistorico);
 $('hi-monstro').addEventListener('change', carregarHistorico);
 $('hi-exportar').addEventListener('click', async () => {
-  const r = await api.hunt_exportar($('hi-filtro').value);
+  const r = await api.hunt_exportar('', [...compSel]);
   if (r.ok) toast(`${r.qtd} hunt(s) exportada(s)!`);
   else if (!r.cancelado) toast(r.erro, true);
 });

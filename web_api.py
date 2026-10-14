@@ -1019,8 +1019,8 @@ class API:
         except OSError:
             return False
 
-    def hunt_exportar(self, personagem=""):
-        pacote = historico.exportar(personagem=personagem or None)
+    def hunt_exportar(self, personagem="", ids=None):
+        pacote = historico.exportar(ids=ids, personagem=personagem or None)
         if not pacote["hunts"]:
             return {"ok": False, "erro": "Nenhuma hunt para exportar."}
         sufixo = (personagem or "todas").replace(" ", "-").lower()
