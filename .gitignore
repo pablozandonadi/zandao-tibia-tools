@@ -57,3 +57,7 @@ hunt_catalog_work/
 # GuildStats: consultas e sessão privadas por instalação
 cache_guild_stats/
 webview_session/
+
+# Preferências privadas do monitor de rede
+rede_config.json
+rede_config.tmp

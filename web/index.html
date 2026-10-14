@@ -674,6 +674,7 @@
 <script src="beta_publicacao.js"></script>
 <link rel="stylesheet" href="zandaobot.css">
 <link rel="stylesheet" href="world_board.css">
+<link rel="stylesheet" href="network.css">
 <link rel="stylesheet" href="brand.css">
 <script defer src="brand.js"></script>
 </head>
@@ -698,6 +699,7 @@
     <div class="nav-item" tabindex="0" data-pagina="audio" title="Timers de áudio"><span class="nav-icon" aria-hidden="true">🔔</span><span class="txt"> Timers</span></div>
     <div class="nav-item" tabindex="0" data-pagina="prints" title="Prints"><span class="nav-icon" aria-hidden="true">📸</span><span class="txt"> Prints</span></div>
     <div class="nav-item" id="gs-menu" tabindex="0" data-pagina="guildstats" title="Guild Stats"><span class="nav-icon" aria-hidden="true">📈</span><span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
+    <div class="nav-item" tabindex="0" data-pagina="rede" title="Rede — conexões e estabilidade"><span class="nav-icon" aria-hidden="true">📶</span><span class="txt"> Rede</span></div>
     <div class="nav-item" tabindex="0" data-pagina="config" title="Configurações"><span class="nav-icon" aria-hidden="true">⚙️</span><span class="txt"> Configurações</span></div>
     <div class="sobrepor">
       <button class="pino" id="j-topo" title="Fixar por cima do Tibia (fica visível mesmo clicando no jogo)">📌<span class="txt"> Fixar por cima</span></button>
@@ -721,6 +723,7 @@
       </div>
       <div id="ti-result" aria-live="polite" style="margin-top:16px"></div>
     </section>
+    <section class="page" id="page-rede"></section>
     <section class="page shown" id="page-zandaobot">
       <h1 class="titulo">Home</h1>
       <div class="card calmo">
@@ -3270,6 +3273,7 @@ else window.addEventListener('pywebviewready', iniciar);
 <script src="classificador.js"></script>
 <script src="guild_stats.js"></script>
 <script src="world_board.js"></script>
+<script src="network.js"></script>
 <script src="zandaobot.js"></script>
 <script src="criaturas.js"></script>
 <script src="hunt_places.js"></script>

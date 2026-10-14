@@ -298,10 +298,22 @@ class API:
         self._capturas = {}     # tipo ('party'/'solo'/'dano') -> {"texto", "t"}: últimos textos do Tibia copiados
         self._trava_capturas = threading.Lock()
         self._monitor = False
+        from network_monitor import Monitor
+        self._rede = Monitor(os.path.join(BASE_DIR, "rede_config.json"))
 
     def _emit(self, funcao_js, dados):
         if self._window:
             self._window.evaluate_js(f"{funcao_js}({json.dumps(dados, ensure_ascii=False)})")
+
+    def rede_estado(self, janela=300):
+        self._rede.start()
+        return self._rede.snapshot(janela)
+
+    def rede_configurar(self, alteracoes):
+        try:
+            return self._rede.configure(alteracoes)
+        except (ValueError, TypeError, OSError):
+            return {"error_config": "Não foi possível salvar. Verifique os valores e tente novamente."}
 
     # ================= início =================
     def carregar(self):

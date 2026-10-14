@@ -80,12 +80,20 @@ def main():
     try:
         tray = TrayController(janela, os.path.join(PASTA_RECURSOS, "icon.ico"), NOME_APP)
         tray.start()
+        def avisar_rede(message):
+            if tray.ready.is_set():
+                tray.icon.visible = True
+                tray.icon.notify(message, "Tibia Tudo · Rede")
+        api._rede.notifier = avisar_rede
     except Exception:
         pass  # If tray setup fails, the X still closes normally.
+    if api._rede.config["enabled"]:
+        api._rede.start()
     try:
         webview.start(icon=os.path.join(PASTA_RECURSOS, "icon.ico"), private_mode=False,
                       storage_path=os.path.join(data_dir(), "webview_session"))
     finally:
+        api._rede.close()
         if tray is not None:
             tray.stop()
         if guard is not None:
