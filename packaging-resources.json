@@ -1613,6 +1613,8 @@
     "web/index.html",
     "web/network.css",
     "web/network.js",
+    "web/radio.css",
+    "web/radio.js",
     "web/roda.js",
     "web/sets.js",
     "web/task_items.css",

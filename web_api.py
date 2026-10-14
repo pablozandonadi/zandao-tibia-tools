@@ -13,6 +13,7 @@ import webview
 
 import atualizacoes
 import publicacao_beta
+import radio_brasilhits
 import audio_timers
 import backup
 import damage_core
@@ -182,6 +183,8 @@ def ler_prefs():
                 prefs["tamanhos"] = validos
         if p.get("modo") in ("normal", "gadget"):
             prefs["modo"] = p["modo"]
+        if "radio" in p:
+            prefs["radio"] = radio_brasilhits.normalize_preferences(p.get("radio"))
         return prefs
 
 
@@ -290,6 +293,7 @@ def _ficha_para_tela(k, kills):
 
 class API:
     def __init__(self):
+        self._radio = radio_brasilhits.Client()
         self._window = None  # preenchido em zandao_tibia_tools.py (nunca público: o pywebview recursa nele)
         self._imbs = emb.carregar_imbuements(IMBUEMENTS_PATH)
         self._organizando = False
@@ -304,6 +308,24 @@ class API:
         self._monitor = False
         from network_monitor import Monitor
         self._rede = Monitor(os.path.join(BASE_DIR, "rede_config.json"))
+
+    def radio_catalogo(self):
+        return self._radio.catalog()
+
+    def radio_musica(self, station_id):
+        return self._radio.now_playing(station_id)
+
+    def radio_preferencias(self):
+        return radio_brasilhits.normalize_preferences(ler_prefs().get("radio"))
+
+    def radio_preferencias_salvar(self, value):
+        prefs = radio_brasilhits.normalize_preferences(value)
+        salvar_prefs({"radio": prefs})
+        return prefs
+
+    def radio_abrir_site(self):
+        import webbrowser
+        return webbrowser.open("https://www.brasilhits.com/")
 
     def _emit(self, funcao_js, dados):
         if self._window:
