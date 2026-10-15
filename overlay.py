@@ -75,6 +75,7 @@ if sys.platform == "win32":
     _u32.KillTimer.argtypes = [wintypes.HWND, ctypes.c_size_t]
     _u32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
     _u32.SetLayeredWindowAttributes.argtypes = [wintypes.HWND, wintypes.COLORREF, ctypes.c_ubyte, wintypes.DWORD]
+    _u32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
     _u32.GetForegroundWindow.restype = wintypes.HWND
     _u32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.c_void_p]
     _u32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.c_void_p]
@@ -146,6 +147,37 @@ def janela_do_tibia():
 
     _u32.EnumWindows(ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)(cb), 0)
     return max(achadas, key=lambda r: (r[2] - r[0]) * (r[3] - r[1])) if achadas else None
+
+
+def personagem_tibia_em_foco():
+    """Só lê o título da janela real do cliente em primeiro plano, sem consultar memória."""
+    if sys.platform != "win32":
+        return ""
+    hwnd = _u32.GetForegroundWindow()
+    if not hwnd or not _u32.IsWindowVisible(hwnd) or _u32.IsIconic(hwnd):
+        return ""
+    pid = wintypes.DWORD()
+    _u32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    process = _k32.OpenProcess(0x1000, False, pid.value)
+    if not process:
+        return ""
+    try:
+        path = ctypes.create_unicode_buffer(520)
+        size = wintypes.DWORD(520)
+        if not _k32.QueryFullProcessImageNameW(process, 0, path, ctypes.byref(size)) or \
+                os.path.basename(path.value).lower() not in PROCESSOS_TIBIA:
+            return ""
+        title = ctypes.create_unicode_buffer(256)
+        if not _u32.GetWindowTextW(hwnd, title, len(title)):
+            return ""
+        prefix = "Tibia - "
+        if not title.value.casefold().startswith(prefix.casefold()):
+            return ""
+        if _u32.GetForegroundWindow() != hwnd:
+            return ""
+        return title.value[len(prefix):].strip()
+    finally:
+        _k32.CloseHandle(process)
 
 
 _hwnd_app_fixado = None

@@ -93,6 +93,7 @@ def main():
         webview.start(icon=os.path.join(PASTA_RECURSOS, "icon.ico"), private_mode=False,
                       storage_path=os.path.join(data_dir(), "webview_session", VERSAO_APP))
     finally:
+        api._personagem_auto_parar()
         api._rede.close()
         if getattr(api, "_mirror", None) is not None:
             api._mirror.close()

@@ -1050,7 +1050,7 @@
       <div class="grid-ferr">
         <div class="card" id="cfg-personagens">
           <h2 class="sub">👤 Meus personagens</h2>
-          <p class="dica" style="margin:0 0 10px">O app confere cada personagem no tibia.com (nome, level, vocação e mundo). O escolhido em <b>Usar</b> é o "Seu personagem" do Hunt Analyser.</p>
+          <p class="dica" style="margin:0 0 10px">O app confere cada personagem no tibia.com (nome, level, vocação e mundo). O personagem em uso acompanha o Tibia em primeiro plano quando já está nesta lista. Você também pode escolhê-lo em <b>Usar</b>.</p>
           <div id="pers-lista"></div>
           <div style="margin-top:12px"><label class="campo-label" for="pers-novo">Adicionar personagem</label>
             <div class="linha-pasta" style="margin:0"><input type="text" id="pers-novo" placeholder="nome do personagem no Tibia"><button class="btn btn-sm btn-primary" id="pers-add">Conferir e adicionar</button></div></div>
@@ -1978,13 +1978,21 @@ $('h-personagem').addEventListener('change', async () => {
   H.entrada.personagem = $('h-personagem').value;
   H.equip = null;
   if (!H.id) await trocarHerancaDoPersonagem();
-  if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) { MEUS = await api.personagem_usar(H.entrada.personagem); sincronizarPersonagem(); }
+  if (MEUS.lista.some((p) => p.nome === H.entrada.personagem)) { MEUS = receberPersonagens(await api.personagem_usar(H.entrada.personagem)); sincronizarPersonagem(); }
   montarSeletorPersonagem();
   analisarHunt();
 });
 
 // ---------- meus personagens ----------
 let MEUS = { lista: [], atual: '' };
+function receberPersonagens(d) {
+  return (d.revisao || 0) < (MEUS.revisao || 0) ? MEUS : d;
+}
+window.personagemEstado = (d) => {
+  MEUS = receberPersonagens(d);
+  sincronizarPersonagem();
+  montarListaPersonagens();
+};
 // rodas, sets e timers pertencem a um personagem (campo "personagem"); os sem dono são os "antigos", que o usuário vincula
 const mesmoPers = (a, b) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();
 const doPers = (lista, nome) => (nome ? lista.filter((x) => mesmoPers(x.personagem, nome)) : []);
@@ -2049,7 +2057,7 @@ function montarListaPersonagens() {
       <button class="btn btn-sm btn-danger" data-pers-remover="${esc(p.nome)}" title="Remover da lista">✕</button></div>`).join('')
     : '<div class="dica">Nenhum personagem ainda. Adicione o seu abaixo.</div>';
   $('pers-lista').querySelectorAll('[data-pers-usar]').forEach((b) => b.addEventListener('click', async () => {
-    MEUS = await api.personagem_usar(b.dataset.persUsar);
+    MEUS = receberPersonagens(await api.personagem_usar(b.dataset.persUsar));
     sincronizarPersonagem();
     H.entrada.personagem = MEUS.atual;
     montarListaPersonagens(); montarSeletorPersonagem();
@@ -2057,7 +2065,7 @@ function montarListaPersonagens() {
   }));
   $('pers-lista').querySelectorAll('[data-pers-remover]').forEach((b) => b.addEventListener('click', async () => {
     if (!confirm(`Remover ${b.dataset.persRemover} da sua lista? (As hunts salvas não mudam.)`)) return;
-    MEUS = await api.personagem_remover(b.dataset.persRemover);
+    MEUS = receberPersonagens(await api.personagem_remover(b.dataset.persRemover));
     sincronizarPersonagem();
     if (!acharMeu(H.entrada.personagem)) H.entrada.personagem = MEUS.atual;
     montarListaPersonagens(); montarSeletorPersonagem();
@@ -2069,7 +2077,7 @@ async function abrirConfiguracoes() {
   montarSetsConfig();
   montarListaPersonagens();
   $('pers-msg').textContent = 'Atualizando os levels no tibia.com...';
-  MEUS = await api.meus_personagens(true);
+  MEUS = receberPersonagens(await api.meus_personagens(true));
   sincronizarPersonagem();
   $('pers-msg').textContent = '';
   montarListaPersonagens(); montarSeletorPersonagem();
@@ -2116,7 +2124,7 @@ async function adicionarPersonagem() {
   $('pers-add').disabled = false;
   if (r.erro) { $('pers-msg').textContent = r.erro; return; }
   const novo = r.lista.find((p) => p.nome.toLowerCase() === nome.toLowerCase());
-  MEUS = r;
+  MEUS = receberPersonagens(r);
   sincronizarPersonagem();
   if (!H.entrada.personagem && MEUS.atual) H.entrada.personagem = MEUS.atual;
   $('pers-novo').value = '';
@@ -2419,7 +2427,7 @@ function ligarHunt() {
 // Só o "Seu personagem" é lembrado, para não ter que digitar toda vez.
 async function huntIniciar() {
   const r = await api.hunt_carregar();
-  MEUS = await api.meus_personagens();
+  MEUS = receberPersonagens(await api.meus_personagens());
   sincronizarPersonagem();
   H.entrada.personagem = MEUS.atual || (r.entrada && r.entrada.personagem) || '';
   TAB = await api.hunt_tabelas();
@@ -2435,7 +2443,7 @@ async function huntIniciar() {
   marcarHerdado();
   H.id = null;
   preencherHunt();
-  api.meus_personagens(true).then((d) => { MEUS = d; sincronizarPersonagem(); montarSeletorPersonagem(); });  // atualiza levels sem travar
+  api.meus_personagens(true).then((d) => { MEUS = receberPersonagens(d); sincronizarPersonagem(); montarSeletorPersonagem(); });  // atualiza levels sem travar
   mostrarCapturas(await api.hunt_monitor_iniciar());
 }
 
@@ -3371,6 +3379,7 @@ async function iniciar() {
   api.versao_app().then((v) => { $('versao-app').textContent = 'v' + v; $('cfg-versao').textContent = 'v' + v; });
   carregarDia();
   api.audio_iniciar().then((r) => { AU = r; renderAudio(); });
+  await api.personagem_auto_iniciar();
   setTimeout(checarAtualizacao, 2500);
 }
 if (window.pywebview && window.pywebview.api) iniciar();

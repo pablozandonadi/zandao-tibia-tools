@@ -167,6 +167,7 @@ def _mover_janela(hwnd, x, y):
 
 
 PREFS_LOCK = threading.RLock()
+PERSONAGEM_LOCK = threading.RLock()
 
 
 def ler_prefs():
@@ -306,6 +307,10 @@ class API:
         self._prints_agenda_lock = threading.Lock()
         self._atualizacao_info = None  # release lida em verificar_atualizacao, até instalar_atualizacao
         self._dano_cache = {}  # assinatura da hunt -> monstros/dano já analisados (para o Salvar)
+        self._personagem_auto_stop = threading.Event()
+        self._personagem_auto_thread = None
+        self._personagem_auto_pendente = None
+        self._personagem_revisao = 0
         self._audio = None      # motor dos timers de áudio (liga em audio_iniciar)
         self._mirror = None
         self._mirror_api_lock = threading.Lock()
@@ -317,7 +322,7 @@ class API:
 
     # ================= mirrors por personagem e perfil =================
     def _mirror_obter(self):
-        with self._mirror_api_lock:
+        with PERSONAGEM_LOCK, self._mirror_api_lock:
             if self._mirror is None:
                 self._mirror = MirrorService(personagens.carregar().get("atual", ""),
                                              emit=lambda state: self._emit("mirrorEstado", state))
@@ -637,7 +642,8 @@ class API:
                 personagens.adicionar(antigo)  # migra o nome que o app já lembrava (se existir no tibia.com)
         if atualizar:
             personagens.atualizar_levels()
-        return self._timers_do_personagem(personagens.carregar())
+        with PERSONAGEM_LOCK:
+            return self._timers_do_personagem(personagens.carregar())
 
     def equip_recomendar(self, nome, distribuicao, elemento=None, vocacao=None, level=None):
         """Itens do set que protegem do dano da hunt, para uma vocação e level (os do personagem, ou os escolhidos).
@@ -667,10 +673,14 @@ class API:
 
     def personagem_adicionar(self, nome):
         d, erro = personagens.adicionar(nome)
-        return {"erro": erro} if erro else self._timers_do_personagem(d)
+        if erro:
+            return {"erro": erro}
+        with PERSONAGEM_LOCK:
+            return self._timers_do_personagem(personagens.carregar())
 
     def personagem_remover(self, nome):
-        return self._timers_do_personagem(personagens.remover(nome))
+        with PERSONAGEM_LOCK:
+            return self._timers_do_personagem(personagens.remover(nome))
 
     def criaturas_locais(self, atualizar=False):
         return hunt_catalog.catalogo(atualizar)
@@ -719,7 +729,46 @@ class API:
         return guild_stats.buscar(nome or personagens.carregar()["atual"], aba, True, 1, True)
 
     def personagem_usar(self, nome):
-        return self._timers_do_personagem(personagens.usar(nome))
+        with PERSONAGEM_LOCK:
+            return self._timers_do_personagem(personagens.usar(nome))
+
+    def personagem_auto_iniciar(self):
+        with PERSONAGEM_LOCK:
+            if self._personagem_auto_thread is not None and self._personagem_auto_thread.is_alive():
+                return
+            self._personagem_auto_stop.clear()
+            self._personagem_auto_thread = threading.Thread(target=self._personagem_auto_monitorar,
+                                                             name="personagem-tibia", daemon=True)
+            self._personagem_auto_thread.start()
+
+    def _personagem_auto_parar(self):
+        self._personagem_auto_stop.set()
+        thread = self._personagem_auto_thread
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=2)
+
+    def _personagem_auto_monitorar(self):
+        while not self._personagem_auto_stop.wait(1):
+            try:
+                self._personagem_auto_sincronizar()
+            except Exception:
+                pass  # Uma janela fechada ou callback indisponível não encerra o monitor.
+
+    def _personagem_auto_sincronizar(self):
+        from overlay import personagem_tibia_em_foco
+        nome = personagem_tibia_em_foco()
+        with PERSONAGEM_LOCK:
+            if self._personagem_auto_stop.is_set():
+                return
+            if nome:
+                d = personagens.carregar()
+                cadastrado = next((p["nome"] for p in d["lista"] if p["nome"].casefold() == nome.casefold()), None)
+                if cadastrado and cadastrado != d["atual"] and personagem_tibia_em_foco() == nome:
+                    self._personagem_auto_pendente = self.personagem_usar(cadastrado)
+            pendente = getattr(self, "_personagem_auto_pendente", None)
+        if pendente is not None and not self._personagem_auto_stop.is_set():
+            self._emit("personagemEstado", pendente)
+            self._personagem_auto_pendente = None
 
     def hunt_carregar(self):
         """Rascunho da última hunt (textos colados) para reabrir o app sem perder nada."""
@@ -1289,10 +1338,11 @@ class API:
     # ================= timers de áudio (ver audio_timers.py) =================
     def audio_iniciar(self):
         """Liga o motor (lê as teclas cadastradas e toca os sons), também com o app minimizado."""
-        if self._audio is None:
-            self._audio = audio_timers.Motor(ao_mudar=lambda est: self._emit("audioEstado", est),
-                                             personagem=personagens.carregar()["atual"])
-        return self.audio_carregar()
+        with PERSONAGEM_LOCK:
+            if self._audio is None:
+                self._audio = audio_timers.Motor(ao_mudar=lambda est: self._emit("audioEstado", est),
+                                                 personagem=personagens.carregar()["atual"])
+            return self.audio_carregar()
 
     def _timers_do_personagem(self, d):
         """Os timers só valem para o personagem em uso: avisa o motor quando ele muda. Devolve d."""
@@ -1300,7 +1350,9 @@ class API:
             self._audio.definir_personagem((d or {}).get("atual", ""))
         if getattr(self, "_mirror", None):
             self._mirror.definir_personagem((d or {}).get("atual", ""))
-        return d
+        self._personagem_auto_pendente = None
+        self._personagem_revisao = getattr(self, "_personagem_revisao", 0) + 1
+        return {**d, "revisao": self._personagem_revisao}
 
     def audio_carregar(self):
         m = self._audio
