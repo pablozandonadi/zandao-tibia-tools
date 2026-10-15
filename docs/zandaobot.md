@@ -64,3 +64,12 @@ Validado com 326 testes, fluxo de seleção inicial no navegador e consulta púb
 Cole o Server Log obtido ao usar a placa na Adventurers’ Guild. Analise antes de salvar no personagem em uso e mundo selecionado. O registro é local, participa do backup e expira no próximo server save. Não há compartilhamento automático entre instalações. Linhas desconhecidas não são armazenadas e impedem confirmar ausência de Yasir. Confirme a cópia completa apenas quando todas as mensagens estiverem presentes.
 
 Gerar mensagem do dia combina dados atuais, calendário e observação manual válida. Comunidade, assinatura, Deeplings, região, Roshamuul e preços de TC são editáveis; campos desconhecidos ficam com ❓. O fim de Tibia Drome vem do calendário quando disponível. Revise e copie a mensagem; nenhum envio externo é feito.
+
+
+## Kill Statistics como evidência da Dream Court
+
+O card Dream Court oferece as mortes dos cinco bosses diários em Last Day e Last Week, via TibiaData `/v4/killstatistics/{mundo}`. Usa `last_day_killed` e `last_week_killed` (bosses mortos por jogadores), nunca os campos `players_killed`. Contagem zero é diferente de campo ausente ou inválido, mostrado como indisponível. A estatística não inclui Faceless Bane nem The Nightmare Beast, encontros separados da rotação diária.
+
+As contagens complementam a previsão existente e não alteram nem confirmam o boss atual. Last Day não equivale necessariamente ao último intervalo entre server saves; zero mortes não prova indisponibilidade. A mensagem do dia inclui as contagens atuais com esse limite explícito e omite cache anterior após falha.
+
+Cache separado por mundo por cinco minutos, com validação da resposta antes de substituir o último resultado válido. Consulta do aplicativo e processamento informado pelo TibiaData aparecem separadamente; Atualizar tenta nova consulta, mas o cache do fornecedor pode conservar o mesmo processamento. Falha mantém dados anteriores identificados. Sem mundo, nenhuma consulta de Kill Statistics é feita. Nenhum histórico ou dado pessoal novo é persistido.

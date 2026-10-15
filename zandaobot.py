@@ -14,13 +14,15 @@ _lock = threading.Lock()
 _cache = {}
 
 
-def _consultar(chave, endpoint, forcar=False, ttl=300):
+def _consultar(chave, endpoint, forcar=False, ttl=300, validar=None):
     with _lock:
         anterior = copy.deepcopy(_cache.get(chave))
     if anterior and not forcar and time.time() - anterior['consulta'] < ttl:
         return {**anterior, 'velho': False}
     try:
         dados = tibia_info._get_json(tibia_info.TIBIADATA + endpoint)
+        if validar:
+            dados = validar(dados)
         novo = {'dados': dados, 'consulta': time.time(), 'velho': False}
         with _lock:
             _cache[chave] = copy.deepcopy(novo)
@@ -29,6 +31,42 @@ def _consultar(chave, endpoint, forcar=False, ttl=300):
         if anterior:
             return {**anterior, 'velho': True}
         return {'dados': {}, 'consulta': None, 'velho': True}
+
+
+def killstatistics(mundo, forcar=False):
+    mundo = (mundo or '').strip()
+    base = {'mundo': mundo, 'bosses': [], 'consulta': None, 'processamento': None, 'velho': False,
+            'fonte': 'https://www.tibia.com/community/?subtopic=killstatistics&world=' + quote(mundo)}
+    if not mundo:
+        return {**base, 'estado': 'selecionar_mundo'}
+    if not re.fullmatch(r'[A-Za-z]{2,40}', mundo):
+        return {**base, 'estado': 'indisponivel'}
+
+    def validar(data):
+        stats = data['killstatistics']
+        information = data['information']
+        if information['status']['http_code'] != 200 or stats['world'].casefold() != mundo.casefold() or not isinstance(stats['entries'], list):
+            raise ValueError('Resposta de Kill Statistics inválida')
+        bosses = []
+        for name in sources.BOSSES:
+            matches = [e for e in stats['entries'] if isinstance(e, dict) and str(e.get('race', '')).casefold() == name.casefold()]
+            entry = matches[0] if len(matches) == 1 else {}
+            counts = {key: entry.get(key) if type(entry.get(key)) is int and entry[key] >= 0 else None
+                      for key in ('last_day_killed', 'last_week_killed')}
+            bosses.append({'nome': name, **counts})
+        if not any(e['last_day_killed'] is not None or e['last_week_killed'] is not None for e in bosses):
+            raise ValueError('Contagens indisponíveis')
+        timestamp = information.get('timestamp')
+        try:
+            parsed = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            timestamp = parsed.isoformat() if parsed.tzinfo else None
+        except (ValueError, TypeError, AttributeError):
+            timestamp = None
+        return {'bosses': bosses, 'processamento': timestamp}
+
+    result = _consultar('killstatistics:' + mundo.casefold(), '/killstatistics/' + quote(mundo), bool(forcar), validar=validar)
+    return {**base, **result['dados'], 'consulta': result['consulta'], 'velho': result['velho'],
+            'estado': 'desatualizado' if result['dados'] and result['velho'] else 'disponivel' if result['dados'] else 'indisponivel'}
 
 
 def mundos(forcar=False):
@@ -81,7 +119,8 @@ def buscar(mundo='', forcar=False):
     mundo = (mundo or '').strip()
     if mundo and not re.fullmatch(r'[A-Za-z]{2,40}', mundo):
         return {'erro': 'Informe um nome de mundo válido, como Antica ou Rasteibra.'}
-    with ThreadPoolExecutor(max_workers=7) as pool:
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        kills = pool.submit(killstatistics, mundo, bool(forcar))
         boosted = pool.submit(tibia_info.boostados, bool(forcar))
         noticias = pool.submit(_consultar, 'noticias', '/news/latest', bool(forcar), 900)
         servidor = pool.submit(_consultar, 'mundo:' + mundo.lower(), '/world/' + quote(mundo), bool(forcar)) if mundo else None
@@ -110,6 +149,6 @@ def buscar(mundo='', forcar=False):
         'anuncios_velhos': n['velho'], 'anuncios_consulta': n['consulta'],
         'avisos_mundo': avisos_mundo,
         'avisos_mundo_velhos': ticker['velho'] or any(x['velho'] or not x['completo'] for x in avisos_mundo),
-        'dream_court': dream.result(), 'yasir': changes.result(), 'calendario': calendario,
+        'killstatistics': kills.result(), 'dream_court': dream.result(), 'yasir': changes.result(), 'calendario': calendario,
         'consulta': datetime.now(timezone.utc).isoformat(),
     }

@@ -83,3 +83,12 @@
 .zb-selection small{display:block;color:var(--zb-muted);font-size:11px;line-height:1.5;margin-top:10px}
 .zb-select-actions{display:flex;flex-wrap:wrap;gap:8px}
 #zb-world-pick{flex:1;min-width:150px;border:1px solid #596c88;background:var(--surface-2);color:var(--ink);border-radius:6px;padding:9px;font:inherit;font-size:12px}
+
+.zb-kills {margin-top:10px;border-top:1px solid var(--zb-border);padding-top:10px;font-size:11px;color:var(--zb-muted)}
+.zb-kills summary {cursor:pointer;line-height:1.5;overflow-wrap:anywhere}
+.zb-kills table {width:100%;table-layout:fixed;border-collapse:collapse;margin:10px 0;font-size:11px}
+.zb-kills caption {text-align:left;margin-bottom:8px}
+.zb-kills th,.zb-kills td {padding:6px 3px;border-bottom:1px solid var(--zb-border);overflow-wrap:anywhere}
+.zb-kills th:first-child {width:48%;text-align:left;font-weight:500}
+.zb-kills td,.zb-kills thead th {text-align:right}
+.zb-kills p {font-size:11px;line-height:1.6;overflow-wrap:anywhere}
