@@ -153,6 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
     number.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); number.blur(); } });
     number.addEventListener('change', () => { number.value = slider.value; });
     const wheel = event => {
+      if (event.ctrlKey) return;
       event.preventDefault();
       if (event.deltaY) update(+slider.value + (event.deltaY < 0 ? .1 : -.1));
     };
