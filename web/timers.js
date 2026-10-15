@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const slider = $(id);
     const controls = document.createElement('div');
     controls.className = 'au-position-controls';
-    controls.innerHTML = `<button type="button" aria-label="Diminuir posição">−</button><input type="number" min="0" max="100" step="0.1" aria-label="${slider.labels[0].textContent.trim()} em porcentagem"><span>%</span><button type="button" aria-label="Aumentar posição">+</button>`;
+    controls.innerHTML = `<button type="button" class="btn btn-sm" aria-label="Diminuir posição">−</button><input type="number" min="0" max="100" step="0.1" aria-label="${slider.labels[0].textContent.trim()} em porcentagem"><span>%</span><button type="button" class="btn btn-sm" aria-label="Aumentar posição">+</button>`;
     slider.after(controls);
     const number = controls.querySelector('input');
     const update = value => {
