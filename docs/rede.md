@@ -27,6 +27,12 @@ O histórico lista as mudanças de conexão, episódios de ping acima de 100 ms 
 
 Os cartões e o resumo atualizam mesmo com checkbox ou rádio em foco. A edição de apelidos e os detalhes abertos são preservados.
 
+## Envio e recebimento por conexão
+
+O resumo mostra **Enviado na sessão** e **Recebido na sessão** para cada interface selecionada, a partir dos contadores de 64 bits do Windows (`GetIfEntry2`). A consulta é local, a cada segundo, e não envia dados adicionais pela internet. Os valores são os bytes de todos os programas no adaptador, incluindo as sondas e tráfego IPv4/IPv6 contabilizado pelo Windows: não medem exclusivamente Tibia/ExitLag nem equivalem à franquia cobrada pela operadora. As linhas de rotas do ExitLag não são somadas.
+
+O primeiro contador válido estabelece o início em zero, sem incluir o uso anterior. Pausar ou retirar a seleção conserva o total; retomar estabelece uma nova referência e não inclui os bytes da pausa. Os valores reiniciam ao fechar o aplicativo. Reinício/reutilização do contador, troca do índice e suspensão longa estabelecem nova referência sem gerar valores negativos ou saltos. Uma falha de consulta preserva os totais já medidos, sinaliza leitura indisponível e não altera o estado conectado/desconectado; o intervalo sem medição fica fora do total. Antes da primeira leitura válida, o total aparece como indisponível.
+
 ## Validação em 14/10/2026
 
 19 testes automatizados cobrem configuração do socket, bloqueio de fallback, timeouts, erro interno, queda, recuperação, falha parcial, latência alta, desconexão, IPv6 sem medição, suspensão, limites e preferências. Na máquina do usuário, com as duas conexões ativas, as sondas vinculadas à Vivo expiraram enquanto o iPhone respondeu, sem alterar ou retirar cabos. Isso confirma a separação observada nesse cenário; não é uma garantia de comportamento sob todo driver ou VPN. Retorno da operadora, ambas as redes sem acesso e notificações do Windows ainda exigem validação de uso real em momento seguro, fora de combate no jogo.

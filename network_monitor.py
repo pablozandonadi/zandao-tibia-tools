@@ -44,6 +44,40 @@ Adapter._fields_ = [("length", U32), ("index", U32), ("next", C.POINTER(Adapter)
     ("physical_length", U32), ("flags", U32), ("mtu", U32), ("kind", U32), ("status", U32)]
 
 _ADAPTER_API = None
+_TRAFFIC_API = None
+
+
+class InterfaceRow(C.Structure):
+    """MIB_IF_ROW2 (netioapi.h); all native types stay cached at module scope."""
+    _fields_ = [("luid", C.c_uint64), ("index", U32), ("guid", C.c_ubyte * 16),
+        ("alias", C.c_uint16 * 257), ("description", C.c_uint16 * 257),
+        ("physical_length", U32), ("physical", C.c_ubyte * 32), ("permanent", C.c_ubyte * 32),
+        ("mtu", U32), ("kind", U32), ("tunnel", U32), ("media", U32),
+        ("physical_media", U32), ("access", U32), ("direction", U32), ("flags", C.c_ubyte),
+        ("oper_status", U32), ("admin_status", U32), ("media_state", U32),
+        ("network_guid", C.c_ubyte * 16), ("connection_type", U32)] + [
+        (name, C.c_uint64) for name in ("tx_speed", "rx_speed", "in_octets", "in_ucast", "in_nucast",
+        "in_discards", "in_errors", "in_unknown", "in_ucast_octets", "in_multicast_octets",
+        "in_broadcast_octets", "out_octets", "out_ucast", "out_nucast", "out_discards",
+        "out_errors", "out_ucast_octets", "out_multicast_octets", "out_broadcast_octets", "out_queue")]
+
+
+def traffic_counters(index):
+    """Read all-program IPv4/IPv6 interface counters without sending traffic."""
+    if sys.platform != "win32":
+        raise OSError("Contadores disponíveis no Windows.")
+    global _TRAFFIC_API
+    if _TRAFFIC_API is None:
+        api = C.WinDLL("iphlpapi").GetIfEntry2
+        api.argtypes = [C.POINTER(InterfaceRow)]
+        api.restype = U32
+        _TRAFFIC_API = api
+    row = InterfaceRow()
+    row.index = index
+    result = _TRAFFIC_API(C.byref(row))
+    if result:
+        raise OSError(result, "Não foi possível consultar o tráfego da interface.")
+    return row.luid, row.in_octets, row.out_octets
 
 def adapters():
     """GetAdaptersAddresses, without subprocesses or third-party dependencies."""
@@ -144,11 +178,35 @@ class Link:
         self.total_mono = None
         self.total_connection = None
         self.total_high = False
+        self.traffic_baseline = None
+        self.traffic = {"received": None, "sent": None, "available": False, "partial": False}
         self.totals = {"readings": 0, "latency_n": 0, "latency_sum": 0., "maximum": None,
                        "attempts": 0, "failures": 0, "timeouts": 0, "measurement_errors": 0,
                        "high_readings": 0, "high_episodes": 0, "outages": 0,
                        "observed_seconds": 0., "connected_seconds": 0., "disconnected_seconds": 0.,
                        "unknown_seconds": 0., "high_seconds": 0.}
+
+    def read_traffic(self, reader, mono):
+        try:
+            luid, received, sent = reader(self.adapter["index"])
+        except Exception:
+            self.traffic_baseline = None
+            self.traffic["available"] = False
+            self.traffic["partial"] = self.traffic["received"] is not None
+            return
+        identity = (self.adapter["index"], luid)
+        previous = self.traffic_baseline
+        if previous:
+            if (previous[0] == identity and 0 <= mono - previous[3] <= 3
+                    and received >= previous[1] and sent >= previous[2]):
+                self.traffic["received"] += received - previous[1]
+                self.traffic["sent"] += sent - previous[2]
+            else:
+                self.traffic["partial"] = True
+        if self.traffic["received"] is None:
+            self.traffic.update(received=0, sent=0)
+        self.traffic["available"] = True
+        self.traffic_baseline = (identity, received, sent, mono)
 
     def _accumulate(self, mono):
         if self.total_mono is not None:
@@ -283,13 +341,15 @@ class Link:
             "loss": round(statistics.mean(losses), 1) if losses else None,
             "jitter": round(statistics.mean(deltas), 1) if deltas else None,
             "connected_for": max(0, int(now - self.healthy_since)) if self.healthy_since else 0,
-            "last_success": self.last_success, "points": points, "totals": totals}
+            "last_success": self.last_success, "points": points, "totals": totals,
+            "traffic": dict(self.traffic)}
 
 
 class Monitor:
-    def __init__(self, path, inventory=adapters, prober=probe, notifier=None):
+    def __init__(self, path, inventory=adapters, prober=probe, notifier=None, traffic_reader=traffic_counters):
         self.path = Path(path)
         self.inventory, self.prober, self.notifier = inventory, prober, notifier
+        self.traffic_reader = traffic_reader
         self.lock = threading.RLock()
         self.stop_event = threading.Event()
         self.thread = None
@@ -346,6 +406,7 @@ class Monitor:
             if any(config[k] != self.config[k] for k in ("enabled", "excluded")):
                 for link in self.links.values():
                     link.reset()
+                    link.traffic_baseline = None
             self.config = config
         self.start()
         return self.snapshot()
@@ -483,6 +544,9 @@ class Monitor:
                 try:
                     with self.lock:
                         config = dict(self.config, excluded=list(self.config["excluded"]), aliases=dict(self.config["aliases"]))
+                        if config["enabled"]:
+                            for link in self._selected():
+                                link.read_traffic(self.traffic_reader, began)
                         pending = [(link, link.generation,
                                     [pool.submit(self.prober, dict(link.adapter), t, .8) for t in TARGETS]
                                     if link.adapter["up"] and link.adapter["ip"] else [])

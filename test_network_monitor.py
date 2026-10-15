@@ -88,6 +88,87 @@ class LinkTests(unittest.TestCase):
         self.assertIsNone(self.link.snapshot(self.t,300)['jitter'])
 
 
+class TrafficTests(unittest.TestCase):
+    def setUp(self):
+        self.link = n.Link(adapter())
+
+    def read(self, received, sent, mono, luid=42):
+        self.link.read_traffic(lambda index: (luid, received, sent), mono)
+
+    def test_baseline_64bit_deltas_and_multiple_samples(self):
+        self.assertIsNone(self.link.snapshot(1000, 300)['traffic']['received'])
+        self.read(2**40, 2**41, 1)
+        self.assertEqual(self.link.traffic, {'received': 0, 'sent': 0, 'available': True, 'partial': False})
+        self.read(2**40 + 2**33, 2**41 + 20, 2)
+        self.read(2**40 + 2**33 + 10, 2**41 + 50, 3)
+        self.assertEqual(self.link.traffic['received'], 2**33 + 10)
+        self.assertEqual(self.link.traffic['sent'], 50)
+
+    def test_counter_reset_identity_change_and_suspend_rebase(self):
+        self.read(100, 200, 1)
+        self.read(120, 230, 2)
+        self.read(0, 0, 3)
+        self.read(10, 10, 4)
+        self.read(5000, 6000, 5, luid=43)
+        self.link.adapter['index'] = 21
+        self.read(8000, 9000, 6, luid=43)
+        self.read(18000, 19000, 60, luid=43)
+        self.assertEqual(self.link.traffic['received'], 30)
+        self.assertEqual(self.link.traffic['sent'], 40)
+
+    def test_quality_and_ip_reset_keep_traffic_baseline(self):
+        self.read(100, 200, 1)
+        self.link.reset()
+        self.link.adapter['ip'] = '192.0.2.11'
+        self.read(110, 220, 2)
+        self.assertEqual(self.link.traffic['sent'], 20)
+
+    def test_pause_and_resume_keep_totals_without_paused_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            monitor = n.Monitor(Path(directory)/'prefs.json')
+            monitor.links['a'] = self.link
+            with patch.object(monitor, 'start'):
+                monitor.configure({'enabled': True})
+                self.read(100, 200, 1)
+                self.read(110, 220, 2)
+                monitor.configure({'enabled': False})
+                monitor.configure({'enabled': True})
+                self.read(900, 1000, 3)
+                self.read(910, 1020, 4)
+                self.assertEqual(self.link.traffic['received'], 20)
+                self.assertEqual(self.link.traffic['sent'], 40)
+
+    def test_failure_is_not_a_connection_failure_and_rebases(self):
+        self.link.record(results(), 1000, 1000, 100)
+        self.read(100, 200, 1)
+        self.read(110, 220, 2)
+        def fail(index):
+            raise OSError('counter unavailable')
+        self.link.read_traffic(fail, 3)
+        self.assertEqual(self.link.state, 'healthy')
+        self.assertFalse(self.link.traffic['available'])
+        self.assertEqual(self.link.traffic['sent'], 20)
+        self.read(1000, 2000, 4)
+        self.assertEqual(self.link.traffic['sent'], 20)
+
+    @unittest.skipUnless(n.sys.platform == 'win32', 'Windows interface API')
+    def test_native_layout_and_api_reuse(self):
+        self.assertEqual(n.C.sizeof(n.InterfaceRow), 1352)
+        self.assertEqual(n.InterfaceRow.in_octets.offset, 1208)
+        self.assertEqual(n.InterfaceRow.out_octets.offset, 1280)
+        rows = n.adapters()
+        if not rows:
+            self.skipTest('No adapter to read')
+        first = n.traffic_counters(rows[0]['index'])
+        api = n._TRAFFIC_API
+        with patch.object(n.C, 'POINTER', wraps=n.C.POINTER) as pointer:
+            second = n.traffic_counters(rows[0]['index'])
+        pointer.assert_not_called()
+        self.assertIs(api, n._TRAFFIC_API)
+        self.assertEqual(first[0], second[0])
+        self.assertTrue(all(value >= 0 for value in second))
+
+
 class ProbeTests(unittest.TestCase):
     def fake(self):
         s=MagicMock(); s.__enter__.return_value=s
