@@ -1,7 +1,7 @@
 """Thread-owned DWM mirrors. Every coordinate is a physical client pixel."""
-import ctypes, os, sys, threading, queue, time, copy
+import ctypes, os, sys, threading, queue, copy
 from ctypes import wintypes as W
-from mirror_selector import Selection, clamp_rect, mouse_policy
+from mirror_selector import Selection, clamp_rect, mouse_policy, handles
 from mirror_visual import frame, selection_hint
 
 WIN=sys.platform=='win32'
@@ -10,7 +10,7 @@ if WIN:
     import layered_image
     u,k,d=ctypes.windll.user32,ctypes.windll.kernel32,ctypes.windll.dwmapi
     CB=ctypes.WINFUNCTYPE(ctypes.c_ssize_t,ctypes.c_int,W.WPARAM,W.LPARAM)
-    for name,args,result in [('UnregisterClassW',[W.LPCWSTR,W.HINSTANCE],W.BOOL),('PeekMessageW',[ctypes.c_void_p,W.HWND,W.UINT,W.UINT,W.UINT],W.BOOL),('IsWindow',[W.HWND],W.BOOL),('SetCapture',[W.HWND],W.HWND),('GetWindowTextW',[W.HWND,W.LPWSTR,ctypes.c_int],ctypes.c_int),('ClientToScreen',[W.HWND,ctypes.POINTER(W.POINT)],W.BOOL),('DestroyWindow',[W.HWND],W.BOOL),('GetDpiForWindow',[W.HWND],W.UINT),('SetWindowsHookExW',[ctypes.c_int,CB,W.HINSTANCE,W.DWORD],W.HANDLE),('UnhookWindowsHookEx',[W.HANDLE],W.BOOL),('CallNextHookEx',[W.HANDLE,ctypes.c_int,W.WPARAM,W.LPARAM],ctypes.c_ssize_t)]:
+    for name,args,result in [('PostThreadMessageW',[W.DWORD,W.UINT,W.WPARAM,W.LPARAM],W.BOOL),('MsgWaitForMultipleObjectsEx',[W.DWORD,ctypes.c_void_p,W.DWORD,W.DWORD,W.DWORD],W.DWORD),('UnregisterClassW',[W.LPCWSTR,W.HINSTANCE],W.BOOL),('PeekMessageW',[ctypes.c_void_p,W.HWND,W.UINT,W.UINT,W.UINT],W.BOOL),('IsWindow',[W.HWND],W.BOOL),('SetCapture',[W.HWND],W.HWND),('GetWindowTextW',[W.HWND,W.LPWSTR,ctypes.c_int],ctypes.c_int),('ClientToScreen',[W.HWND,ctypes.POINTER(W.POINT)],W.BOOL),('DestroyWindow',[W.HWND],W.BOOL),('GetDpiForWindow',[W.HWND],W.UINT),('SetWindowsHookExW',[ctypes.c_int,CB,W.HINSTANCE,W.DWORD],W.HANDLE),('UnhookWindowsHookEx',[W.HANDLE],W.BOOL),('CallNextHookEx',[W.HANDLE,ctypes.c_int,W.WPARAM,W.LPARAM],ctypes.c_ssize_t)]:
         f=getattr(u,name);f.argtypes=args;f.restype=result
     d.DwmExtendFrameIntoClientArea.argtypes=[W.HWND,ctypes.c_void_p]
     d.DwmRegisterThumbnail.argtypes=[W.HWND,W.HWND,ctypes.POINTER(W.HANDLE)]
@@ -50,11 +50,12 @@ def list_clients():
     return found
 
 class Surface:
-    def __init__(self,engine,source,layered=False):
+    def __init__(self,engine,source,layered=False,shade=False):
         self.engine=engine;self.thumbnail=None;self.appearance=None;self._position=None;self._update=None;self._style=None;self.shown=False;self.locked=True
         ex=0x08000000|0x80|0x8|0x20|0x80000
-        self.hwnd=u.CreateWindowExW(ex,engine.classname,'Mirror',0x80000000,0,0,10,10,None,None,k.GetModuleHandleW(None),None)
+        self.hwnd=u.CreateWindowExW(ex,engine.classname+('Shade' if shade else ''),'Mirror',0x80000000,0,0,10,10,None,None,k.GetModuleHandleW(None),None)
         if not self.hwnd:raise ctypes.WinError()
+        if shade:u.SetLayeredWindowAttributes(self.hwnd,0,80,2)
         if source:
             u.SetLayeredWindowAttributes(self.hwnd,0,255,2)
             # Full glass frame gives the thumbnail alpha a transparent compositor host.
@@ -88,7 +89,7 @@ class Surface:
 
 class MirrorEngine:
     def __init__(self,on_change=None,on_move=None):
-        self._events=queue.Queue();self._event_thread=None;self._lock=threading.RLock();self._closed=False;self.on_change=on_change;self.on_move=on_move;self._commands=queue.Queue();self._thread=None
+        self._events=queue.Queue();self._event_thread=None;self._lock=threading.RLock();self._closed=False;self.on_change=on_change;self.on_move=on_move;self._commands=queue.Queue();self._thread=None;self._thread_id=0;self._selection_dirty=False;self._pending_finish=None
         self._state=dict(hwnd=0,estado='sem_cliente',motivo='',selecionando=False,recortes=[])
         self.character='';self.profile=None;self.hwnd=0;self._source_pid=None;self._selection=None;self._callback=None;self._surfaces={};self._hooks=[];self._drag=None
     def _start(self):
@@ -108,28 +109,34 @@ class MirrorEngine:
                 except Exception:pass
     def _emit(self,callback,*args):
         if callback and not self._closed:self._events.put((callback,args))
+    def _command(self,op,value):
+        self._commands.put((op,value))
+        if self._thread_id:u.PostThreadMessageW(self._thread_id,0x8001,0,0)
+    def _end_selection(self,result=None):
+        self._pending_finish=(result,)
+        self._selection_dirty=True
     def configure(self,character,profile):
         if self._closed:return
-        self._start();barrier=threading.Event();self._commands.put(('configure',(character,copy.deepcopy(profile),barrier)))
+        self._start();barrier=threading.Event();self._command('configure',(character,copy.deepcopy(profile),barrier))
         if threading.current_thread() is not self._thread:barrier.wait(1)
     def bind_window(self,hwnd):
         if self._closed:return dict(ok=False,erro='Mirror encerrado')
         if int(hwnd) not in [c['hwnd'] for c in list_clients()]:return dict(ok=False,erro='Cliente Tibia inválido')
-        self._start();barrier=threading.Event();self._commands.put(('bind',(int(hwnd),barrier)))
+        self._start();barrier=threading.Event();self._command('bind',(int(hwnd),barrier))
         if threading.current_thread() is not self._thread:barrier.wait(1)
         return dict(ok=True,hwnd=int(hwnd))
     def select(self,mode,on_result,existing=None):
         if self._closed:return dict(ok=False,erro='Mirror encerrado')
         if not self.hwnd or self.hwnd not in [c['hwnd'] for c in list_clients()]:return dict(ok=False,erro='Vincule um cliente Tibia valido')
         if mode not in ('quadrado','manual'):return dict(ok=False,erro='Modo inválido')
-        self._start();self._commands.put(('select',(mode,on_result,copy.deepcopy(existing))));return dict(ok=True,pendente=True)
+        self._start();self._command('select',(mode,on_result,copy.deepcopy(existing)));return dict(ok=True,pendente=True)
     def cancel_selection(self):
-        if not self._closed:self._commands.put(('cancel',None))
+        if not self._closed:self._command('cancel',None)
         return dict(ok=True)
     def status(self):return copy.deepcopy(self._state)
     def close(self):
         self._closed=True
-        if self._thread and self._thread.is_alive():self._commands.put(('close',None));self._thread.join(3)
+        if self._thread and self._thread.is_alive():self._command('close',None);self._thread.join(3)
         self._events.put(None)
     def _notify(self,state):
         if state!=self._state:
@@ -140,11 +147,11 @@ class MirrorEngine:
             for surface in pair:surface.close()
         self._surfaces.clear()
     def _finish(self,result=None):
-        self._selection=None
+        self._selection=None;self._pending_finish=None;self._selection_dirty=False
         if self._drag:u.ReleaseCapture();self._drag=None
         for hook in self._hooks:u.UnhookWindowsHookEx(hook)
         self._hooks=[]
-        for key in ('selector','loupe'):
+        for key in ('selector','loupe','shade','handles'):
             for surface in self._surfaces.pop(key,[]):surface.close()
         callback=self._callback;self._callback=None
         self._emit(callback,result)
@@ -153,21 +160,24 @@ class MirrorEngine:
             if code>=0 and self._selection and self._selection.get('active') and u.GetForegroundWindow()==self.hwnd:
                 m=ctypes.cast(lp,ctypes.POINTER(Mouse)).contents;g=self._selection.get('geometry') or geometry(self.hwnd)
                 if not g:
-                    self._finish();return u.CallNextHookEx(None,code,msg,lp)
+                    self._end_selection();return u.CallNextHookEx(None,code,msg,lp)
                 x,y=m.pt.x-g['x'],m.pt.y-g['y'];s=self._selection['model']
                 paired=msg==0x202 and bool(self._selection.get('button_down'))
                 if paired and not (0<=x<g['w'] and 0<=y<g['h']):
-                    self._finish(self._selection.get('release_result'));return 1
+                    self._selection['button_down']=False
+                    if s.mode=='manual':self._end_selection()
+                    return 1
                 if mouse_policy(x,y,g,paired)=='cancel_pass':
-                    if msg!=0x200:self._finish()
+                    if msg!=0x200:self._end_selection()
                     return u.CallNextHookEx(None,code,msg,lp)
                 if msg in (0x201,0x202,0x20a,0x200):
                     event={0x201:'down',0x202:'up',0x20a:'wheel',0x200:'move'}[msg]
                     if msg==0x201:self._selection['button_down']=True
                     elif msg==0x202:self._selection['button_down']=False
                     result=s.mouse(event,x,y,ctypes.c_short(m.data>>16).value)
+                    self._selection_dirty=True
                     if result:self._selection['release_result']=result
-                    elif msg==0x202 and self._selection.get('release_result'):self._finish(self._selection['release_result'])
+                    elif msg==0x202 and self._selection.get('release_result'):self._end_selection(self._selection['release_result'])
                 if msg!=0x200:return 1
             return u.CallNextHookEx(None,code,msg,lp)
         def keyboard(code,msg,lp):
@@ -178,9 +188,10 @@ class MirrorEngine:
                     selection=self._selection
                     if msg in (0x100,0x104) and not selection.get('key_release'):
                         model=selection['model'];result=model.key(names[key],bool(u.GetAsyncKeyState(16)&0x8000),bool(u.GetAsyncKeyState(17)&0x8000))
+                        self._selection_dirty=True
                         if model.done:selection['key_release']=(key,result)
                     elif msg in (0x101,0x105) and selection.get('key_release') and selection['key_release'][0]==key:
-                        self._finish(selection['key_release'][1])
+                        self._end_selection(selection['key_release'][1])
                     return 1
             return u.CallNextHookEx(None,code,msg,lp)
         self._mouse_cb=CB(mouse);self._key_cb=CB(keyboard)
@@ -203,7 +214,7 @@ class MirrorEngine:
             if msg==0x21:return 3 # MA_NOACTIVATE
             if msg==0x201:
                 for rid,pair in self._surfaces.items():
-                    if rid in ('selector','loupe'):continue
+                    if rid in ('selector','loupe','shade','handles'):continue
                     if pair[0].hwnd==hwnd and not pair[0].locked:
                         point=W.POINT();u.GetCursorPos(ctypes.byref(point));self._drag=(rid,point.x,point.y);u.SetCapture(hwnd);return 0
             if msg==0x200 and self._drag:
@@ -219,6 +230,11 @@ class MirrorEngine:
             return u.DefWindowProcW(hwnd,msg,wp,lp)
         self._wndproc=O.WNDPROC(proc);wc=O._WNDCLASS();wc.lpfnWndProc=self._wndproc;wc.hInstance=k.GetModuleHandleW(None);wc.lpszClassName=self.classname
         if not u.RegisterClassW(ctypes.byref(wc)):raise ctypes.WinError()
+        wc.lpszClassName=self.classname+'Shade'
+        O._g32.GetStockObject.argtypes=[ctypes.c_int];O._g32.GetStockObject.restype=W.HBRUSH
+        wc.hbrBackground=O._g32.GetStockObject(4)
+        if not u.RegisterClassW(ctypes.byref(wc)):raise ctypes.WinError()
+        self._thread_id=k.GetCurrentThreadId()
         message=W.MSG()
         try:
             running=True
@@ -237,12 +253,13 @@ class MirrorEngine:
                         barrier.set()
                     elif op=='select':
                         mode,self._callback,existing=value;self._selection=dict(mode=mode,existing=existing,active=False)
+                if self._pending_finish is not None:self._finish(self._pending_finish[0])
                 if running:
                     try:self._tick()
                     except Exception as error:
                         self._finish();self._clear();self._notify(dict(self._state,estado='erro',motivo=str(error)))
-                time.sleep(.025)
-        finally:self._finish();self._clear();self._notify(dict(self._state,estado='encerrado',selecionando=False));u.UnregisterClassW(self.classname,k.GetModuleHandleW(None))
+                if running:u.MsgWaitForMultipleObjectsEx(0,None,25,0x04ff,4)
+        finally:self._finish();self._clear();self._notify(dict(self._state,estado='encerrado',selecionando=False));u.UnregisterClassW(self.classname+'Shade',k.GetModuleHandleW(None));u.UnregisterClassW(self.classname,k.GetModuleHandleW(None));self._thread_id=0
     def _tick(self):
         g=geometry(self.hwnd)
         if self._source_pid is not None:
@@ -257,11 +274,13 @@ class MirrorEngine:
             s=self._selection
             if s['active'] and not focused:self._finish()
             elif focused:
+                if s.get('geometry')!=g:self._selection_dirty=True
                 s['geometry']=g
                 if not s['active']:
                     s['model']=Selection(s['mode'],{key:g[key] for key in ('w','h','dpi')},s['existing']);s['active']=True;self._install_hooks()
                 if not compatible(s['model'].context,g):self._finish()
-                else:self._draw_selection(g,s['model'])
+                elif self._selection_dirty:
+                    self._draw_selection(g,s['model']);self._selection_dirty=False
         paused=[]
         for item in (self.profile or {}).get('recortes',[]):
             rid=item['id'];valid=compatible(item.get('contexto',{}),g)
@@ -294,12 +313,21 @@ class MirrorEngine:
         from PIL import Image
         point=W.POINT();u.GetCursorPos(ctypes.byref(point));x,y=point.x-g['x'],point.y-g['y']
         if s.rect is None:s.move(x,y)
+        elif s.pointer:x,y=s.pointer
         r=s.rect
+        shades=self._surfaces.get('shade')
+        if not shades:
+            shades=[Surface(self,None,shade=True) for _ in range(4)];self._surfaces['shade']=shades
+        regions=((0,0,g['w'],r['y']),(0,r['y']+r['h'],g['w'],g['h']-r['y']-r['h']),
+                 (0,r['y'],r['x'],r['h']),(r['x']+r['w'],r['y'],g['w']-r['x']-r['w'],r['h'])) if r else ((0,0,g['w'],g['h']),)+( (0,0,0,0),)*3
+        for surface,(left,top,width,height) in zip(shades,regions):
+            if width and height:surface.position(g['x']+left,g['y']+top,width,height)
+            else:surface.hide()
+        edges=self._surfaces.get('selector')
+        if not edges:
+            edges=[];self._surfaces['selector']=edges
+            for _ in range(5):edges.append(Surface(self,None,True))
         if r:
-            edges=self._surfaces.get('selector')
-            if not edges:
-                edges=[];self._surfaces['selector']=edges
-                for _ in range(5):edges.append(Surface(self,None,True))
             # Four one-pixel strips replace a client-sized RGBA bitmap per frame.
             # Moving a square only moves HWNDs; it never uploads another full image.
             lines=((r['x'],r['y'],r['w'],1),
@@ -312,20 +340,38 @@ class MirrorEngine:
                     layered_image.mostrar(surface.hwnd,Image.new('RGBA',key,'white'))
                     surface.appearance=key
                 surface.position(g['x']+left,g['y']+top,width,height)
-            hint=selection_hint(g['dpi'])
-            hint_surface=edges[4]
-            if hint_surface.appearance is not hint:
-                layered_image.mostrar(hint_surface.hwnd,hint);hint_surface.appearance=hint
-            hx=max(0,min(r['x'],g['w']-hint.width))
-            hy=r['y']-hint.height-8
-            if hy<0:hy=r['y']+r['h']+8
-            hy=max(0,min(hy,g['h']-hint.height))
-            hint_surface.position(g['x']+hx,g['y']+hy,hint.width,hint.height)
+            if s.mode=='manual':
+                grips=self._surfaces.get('handles')
+                if not grips:grips=[Surface(self,None,True) for _ in range(8)];self._surfaces['handles']=grips
+                for surface,(hx,hy) in zip(grips,handles(r)):
+                    if surface.appearance is None:
+                        layered_image.mostrar(surface.hwnd,Image.new('RGBA',(7,7),'#ff7033'));surface.appearance=True
+                    surface.position(g['x']+max(0,min(hx-3,g['w']-7)),g['y']+max(0,min(hy-3,g['h']-7)),7,7)
+        hint=selection_hint(g['dpi'],s.mode)
+        hint_surface=edges[4]
+        if hint_surface.appearance is not hint:
+            layered_image.mostrar(hint_surface.hwnd,hint);hint_surface.appearance=hint
+        anchor=r or dict(x=(g['w']-hint.width)//2,y=hint.height+24,w=0,h=0)
+        hx=max(0,min(anchor['x'],g['w']-hint.width))
+        hy=anchor['y']-hint.height-8
+        if hy<0:hy=anchor['y']+anchor['h']+8
+        hy=max(0,min(hy,g['h']-hint.height))
+        hint_surface.position(g['x']+hx,g['y']+hy,hint.width,hint.height)
         loupe=self._surfaces.get('loupe')
-        if not loupe:loupe=(Surface(self,self.hwnd),);self._surfaces['loupe']=loupe
-        region=clamp_rect(x-20,y-20,40,40,(g['w'],g['h']))
-        loupe[0].update(region,160,160)
+        if not loupe:loupe=(Surface(self,self.hwnd),Surface(self,None,True));self._surfaces['loupe']=loupe
+        region=dict(r) if s.mode=='quadrado' else clamp_rect(x-16,y-16,32,32,(g['w'],g['h']))
+        loupe[0].update(region,200,200)
         lx=point.x+28;ly=point.y+28
-        if lx+160>g['x']+g['w']:lx=point.x-188
-        if ly+160>g['y']+g['h']:ly=point.y-188
-        loupe[0].position(max(g['x'],lx),max(g['y'],ly),160,160)
+        if lx+200>g['x']+g['w']:lx=point.x-228
+        if ly+200>g['y']+g['h']:ly=point.y-228
+        lx=max(g['x']+1,min(lx,g['x']+g['w']-201));ly=max(g['y']+1,min(ly,g['y']+g['h']-201))
+        loupe[0].position(lx,ly,200,200)
+        if loupe[1].appearance is None:
+            border=Image.new('RGBA',(202,202),'#ff7033')
+            border.paste((0,0,0,0),(1,1,201,201))
+            layered_image.mostrar(loupe[1].hwnd,border);loupe[1].appearance=True
+        loupe[1].position(lx-1,ly-1,202,202)
+        # Keep guides above the dim panels after a panel changes size/position.
+        for key in ('selector','handles','loupe'):
+            for surface in self._surfaces.get(key,()):
+                u.SetWindowPos(surface.hwnd,W.HWND(-1),0,0,0,0,0x10|0x01|0x02)

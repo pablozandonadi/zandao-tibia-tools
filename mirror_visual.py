@@ -25,8 +25,8 @@ def frame(width, height, color='#51cfff', intensity='med', name='', dpi=96):
 
 
 @lru_cache(maxsize=8)
-def selection_hint(dpi=96):
-    text = 'Enter confirma | Esc cancela | setas ajustam'
+def selection_hint(dpi=96,mode='quadrado'):
+    text = ('Arraste para selecionar; ajuste pelo interior ou alças | ' if mode=='manual' else 'Clique para posicionar | ') + 'Enter confirma | Esc cancela'
     font = ImageFont.load_default(size=max(10, round(12 * dpi / 96)))
     box = font.getbbox(text)
     padding = max(4, round(6 * dpi / 96))
