@@ -33,3 +33,7 @@ O cliente Tibia local respondeu GetWindowDisplayAffinity com WDA_MONITOR (0x1). 
 ## Entrega
 
 Código publicado por cópia temporária de develop, contendo somente o delta Mirror e suas dependências. A fonte compartilhada e os dados pessoais foram preservados. Beta oficial gerada pelo pipeline; canal estável somente após aprovação do usuário.
+
+## Seleção com mouse e teclado
+
+O clique usado para trazer o Tibia para frente é ignorado pelo seletor. Depois, clique para posicionar o quadrado ou arraste para criar a região manual. O card fixo no topo permite **Confirmar** ou **Cancelar** com o mouse; Enter e Esc oferecem as mesmas ações. Confirmar só fica habilitado após posicionar um recorte ou terminar o arraste. No manual, um clique parado não cria uma região de 1×1. As oito alças e o arraste interno continuam disponíveis antes de confirmar.

@@ -155,7 +155,8 @@ class MirrorTests(unittest.TestCase):
             self.assertEqual(e._surfaces['loupe'][0].updates[-1],(dict(x=184,y=184,w=32,h=32),200,200))
             shaded=sum(p[-1][2]*p[-1][3] for p in (surface.positions for surface in e._surfaces['shade']) if p)
             self.assertEqual(shaded,context['w']*context['h']-s.rect['w']*s.rect['h'])
-            self.assertLess(sum(call.args[1].width*call.args[1].height for call in upload.call_args_list),100000)
+            # The fixed card adds 62k cached pixels; no client-sized bitmap.
+            self.assertLess(sum(call.args[1].width*call.args[1].height for call in upload.call_args_list),120000)
             self.assertTrue(all(call.args[1].width<context['w'] for call in upload.call_args_list))
             upload.reset_mock();s.key('right');e._draw_selection(dict(context,x=0,y=0),s)
             upload.assert_not_called()
@@ -199,7 +200,8 @@ class MirrorTests(unittest.TestCase):
             self.assertEqual(engine._surfaces['shade'][0].positions[-1],(-1920,100,1920,1080))
             self.assertTrue(engine._surfaces['selector'][4].positions)
             self.assertNotIn('handles',engine._surfaces)
-            self.assertLess(sum(call.args[1].width*call.args[1].height for call in upload.call_args_list),100000)
+            # The fixed card adds 62k cached pixels; no client-sized bitmap.
+            self.assertLess(sum(call.args[1].width*call.args[1].height for call in upload.call_args_list),120000)
         engine._surfaces.clear();engine.close()
     def test_manual_handles_resize_and_interior_moves_without_new_selection(self):
         context=dict(w=800,h=600,dpi=144)
@@ -260,6 +262,82 @@ class MirrorTests(unittest.TestCase):
         wait.assert_called_once_with(0,None,25,0x04ff,4)
         self.assertEqual(engine.status()['estado'],'encerrado')
         self.assertEqual(engine._thread_id,0)
+    @unittest.skipUnless(sys.platform=='win32','Win32 activation gesture ordering')
+    def test_activation_click_is_never_a_selection_even_between_ticks(self):
+        import ctypes
+        for order in ('down_before_focus','focus_before_down','tick_before_down','pressed_before_hook','alt_tab'):
+            with self.subTest(order=order):
+                engine=MirrorEngine();engine.hwnd=100
+                engine._selection=dict(mode='quadrado',existing=None,active=False)
+                point=native.Mouse(native.W.POINT(100,100),0,0,0,0)
+                with patch.object(native.u,'GetForegroundWindow',return_value=100 if order!='down_before_focus' else 99) as focus,patch.object(native.u,'GetAsyncKeyState',side_effect=lambda key:0x8000 if (key==1 and order=='pressed_before_hook') or (key==18 and order=='alt_tab') else 0),patch.object(native.u,'WindowFromPoint',return_value=100),patch.object(native.u,'GetAncestor',return_value=100),patch.object(native.u,'SetWindowsHookExW',return_value=1),patch.object(native.u,'UnhookWindowsHookEx'),patch.object(native.u,'CallNextHookEx',return_value=0) as passed,patch.object(native,'geometry',return_value=dict(x=0,y=0,w=800,h=600,dpi=96)),patch.object(native.u,'IsWindowVisible',return_value=True),patch.object(engine,'_draw_selection'):
+                    engine._install_hooks()
+                    if order=='alt_tab':
+                        key=native.Keyboard(9,0,0,0,0);engine._key_cb(0,0x104,ctypes.addressof(key))
+                        engine._tick()
+                    elif order=='pressed_before_hook':
+                        engine._tick();engine._mouse_cb(0,0x202,ctypes.addressof(point))
+                    elif order=='tick_before_down':
+                        engine._tick();engine._mouse_cb(0,0x201,ctypes.addressof(point));engine._mouse_cb(0,0x202,ctypes.addressof(point))
+                    else:
+                        engine._mouse_cb(0,0x201,ctypes.addressof(point));focus.return_value=100
+                        point.pt.x=900;engine._mouse_cb(0,0x202,ctypes.addressof(point));point.pt.x=100
+                        engine._tick()
+                    self.assertFalse(engine._selection['model'].placed)
+                    self.assertIsNone(engine._pending_finish)
+                    self.assertFalse(engine._selection.get('pass_release',False))
+                    engine._mouse_cb(0,0x201,ctypes.addressof(point));engine._mouse_cb(0,0x202,ctypes.addressof(point))
+                    self.assertTrue(engine._selection['model'].placed)
+                    self.assertEqual(engine._selection['model'].rect,dict(x=84,y=84,w=32,h=32))
+                    engine._finish()
+                engine.close()
+    @unittest.skipUnless(sys.platform=='win32','Win32 confirmation card')
+    def test_card_consumes_both_click_edges_and_finishes_only_on_matching_release(self):
+        import ctypes
+        for action,ready in (('confirm',True),('confirm',False),('cancel',False)):
+            with self.subTest(action=action,ready=ready):
+                engine=MirrorEngine();engine.hwnd=100
+                model=Selection('quadrado',dict(w=800,h=600,dpi=96))
+                if ready:model.mouse('down',200,200);model.mouse('up',200,200)
+                engine._selection=dict(active=True,model=model,geometry=dict(x=0,y=0,w=800,h=600,dpi=96),card={'confirm':(10,10,100,50),'cancel':(110,10,200,50)})
+                point=native.Mouse(native.W.POINT(20 if action=='confirm' else 120,20),0,0,0,0)
+                with patch.object(native.u,'GetForegroundWindow',return_value=100),patch.object(native.u,'GetAsyncKeyState',return_value=0),patch.object(native.u,'SetWindowsHookExW',return_value=1),patch.object(native.u,'UnhookWindowsHookEx'),patch.object(native.u,'CallNextHookEx',return_value=0) as passed:
+                    engine._install_hooks()
+                    self.assertEqual(engine._mouse_cb(0,0x201,ctypes.addressof(point)),1)
+                    self.assertIsNone(engine._pending_finish)
+                    self.assertEqual(engine._mouse_cb(0,0x202,ctypes.addressof(point)),1)
+                    passed.assert_not_called()
+                    self.assertEqual(engine._pending_finish is not None,ready or action=='cancel')
+                    if ready:self.assertEqual(engine._pending_finish[0]['origem'],dict(x=184,y=184,w=32,h=32))
+                    engine._finish()
+                engine.close()
+    def test_manual_stationary_click_does_not_create_one_pixel_crop(self):
+        model=Selection('manual',dict(w=800,h=600,dpi=96))
+        model.mouse('down',100,100);model.mouse('up',100,100)
+        self.assertIsNone(model.rect);self.assertFalse(model.can_confirm());self.assertIsNone(model.key('enter'))
+    @unittest.skipUnless(sys.platform=='win32','Win32 fixed card layout')
+    def test_selection_card_stays_at_top_and_loupe_does_not_cover_it(self):
+        import ctypes
+        class FakeSurface:
+            def __init__(self,*args,**kwargs):self.hwnd=id(self);self.appearance=None;self.positions=[]
+            def position(self,*args):self.positions.append(args)
+            def update(self,*args):pass
+            def hide(self):pass
+        engine=MirrorEngine();engine.hwnd=100
+        g=dict(x=-800,y=100,w=800,h=600,dpi=96)
+        model=Selection('manual',dict(w=800,h=600,dpi=96))
+        engine._selection=dict(active=True,model=model,geometry=g)
+        def cursor(point):
+            pt=ctypes.cast(point,ctypes.POINTER(native.W.POINT)).contents;pt.x=-450;pt.y=120;return True
+        with patch.object(native,'Surface',FakeSurface),patch.object(native.u,'GetCursorPos',side_effect=cursor),patch.object(native.u,'SetWindowPos'),patch.object(native.layered_image,'mostrar'):
+            engine._draw_selection(g,model)
+            before=engine._surfaces['selector'][4].positions[-1]
+            model.mouse('down',50,250);model.mouse('up',150,350);engine._draw_selection(g,model)
+            self.assertEqual(engine._surfaces['selector'][4].positions[-1],before)
+            lx,ly,lw,lh=engine._surfaces['loupe'][1].positions[-1];cx,cy,cw,ch=before
+            self.assertFalse(lx<cx+cw and lx+lw>cx and ly<cy+ch and ly+lh>cy)
+            self.assertEqual(cy,g['y']+12)
+        engine._surfaces.clear();engine.close()
     def _assert_deferred_finish(self,e):
         self.assertIsNotNone(e._pending_finish)
         e._finish(e._pending_finish[0])

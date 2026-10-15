@@ -24,15 +24,21 @@ def frame(width, height, color='#51cfff', intensity='med', name='', dpi=96):
     return image, margin, title
 
 
-@lru_cache(maxsize=8)
-def selection_hint(dpi=96,mode='quadrado'):
-    text = ('Arraste para selecionar; ajuste pelo interior ou alças | ' if mode=='manual' else 'Clique para posicionar | ') + 'Enter confirma | Esc cancela'
-    font = ImageFont.load_default(size=max(10, round(12 * dpi / 96)))
-    box = font.getbbox(text)
-    padding = max(4, round(6 * dpi / 96))
-    image = Image.new('RGBA', (box[2] - box[0] + 2 * padding, box[3] - box[1] + 2 * padding))
-    draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((0, 0, image.width - 1, image.height - 1), radius=padding,
-                           fill=(15,17,21,230), outline=(255,255,255,180))
-    draw.text((padding - box[0], padding - box[1]), text, font=font, fill='white')
-    return image
+@lru_cache(maxsize=16)
+def selection_hint(dpi=96,mode='quadrado',ready=False,width=620):
+    scale=dpi/96
+    width=max(120,min(round(620*scale),int(width)))
+    height=round(100*scale);padding=max(4,round(10*scale))
+    font=ImageFont.load_default(size=max(10,round(12*scale)))
+    image=Image.new('RGBA',(width,height));draw=ImageDraw.Draw(image)
+    draw.rounded_rectangle((0,0,width-1,height-1),radius=padding,fill=(15,17,21,240),outline=(255,255,255,180))
+    text='Arraste para selecionar; ajuste pelo interior ou alças.' if mode=='manual' else 'Clique para posicionar o quadrado.'
+    draw.text((padding,padding),text,font=font,fill='white')
+    draw.text((padding,padding+round(19*scale)),'Enter confirma | Esc cancela',font=font,fill='#d0d4da')
+    top=round(55*scale);bottom=height-padding
+    middle=width//2;gap=max(2,round(5*scale))
+    confirm=(padding,top,middle-gap,bottom);cancel=(middle+gap,top,width-padding,bottom)
+    for box,label,color in ((confirm,'Confirmar','#ff7033' if ready else '#52565c'),(cancel,'Cancelar','#353b45')):
+        draw.rounded_rectangle(box,radius=max(3,round(5*scale)),fill=color,outline='#d0d4da')
+        b=draw.textbbox((0,0),label,font=font);draw.text(((box[0]+box[2]-(b[2]-b[0]))/2,(box[1]+box[3]-(b[3]-b[1]))/2-b[1]),label,font=font,fill='white')
+    return image,confirm,cancel

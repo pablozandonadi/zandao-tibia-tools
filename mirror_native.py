@@ -10,7 +10,7 @@ if WIN:
     import layered_image
     u,k,d=ctypes.windll.user32,ctypes.windll.kernel32,ctypes.windll.dwmapi
     CB=ctypes.WINFUNCTYPE(ctypes.c_ssize_t,ctypes.c_int,W.WPARAM,W.LPARAM)
-    for name,args,result in [('PostThreadMessageW',[W.DWORD,W.UINT,W.WPARAM,W.LPARAM],W.BOOL),('MsgWaitForMultipleObjectsEx',[W.DWORD,ctypes.c_void_p,W.DWORD,W.DWORD,W.DWORD],W.DWORD),('UnregisterClassW',[W.LPCWSTR,W.HINSTANCE],W.BOOL),('PeekMessageW',[ctypes.c_void_p,W.HWND,W.UINT,W.UINT,W.UINT],W.BOOL),('IsWindow',[W.HWND],W.BOOL),('SetCapture',[W.HWND],W.HWND),('GetWindowTextW',[W.HWND,W.LPWSTR,ctypes.c_int],ctypes.c_int),('ClientToScreen',[W.HWND,ctypes.POINTER(W.POINT)],W.BOOL),('DestroyWindow',[W.HWND],W.BOOL),('GetDpiForWindow',[W.HWND],W.UINT),('SetWindowsHookExW',[ctypes.c_int,CB,W.HINSTANCE,W.DWORD],W.HANDLE),('UnhookWindowsHookEx',[W.HANDLE],W.BOOL),('CallNextHookEx',[W.HANDLE,ctypes.c_int,W.WPARAM,W.LPARAM],ctypes.c_ssize_t)]:
+    for name,args,result in [('WindowFromPoint',[W.POINT],W.HWND),('GetAncestor',[W.HWND,W.UINT],W.HWND),('PostThreadMessageW',[W.DWORD,W.UINT,W.WPARAM,W.LPARAM],W.BOOL),('MsgWaitForMultipleObjectsEx',[W.DWORD,ctypes.c_void_p,W.DWORD,W.DWORD,W.DWORD],W.DWORD),('UnregisterClassW',[W.LPCWSTR,W.HINSTANCE],W.BOOL),('PeekMessageW',[ctypes.c_void_p,W.HWND,W.UINT,W.UINT,W.UINT],W.BOOL),('IsWindow',[W.HWND],W.BOOL),('SetCapture',[W.HWND],W.HWND),('GetWindowTextW',[W.HWND,W.LPWSTR,ctypes.c_int],ctypes.c_int),('ClientToScreen',[W.HWND,ctypes.POINTER(W.POINT)],W.BOOL),('DestroyWindow',[W.HWND],W.BOOL),('GetDpiForWindow',[W.HWND],W.UINT),('SetWindowsHookExW',[ctypes.c_int,CB,W.HINSTANCE,W.DWORD],W.HANDLE),('UnhookWindowsHookEx',[W.HANDLE],W.BOOL),('CallNextHookEx',[W.HANDLE,ctypes.c_int,W.WPARAM,W.LPARAM],ctypes.c_ssize_t)]:
         f=getattr(u,name);f.argtypes=args;f.restype=result
     d.DwmExtendFrameIntoClientArea.argtypes=[W.HWND,ctypes.c_void_p]
     d.DwmRegisterThumbnail.argtypes=[W.HWND,W.HWND,ctypes.POINTER(W.HANDLE)]
@@ -156,31 +156,64 @@ class MirrorEngine:
         callback=self._callback;self._callback=None
         self._emit(callback,result)
     def _install_hooks(self):
+        # Pair releases even when the activating press predates hook installation.
+        self._selection['pass_release']=bool(u.GetAsyncKeyState(1)&0x8000)
+        if self._selection.get('active') and not self._selection.get('geometry'):self._selection['geometry']=geometry(self.hwnd)
         def mouse(code,msg,lp):
-            if code>=0 and self._selection and self._selection.get('active') and u.GetForegroundWindow()==self.hwnd:
-                m=ctypes.cast(lp,ctypes.POINTER(Mouse)).contents;g=self._selection.get('geometry') or geometry(self.hwnd)
-                if not g:
-                    self._end_selection();return u.CallNextHookEx(None,code,msg,lp)
-                x,y=m.pt.x-g['x'],m.pt.y-g['y'];s=self._selection['model']
-                paired=msg==0x202 and bool(self._selection.get('button_down'))
-                if paired and not (0<=x<g['w'] and 0<=y<g['h']):
-                    self._selection['button_down']=False
-                    if s.mode=='manual':self._end_selection()
-                    return 1
-                if mouse_policy(x,y,g,paired)=='cancel_pass':
-                    if msg!=0x200:self._end_selection()
-                    return u.CallNextHookEx(None,code,msg,lp)
-                if msg in (0x201,0x202,0x20a,0x200):
-                    event={0x201:'down',0x202:'up',0x20a:'wheel',0x200:'move'}[msg]
-                    if msg==0x201:self._selection['button_down']=True
-                    elif msg==0x202:self._selection['button_down']=False
-                    result=s.mouse(event,x,y,ctypes.c_short(m.data>>16).value)
-                    self._selection_dirty=True
-                    if result:self._selection['release_result']=result
-                    elif msg==0x202 and self._selection.get('release_result'):self._end_selection(self._selection['release_result'])
-                if msg!=0x200:return 1
+            selection=self._selection
+            if code<0 or not selection:return u.CallNextHookEx(None,code,msg,lp)
+            m=ctypes.cast(lp,ctypes.POINTER(Mouse)).contents
+            focused=u.GetForegroundWindow()==self.hwnd
+            if not selection.get('active'):
+                if msg==0x201:
+                    selection['pass_release']=True
+                    if u.GetAncestor(u.WindowFromPoint(m.pt),2)==self.hwnd:selection['activation_mouse_seen']=True
+                elif msg==0x202:selection['pass_release']=False
+                return u.CallNextHookEx(None,code,msg,lp)
+            if selection.get('pass_release'):
+                if msg==0x202:selection['pass_release']=False
+                return u.CallNextHookEx(None,code,msg,lp)
+            if msg==0x201 and selection.pop('ignore_next_down',False):
+                selection['pass_release']=True
+                return u.CallNextHookEx(None,code,msg,lp)
+            paired=msg==0x202 and bool(selection.get('button_down'))
+            if not focused and not paired:return u.CallNextHookEx(None,code,msg,lp)
+            g=selection.get('geometry')
+            if not g:
+                self._end_selection();return u.CallNextHookEx(None,code,msg,lp)
+            x,y=m.pt.x-g['x'],m.pt.y-g['y'];model=selection['model']
+            inside=0<=x<g['w'] and 0<=y<g['h']
+            if paired:selection['button_down']=False
+            card=selection.get('card')
+            action=next((name for name,box in (card or {}).items() if box[0]<=x<box[2] and box[1]<=y<box[3]),None)
+            if msg==0x201 and action:
+                selection['button_down']=True;selection['card_press']=action;return 1
+            if paired and selection.get('card_press'):
+                pressed=selection.pop('card_press')
+                if focused and action==pressed:
+                    if action=='cancel':self._end_selection()
+                    elif model.can_confirm():self._end_selection(model.result())
+                return 1
+            if paired and not inside:
+                if model.mode=='manual':self._end_selection()
+                return 1
+            if mouse_policy(x,y,g,paired)=='cancel_pass':
+                if msg!=0x200:self._end_selection()
+                return u.CallNextHookEx(None,code,msg,lp)
+            if msg in (0x201,0x202,0x20a,0x200):
+                if action and paired:
+                    model.mouse('up',x,y);self._selection_dirty=True;return 1
+                if action or selection.get('card_press'):return 1 if msg!=0x200 else u.CallNextHookEx(None,code,msg,lp)
+                event={0x201:'down',0x202:'up',0x20a:'wheel',0x200:'move'}[msg]
+                if msg==0x201:selection['button_down']=True
+                model.mouse(event,x,y,ctypes.c_short(m.data>>16).value)
+                self._selection_dirty=True
+            if msg!=0x200:return 1
             return u.CallNextHookEx(None,code,msg,lp)
         def keyboard(code,msg,lp):
+            if code>=0 and self._selection and not self._selection.get('active'):
+                key=ctypes.cast(lp,ctypes.POINTER(Keyboard)).contents.key
+                if key==9 and msg in (0x100,0x104) and u.GetAsyncKeyState(18)&0x8000:self._selection['keyboard_focus']=True
             if code>=0 and self._selection and self._selection.get('active') and u.GetForegroundWindow()==self.hwnd:
                 key=ctypes.cast(lp,ctypes.POINTER(Keyboard)).contents.key
                 names={27:'escape',13:'enter',37:'left',38:'up',39:'right',40:'down'}
@@ -252,7 +285,7 @@ class MirrorEngine:
                         pid=W.DWORD();u.GetWindowThreadProcessId(self.hwnd,ctypes.byref(pid));self._source_pid=pid.value
                         barrier.set()
                     elif op=='select':
-                        mode,self._callback,existing=value;self._selection=dict(mode=mode,existing=existing,active=False)
+                        mode,self._callback,existing=value;self._selection=dict(mode=mode,existing=existing,active=False);self._install_hooks()
                 if self._pending_finish is not None:self._finish(self._pending_finish[0])
                 if running:
                     try:self._tick()
@@ -277,7 +310,9 @@ class MirrorEngine:
                 if s.get('geometry')!=g:self._selection_dirty=True
                 s['geometry']=g
                 if not s['active']:
-                    s['model']=Selection(s['mode'],{key:g[key] for key in ('w','h','dpi')},s['existing']);s['active']=True;self._install_hooks()
+                    s['model']=Selection(s['mode'],{key:g[key] for key in ('w','h','dpi')},s['existing']);s['active']=True
+                    # Foreground can change before the activation mouse callback arrives.
+                    s['ignore_next_down']=not (s.get('activation_mouse_seen') or s.get('keyboard_focus') or s.get('pass_release'))
                 if not compatible(s['model'].context,g):self._finish()
                 elif self._selection_dirty:
                     self._draw_selection(g,s['model']);self._selection_dirty=False
@@ -347,16 +382,14 @@ class MirrorEngine:
                     if surface.appearance is None:
                         layered_image.mostrar(surface.hwnd,Image.new('RGBA',(7,7),'#ff7033'));surface.appearance=True
                     surface.position(g['x']+max(0,min(hx-3,g['w']-7)),g['y']+max(0,min(hy-3,g['h']-7)),7,7)
-        hint=selection_hint(g['dpi'],s.mode)
+        hint,confirm,cancel=selection_hint(g['dpi'],s.mode,s.can_confirm(),g['w'])
         hint_surface=edges[4]
         if hint_surface.appearance is not hint:
             layered_image.mostrar(hint_surface.hwnd,hint);hint_surface.appearance=hint
-        anchor=r or dict(x=(g['w']-hint.width)//2,y=hint.height+24,w=0,h=0)
-        hx=max(0,min(anchor['x'],g['w']-hint.width))
-        hy=anchor['y']-hint.height-8
-        if hy<0:hy=anchor['y']+anchor['h']+8
-        hy=max(0,min(hy,g['h']-hint.height))
+        hx=max(0,(g['w']-hint.width)//2);hy=min(12,max(0,g['h']-hint.height))
         hint_surface.position(g['x']+hx,g['y']+hy,hint.width,hint.height)
+        if self._selection:
+            self._selection['card']={name:(box[0]+hx,box[1]+hy,box[2]+hx,box[3]+hy) for name,box in (('confirm',confirm),('cancel',cancel))}
         loupe=self._surfaces.get('loupe')
         if not loupe:loupe=(Surface(self,self.hwnd),Surface(self,None,True));self._surfaces['loupe']=loupe
         region=dict(r) if s.mode=='quadrado' else clamp_rect(x-16,y-16,32,32,(g['w'],g['h']))
@@ -365,6 +398,8 @@ class MirrorEngine:
         if lx+200>g['x']+g['w']:lx=point.x-228
         if ly+200>g['y']+g['h']:ly=point.y-228
         lx=max(g['x']+1,min(lx,g['x']+g['w']-201));ly=max(g['y']+1,min(ly,g['y']+g['h']-201))
+        if lx-1<g['x']+hx+hint.width and lx+201>g['x']+hx and ly-1<g['y']+hy+hint.height and ly+201>g['y']+hy:
+            ly=min(g['y']+g['h']-201,g['y']+hy+hint.height+9)
         loupe[0].position(lx,ly,200,200)
         if loupe[1].appearance is None:
             border=Image.new('RGBA',(202,202),'#ff7033')

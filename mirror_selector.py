@@ -48,7 +48,11 @@ class Selection:
                 if self.operation is None and r['x']<=x<r['x']+r['w'] and r['y']<=y<r['y']+r['h']:self.operation='move'
             self.anchor=(max(0,min(x,self.context['w']-1)),max(0,min(y,self.context['h']-1)));self.dragging=True
         self.move(x,y)
-        if event=='up':self.dragging=False;self.placed=bool(self.rect)
+        if event=='up':
+            if self.mode=='manual' and self.operation is None and self.anchor==self.pointer:self.rect=None
+            self.dragging=False;self.placed=bool(self.rect)
+    def can_confirm(self):
+        return bool(self.rect and self.placed and not self.dragging)
     def key(self,key,shift=False,ctrl=False):
         if key=='escape': self.done=True; return None
         if key=='enter' and self.rect:return self.result()
