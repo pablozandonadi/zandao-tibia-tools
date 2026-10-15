@@ -150,6 +150,56 @@ class TimerVisualTests(unittest.TestCase):
             self.assertEqual(m.barras.atualizar.call_args.args[0][0][3],'#0000FF')
             self.assertEqual(m.alerta.mostrar.call_args.args[2],0)
 
+    def test_estilo_final_independe_do_pisca_antes_e_do_aviso_antecipado(self):
+        for antes in (0, 3):
+            for piscar_antes in (0, 3):
+                for piscar_final in (False, True):
+                    with self.subTest(antes=antes, piscar_antes=piscar_antes, piscar_final=piscar_final):
+                        m,e=self._motor_falso(sem_som=False)
+                        e.cfg.update(antes=antes, piscar=piscar_antes, piscar_apos_finalizar=piscar_final)
+                        with patch.object(at.time,'monotonic',return_value=7),patch.object(at,'tecla_apertada',return_value=False):
+                            m._passo()
+                        if antes:
+                            self.assertEqual(m.alerta.mostrar.call_args.args[0],at.texto_alerta(e.cfg))
+                        if piscar_antes:
+                            self.assertTrue(m.alerta.mostrar.call_args.kwargs['piscar'])
+                            self.assertEqual(m.alerta.mostrar.call_args.args[2],3)
+                        m.alerta.reset_mock()
+                        with patch.object(at.time,'monotonic',return_value=10),patch.object(at,'tecla_apertada',return_value=False):
+                            m._passo()
+                        self.assertFalse(e.rodando)
+                        self.assertEqual(m.alerta.mostrar.call_args.args[0],f"{e.cfg['nome']} acabou!")
+                        self.assertEqual(m.alerta.mostrar.call_args.kwargs['piscar'],piscar_final)
+                        self.assertEqual(m.alerta.mostrar.call_args.args[2],0)
+                        m.tocador.tocar.assert_called_once()
+                        with patch.object(at.time,'monotonic',return_value=12),patch.object(at,'tecla_apertada',return_value=False):
+                            m._passo()
+                        m.alerta.mostrar.assert_called_once()
+                        with patch.object(at.time,'monotonic',return_value=13),patch.object(at,'tibia_em_foco',return_value=True),patch.object(at,'tecla_apertada',side_effect=lambda vk:vk in (75,at.VK_CONTROL)):
+                            m._passo()
+                        m.alerta.esconder.assert_called_once()
+                        self.assertEqual(e.fim,23)
+
+    def test_estilo_final_padrao_e_persistencia(self):
+        self.assertFalse(at.normalizar({'fixo':True,'piscar':3})['piscar_apos_finalizar'])
+        for piscar in (False,True):
+            with self.subTest(piscar=piscar),tempfile.TemporaryDirectory() as d:
+                t=at.normalizar({'id':'p','piscar_apos_finalizar':piscar})
+                cfg={**at.PADRAO,'timers':[t]}
+                path=str(Path(d)/'timers.json')
+                at.salvar(cfg,path)
+                self.assertEqual(at.carregar(path)['timers'][0]['piscar_apos_finalizar'],piscar)
+
+    def test_previa_mostra_estilo_final_escolhido(self):
+        for piscar in (False,True):
+            m,e=self._motor_falso()
+            e.cfg.update(piscar=3 if not piscar else 0,piscar_apos_finalizar=piscar)
+            with patch.object(at.overlay,'Overlay',return_value=Mock()),patch.object(at.time,'monotonic',return_value=10):
+                m.testar_timers([e.cfg])
+            self.assertEqual(m._avisos['previa:p'].mostrar.call_args.kwargs['piscar'],piscar)
+            self.assertEqual(m._avisos['previa:p'].mostrar.call_args.args[0],f"{e.cfg['nome']} acabou!")
+        self.assertEqual(at.texto_alerta({**e.cfg,'mensagem':'BUFF'},finalizado=True),'BUFF')
+
     def test_aviso_fixo_so_some_com_o_atalho_completo_do_timer(self):
         m,e=self._motor_falso()
         with patch.object(at.time,'monotonic',return_value=7),patch.object(at,'tecla_apertada',return_value=False):

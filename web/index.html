@@ -2898,7 +2898,7 @@ window.audioEstado = (est) => { if (AU) { AU.estado = est; mostrarEstadoAudio(es
 async function abrirFormAudio(id) {
   await pararTesteVivo();
   const base = id ? AU.cfg.timers.find((t) => t.id === id) : null;
-  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'padrao:Potion.mp3', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo', mensagem: '', fonte: 34, visual: {estilo: 'simples', familia: 'Segoe UI', intensidade: 22, glow: false, sombra: false, borda: false}, fixo: false, piscar: 0 }));
+  auEditando = JSON.parse(JSON.stringify(base || { id: '', nome: '', tecla: { vk: 0, nome: '' }, duracao: 60, modo: 'reinicia', antes: 0, som: 'padrao:Potion.mp3', volume: 100, ativo: true, alerta: false, barra: false, cor: 'amarelo', mensagem: '', fonte: 34, visual: {estilo: 'simples', familia: 'Segoe UI', intensidade: 22, glow: false, sombra: false, borda: false}, fixo: false, piscar: 0, piscar_apos_finalizar: false }));
   auEditando.pos_alerta ||= {...AU.cfg.alerta};
   auEditando.cfg_barra ||= {...AU.cfg.barra};
   auReferencias.clear();
@@ -2948,7 +2948,10 @@ function desenharFormAudio() {
       <div><label class="campo-label" for="auf-piscar">Piscar nos últimos segundos</label>
         <select id="auf-piscar">${[[0, 'Não pisca'], [1, 'Último 1 segundo'], [2, 'Últimos 2 segundos'], [3, 'Últimos 3 segundos'], [5, 'Últimos 5 segundos']]
           .map(([v, n2]) => `<option value="${v}" ${(t.piscar || 0) === v ? 'selected' : ''}>${n2}</option>`).join('')}</select>
-        <label class="check" style="margin-top:8px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Manter o aviso até renovar o aviso ${infoAudio('O aviso só é removido ao pressionar novamente o atalho configurado para este timer, com os mesmos modificadores.')}</label></div>
+      </div>
+      <div><label class="campo-label" for="auf-piscar-final">Ao finalizar ${infoAudio('Escolha como o aviso aparece depois que a contagem chega a zero. O teste mostra esta opção.')}</label>
+        <select id="auf-piscar-final"><option value="estatico" ${!t.piscar_apos_finalizar ? 'selected' : ''}>Ficar estático</option><option value="piscar" ${t.piscar_apos_finalizar ? 'selected' : ''}>Piscar</option></select>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="auf-fixo" ${t.fixo ? 'checked' : ''}> Manter o aviso até pressionar a tecla novamente ${infoAudio('O aviso só é removido ao pressionar novamente o atalho configurado para este timer, com os mesmos modificadores.')}</label></div>
     </div>
   </div>`;
   $('au-form-acoes').innerHTML = `<div class="acoes" style="margin-top:14px"><button class="btn btn-primary" id="auf-salvar">💾 Salvar timer</button><button class="btn" id="auf-cancelar">Cancelar</button></div>`;
@@ -2971,6 +2974,7 @@ function desenharFormAudio() {
   $('auf-fonte').addEventListener('input', () => { t.fonte = +$('auf-fonte').value; $('auf-fonte-v').textContent = t.fonte; });
   $('auf-fixo').addEventListener('change', () => { t.fixo = $('auf-fixo').checked; });
   $('auf-piscar').addEventListener('change', () => { t.piscar = +$('auf-piscar').value; });
+  $('auf-piscar-final').addEventListener('change', () => { t.piscar_apos_finalizar = $('auf-piscar-final').value === 'piscar'; });
   $('auf-testar-msg').addEventListener('click', () => testarMsg(t));
   $('auf-testar-barra').addEventListener('click', () => testarBarra(t));
   $('auf-vol').addEventListener('input', () => { t.volume = +$('auf-vol').value; $('auf-vol-val').textContent = t.volume + '%'; });
@@ -3036,9 +3040,8 @@ function mudouAlertaPos() {
 ['aua-x', 'aua-y'].forEach((id) => $(id).addEventListener('input', mudouAlertaPos));
 // testes: mostram do jeito que está na tela agora (mesmo antes de salvar)
 function testarMsg(t, vivo) {
-  const antes = Math.min(t.antes || 0, t.duracao || 60);
-  const auto = antes ? `${t.nome || 'Poção'} acaba em ${antes}s` : `${t.nome || 'Poção'} acabou!`;
-  api.audio_testar_alerta(t.texto_cor_tempo ? corProgressoAudio(1) : (t.cor_texto || t.cor || 'amarelo'), (t.mensagem || '').trim() || auto, t.fonte || 34, t.pos_alerta || AU.cfg.alerta, vivo ? 0 : 4, !!t.piscar, t.visual, t.texto_cor_tempo ? {fracao:1,duracao:vivo ? 6 : 4,loop:!!vivo} : null);
+  const auto = `${t.nome || 'Poção'} acabou!`;
+  api.audio_testar_alerta(t.texto_cor_tempo ? corProgressoAudio(1) : (t.cor_texto || t.cor || 'amarelo'), (t.mensagem || '').trim() || auto, t.fonte || 34, t.pos_alerta || AU.cfg.alerta, vivo ? 0 : 4, !!t.piscar_apos_finalizar, t.visual, t.texto_cor_tempo ? {fracao:1,duracao:vivo ? 6 : 4,loop:!!vivo} : null);
 }
 function testarBarra(t, vivo) { api.audio_testar_barras(t.cfg_barra || AU.cfg.barra, t.nome || 'Timer', t.cor_barra || t.cor || 'amarelo', !!vivo, t.barra_cor_tempo ?? AU.cfg.barra.cor_tempo); }
 

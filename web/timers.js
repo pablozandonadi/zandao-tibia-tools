@@ -94,7 +94,7 @@ function atualizarPreviaAudio() {
   const b=t.cfg_barra || AU.cfg.barra;
   const texto=t.texto_cor_tempo?corProgressoAudio(.65):corHex(t.cor_texto || t.cor);
   const barra=(t.barra_cor_tempo ?? b.cor_tempo)?corProgressoAudio(.65):corHex(t.cor_barra || t.cor);
-  const msg=(t.mensagem || '').trim() || (t.antes ? `${t.nome || 'Timer'} acaba em ${Math.min(t.antes,t.duracao)}s` : `${t.nome || 'Timer'} acabou!`);
+  const msg=(t.mensagem || '').trim() || `${t.nome || 'Timer'} acabou!`;
   el.innerHTML=`<span class="au-preview-caption">Prévia do aviso de texto</span><div class="au-preview-text" style="color:${texto};font-family:'${v.familia}';font-size:${Math.min(28,t.fonte || 34)}px;text-shadow:${sombraTextoAudio(v,texto)};opacity:${t.alerta?1:.3}">${esc(msg)}</div>`;
   const tempo=b.tempo == null ? b.nome : b.tempo, vertical=b.orientacao==='vertical';
   const comprimento=vertical?Math.min(220,b.largura):b.largura;
