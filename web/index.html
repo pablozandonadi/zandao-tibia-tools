@@ -3286,7 +3286,8 @@ $('j-topo').addEventListener('click', () => {
 });
 $('j-opac').addEventListener('input', () => { janela.opacidade = Number($('j-opac').value); aplicarJanela(); });
 const mudarEscala = (v) => { janela.escala = Math.max(50, Math.min(130, Math.round(v / 5) * 5)); aplicarJanela(); };
-$('j-esc').addEventListener('input', () => mudarEscala(Number($('j-esc').value)));
+$('j-esc').addEventListener('input', () => { $('j-esc-val').textContent = $('j-esc').value + '%'; });
+$('j-esc').addEventListener('change', () => mudarEscala(Number($('j-esc').value)));
 // Ctrl + roda do mouse (ou Ctrl e + / - / 0) também muda o tamanho
 window.addEventListener('wheel', (e) => { if (e.ctrlKey) { e.preventDefault(); mudarEscala(janela.escala + (e.deltaY < 0 ? 5 : -5)); } }, { passive: false });
 window.addEventListener('keydown', (e) => {
