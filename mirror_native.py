@@ -249,7 +249,10 @@ class MirrorEngine:
             pid=W.DWORD();u.GetWindowThreadProcessId(self.hwnd,ctypes.byref(pid))
             if pid.value!=self._source_pid:
                 self._finish();self._clear();self.hwnd=0;self._source_pid=None;g=None
-        focused=bool(g and u.GetForegroundWindow()==self.hwnd and u.IsWindowVisible(self.hwnd))
+        foreground=u.GetForegroundWindow()
+        focused=bool(g and foreground==self.hwnd and u.IsWindowVisible(self.hwnd))
+        editing=bool(g and foreground and foreground==O._hwnd_app_fixado and u.GetWindowLongW(foreground,-20)&O.WS_EX_TOPMOST and u.IsWindowVisible(self.hwnd))
+        visible=focused or editing
         if self._selection:
             s=self._selection
             if s['active'] and not focused:self._finish()
@@ -265,8 +268,8 @@ class MirrorEngine:
             r=item['origem']
             valid=valid and r['x']>=0 and r['y']>=0 and r['w']>0 and r['h']>0 and r['x']+r['w']<=g['w'] and r['y']+r['h']<=g['h']
             if not valid:paused.append(rid)
-            if not focused and self._drag:u.ReleaseCapture();self._drag=None
-            show=focused and self.character and valid and item.get('visivel',True) and not self._selection
+            if not visible and self._drag:u.ReleaseCapture();self._drag=None
+            show=visible and self.character and valid and item.get('visivel',True) and not self._selection
             pair=self._surfaces.get(rid)
             if not show:
                 if pair:
@@ -285,7 +288,7 @@ class MirrorEngine:
             pair[1].position(g['x']+dest['x']-margin,g['y']+dest['y']-margin-title,image.width,image.height)
             if pair[1].appearance is not image:
                 layered_image.mostrar(pair[1].hwnd,image);pair[1].appearance=image
-        state='selecionando' if self._selection and self._selection['active'] else 'aguardando_foco' if self._selection else 'sem_cliente' if not g else 'pausado' if paused else 'ativo' if focused and self.character else 'oculto'
+        state='selecionando' if self._selection and self._selection['active'] else 'aguardando_foco' if self._selection else 'sem_cliente' if not g else 'pausado' if paused else 'ativo' if visible and self.character else 'oculto'
         self._notify(dict(hwnd=self.hwnd,estado=state,motivo='Reposicionar recorte: geometria/DPI mudou' if paused else '',selecionando=bool(self._selection),recortes_pausados=paused))
     def _draw_selection(self,g,s):
         from PIL import Image

@@ -40,6 +40,27 @@ class MirrorTests(unittest.TestCase):
         with patch.object(native,'geometry',return_value=dict(x=-1920,y=0,w=800,h=600,dpi=96)),patch.object(native.u,'GetForegroundWindow',return_value=101):
             e._tick()
         crop.hide.assert_called_once();glow.hide.assert_called_once();self.assertEqual(e.status()['estado'],'oculto')
+    @unittest.skipUnless(sys.platform=='win32','Win32 pinned editor')
+    def test_pinned_editor_shows_bound_crop_but_never_starts_selection(self):
+        from unittest.mock import Mock
+        e=MirrorEngine();e.hwnd=100;e.character='test'
+        item=dict(id='one',origem=dict(x=1,y=1,w=32,h=32),destino=dict(x=50,y=50),contexto=dict(w=800,h=600,dpi=96))
+        e.profile={'recortes':[item]};crop,glow=Mock(),Mock();e._surfaces={'one':(crop,glow)}
+        with patch.object(native,'geometry',return_value=dict(x=-1920,y=0,w=800,h=600,dpi=96)) as geometry, \
+                patch.object(native.u,'GetForegroundWindow',return_value=42) as foreground, \
+                patch.object(native.O,'_hwnd_app_fixado',42), \
+                patch.object(native.u,'GetWindowLongW',return_value=native.O.WS_EX_TOPMOST) as style, \
+                patch.object(native.u,'IsWindowVisible',return_value=True), \
+                patch.object(native.layered_image,'mostrar'), patch.object(e,'_install_hooks') as hooks:
+            e._tick();crop.position.assert_called_once();self.assertEqual(e.status()['estado'],'ativo')
+            e._selection=dict(mode='quadrado',existing=None,active=False)
+            e._tick();hooks.assert_not_called();self.assertFalse(e._selection['active'])
+            e._selection=None
+            foreground.return_value=99;e._tick();crop.hide.assert_called()
+            foreground.return_value=42;style.return_value=0;crop.reset_mock();e._tick();crop.position.assert_not_called()
+            style.return_value=native.O.WS_EX_TOPMOST;geometry.return_value=None
+            e._tick();self.assertEqual(e.status()['estado'],'sem_cliente')
+
     @unittest.skipUnless(sys.platform=='win32','Win32 callbacks')
     def test_blocked_callback_cannot_block_profile_teardown(self):
         entered=threading.Event();release=threading.Event()
