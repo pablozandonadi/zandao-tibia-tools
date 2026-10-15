@@ -131,3 +131,37 @@ document.addEventListener('DOMContentLoaded', () => {
   page.addEventListener('mouseover', posicionarAjuda);
   page.addEventListener('focusin', posicionarAjuda);
 });
+
+// Controles finos usam o mesmo evento do slider, inclusive na prévia ao vivo.
+document.addEventListener('DOMContentLoaded', () => {
+  ['aua-x', 'aua-y', 'aub-x', 'aub-y'].forEach(id => {
+    const slider = $(id);
+    const controls = document.createElement('div');
+    controls.className = 'au-position-controls';
+    controls.innerHTML = `<button type="button" aria-label="Diminuir posição">−</button><input type="number" min="0" max="100" step="0.1" aria-label="${slider.labels[0].textContent.trim()} em porcentagem"><span>%</span><button type="button" aria-label="Aumentar posição">+</button>`;
+    slider.after(controls);
+    const number = controls.querySelector('input');
+    const update = value => {
+      if (!Number.isFinite(value)) return;
+      slider.value = Math.max(0, Math.min(100, Math.round(value * 10) / 10));
+      slider.dispatchEvent(new Event('input', {bubbles: true}));
+    };
+    controls.querySelectorAll('button').forEach((button, index) => {
+      button.addEventListener('click', () => update(+slider.value + (index ? .1 : -.1)));
+    });
+    number.addEventListener('change', () => { if (number.value !== '') update(number.valueAsNumber); });
+    number.addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); number.blur(); } });
+    number.addEventListener('change', () => { number.value = slider.value; });
+    const wheel = event => {
+      event.preventDefault();
+      if (event.deltaY) update(+slider.value + (event.deltaY < 0 ? .1 : -.1));
+    };
+    controls.addEventListener('wheel', wheel, {passive: false});
+    slider.addEventListener('wheel', wheel, {passive: false});
+    // O formulário também pode carregar outro timer sem emitir input.
+    new MutationObserver(() => { number.value = slider.value; }).observe($(id + '-v'), {childList: true});
+    slider.addEventListener('input', () => { number.value = slider.value; });
+    number.value = slider.value;
+    controls.title = 'Ajuste fino: − / + ou roda do mouse em passos de 0,1%. Você também pode digitar a posição.';
+  });
+});

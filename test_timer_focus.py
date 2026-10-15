@@ -162,6 +162,49 @@ class ForegroundTibiaIdentityTests(unittest.TestCase):
             kernel.QueryFullProcessImageNameW.side_effect=lambda handle,flags,path,size:(setattr(path,'value','other.exe'),True)[1]
             self.assertIsNone(ov.janela_tibia_em_foco())
 
+    def test_pinned_editor_can_start_before_any_active_alert(self):
+        with patch.object(ov.sys, 'platform', 'win32'), patch.object(ov, '_u32') as native, \
+                patch.object(ov, '_hwnd_app_fixado', 42), patch.object(ov, '_ultimo_tibia', None), \
+                patch.object(ov, 'janela_do_tibia', return_value=RECT) as visible:
+            native.GetForegroundWindow.return_value = 42
+            native.GetWindowLongW.return_value = ov.WS_EX_TOPMOST
+            self.assertEqual(ov.janela_tibia_em_foco(), RECT)
+            visible.return_value = None
+            self.assertIsNone(ov.janela_tibia_em_foco())
+
+    def test_pinned_app_exception_uses_last_tibia_and_rejects_other_windows(self):
+        with patch.object(ov.sys, 'platform', 'win32'), patch.object(ov, '_u32') as native, \
+                patch.object(ov, '_k32') as kernel, patch.object(ov, '_hwnd_app_fixado', 42), \
+                patch.object(ov, '_ultimo_tibia', None):
+            native.IsWindowVisible.return_value = True
+            native.IsIconic.return_value = False
+            native.GetWindowLongW.return_value = ov.WS_EX_TOPMOST
+            kernel.OpenProcess.return_value = 456
+            def process(handle, flags, path, size):
+                path.value = 'client.exe' if native.GetForegroundWindow.return_value in (123, 42) else 'other.exe'
+                return True
+            def rect(hwnd, pointer):
+                self.assertEqual(hwnd, 123)
+                value = ctypes.cast(pointer, ctypes.POINTER(wintypes.RECT)).contents
+                value.left, value.top, value.right, value.bottom = RECT
+                return True
+            kernel.QueryFullProcessImageNameW.side_effect = process
+            native.GetWindowRect.side_effect = rect
+            native.GetForegroundWindow.return_value = 123
+            self.assertEqual(ov.janela_tibia_em_foco(), RECT)
+            native.GetForegroundWindow.return_value = 42
+            self.assertEqual(ov.janela_tibia_em_foco(), RECT)
+            native.IsIconic.side_effect = lambda hwnd: hwnd == 123
+            self.assertIsNone(ov.janela_tibia_em_foco())
+            native.IsIconic.side_effect = None
+            native.IsIconic.return_value = False
+            native.GetForegroundWindow.return_value = 99
+            self.assertIsNone(ov.janela_tibia_em_foco())
+            native.GetForegroundWindow.return_value = 42
+            native.GetWindowLongW.return_value = 0
+            kernel.QueryFullProcessImageNameW.side_effect = lambda h, f, p, s: (setattr(p, 'value', 'app.exe'), True)[1]
+            self.assertIsNone(ov.janela_tibia_em_foco())
+
     def test_no_foreground_minimized_or_inaccessible_process_is_hidden(self):
         with patch.object(ov.sys,'platform','win32'),patch.object(ov,'_u32') as native,patch.object(ov,'_k32') as kernel:
             native.GetForegroundWindow.return_value=0

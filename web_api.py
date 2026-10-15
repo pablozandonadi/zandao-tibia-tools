@@ -108,6 +108,8 @@ def aplicar_janela(hwnd, por_cima, opacidade):
         u32.SetLayeredWindowAttributes(hwnd, 0, round(alpha * 255 / 100), LWA_ALPHA)
     u32.SetWindowPos(hwnd, HWND_TOPMOST if por_cima else HWND_NOTOPMOST, 0, 0, 0, 0,
                      SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE)
+    import overlay
+    overlay._hwnd_app_fixado = hwnd if por_cima else None
 
 
 WS_CAPTION, WS_THICKFRAME = 0x00C00000, 0x00040000   # barra de título (com a borda) e borda de redimensionar

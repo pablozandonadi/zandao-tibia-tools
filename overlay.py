@@ -148,11 +148,20 @@ def janela_do_tibia():
     return max(achadas, key=lambda r: (r[2] - r[0]) * (r[3] - r[1])) if achadas else None
 
 
+_hwnd_app_fixado = None
+_ultimo_tibia = None
+
+
 def janela_tibia_em_foco():
-    """Retângulo do cliente Tibia em primeiro plano; nunca usa título de janela."""
+    """Tibia em foco, ou o último cliente durante ajustes no app fixado."""
+    global _ultimo_tibia
     if sys.platform != 'win32':
         return None
     hwnd = _u32.GetForegroundWindow()
+    if hwnd and hwnd == _hwnd_app_fixado and _u32.GetWindowLongW(hwnd, -20) & WS_EX_TOPMOST:
+        if _ultimo_tibia is None:
+            return janela_do_tibia()
+        hwnd = _ultimo_tibia
     if not hwnd or not _u32.IsWindowVisible(hwnd) or _u32.IsIconic(hwnd):
         return None
     pid = wintypes.DWORD()
@@ -172,6 +181,7 @@ def janela_tibia_em_foco():
             return None
         if rect.right - rect.left <= 200 or rect.bottom - rect.top <= 150:
             return None
+        _ultimo_tibia = hwnd
         return (rect.left, rect.top, rect.right, rect.bottom)
     finally:
         _k32.CloseHandle(process)

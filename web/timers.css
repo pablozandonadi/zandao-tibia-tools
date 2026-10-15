@@ -95,3 +95,7 @@
 #page-audio .au-preview-bars {margin:30px auto 0;max-width:90%}
 #page-audio .au-preview-bars.vertical {display:flex;flex-direction:column;align-items:center;gap:6px}
 #page-audio .au-preview-bar-time {margin-top:6px;font-size:12px}
+
+#page-audio .au-position-controls {display:flex;align-items:center;gap:6px;margin-top:8px}
+#page-audio .au-position-controls button {min-width:34px;min-height:32px;font-size:18px}
+#page-audio .au-position-controls input {width:78px;min-width:0;padding:6px;text-align:center}
