@@ -42,6 +42,11 @@ class MirrorCoreTests(unittest.TestCase):
         recovered=MirrorStore(self.path);recovered.perfil('A','novo',nome='Three')
         backup=MirrorStore(self.path.with_suffix('.json.bak'))
         self.assertEqual(len(backup.estado('A')['perfis']),1)
+    def test_automatic_names_never_become_overlay_labels(self):
+        self.assertFalse(normalizar_recorte({})['mostrar_nome'])
+        self.assertFalse(normalizar_recorte({'nome':'Mirror 1','mostrar_nome':True})['mostrar_nome'])
+        self.assertFalse(normalizar_recorte({'nome':'Mirror 2'}, {'nome':'Mirror 2','mostrar_nome':True})['mostrar_nome'])
+        self.assertTrue(normalizar_recorte({'nome':'BUFF','mostrar_nome':True})['mostrar_nome'])
     def test_large_output_rejected_before_allocating_native_images(self):
         with self.assertRaises(ValueError):normalizar_recorte({'modo':'manual','origem':{'w':2000,'h':1000},'escala':8})
     def test_invalid_geometry_and_nonfinite_numbers_rejected(self):

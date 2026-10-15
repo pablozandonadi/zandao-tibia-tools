@@ -24,7 +24,10 @@ const fs = require('node:fs');
     addEventListener:(name,fn)=>{listeners[name]=fn;},
     pywebview:{api:{mirror_carregar:()=>new Promise(resolve=>replies.push(resolve))}}
   };
-  const context = vm.createContext({window, document:window.document});
+  window.window = window;
+  window.CustomEvent = class { constructor(type, options) { this.type=type; this.detail=options.detail; } };
+  window.dispatchEvent = event => { if (listeners[event.type]) listeners[event.type](event); return true; };
+  const context = vm.createContext(window);
   vm.runInContext(fs.readFileSync(require.resolve('./web/mirror.js'),'utf8'),context);
   const first = window.mirrorLoad();
   const second = window.mirrorLoad();
@@ -32,6 +35,26 @@ const fs = require('node:fs');
   replies[0]({personagem:'Antigo',perfis:[],clientes:[]}); await first;
   assert.match(host.innerHTML,/Atual/);
   assert.doesNotMatch(host.innerHTML,/Antigo/);
+  // Execute the exact API._emit callback shape, rather than bypassing its missing bridge.
+  const nativeState = {personagem:'Atual',perfis:[],clientes:[],estado:{mensagem:'Atualização nativa recebida'}};
+  vm.runInContext(process.env.MIRROR_CALLBACK_SCRIPT || `mirrorEstado(${JSON.stringify(nativeState)})`,context);
+  assert.match(host.innerHTML,/Atualização nativa recebida/);
+  const savedCrop = {id:'saved-crop',nome:'Recorte confirmado',modo:'quadrado',origem:{x:10,y:20,w:32,h:32},escala:1,opacidade:1,visivel:true,travado:true,glow:{cor:'#00cc66',intensidade:'med'}};
+  const savedProfile = {id:'hunt',nome:'Hunt',recortes:[savedCrop]};
+  const completedState = {personagem:'Atual',perfis:[savedProfile],ativo:'hunt',perfil:savedProfile,estado:{estado:'oculto',selecionando:false}};
+  vm.runInContext(`mirrorEstado(${JSON.stringify(completedState)})`,context);
+  assert.match(host.innerHTML,/data-id="saved-crop"/);
+  assert.match(host.innerHTML,/Recorte confirmado/);
+  assert.match(host.innerHTML,/data-action="posicionar" >Posicionar/);
+  window.pywebview.api.mirror_recorte = async(action,id,data)=>{
+    assert.equal(action,'salvar'); assert.equal(id,'saved-crop'); assert.equal(data.travado,false);
+    savedCrop.travado=data.travado; return completedState;
+  };
+  const positionTarget = {dataset:{action:'posicionar'},disabled:false,closest:()=>({dataset:{id:'saved-crop'}})};
+  listeners.click({target:{closest:()=>positionTarget}});
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.match(host.innerHTML,/data-action="posicionar" >Travar posição/);
+  assert.doesNotMatch(host.innerHTML,/data-action="cancelar-selecao"/);
   listeners.mirrorEstado({detail:{personagem:'Antigo',perfis:[],estado:{erro:'Resposta obsoleta'}}});
   assert.doesNotMatch(host.innerHTML,/Resposta obsoleta/);
   listeners.mirrorEstado({detail:{personagem:'Atual',perfis:[],estado:{mensagem:'<script>bad()</script>'}}});
@@ -56,6 +79,6 @@ const fs = require('node:fs');
   window.pywebview = null; await window.mirrorLoad();
   assert.match(host.innerHTML,/Prévia da interface/);
   assert.match(host.innerHTML,/data-action="quadrado" disabled/);
-  console.log('Mirror UI: stale loads/events, native message escaping and preview controls passed.');
+  console.log('Mirror UI: native callback, stale loads/events, native message escaping and preview controls passed.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
 

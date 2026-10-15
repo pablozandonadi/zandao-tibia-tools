@@ -109,6 +109,45 @@ class MirrorTests(unittest.TestCase):
         crop.close.assert_called_once();glow.close.assert_called_once()
         self.assertEqual(e.hwnd,0);self.assertEqual(e.status()['estado'],'sem_cliente')
         e.close()
+    @unittest.skipUnless(sys.platform=='win32','Win32 selection renderer')
+    def test_selection_4k_uses_small_strips_and_no_upload_on_movement(self):
+        import ctypes
+        class FakeSurface:
+            def __init__(self,*args):self.hwnd=id(self);self.appearance=None;self.positions=[]
+            def position(self,*args):self.positions.append(args)
+            def update(self,*args):pass
+        e=MirrorEngine();e.hwnd=100
+        context=dict(w=3840,h=2160,dpi=96)
+        s=Selection('manual',context,{'origem':dict(x=100,y=100,w=2000,h=1000)})
+        def cursor(point):
+            pt=ctypes.cast(point,ctypes.POINTER(native.W.POINT)).contents;pt.x=200;pt.y=200;return True
+        with patch.object(native,'Surface',FakeSurface),patch.object(native.u,'GetCursorPos',side_effect=cursor),patch.object(native.layered_image,'mostrar') as upload:
+            e._draw_selection(dict(context,x=0,y=0),s)
+            self.assertEqual(upload.call_count,5)
+            self.assertLess(sum(call.args[1].width*call.args[1].height for call in upload.call_args_list),30000)
+            self.assertTrue(all(call.args[1].width<context['w'] for call in upload.call_args_list))
+            upload.reset_mock();s.key('right');e._draw_selection(dict(context,x=0,y=0),s)
+            upload.assert_not_called()
+        e._surfaces.clear();e.close()
+    @unittest.skipUnless(sys.platform=='win32','Win32 Enter hook')
+    def test_enter_release_finishes_manual_selection_and_delivers_crop(self):
+        import ctypes
+        from unittest.mock import Mock
+        e=MirrorEngine();e.hwnd=100
+        rect=dict(x=10,y=20,w=120,h=80)
+        e._selection={'active':True,'model':Selection('manual',dict(w=800,h=600,dpi=96),{'origem':rect})}
+        callback=Mock();e._callback=callback
+        key=native.Keyboard(13,0,0,0,0)
+        with patch.object(native.u,'GetForegroundWindow',return_value=100),patch.object(native.u,'GetAsyncKeyState',return_value=0),patch.object(native.u,'SetWindowsHookExW',return_value=1),patch.object(native.u,'UnhookWindowsHookEx',return_value=True),patch.object(native.u,'CallNextHookEx',return_value=0) as next_hook:
+            e._install_hooks()
+            self.assertEqual(e._key_cb(0,0x100,ctypes.addressof(key)),1)
+            self.assertIsNotNone(e._selection)
+            self.assertEqual(e._key_cb(0,0x101,ctypes.addressof(key)),1)
+            self.assertIsNone(e._selection);self.assertEqual(e._hooks,[])
+            next_hook.assert_not_called()
+        delivered,args=e._events.get_nowait()
+        self.assertIs(delivered,callback);self.assertEqual(args[0]['origem'],rect)
+        e.close()
     def test_status_is_defensive(self):
         e=MirrorEngine();state=e.status();state['hwnd']=1;self.assertEqual(e.status()['hwnd'],0);e.close()
 if __name__=='__main__':unittest.main()

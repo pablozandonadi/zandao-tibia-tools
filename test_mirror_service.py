@@ -46,6 +46,16 @@ class MirrorServiceTests(unittest.TestCase):
         self.service.selecionar('quadrado');callback=self.service.engine.callback
         self.service.close();callback({'origem':{'w':32,'h':32}})
         self.assertEqual(self.service.store.estado('A')['perfil']['recortes'],[])
+    def test_consecutive_confirmations_save_and_emit_each_new_crop(self):
+        events=[];self.service.emit=events.append
+        for index in range(2):
+            self.service.selecionar('manual')
+            self.service.engine.callback({'modo':'manual','origem':{'x':20+index*40,'y':30,'w':32,'h':32}})
+            crops=self.service.carregar()['perfil']['recortes']
+            self.assertEqual(len(crops),index+1)
+            self.assertEqual(len(events[-1]['perfil']['recortes']),index+1)
+            self.assertFalse(crops[-1]['mostrar_nome'])
+        self.assertNotEqual(crops[0]['id'],crops[1]['id'])
     def test_no_live_bound_client_rejects_selection(self):
         self.service.clients=lambda:[]
         with self.assertRaises(ValueError):self.service.selecionar('quadrado')

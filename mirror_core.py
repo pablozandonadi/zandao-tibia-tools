@@ -48,11 +48,13 @@ def normalizar_recorte(data, base=None):
     output_w, output_h = out['origem']['w'] * out['escala'], out['origem']['h'] * out['escala']
     if max(output_w, output_h) > 4096 or output_w * output_h > 8_000_000:
         raise ValueError('Este recorte ficou grande demais. Reduza a área ou a escala de exibição.')
-    for key, default in [('visivel', True), ('travado', True), ('mostrar_nome', True)]:
+    for key, default in [('visivel', True), ('travado', True), ('mostrar_nome', False)]:
         value = d.get(key, default)
         if not isinstance(value, bool):
             raise ValueError('Opção de recorte inválida.')
         out[key] = value
+    if re.fullmatch(r'Mirror\s*\d+', out['nome'], re.IGNORECASE):
+        out['mostrar_nome'] = False
     glow = {**original.get('glow', {}), **(data.get('glow') or {})}
     color = str(glow.get('cor', '#00cc66'))
     level = glow.get('intensidade', 'med')

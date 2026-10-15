@@ -1,6 +1,6 @@
 """Cached external halo and labels; crop pixels are always transparent."""
 from functools import lru_cache
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 @lru_cache(maxsize=128)
 def frame(width, height, color='#51cfff', intensity='med', name='', dpi=96):
@@ -22,3 +22,17 @@ def frame(width, height, color='#51cfff', intensity='med', name='', dpi=96):
     ImageDraw.Draw(image).rectangle(box,fill=(0,0,0,0))
     if name: ImageDraw.Draw(image).text((margin,margin),str(name),fill=rgb+(255,))
     return image, margin, title
+
+
+@lru_cache(maxsize=8)
+def selection_hint(dpi=96):
+    text = 'Enter confirma | Esc cancela | setas ajustam'
+    font = ImageFont.load_default(size=max(10, round(12 * dpi / 96)))
+    box = font.getbbox(text)
+    padding = max(4, round(6 * dpi / 96))
+    image = Image.new('RGBA', (box[2] - box[0] + 2 * padding, box[3] - box[1] + 2 * padding))
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle((0, 0, image.width - 1, image.height - 1), radius=padding,
+                           fill=(15,17,21,230), outline=(255,255,255,180))
+    draw.text((padding - box[0], padding - box[1]), text, font=font, fill='white')
+    return image

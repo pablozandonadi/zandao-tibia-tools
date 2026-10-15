@@ -2,7 +2,7 @@
 import ctypes, os, sys, threading, queue, time, copy
 from ctypes import wintypes as W
 from mirror_selector import Selection, clamp_rect, mouse_policy
-from mirror_visual import frame
+from mirror_visual import frame, selection_hint
 
 WIN=sys.platform=='win32'
 if WIN:
@@ -151,7 +151,9 @@ class MirrorEngine:
     def _install_hooks(self):
         def mouse(code,msg,lp):
             if code>=0 and self._selection and self._selection.get('active') and u.GetForegroundWindow()==self.hwnd:
-                m=ctypes.cast(lp,ctypes.POINTER(Mouse)).contents;g=geometry(self.hwnd)
+                m=ctypes.cast(lp,ctypes.POINTER(Mouse)).contents;g=self._selection.get('geometry') or geometry(self.hwnd)
+                if not g:
+                    self._finish();return u.CallNextHookEx(None,code,msg,lp)
                 x,y=m.pt.x-g['x'],m.pt.y-g['y'];s=self._selection['model']
                 paired=msg==0x202 and bool(self._selection.get('button_down'))
                 if paired and not (0<=x<g['w'] and 0<=y<g['h']):
@@ -252,6 +254,7 @@ class MirrorEngine:
             s=self._selection
             if s['active'] and not focused:self._finish()
             elif focused:
+                s['geometry']=g
                 if not s['active']:
                     s['model']=Selection(s['mode'],{key:g[key] for key in ('w','h','dpi')},s['existing']);s['active']=True;self._install_hooks()
                 if not compatible(s['model'].context,g):self._finish()
@@ -285,17 +288,36 @@ class MirrorEngine:
         state='selecionando' if self._selection and self._selection['active'] else 'aguardando_foco' if self._selection else 'sem_cliente' if not g else 'pausado' if paused else 'ativo' if focused and self.character else 'oculto'
         self._notify(dict(hwnd=self.hwnd,estado=state,motivo='Reposicionar recorte: geometria/DPI mudou' if paused else '',selecionando=bool(self._selection),recortes_pausados=paused))
     def _draw_selection(self,g,s):
-        from PIL import Image,ImageDraw
+        from PIL import Image
         point=W.POINT();u.GetCursorPos(ctypes.byref(point));x,y=point.x-g['x'],point.y-g['y']
         if s.rect is None:s.move(x,y)
         r=s.rect
         if r:
-            pair=self._surfaces.get('selector')
-            if not pair:pair=(Surface(self,None,True),);self._surfaces['selector']=pair
-            image=Image.new('RGBA',(g['w'],g['h']));draw=ImageDraw.Draw(image)
-            draw.rectangle((r['x'],r['y'],r['x']+r['w']-1,r['y']+r['h']-1),outline='#ffffff',width=1)
-            draw.text((max(0,r['x']),max(0,r['y']-18)),'Enter confirma | Esc cancela | setas ajustam',fill='#ffffff')
-            pair[0].position(g['x'],g['y'],g['w'],g['h']);layered_image.mostrar(pair[0].hwnd,image)
+            edges=self._surfaces.get('selector')
+            if not edges:
+                edges=[];self._surfaces['selector']=edges
+                for _ in range(5):edges.append(Surface(self,None,True))
+            # Four one-pixel strips replace a client-sized RGBA bitmap per frame.
+            # Moving a square only moves HWNDs; it never uploads another full image.
+            lines=((r['x'],r['y'],r['w'],1),
+                   (r['x'],r['y']+r['h']-1,r['w'],1),
+                   (r['x'],r['y'],1,r['h']),
+                   (r['x']+r['w']-1,r['y'],1,r['h']))
+            for surface,(left,top,width,height) in zip(edges[:4],lines):
+                key=(width,height)
+                if surface.appearance!=key:
+                    layered_image.mostrar(surface.hwnd,Image.new('RGBA',key,'white'))
+                    surface.appearance=key
+                surface.position(g['x']+left,g['y']+top,width,height)
+            hint=selection_hint(g['dpi'])
+            hint_surface=edges[4]
+            if hint_surface.appearance is not hint:
+                layered_image.mostrar(hint_surface.hwnd,hint);hint_surface.appearance=hint
+            hx=max(0,min(r['x'],g['w']-hint.width))
+            hy=r['y']-hint.height-8
+            if hy<0:hy=r['y']+r['h']+8
+            hy=max(0,min(hy,g['h']-hint.height))
+            hint_surface.position(g['x']+hx,g['y']+hy,hint.width,hint.height)
         loupe=self._surfaces.get('loupe')
         if not loupe:loupe=(Surface(self,self.hwnd),);self._surfaces['loupe']=loupe
         region=clamp_rect(x-20,y-20,40,40,(g['w'],g['h']))

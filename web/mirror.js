@@ -29,7 +29,7 @@
       <div class="mirror-row mirror-create">${pending ? button('Cancelar seleção','cancelar-selecao',demo) : ''}${button('＋ Quadrado 32 × 32','quadrado',!enabled,'btn-primary')}${button('＋ Seleção manual','manual',!enabled)}<span>Os dois modos têm lupa. No quadrado, a roda ajusta o tamanho.</span></div>
       <div class="mirror-row mirror-list-head"><h2>${escape(profile ? profile.nome : 'Recortes')} <small>${profile && profile.recortes ? profile.recortes.length : 0}</small></h2><div class="mirror-actions">${button('Mostrar todos','mostrar',!enabled)}${button('Ocultar todos','ocultar',!enabled)}${button('Travar todos','travar',!enabled)}${button('Destravar todos','destravar',!enabled)}</div></div>
       <div class="mirror-crops">${profile && profile.recortes && profile.recortes.length ? profile.recortes.map(r => crop(r,enabled)).join('') : `<div class="mirror-empty"><b>${has ? 'Seu próximo recorte começa aqui' : 'Mirror acompanha o personagem em uso'}</b><p>${has ? 'Crie um perfil, vincule o cliente e selecione um quadrado ou uma região do Tibia.' : 'Cada personagem mantém seus próprios perfis e recortes.'}</p></div>`}</div>
-      <p class="mirror-foot">Destrave para posicionar o mirror no Tibia. Ao travar, o mouse passa pelo recorte. Alt+Tab, minimizar ou fechar o cliente oculta imagem, nome e glow. Se o layout mudar, use Editar recorte.</p>`;
+      <p class="mirror-foot">Use Posicionar, volte ao Tibia e arraste o recorte. Depois use Travar posição para o mouse passar pelo mirror. Alt+Tab, minimizar ou fechar o cliente oculta imagem, nome e glow. Se o layout mudar, use Editar recorte.</p>`;
   }
   function crop(r, enabled) {
     const glow = r.glow || {}, intensity = ['off','min','med','max'].includes(glow.intensidade) ? glow.intensidade : 'off';
@@ -38,7 +38,7 @@
     return `<article class="card mirror-crop" data-id="${escape(r.id)}"><div class="mirror-crop-top"><label class="mirror-field mirror-grow">Nome<input type="text" maxlength="80" data-field="nome" value="${escape(r.nome)}" ${disabled}></label><div class="mirror-sample" style="--mirror-color:${color(glow.cor)}" data-glow="${intensity}" aria-label="Prévia ilustrativa do glow"><span>32</span></div></div><p class="mirror-geometry">${paused ? '<strong class="mirror-paused">Reposicionar recorte · </strong>' : ''}${r.modo === 'manual' ? 'Manual' : 'Quadrado'} · ${escape((r.origem || {}).w)} × ${escape((r.origem || {}).h)} px de origem · x ${escape((r.origem || {}).x)}, y ${escape((r.origem || {}).y)}</p>
       <div class="mirror-toggles"><label><input type="checkbox" data-field="visivel" ${checked(r.visivel)} ${disabled}> Visível</label><label><input type="checkbox" data-field="travado" ${checked(r.travado)} ${disabled}> Travado</label><label><input type="checkbox" data-field="mostrar_nome" ${checked(r.mostrar_nome)} ${disabled}> Mostrar nome</label></div>
       <div class="mirror-controls"><label class="mirror-field">Escala de exibição<input type="number" min="0.25" max="8" step="0.25" data-field="escala" value="${clamp(r.escala,.25,8,1)}" ${disabled}></label><label class="mirror-field">Opacidade (${Math.round(clamp(r.opacidade,0,1,1)*100)}%)<input type="range" min="0.1" max="1" step="0.05" data-field="opacidade" value="${clamp(r.opacidade,.1,1,1)}" ${disabled}></label><label class="mirror-field">Glow<select data-field="intensidade" ${disabled}>${[['off','Desligado'],['min','Mínimo'],['med','Médio'],['max','Máximo']].map(([v,t]) => `<option value="${v}" ${v === intensity ? 'selected' : ''}>${t}</option>`).join('')}</select></label><label class="mirror-field">Cor livre<div class="mirror-color"><input type="color" data-field="cor" value="${color(glow.cor)}" ${disabled}><input type="text" aria-label="Cor hexadecimal do glow" data-field="hex" value="${color(glow.cor)}" pattern="#[0-9a-fA-F]{6}" maxlength="7" ${disabled}></div></label></div>
-      <div class="mirror-row mirror-crop-footer"><span>A escala amplia a saída e preserva a origem.</span>${button('Editar recorte','editar',!enabled)}${button('Remover','remover-recorte',!enabled)}</div></article>`;
+      <div class="mirror-row mirror-crop-footer"><span>A escala amplia a saída e preserva a origem.</span>${button(r.travado ? 'Posicionar' : 'Travar posição','posicionar',!enabled)}${button('Editar recorte','editar',!enabled)}${button('Remover','remover-recorte',!enabled)}</div></article>`;
   }
   async function load() {
     const gen = ++generation; pending = false; busy = false; message = ''; formAction = ''; state = normalize({}); render();
@@ -66,6 +66,7 @@
     if (action === 'cancelar-form') { formAction = ''; render(); return; }
     if (action === 'remover-perfil') { if (global.confirm('Remover este perfil e seus recortes?')) mutate('mirror_perfil',['remover',state.ativo]); return; }
     if (['quadrado','manual','editar'].includes(action)) { const r = state.perfil && state.perfil.recortes.find(r => r.id === id); mutate('mirror_selecionar',[r ? r.modo : action,id]); return; }
+    if (action === 'posicionar') { const r = state.perfil && state.perfil.recortes.find(r => r.id === id); if (r) mutate('mirror_recorte',['salvar',id,{travado:!r.travado}]); return; }
     if (action === 'remover-recorte') { if (global.confirm('Remover este recorte?')) mutate('mirror_recorte',['remover',id]); return; }
     if (['mostrar','ocultar','travar','destravar'].includes(action)) mutate('mirror_todos',[action]);
   });
@@ -92,6 +93,8 @@
     if (data.perfis) state = normalize(data); else state.estado = {...state.estado,...(data.estado || data)};
     pending = data.cancelado ? false : selectionPending(data); message = data.erro || ''; render();
   });
+  // API._emit invokes a global callback; feed the existing event-based renderer.
+  global.mirrorEstado = data => global.dispatchEvent(new global.CustomEvent('mirrorEstado', {detail:data}));
   global.mirrorLoad = load;
 })(typeof window !== 'undefined' ? window : globalThis);
 
