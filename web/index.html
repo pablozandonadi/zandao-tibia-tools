@@ -674,6 +674,7 @@
 </style>
 <link rel="stylesheet" href="task_items.css">
 <link rel="stylesheet" href="timers.css">
+<link rel="stylesheet" href="voz.css">
 <script src="timers.js"></script>
 <script src="beta_publicacao.js"></script>
 <link rel="stylesheet" href="zandaobot.css">
@@ -703,6 +704,7 @@
     <div class="nav-item" tabindex="0" data-pagina="radio" title="Brasil Hits"><span class="nav-icon" aria-hidden="true">📻</span><span class="txt"> Rádio</span></div>
     <div class="nav-item" tabindex="0" data-pagina="mirror" title="Mirror — recortes do Tibia"><span class="nav-icon" aria-hidden="true">▣</span><span class="txt"> Mirror</span></div>
     <div class="nav-item" tabindex="0" data-pagina="audio" title="Timers de áudio"><span class="nav-icon" aria-hidden="true">🔔</span><span class="txt"> Timers</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="voz" title="Assistente de voz"><span class="nav-icon" aria-hidden="true">🎙️</span><span class="txt"> Voz</span></div>
     <div class="nav-item" tabindex="0" data-pagina="prints" title="Prints"><span class="nav-icon" aria-hidden="true">📸</span><span class="txt"> Prints</span></div>
     <div class="nav-item" id="gs-menu" tabindex="0" data-pagina="guildstats" title="Guild Stats"><span class="nav-icon" aria-hidden="true">📈</span><span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
     <div class="nav-item" tabindex="0" data-pagina="rede" title="Networking — conexões e estabilidade"><span class="nav-icon" aria-hidden="true">📶</span><span class="txt"> Networking</span></div>
@@ -984,6 +986,31 @@
       </details>
     </section>
 
+    <section class="page" id="page-voz">
+      <h1 class="titulo">Voz</h1>
+      <div class="card calmo">
+        <div class="voz-intro"><p id="voz-status" role="status">Preparando o assistente local…</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
+        <p class="dica">Diga <b>“Hey Tibia Tudo”</b>, espere <b>“Fala comigo, tibiano”</b> e peça um timer ou consulte seu shared. Funciona enquanto você joga, inclusive minimizado.</p>
+        <p class="dica">Exemplos: “alarme de trinta segundos”, “novo temporizador de dois minutos”, “cancelar alarme” e “qual é meu nível compartilhado”. O reconhecimento de “timer” e “shared” ainda pode variar.</p>
+        <form id="voz-form" class="voz-form">
+          <label for="voz-valor">Duração<input id="voz-valor" type="number" value="30" min="1" max="180" step="1" required></label>
+          <label for="voz-unidade">Unidade<select id="voz-unidade"><option value="segundo">Segundos</option><option value="minuto">Minutos</option></select></label>
+          <button class="btn btn-primary" id="voz-criar" type="submit">+ Criar timer</button>
+        </form>
+        <p class="dica">De 1 a 180 segundos ou minutos. Timers de voz e manuais aparecem juntos abaixo e duram enquanto o aplicativo estiver aberto.</p>
+        <p id="voz-feedback" role="alert"></p>
+      </div>
+      <h2 class="sub" id="voz-quantidade">0 timers ativos</h2>
+      <p class="dica" id="voz-vazio">Nenhum timer ativo, tibiano. Crie um por voz ou pelo formulário.</p>
+      <div id="voz-lista"></div>
+      <details class="card calmo voz-diagnostico" open>
+        <summary>Último comando</summary>
+        <p><b>Ouvi:</b> <span id="voz-ouvi">Aguardando “Hey Tibia Tudo”.</span></p>
+        <p><b>Resposta:</b> <span id="voz-resposta">As respostas aparecerão aqui, tibiano.</span></p>
+        <p class="dica">Áudio processado no computador, sem gravação. Modelos gratuitos são baixados no primeiro uso. Prefira headset para evitar eco.</p>
+      </details>
+    </section>
+
     <!-- ================= TIMERS DE ÁUDIO ================= -->
     <section class="page" id="page-audio">
       <h1 class="titulo">Timers de áudio</h1>
@@ -1189,6 +1216,7 @@ function irPara(pagina) {
   $('content').scrollTop = 0;
   if (pagina === 'radio') radioLoad();
   if (pagina === 'mirror') mirrorLoad();
+  if (pagina === 'voz') vozLoad();
   if (pagina === 'criaturas') crLoad();
   if (pagina === 'guildstats') gsLoad();
   if (pagina === 'zandaobot') zbLoad();
@@ -3398,6 +3426,7 @@ else window.addEventListener('pywebviewready', iniciar);
 <div id="radio-mini" class="radio-mini" hidden><button class="btn btn-sm" id="radio-mini-open"><span id="radio-mini-channel">Brasil Hits</span></button><button class="btn btn-primary btn-sm" id="radio-mini-toggle" disabled>▶ Tocar</button></div>
 <script src="radio.js"></script>
 <script src="mirror.js"></script>
+<script src="voz.js"></script>
 <script>PERS_OUVINTES.push(() => mirrorLoad()); window.addEventListener("pywebviewready", () => mirrorLoad());</script>
 <dialog id="apoio-dialog" class="apoio-dialog" aria-labelledby="apoio-titulo"><h2 id="apoio-titulo">Apoie o Tibia Tudo ☕</h2><p>Gostou das ferramentas? Sua contribuição ajuda a manter e melhorar o projeto. Qualquer valor é bem-vindo.</p><img class="apoio-qr" src="assets/brand/pix.png" alt="QR Code Pix para apoiar o Tibia Tudo"><p>Recebedor: <b>Pablo Zandonadi</b></p><label for="apoio-pix">Pix copia e cola</label><textarea id="apoio-pix" readonly spellcheck="false">00020126580014BR.GOV.BCB.PIX0136361fa425-8509-45c1-bf3f-b7ffe03417e25204000053039865802BR5915Pablo Zandonadi6009SAO PAULO62140510zsHJv5VizV630498CD</textarea><p id="apoio-status" role="status"></p><button class="btn btn-primary" id="apoio-copiar">Copiar Pix</button> <button class="btn" id="apoio-fechar">Fechar</button><p class="dica">Contribuição voluntária. Confira o recebedor no seu banco antes de confirmar.</p><p class="dica">Sprites: Lupus Aurelius (Dice) e Makadamia (Coffee), via Tibia Fanart.</p></dialog>
 </body>

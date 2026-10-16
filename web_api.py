@@ -15,6 +15,7 @@ import atualizacoes
 import publicacao_beta
 import radio_brasilhits
 import audio_timers
+import voz
 import mirror_core
 from mirror_service import MirrorService
 import backup
@@ -312,6 +313,8 @@ class API:
         self._personagem_auto_pendente = None
         self._personagem_revisao = 0
         self._audio = None      # motor dos timers de áudio (liga em audio_iniciar)
+        self._voz = None
+        self._voz_lock = threading.Lock()
         self._mirror = None
         self._mirror_api_lock = threading.Lock()
         self._capturas = {}     # tipo ('party'/'solo'/'dano') -> {"texto", "t"}: últimos textos do Tibia copiados
@@ -1334,6 +1337,28 @@ class API:
             r.update({"horas": round(horas, 1), "hunts_equiv": round(horas * 60 / dur_media, 1) if dur_media else None,
                       "duracao_media_min": round(dur_media) if dur_media else None})
         return r
+
+    # ================= assistente de voz =================
+    def _voz_obter(self):
+        with self._voz_lock:
+            if self._voz is None:
+                self._voz = voz.Servico(BASE_DIR)
+            return self._voz
+
+    def voz_iniciar(self):
+        return self._voz_obter().iniciar()
+
+    def voz_parar(self):
+        return self._voz_obter().parar()
+
+    def voz_estado(self):
+        return self._voz_obter().estado()
+
+    def voz_criar(self, valor, unidade):
+        return self._voz_obter().criar(valor, unidade)
+
+    def voz_cancelar(self, timer_id):
+        return self._voz_obter().cancelar(timer_id)
 
     # ================= timers de áudio (ver audio_timers.py) =================
     def audio_iniciar(self):
