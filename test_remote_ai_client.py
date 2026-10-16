@@ -24,6 +24,18 @@ class RemoteClientTests(unittest.TestCase):
         self.assertEqual(request.get_header('User-agent'),'TibiaTudo/1.0')
         self.assertEqual(client._opener.open.call_args.kwargs['timeout'],15)
 
+    def test_optional_vocabulary_header(self):
+        import base64
+        from voice.remote_ai_client import RemoteAIClient
+        rid='b92e3ae7-3591-4cd9-9188-1e5422fa1121'
+        for terms in ([], ['Drume', 'Ahau']):
+            response=io.BytesIO(json.dumps({'request_id':rid, 'text':'Drume'}).encode());response.status=200
+            client=RemoteAIClient('a'*43);client._opener=Mock();client._opener.open.return_value=response
+            client.transcribe(b'fake',rid,terms)
+            header=client._opener.open.call_args.args[0].get_header('X-vocabulary')
+            if terms:self.assertEqual(json.loads(base64.urlsafe_b64decode(header+'==')),terms)
+            else:self.assertIsNone(header)
+
     def test_invalid_intents_are_rejected(self):
         from voice.remote_ai_client import valid_intent
         good={'action':'create_timer','parameters':{'seconds':30},'needs_clarification':False,'clarification':None}

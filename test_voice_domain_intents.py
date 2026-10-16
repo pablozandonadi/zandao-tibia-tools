@@ -8,6 +8,9 @@ class DomainIntentTests(unittest.TestCase):
         self.assertTrue(valid_intent(intent('market.price.add',{'item':'TC','price':'35k','offer_type':'buy','observed_at':None})))
         self.assertFalse(valid_intent(intent('market.price.add',{'item':'TC','price':'35k','offer_type':'buy','observed_at':None,'shell':'bad'})))
         self.assertFalse(valid_intent(intent('stamina.logout',{'stamina_minutes':True,'logged_out_at':None})))
+        self.assertTrue(valid_intent(intent('stamina.get',{})))
+        self.assertTrue(valid_intent(intent('boss.cooldown.set',{'boss_id':'drume','cooldown_minutes':1200})))
+        self.assertFalse(valid_intent(intent('boss.cooldown.set',{'boss_id':'drume','cooldown_minutes':0})))
     def test_nlu_cannot_silently_create_personal_timer(self):
         base={'action':'timer.create','parameters':{'duration_seconds':30,'label':None,'personal':False},'needs_clarification':False,'clarification':None}
         self.assertTrue(valid_intent(base))

@@ -28,6 +28,13 @@ class VozTests(unittest.TestCase):
         self.service = Servico(self.tmp.name)
         self.addCleanup(self.service.close)
 
+    def test_entendi_describes_local_timer_and_clears_unknown(self):
+        self.assertEqual(self.service.estado()['entendi'], '')
+        self.service.comando('timer de 30 segundos')
+        self.assertEqual(self.service.estado()['entendi'], 'Criar timer · 30 s')
+        self.service.comando('conversa qualquer')
+        self.assertEqual(self.service.estado()['entendi'], '')
+
     def test_wake_session_click_and_tts_gate(self):
         with patch('voz.time.monotonic', return_value=100):
             self.service.receber_texto('tibia tudo timer de 30 segundos')

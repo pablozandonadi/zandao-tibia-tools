@@ -159,3 +159,12 @@ A mesma frase Market retornou `market.price.add`, preço36500, oferta`sell` e `o
 Guard temporal cobre timestamps inventados e expressões relativas; parser local/UI tratam horários ou o fallback pede esclarecimento.
 Evidências da coordenação:691Python completos antes do guard,65focused,31Node e focused final5cliente/4Worker verdes; nenhum benchmark de microfone real.
 Timers Gerais,SharedXP,BossTracker/Bosstiary,Stamina eMarket local estão integrados; publicação da Beta final e conferência dos artefatos ficam com a coordenação.
+
+
+### Vocabulário contextual na transcrição (Entrega 1)
+
+`X-Vocabulary` contém JSON UTF-8 em base64url sem padding: até 40 termos de até 40 caracteres Unicode, só letras, números, espaço, apóstrofo, ponto e hífen. Cabeçalho inválido é ignorado; não impede transcrição. Termos válidos viram um prompt de nomes, não instruções, e participam do hash da requisição. O limite de 9000 caracteres do cabeçalho comporta o pior caso UTF-8; o prompt tem menos de 8000 bytes adicionais, usados conservadoramente como até 8000 tokens extras de entrada.
+
+Com prompt, STT reserva **40000 microUSD (US$0,04)**: envelope existente de 16000 tokens de entrada + 8000 de margem para o vocabulário, × US$1,25/M, mais 2000 tokens de saída × US$5/M. Sem prompt, mantém os 30000 microUSD. O áudio continua limitado a 15 s; esta margem depende dos preços/modelo documentados acima, não é promessa de limite do provedor. `usage` válido liquida pela mesma fórmula existente; com prompt aceita até 24000 tokens de entrada. Ausência de usage, erro, timeout ou uso acima do envelope conservam a reserva inteira. **Os tetos diários continuam US$0,20 global e US$0,05 individual**; a reserva maior pode reduzir o número de chamadas disponíveis. Modelos, limites e flags não mudam.
+
+O cliente prioriza bosses usados recentemente (até uma hora), depois bosses com progresso no personagem capturado e os termos fixos. Essa memória permanece apenas no processo e é descartada ao trocar de personagem/mundo; não armazena áudio ou falas. A linha “Entendi” mostra a ação reconhecida em linguagem humana, sem executar a ação novamente.

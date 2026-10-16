@@ -9,7 +9,7 @@ class Element {
   remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
   querySelector(tag) { return this.children.find(child => child.tagName === tag); }
 }
-const ids = ['page-voz', 'voz-status', 'voz-esfera', 'voz-ouvi', 'voz-resposta', 'voz-microfone', 'voz-lista', 'voz-vazio', 'voz-quantidade', 'voz-feedback', 'voz-form', 'voz-valor', 'voz-unidade', 'voz-criar', 'voz-online-form', 'voz-online-token', 'voz-online-enabled', 'voz-online-status', 'voz-ajuda', 'voz-ajuda-texto', 'voz-ajuda-area'];
+const ids = ['page-voz', 'voz-status', 'voz-esfera', 'voz-ouvi', 'voz-entendi', 'voz-resposta', 'voz-microfone', 'voz-lista', 'voz-vazio', 'voz-quantidade', 'voz-feedback', 'voz-form', 'voz-valor', 'voz-unidade', 'voz-criar', 'voz-online-form', 'voz-online-token', 'voz-online-enabled', 'voz-online-status', 'voz-ajuda', 'voz-ajuda-texto', 'voz-ajuda-area'];
 const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
 global.document = {getElementById: id => elements[id], createElement: tag => new Element(tag)};
 const intervals = [];
@@ -35,6 +35,9 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
   await flush();
   assert.equal(starts, 1, 'Start automatically, only once');
   assert.equal(elements['voz-ouvi'].textContent, '<img src=x onerror=alert(1)>');
+  assert.equal(elements['voz-entendi'].textContent, '—');
+  ui.render({...state(), entendi:'Criar timer · 30 s'});
+  assert.equal(elements['voz-entendi'].textContent, 'Criar timer · 30 s');
   assert.equal(typeof elements['voz-esfera'].listeners.click, 'function', 'Orb toggles microphone');
   await elements['voz-esfera'].listeners.click();
   assert.deepEqual(calls.shift(), ['listen']);

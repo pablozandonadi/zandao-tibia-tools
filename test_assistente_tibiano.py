@@ -106,6 +106,12 @@ class ParserTests(StoreCase):
         self.assertIsNone(a.parse('time', NOW))
         with self.assertRaises(ValueError): a.parse('time de futebol', NOW)
 
+    def test_descriptions_cover_actions_and_human_units(self):
+        self.assertEqual(set(a.LABELS),set(a.FIELDS))
+        self.assertEqual(a.describe('stamina.time_to',{'target_stamina_minutes':2520}),'Quando a stamina chega a · 42h00')
+        self.assertEqual(a.describe('timer.create',{'duration_seconds':300}),'Criar timer · 5 min')
+        self.assertIn('Registrar abate',a.describe('boss.kill',{'boss_id':'drume'}))
+
     def test_unknown_actions_and_extra_fields_cannot_write(self):
         with self.assertRaises(ValueError):self.call('timer.create',{'duration_seconds':30,'arbitrary':True})
         self.assertFalse((self.path/'assistente-tibiano.json').exists())
@@ -146,6 +152,60 @@ class IntegrationTests(StoreCase):
         service.receber_texto('matei o Drume agora')
         self.assertEqual(1,self.call('bosstiary.get',{'boss_id':'drume'})['boss']['real_kills'])
         self.assertEqual(1,self.call('bosstiary.get',{'boss_id':'drume'},context={'character_id':'Outro','world_id':'Secura'})['boss']['real_kills'])
+
+    def test_vocabulary_tracks_ui_voice_expiry_and_profile_without_double_execution(self):
+        import voz
+        import web_api
+        from unittest.mock import Mock
+        from voice.remote_ai_client import RemoteAIClient
+        import struct
+        with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):
+            service=voz.Servico(self.path,store=self.store)
+        self.addCleanup(service.close)
+        api=object.__new__(web_api.API)
+        api._voz_obter=lambda:service
+        with patch('voz.time.monotonic',return_value=100):
+            service.comando('matei o Drume agora')
+            self.assertEqual(service._recentes, {'Drume':100})
+            with patch.object(self.store,'execute',wraps=self.store.execute) as execute:
+                result=api.assistente_executar('boss.kill',{'boss_id':'oberon'},CTX)
+                execute.assert_called_once()
+            self.assertEqual(result['boss']['real_kills'],1)
+            self.assertIn('Grand Master Oberon',service.estado()['entendi'])
+            self.assertEqual(service._vocabulario(CTX)[:2],['Drume','Grand Master Oberon'])
+        with patch('voz.time.monotonic',return_value=3701):
+            service._vocabulario(CTX)
+            self.assertEqual(service._recentes,{})
+        other={'character_id':'Outro','world_id':'Secura'}
+        with patch('voz.time.monotonic',return_value=4000):
+            service.registrar_resultado('bosstiary.get',{'boss_id':'oberon'},result,CTX)
+            self.assertNotIn('Grand Master Oberon',service._vocabulario(other))
+            self.assertEqual(service._recentes,{})
+        client=Mock(spec=RemoteAIClient)
+        client.transcribe.return_value='quantas kills tenho no Drume'
+        service._online_client=client;service._online_enabled=True
+        service._ready.set();service.escutar()
+        def transcribe(wav,rid,terms):
+            self.assertIn('Drume',terms)
+            path=self.path/'meus_personagens.json'
+            data=json.loads(path.read_text());data['atual']='Outro';path.write_text(json.dumps(data))
+            return 'quantas kills tenho no Drume'
+        client.transcribe.side_effect=transcribe
+        service.receber_audio('unk',struct.pack('<h',1000)*16000,16000)
+        client.transcribe.assert_called_once()
+        self.assertIn('Drume',service.estado()['entendi'])
+        self.assertIn('1 abates reais',service.estado()['resposta'])
+        self.assertNotIn('Drume',service._vocabulario(other))
+
+    def test_entendi_and_recent_boss_on_domain_nlu(self):
+        import voz
+        with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):
+            service=voz.Servico(self.path,store=self.store)
+        self.addCleanup(service.close)
+        reply=service._intent_reply({'action':'boss.kill','parameters':{'boss_id':'drumi','boosted':False,'killed_at':None},'needs_clarification':False,'clarification':None})
+        self.assertIn('Drume',reply)
+        self.assertEqual(service.estado()['entendi'],'Registrar abate · Drume')
+        self.assertIn('Drume',service._recentes)
 
     def test_captured_context_survives_profile_change(self):
         import voz

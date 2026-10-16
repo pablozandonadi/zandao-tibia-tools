@@ -13,6 +13,7 @@ import zipfile
 
 from app_paths import data_dir
 from voice.audio_capture import Capture, has_voice
+from voice import vocabulario
 from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, pcm_wav, save_settings, valid_intent
 from voice.spike_assistente import (GREETING, UNKNOWN_REPLY, PiperSpeech, command_after_wake, play_wake_sound,
                                     cancel_selection, dispatch, duration_from, duration_seconds, negated, normalize,
@@ -32,6 +33,9 @@ class Servico:
         self._detalhe = 'Preparando o assistente local…'
         self._ouvi = ''
         self._resposta = ''
+        self._entendi = ''
+        self._recentes = {}
+        self._recentes_context = None
         self._stop = threading.Event()
         self._mic_stop = threading.Event()
         self._speaking = threading.Event()
@@ -77,7 +81,7 @@ class Servico:
                 context = self.store.context()
                 timers = [{'id': t['id'], 'label': t['label'], 'duracao': t['duration_seconds'], 'restante': t['remaining_seconds']} for t in self.store.execute('timer.list', {}, context)['timers'] if t['status']=='active' and t['remaining_seconds']>0]
             return {'estado': 'falando' if self._speaking.is_set() and self._estado != 'pausado' else self._estado, 'detalhe': self._detalhe,
-                    'ouvi': self._ouvi, 'resposta': self._resposta, 'timers': timers,
+                    'ouvi': self._ouvi, 'entendi': self._entendi, 'resposta': self._resposta, 'timers': timers,
                     'direto': self._direct_mode,
                     'microfone': bool(self._mic and self._mic.is_alive() and not self._mic_stop.is_set()),
                     'online_enabled': self._online_enabled, 'online_configured': self._online_client is not None}
@@ -136,19 +140,56 @@ class Servico:
             for _, label in expired:
                 self._reply(f'Timer de {label} terminou.')
 
+    def _recentes_do_contexto(self, context):
+        profile = (context.get('character_id'), context.get('world_id'))
+        if profile != self._recentes_context:
+            self._recentes.clear()
+            self._recentes_context = profile
+        now = time.monotonic()
+        self._recentes = {name: at for name, at in self._recentes.items() if now - at < 3600}
+        return sorted(self._recentes, key=self._recentes.get, reverse=True)
+
+    def registrar_resultado(self, intent, args, result, context):
+        with self._lock:
+            values = dict(args or {})
+            self._recentes_do_contexto(context)
+            if values.get('boss_id') and result.get('boss'):
+                name = result['boss']['name']
+                values['boss_id'] = name
+                self._recentes[name] = time.monotonic()
+            self._entendi = assistente.describe(intent, values)
+
+    def _vocabulario(self, context):
+        recentes = self._recentes_do_contexto(context)
+        try:
+            bosses = self.store.execute('boss.cooldown.list', {}, context)['bosses'] if self.store else []
+            com_kills = [boss['name'] for boss in bosses if boss['progress'] > 0]
+        except (ValueError, OSError):
+            com_kills = []
+        return vocabulario.montar(com_kills, recentes)
+
     def comando(self, text, state=None, source="voice"):
         with self._lock:
+            self._entendi = ''
             if self.store:
                 try:
                     command = assistente.parse(text, self.store.clock())
                     if command is None: return 'Não entendi. Tente: timer de dois minutos.' if self._direct_mode else UNKNOWN_REPLY
                     intent, arguments = command
                     context = self._command_context if self._command_context is not None else self.store.context()
-                    return assistente.reply(self.store.execute(intent, arguments, context, self._domain_request_id, source=source))
+                    result = self.store.execute(intent, arguments, context, self._domain_request_id, source=source)
+                    self.registrar_resultado(intent, arguments, result, context)
+                    return assistente.reply(result)
                 except (ValueError, OSError) as error:
                     return str(error) if isinstance(error, ValueError) else 'Não consegui salvar. Nenhuma alteração foi confirmada.'
             reply = dispatch(text, self.pasta, self._timers, time.monotonic(), state)
             self._sync_ids()
+            try:
+                parsed = assistente.parse(text)
+                if parsed and reply != UNKNOWN_REPLY:
+                    self._entendi = assistente.describe(*parsed)
+            except ValueError:
+                pass
         return 'Não entendi. Tente: timer de dois minutos.' if self._direct_mode and reply == UNKNOWN_REPLY else reply
 
     def _wake_ding(self):
@@ -244,6 +285,7 @@ class Servico:
         return generation == self._generation and not self._stop.is_set() and not self._mic_stop.is_set() and not self._speaking.is_set()
 
     def _intent_reply(self, intent):
+        self._entendi = ''
         if not valid_intent(intent):
             raise RemoteAIError('Resposta online inválida.')
         if intent['needs_clarification']:
@@ -254,7 +296,10 @@ class Servico:
                 arguments={k:v for k,v in parameters.items() if v is not None}
                 if action=='boss.kill' and arguments.get('boosted') is True:
                     return 'Confirme no formulário que era o Archfoe boosted do dia e elegível; nenhum abate foi registrado.'
-                return assistente.reply(self.store.execute(action, arguments, self._command_context or self.store.context(), self._domain_request_id, source='voice'))
+                context = self._command_context or self.store.context()
+                result = self.store.execute(action, arguments, context, self._domain_request_id, source='voice')
+                self.registrar_resultado(action, arguments, result, context)
+                return assistente.reply(result)
             except (ValueError,OSError) as error:
                 return str(error) if isinstance(error,ValueError) else 'Não consegui salvar. Nenhuma alteração foi confirmada.'
         if action == 'create_timer':
@@ -263,10 +308,18 @@ class Servico:
             return self.comando('cancelar ultimo timer')
         if self.store and action == 'shared':
             args = {'reference_level': parameters['level']} if parameters['level'] is not None else {}
-            return assistente.reply(self.store.execute('shared.range', args, self._command_context or self.store.context()))
+            context = self._command_context or self.store.context()
+            result = self.store.execute('shared.range', args, context)
+            self.registrar_resultado('shared.range', args, result, context)
+            return assistente.reply(result)
         if self.store and action in ('cancel_timer', 'query_timer'):
             try:
-                return assistente.reply(self.store.execute('timer.cancel' if action=='cancel_timer' else 'timer.get', {'timer_id':parameters['timer_id']}, self._command_context or self.store.context(), self._domain_request_id, source='voice'))
+                action = 'timer.cancel' if action=='cancel_timer' else 'timer.get'
+                args = {'timer_id':parameters['timer_id']}
+                context = self._command_context or self.store.context()
+                result = self.store.execute(action, args, context, self._domain_request_id, source='voice')
+                self.registrar_resultado(action, args, result, context)
+                return assistente.reply(result)
             except ValueError as error: return str(error)
         if action == 'shared':
             return shared_reply(self.pasta, parameters['level'])
@@ -330,11 +383,12 @@ class Servico:
             self._remote_busy = True
             self._armed_until = 0
             self._command_state.clear()
+            terms = self._vocabulario(self._command_context or {})
             self._status('transcrevendo', 'Reconhecendo o comando online…')
         request_id = str(uuid.uuid4())
         transcript = None
         try:
-            transcript = client.transcribe(wav, request_id)
+            transcript = client.transcribe(wav, request_id, terms)
             with self._lock:
                 if not self._remote_current(generation):
                     return

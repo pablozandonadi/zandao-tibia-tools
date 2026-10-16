@@ -429,6 +429,52 @@ FIELDS = {
  'market.price.add':{'item','price','offer_type','observed_at'},'market.stats':{'item','price','offer_type','days'},'market.price.correct':{'observation_id','item','price','offer_type','reason'},'market.price.delete':{'observation_id','item','offer_type','reason'},'market.item.watch':{'item'},'market.watch.list':set(),'market.alert.create':{'item','offer_type','direction','price'},'market.alert.list':set()
 }
 
+LABELS = {
+ 'history':'Consultar histórico', 'shared.range':'Consultar shared', 'shared.check':'Verificar levels da party', 'shared.party_range':'Consultar shared da party',
+ 'timer.create':'Criar timer', 'timer.list':'Listar timers', 'timer.get':'Consultar timer', 'timer.cancel':'Cancelar timer',
+ 'timer.extend':'Adicionar tempo ao timer', 'timer.repeat':'Repetir timer', 'timer.edit':'Editar timer',
+ 'boss.catalog':'Consultar catálogo de bosses', 'boss.catalog.import':'Importar catálogo de bosses', 'boss.kill':'Registrar abate',
+ 'boss.cooldown.get':'Consultar cooldown', 'boss.cooldown.list':'Consultar cooldowns', 'boss.cooldown.set':'Definir cooldown',
+ 'bosstiary.get':'Consultar Bosstiary', 'bosstiary.set_total':'Definir progresso Bosstiary', 'bosstiary.increment':'Adicionar progresso Bosstiary',
+ 'boss.kill.undo':'Desfazer abate', 'boss.kill.correct_time':'Corrigir horário do abate', 'boss.alert':'Avisar quando o boss liberar',
+ 'stamina.logout':'Registrar logout', 'stamina.correct':'Corrigir stamina', 'stamina.login':'Registrar login', 'stamina.get':'Consultar stamina',
+ 'stamina.project':'Projetar stamina', 'stamina.time_to':'Quando a stamina chega a', 'stamina.reverse':'Calcular quando deslogar', 'stamina.alert':'Avisar quando a stamina chegar a',
+ 'market.price.add':'Registrar preço', 'market.stats':'Consultar preços', 'market.price.correct':'Corrigir preço', 'market.price.delete':'Apagar preço',
+ 'market.item.watch':'Acompanhar item', 'market.watch.list':'Listar itens acompanhados', 'market.alert.create':'Criar alerta de preço', 'market.alert.list':'Listar alertas de preço'
+}
+
+
+def describe(intent, args):
+    parts = [LABELS.get(intent, 'Comando não reconhecido')]
+    for key in ('boss_id', 'item', 'label'):
+        if args.get(key):
+            value = args[key]
+            if key == 'boss_id':
+                value = next((b['name'] for b in SEED if b['boss_id'] == value), value)
+            parts.append(str(value))
+    for key in ('stamina_minutes', 'target_stamina_minutes', 'desired_stamina_minutes', 'starting_stamina_minutes'):
+        if args.get(key) is not None:
+            minutes = args[key]
+            parts.append(f'{minutes // 60}h{minutes % 60:02d}')
+    for key in ('duration_seconds', 'delta_seconds'):
+        if args.get(key) is not None:
+            seconds = args[key]
+            parts.append(f'{seconds // 60} min' if seconds % 60 == 0 else f'{seconds} s')
+    if args.get('cooldown_minutes') is not None: parts.append(f"{args['cooldown_minutes']} min")
+    if args.get('reference_level') is not None: parts.append(f"level {args['reference_level']}")
+    if args.get('party_levels'): parts.append('levels ' + ', '.join(map(str, args['party_levels'])))
+    for key in ('total_kills', 'delta_kills'):
+        if args.get(key) is not None: parts.append(f"{args[key]} de progresso")
+    if args.get('boosted'): parts.append('boosted')
+    if args.get('price') is not None: parts.append(str(args['price']))
+    if args.get('offer_type'): parts.append({'buy':'compra', 'sell':'venda', 'traded':'negociado'}.get(args['offer_type'], args['offer_type']))
+    if args.get('direction'): parts.append({'below':'abaixo', 'above':'acima'}.get(args['direction'], args['direction']))
+    if args.get('days') is not None: parts.append(f"{args['days']} dias")
+    for key in ('killed_at', 'corrected_at', 'logged_out_at', 'logged_in_at', 'reference_at', 'target_datetime', 'desired_at', 'observed_at'):
+        if args.get(key): parts.append(instant(args[key]).astimezone(LOCAL).strftime('%d/%m às %H:%M'))
+    return ' · '.join(parts)
+
+
 def local_datetime(text, now):
     from voice.spike_assistente import normalize
     text=normalize(text);local=instant(now).astimezone(LOCAL)

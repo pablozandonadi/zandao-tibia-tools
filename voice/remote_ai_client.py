@@ -11,6 +11,7 @@ import uuid
 import wave
 
 import voz_credenciais
+from voice.vocabulario import cabecalho
 
 ENDPOINT = 'https://tibia-tudo-voz.pablo-0af.workers.dev'
 DOMAIN_SCHEMAS = json.loads(Path(__file__).with_name('domain_actions.json').read_text(encoding='utf-8'))
@@ -142,10 +143,12 @@ class RemoteAIClient:
         self._token=token
         self._opener=urllib.request.build_opener(NoRedirect())
 
-    def _post(self, route, body, request_id, content_type):
+    def _post(self, route, body, request_id, content_type, extra_headers=None):
         try:
             if str(uuid.UUID(request_id,version=4))!=request_id.lower(): raise ValueError()
             request=urllib.request.Request(ENDPOINT+route,data=body,method='POST',headers={'User-Agent':'TibiaTudo/1.0','Authorization':'Bearer '+self._token,'X-Request-ID':request_id,'Content-Type':content_type})
+            for key, value in (extra_headers or {}).items():
+                request.add_header(key, value)
             with self._opener.open(request,timeout=15) as response:
                 if response.status!=200: raise ValueError()
                 raw=response.read(8193)
@@ -156,8 +159,9 @@ class RemoteAIClient:
         except (OSError, ValueError, TypeError, AttributeError, urllib.error.URLError):
             raise RemoteAIError('Reconhecimento online indisponível. Use o comando local ou tente novamente com nova ativação.') from None
 
-    def transcribe(self, wav, request_id):
-        result=self._post('/transcribe',wav,request_id,'audio/wav')
+    def transcribe(self, wav, request_id, vocabulario=()):
+        headers={'X-Vocabulary':cabecalho(list(vocabulario))} if vocabulario else None
+        result=self._post('/transcribe',wav,request_id,'audio/wav',headers)
         if set(result)!={'request_id','text'} or not isinstance(result['text'],str) or not result['text'].strip() or len(result['text'])>500:
             raise RemoteAIError('Resposta online inválida.')
         return result['text']
