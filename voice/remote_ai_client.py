@@ -33,6 +33,28 @@ TOKEN = re.compile(r'[A-Za-z0-9_-]{43}')
 class RemoteAIError(Exception):
     pass
 
+def http_error(status, details=None):
+    if status == 429:
+        reasons = {
+            'user_daily_requests':'Limite diário de comandos online atingido.',
+            'global_daily_requests':'Limite diário do serviço de voz atingido.',
+            'user_daily_budget':'Limite diário de uso online atingido.',
+            'global_daily_budget':'Limite diário de uso do serviço de voz atingido.',
+            'user_burst':'Muitos comandos online em pouco tempo.',
+            'ip_burst':'Muitos comandos online nesta conexão em pouco tempo.'}
+        details = details if isinstance(details, dict) else {}
+        reason = details.get('limit_reason')
+        message = reasons.get(reason, 'Limite temporário ou diário do reconhecimento online atingido.') if isinstance(reason, str) else 'Limite temporário ou diário do reconhecimento online atingido.'
+        retry = details.get('retry_after_seconds')
+        if isinstance(reason, str) and reason in reasons and type(retry) is int and 1 <= retry <= 86400:
+            message += f' Tente novamente em {retry} segundos.'
+        return RemoteAIError(message + ' Comandos locais continuam disponíveis.')
+    if status == 401:return RemoteAIError('Acesso ao reconhecimento online não autorizado. Confira o acesso em Configurações.')
+    if status == 403:return RemoteAIError('Reconhecimento online bloqueado pelo servidor. Comandos locais continuam disponíveis.')
+    if 500 <= status <= 599:return RemoteAIError('Servidor de reconhecimento online indisponível. Comandos locais continuam disponíveis.')
+    return RemoteAIError('Reconhecimento online indisponível. Use um comando local.')
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -150,13 +172,24 @@ class RemoteAIClient:
             for key, value in (extra_headers or {}).items():
                 request.add_header(key, value)
             with self._opener.open(request,timeout=15) as response:
-                if response.status!=200: raise ValueError()
+                if response.status!=200: raise http_error(response.status)
                 raw=response.read(8193)
                 if len(raw)>8192: raise ValueError()
                 value=json.loads(raw.decode('utf-8'))
             if not isinstance(value,dict) or value.get('request_id')!=request_id: raise ValueError()
             return value
-        except (OSError, ValueError, TypeError, AttributeError, urllib.error.URLError):
+        except urllib.error.HTTPError as error:
+            details = None
+            if error.code == 429:
+                try:
+                    raw = error.read(8193)
+                    if len(raw) <= 8192: details = json.loads(raw.decode('utf-8'))
+                except (OSError, ValueError, UnicodeError):
+                    pass
+            raise http_error(error.code, details) from None
+        except OSError:
+            raise RemoteAIError('Falha de conexão com o reconhecimento online. Comandos locais continuam disponíveis.') from None
+        except (ValueError, TypeError, AttributeError):
             raise RemoteAIError('Reconhecimento online indisponível. Use o comando local ou tente novamente com nova ativação.') from None
 
     def transcribe(self, wav, request_id, vocabulario=()):

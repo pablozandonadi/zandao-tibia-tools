@@ -92,7 +92,7 @@ export class VoiceGate {
    sql.exec('DELETE FROM buckets WHERE key IN (SELECT key FROM buckets WHERE expires < ? LIMIT 100)',now);
    if([...sql.exec('SELECT request_id FROM requests WHERE subject=? AND request_id=? AND route=?',subject,id,route)].length)fail(409);
    const buckets=[[`u:${subject}:${day}`,cfg.USER_DAILY_LIMIT,cfg.USER_DAILY_MICRO_USD,(day+2)*86400000],[`g:${day}`,cfg.GLOBAL_DAILY_LIMIT,cfg.GLOBAL_DAILY_MICRO_USD,(day+2)*86400000]];
-   for(const [key,limit,budget,expires]of buckets){const row=[...sql.exec('SELECT count,cost FROM buckets WHERE key=?',key)][0];if((row?.count||0)+1>limit||(row?.cost||0)+cost>budget)fail(429);sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,?,?) ON CONFLICT(key) DO UPDATE SET count=count+1,cost=cost+excluded.cost',key,cost,expires);}
+   for(const [key,limit,budget,expires]of buckets){const row=[...sql.exec('SELECT count,cost FROM buckets WHERE key=?',key)][0];const scope=key.startsWith('u:')?'user':'global';const retry_after_seconds=Math.ceil(((day+1)*86400000-now)/1000);if((row?.count||0)+1>limit)fail(429,{limit_reason:scope+'_daily_requests',retry_after_seconds});if((row?.cost||0)+cost>budget)fail(429,{limit_reason:scope+'_daily_budget',retry_after_seconds});sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,?,?) ON CONFLICT(key) DO UPDATE SET count=count+1,cost=cost+excluded.cost',key,cost,expires);}
    sql.exec('INSERT INTO requests VALUES(?,?,?,?,?,?,?,?)',subject,id,route,payloadHash,'reserved',now,duration,cost);
   });
  }
@@ -113,7 +113,7 @@ export class VoiceGate {
   this.ctx.storage.transactionSync(()=>{
    sql.exec('DELETE FROM buckets WHERE key IN (SELECT key FROM buckets WHERE expires < ? LIMIT 100)',Date.now());
    for(const [key,limit] of [[`burst-u:${subject}:${minute}`,cfg.USER_BURST_LIMIT],[`burst-ip:${ip}:${minute}`,cfg.IP_BURST_LIMIT]]){
-    const row=[...sql.exec('SELECT count FROM buckets WHERE key=?',key)][0];if((row?.count||0)>=limit)fail(429);
+    const row=[...sql.exec('SELECT count FROM buckets WHERE key=?',key)][0];if((row?.count||0)>=limit)fail(429,{limit_reason:key.startsWith('burst-u:')?'user_burst':'ip_burst',retry_after_seconds:Math.max(1,Math.ceil(((minute+1)*60000-Date.now())/1000))});
     sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,0,?) ON CONFLICT(key) DO UPDATE SET count=count+1',key,(minute+2)*60000);
    }
   });

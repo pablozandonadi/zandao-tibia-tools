@@ -227,6 +227,29 @@ class IntegrationTests(StoreCase):
         self.assertEqual(service.estado()['entendi'],'Registrar abate · Drume')
         self.assertIn('Drume',service._recentes)
 
+    def test_user_spoken_phrases_execute_locally_in_temporary_profile(self):
+        import voz
+        with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):
+            service=voz.Servico(self.path,store=self.store)
+        self.addCleanup(service.close)
+        cases=[('matei drume','boss.kill',{'boss_id':'drume','killed_at':NOW.isoformat()},'Drume'),
+               ('matei oberom','boss.kill',{'boss_id':'oberom','killed_at':NOW.isoformat()},'Grand Master Oberon'),
+               ('minha stamina esta 39 horas','stamina.correct',{'stamina_minutes':2340,'reference_at':NOW.isoformat()},None)]
+        for phrase,intent,args,boss in cases:
+            with self.subTest(phrase=phrase):
+                self.assertEqual(a.parse(phrase,NOW),(intent,args))
+                reply=service.comando(phrase)
+                if boss:
+                    self.assertIn(boss,reply)
+                    self.assertEqual(self.call('bosstiary.get',{'boss_id':boss})['boss']['real_kills'],1)
+                else:
+                    self.assertIn('registrada',reply)
+                    stamina=self.call('stamina.get')['stamina']
+                    self.assertEqual(stamina['stamina_minutes'],2340)
+                    self.assertEqual(stamina['reference_at'],NOW.isoformat())
+        for boss in ('drume','oberon'):
+            self.assertEqual(self.call('bosstiary.get',{'boss_id':boss},context={'character_id':'Outro','world_id':'Secura'})['boss']['real_kills'],0)
+
     def test_captured_context_survives_profile_change(self):
         import voz
         with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):
@@ -324,8 +347,9 @@ class FinishUpdateTests(StoreCase):
         self.assertEqual(('stamina.logout',{'stamina_minutes':2460,'logged_out_at':NOW.isoformat()}),
                          a.parse('Vou fazer logout agora, minha estamina está em quarenta e uma horas.',NOW))
         self.assertEqual(2400,a.parse('deslogando, stamina 40h',NOW)[1]['stamina_minutes'])
-        for text in ['o boss a caminho','minha stamina ta 40 horas']:
-            self.assertIsNone(a.parse(text,NOW),text)
+        self.assertEqual(('stamina.correct',{'stamina_minutes':2400,'reference_at':NOW.isoformat()}),
+                         a.parse('minha stamina ta 40 horas',NOW))
+        self.assertIsNone(a.parse('o boss a caminho',NOW))
         with self.assertRaises(ValueError):a.parse('TC tá 1.500',NOW)
     def test_full_boss_catalog_with_spoken_alias(self):
         bosses=self.call('boss.catalog')['bosses']

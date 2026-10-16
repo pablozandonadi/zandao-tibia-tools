@@ -33,11 +33,19 @@ class VoiceSpikeTests(unittest.TestCase):
         speech.assert_not_called()
 
     def test_complete_wake_required(self):
-        for text in ('tibia tudo', 'tibia tudo timer de 30 segundos', 'hey tibia', 'hey tudo', 'hey', 'oi tibia tudo', 'conversa tibia tudo'):
+        for text in ('tibia tudo', 'tibia tudo timer de 30 segundos', 'hey tudo', 'hey', 'oi tibia tudo', 'conversa tibia tudo'):
             with self.subTest(text=text):
                 self.assertIsNone(command_after_wake(text))
         self.assertNotIn('tíbia tudo', recognition_grammar())
         self.assertNotIn('oi tíbia tudo', recognition_grammar())
+
+    def test_primary_two_word_wake_and_legacy_do_not_truncate_command(self):
+        for prefix in ('hey tibia','ei tíbia','hei tibia','hey tibia tudo','ei tíbia tudo'):
+            self.assertEqual(command_after_wake(prefix),'')
+            self.assertEqual(command_after_wake(prefix+' timer de vinte segundos'),'timer de vinte segundos')
+        self.assertIn('ei tíbia',recognition_grammar())
+        self.assertIn('hei tíbia',recognition_grammar())
+        self.assertIsNone(command_after_wake('conversa hey tibia'))
 
     def test_natural_half_minutes_and_seconds_limit(self):
         for text, seconds in (('coloca um timer de um minuto e meio', 90), ('me avisa daqui a meio minuto', 30), ('cronometro de 10800 segundos', 10800)):
@@ -240,7 +248,7 @@ class VoiceSpikeTests(unittest.TestCase):
                 main()
         lines = [call.args[0] for call in output.call_args_list]
         self.assertEqual(lines.count(GREETING), 1)
-        self.assertEqual(lines.count('Não entendi. Fale Hey Tibia Tudo e tente novamente.'), 1)
+        self.assertEqual(lines.count('Não entendi. Fale Hey Tibia e tente novamente.'), 1)
         self.assertEqual(lines.count('Timer de 30 segundos iniciado.'), 0)  # A fresh wake is required after failure.
         self.assertNotIn('Ouvi: conversa ambiente', lines)
         self.assertNotIn('Ouvi: cria um alarme pra trinta segundos', lines)

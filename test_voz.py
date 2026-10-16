@@ -76,7 +76,7 @@ class VozTests(unittest.TestCase):
             self.assertFalse(self.service.escutar()['direto'])
             self.service.receber_texto('timer de 1 segundo')
             self.assertEqual(len(self.service.estado()['timers']), 2)
-            self.assertEqual(self.service.estado()['detalhe'], 'Aguardando comando: Hey tibia tudo')
+            self.assertEqual(self.service.estado()['detalhe'], 'Aguardando comando: Hey Tibia')
             self.service.escutar()
             self.service.parar()
             self.assertFalse(self.service.estado()['direto'])
@@ -385,6 +385,49 @@ class VozTests(unittest.TestCase):
         with wave.open(io.BytesIO(client.transcribe.call_args.args[0]),'rb') as audio:
             self.assertEqual(audio.readframes(16000),command)
         self.assertEqual(self.service._timers,[(130,'30 segundos')])
+
+    def test_primary_wake_alone_in_direct_mode_is_local_only(self):
+        client=self._online()
+        self.service._direct_mode=True
+        with patch('voz.time.monotonic',return_value=100):
+            self.service.receber_audio('hey tibia',struct.pack('<h',1000)*16000,16000)
+            self.assertEqual(self.service._armed_until,108)
+        self.ding.assert_called_once()
+        client.transcribe.assert_not_called()
+        client.interpret.assert_not_called()
+        self.assertTrue(self.service.estado()['direto'])
+        self.assertEqual(self.service._timers,[])
+
+    def test_primary_wake_audio_cuts_exact_two_words(self):
+        client=self._online('timer de vinte segundos')
+        prefix=struct.pack('<h',200)*8000
+        command=struct.pack('<h',1000)*16000
+        words=[{'word':'ei','start':0.,'end':.2},{'word':'tibia','start':.2,'end':.5},{'word':'unk','start':.5,'end':1.5}]
+        self.service.receber_audio('ei tibia unk',prefix+command,16000,words)
+        import wave
+        with wave.open(io.BytesIO(client.transcribe.call_args.args[0]),'rb') as audio:
+            self.assertEqual(audio.readframes(16000),command)
+        self.assertEqual(self.service.estado()['timers'][0]['duracao'],20)
+        self.ding.assert_called_once()
+
+    def test_online_limit_preserved_when_local_unknown_and_ouvi_is_current(self):
+        from voice.remote_ai_client import RemoteAIError
+        for direct in (False,True):
+            with self.subTest(direct=direct):
+                client=self._online()
+                self.service._direct_mode=direct
+                self.service._ouvi='hey tibia tudo'
+                self.service._armed_until=99999999999
+                def unavailable(*args):
+                    self.assertEqual(self.service.estado()['ouvi'],'unk')
+                    raise RemoteAIError('Limite temporário ou diário do reconhecimento online atingido.')
+                client.transcribe.side_effect=unavailable
+                self.service.receber_audio('unk',struct.pack('<h',1000)*16000,16000)
+                self.assertEqual(self.service.estado()['ouvi'],'unk')
+                self.assertIn('Limite temporário ou diário',self.service.estado()['resposta'])
+                self.assertNotIn('Não entendi',self.service.estado()['resposta'])
+                client.transcribe.assert_called_once()
+                client.interpret.assert_not_called()
 
     def test_pause_during_online_request_discards_remote_action(self):
         client=self._online()

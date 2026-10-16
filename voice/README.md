@@ -21,7 +21,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\voice\iniciar_teste.ps1 -T
 
 Se Python não estiver no PATH, acrescente `-Python 'caminho\python.exe'`. Ambiente e modelos ficam em `%TEMP%\tibia-tudo-voice-spike`; a limpeza do TEMP pode exigir baixar novamente. A preparação usa internet para pip e modelos; depois, reconhecimento e respostas são locais. `-SelfTest` e `-NoSpeech` não preparam nem carregam Piper; `-PrepareOnly` prepara a voz selecionada.
 
-Comece com **“Ei Tíbia Tudo, colocar um alarme de trinta segundos”** ou **“Ei Tíbia Tudo, qual é meu nível compartilhado?”**. São obrigatórias as três palavras da ativação, na ordem; “Ei”, “oi” ou “Tíbia Tudo” isolados não ativam. A ativação completa pode vir sozinha: o terminal exibe **“Pode falar.”**, sem reproduzir saudação, e aceita o comando por oito segundos. Também aceita ativação e comando juntos. Após uma ação ou resposta desconhecida, exige nova ativação. As respostas não acrescentam vocativo obrigatório.
+Comece com **“Ei Tíbia, colocar um alarme de trinta segundos”** ou **“Ei Tíbia, qual é meu nível compartilhado?”**. São obrigatórias as duas palavras da ativação, na ordem; a forma antiga “Ei Tíbia Tudo” continua aceita; “Ei”, “oi” ou “Tíbia Tudo” isolados não ativam. A ativação completa pode vir sozinha: o terminal exibe **“Pode falar.”**, sem reproduzir saudação, e aceita o comando por oito segundos. Também aceita ativação e comando juntos. Após uma ação ou resposta desconhecida, exige nova ativação. As respostas não acrescentam vocativo obrigatório.
 
 Os verbos ligar/liga/ligue, gerar/gera/gere, colocar/coloca/coloque, criar/cria/crie, iniciar/inicia/inicie e ativar/ativa/ative são aceitos, com temporizador, cronômetro ou alarme; todos criam a mesma contagem regressiva, sem integração com o relógio do Windows. Use de **1 segundo a 180 minutos**, por extenso (incluindo cem e cento e oitenta) ou dígitos no modo texto. Fora dessa faixa, o pedido é rejeitado. Pode usar “de”, “por”, “pra”, “para” ou omitir a ligação: “cria um alarme pra trinta segundos”, “coloca um cronômetro de dois minutos” e “alarme trinta segundos”. Também aceita “novo timer de quarenta segundos” e “timer de dois minutos”. “Um” e “por favor” no início/fim são opcionais; “um alarme para daqui a trinta segundos” também funciona.
 
@@ -44,7 +44,7 @@ A pasta padrão é `%LOCALAPPDATA%\TibiaTudo\stable`. Use `-Channel beta`, `-Cha
 Para testar texto sem microfone nem fala:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\voice\iniciar_teste.ps1 -Text 'Ei Tíbia Tudo colocar um alarme de 30 segundos' -NoSpeech
+powershell -NoProfile -ExecutionPolicy Bypass -File .\voice\iniciar_teste.ps1 -Text 'Ei Tíbia colocar um alarme de 30 segundos' -NoSpeech
 ```
 
 O Piper carrega uma vez e gera “Pode falar.” antes de abrir o microfone, sem reproduzir o aquecimento. A primeira preparação pode demorar mais; as próximas respostas reutilizam o modelo. O terminal separa tempo de geração e duração do áudio; a reprodução síncrona espera o áudio terminar. Frases repetidas usam cache em memória, limitado a 32 frases. `-BenchmarkTts` mede três frases e repete uma para medir cache, sem consultar dados pessoais, abrir microfone ou reproduzir áudio. No Python direto há `--tts piper/windows`, `--piper-model caminho` e `--benchmark-tts`.

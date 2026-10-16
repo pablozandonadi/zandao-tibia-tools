@@ -65,7 +65,7 @@ class Servico:
             self._estado, self._detalhe = estado, detalhe
 
     def _wait_status(self):
-        self._status('espera', 'Aguardando comando, sem ativação.' if self._direct_mode else 'Aguardando comando: Hey tibia tudo')
+        self._status('espera', 'Aguardando comando, sem ativação.' if self._direct_mode else 'Aguardando comando: Hey Tibia')
 
     def _sync_ids(self):
         self._ids = {id(timer): self._ids.get(id(timer), uuid.uuid4().hex) for timer in self._timers}
@@ -351,7 +351,8 @@ class Servico:
             if command is not None:
                 # Only aligned Vosk words authorize cutting a wake from the same segment.
                 try:
-                    if not isinstance(words, list) or len(words) < 4 or [normalize(w['word']) for w in words] != normalize(text).split():
+                    wake_words = len(normalize(text).split()) - len(command.split())
+                    if not isinstance(words, list) or len(words) <= wake_words or [normalize(w['word']) for w in words] != normalize(text).split():
                         raise ValueError()
                     previous = 0.0
                     for word in words:
@@ -359,7 +360,7 @@ class Servico:
                         if type(start) not in (int, float) or type(end) not in (int, float) or not math.isfinite(start) or not math.isfinite(end) or not previous <= start < end <= len(pcm) / (samplerate * 2):
                             raise ValueError()
                         previous = end
-                    pcm = pcm[math.ceil(words[2]['end'] * samplerate) * 2:]
+                    pcm = pcm[math.ceil(words[wake_words - 1]['end'] * samplerate) * 2:]
                 except (KeyError, TypeError, ValueError, ZeroDivisionError):
                     self.receber_texto(text)
                     return
@@ -385,6 +386,8 @@ class Servico:
             self._armed_until = 0
             self._command_state.clear()
             terms = self._vocabulario(self._command_context or {})
+            self._ouvi = text or 'Comando capturado; aguardando transcrição.'
+            self._entendi = ''
             self._status('transcrevendo', 'Reconhecendo o comando online…')
         request_id = str(uuid.uuid4())
         transcript = None
@@ -409,14 +412,14 @@ class Servico:
                 self._clarification_done = done if self._command_state.get('cancel') else None
                 self._armed_until = time.monotonic() + 8 if self._command_state.get('cancel') else 0
                 self._wait_status()
-        except (RemoteAIError, OSError, ValueError, TypeError):
+        except (RemoteAIError, OSError, ValueError, TypeError) as error:
             with self._lock:
                 if self._remote_current(generation):
                     # Never retry a possibly billed request; retain deterministic local fallback.
                     local = transcript or (command if command is not None else text)
                     reply = self.comando(local, self._command_state) if local else UNKNOWN_REPLY
-                    if reply == UNKNOWN_REPLY:
-                        reply = 'Reconhecimento online indisponível. Tente um comando local.' if self._direct_mode else 'Reconhecimento online indisponível. Fale Hey Tibia Tudo e tente um comando local.'
+                    if reply in (UNKNOWN_REPLY, 'Não entendi. Tente: timer de dois minutos.'):
+                        reply = str(error) if isinstance(error, RemoteAIError) else 'Reconhecimento online indisponível. Tente um comando local.'
                     self._reply(reply)
                     self._armed_until = 0
                     self._command_state.clear()
@@ -617,7 +620,7 @@ class Servico:
                                 self._armed_until = 0
                                 self._command_state.clear()
                                 self._pending_prefix = ''
-                            self._status('espera', 'Áudio interrompido. Repita Hey Tibia Tudo e o comando.')
+                            self._status('espera', 'Áudio interrompido. Repita Hey Tibia e o comando.')
                         continue
                     segment = capture.feed(audio)
                     if capture.exceeded:
@@ -626,7 +629,7 @@ class Servico:
                             self._armed_until = 0
                             self._pending_prefix = ''
                             self._command_state.clear()
-                        self._status('espera', 'Comando muito longo. Repita Hey Tibia Tudo e um comando curto.')
+                        self._status('espera', 'Comando muito longo. Repita Hey Tibia e um comando curto.')
                     if segment is None:
                         continue
                     self._status('processando', 'Reconhecendo comando local…')

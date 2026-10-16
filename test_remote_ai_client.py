@@ -36,6 +36,28 @@ class RemoteClientTests(unittest.TestCase):
             if terms:self.assertEqual(json.loads(base64.urlsafe_b64decode(header+'==')),terms)
             else:self.assertIsNone(header)
 
+    def test_http_statuses_and_limit_details_are_sanitized_without_retry(self):
+        from voice.remote_ai_client import RemoteAIClient, RemoteAIError
+        from urllib.error import HTTPError, URLError
+        cases=[(429,{},'Limite temporário ou diário'),(401,{},'não autorizado'),(403,{},'bloqueado'),(502,{},'Servidor'),
+               (429,{'limit_reason':'user_daily_requests','retry_after_seconds':60},'Limite diário de comandos'),
+               (429,{'limit_reason':'global_daily_budget','retry_after_seconds':70},'Limite diário de uso do serviço'),
+               (429,{'limit_reason':['secret'],'retry_after_seconds':True},'Limite temporário ou diário'),
+               (429,{'limit_reason':'secret','retry_after_seconds':86401},'Limite temporário ou diário')]
+        for status,body,message in cases:
+            with self.subTest(status=status,body=body):
+                client=RemoteAIClient('a'*43);client._opener=Mock()
+                client._opener.open.side_effect=HTTPError('https://fixed',status,'private-secret',{},io.BytesIO(json.dumps({**body,'raw':'private-secret'}).encode()))
+                with self.assertRaisesRegex(RemoteAIError,message) as error:
+                    client.transcribe(b'fake','b92e3ae7-3591-4cd9-9188-1e5422fa1121')
+                self.assertNotIn('private-secret',str(error.exception))
+                client._opener.open.assert_called_once()
+        client._opener.open.reset_mock()
+        client._opener.open.side_effect=URLError('private-secret')
+        with self.assertRaisesRegex(RemoteAIError,'conexão'):
+            client.transcribe(b'fake','b92e3ae7-3591-4cd9-9188-1e5422fa1121')
+        client._opener.open.assert_called_once()
+
     def test_invalid_intents_are_rejected(self):
         from voice.remote_ai_client import valid_intent
         good={'action':'create_timer','parameters':{'seconds':30},'needs_clarification':False,'clarification':None}
@@ -62,7 +84,7 @@ class RemoteClientTests(unittest.TestCase):
         self.assertIsNone(NoRedirect().redirect_request(None,None,302,'redirect',{},'https://evil.example'))
         client=RemoteAIClient('a'*43);client._opener=Mock()
         client._opener.open.side_effect=HTTPError('https://fixed',401,'secret',{},io.BytesIO(b'secret'))
-        with self.assertRaisesRegex(RemoteAIError,'indisponível') as error:
+        with self.assertRaisesRegex(RemoteAIError,'não autorizado') as error:
             client.transcribe(b'fake','b92e3ae7-3591-4cd9-9188-1e5422fa1121')
         self.assertNotIn('secret',str(error.exception))
         client._opener.open.side_effect=None

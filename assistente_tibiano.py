@@ -163,6 +163,7 @@ class Store:
             if len(found)==1:return next(iter(found.values()))
             raise ValueError(f'Qual boss? {", ".join(sorted(b["name"] for b in found.values())[:5])}.')
         if key in keys:return one(keys[key])
+        if key=='oberom':key='oberon'
         contained={i:b for k,bs in keys.items() if re.search(rf'\b{re.escape(key)}\b',k) for i,b in bs.items()}
         if contained:return one(contained)
         close=difflib.get_close_matches(key,keys,n=5,cutoff=.6)
@@ -561,7 +562,7 @@ def parse(text, now=None):
     if re.fullmatch(r'(?:estou |to |acabei de |vou )?(?:logando|loguei|logar|entrei no jogo|entrando no jogo|registrar login)(?: agora)?',t):return 'stamina.login',{'logged_in_at':iso(now)}
     m=match(r'(?:estou deslogando agora[, ]*minha stamina esta em |desloguei (.+?) com )(.+)')
     if m:return 'stamina.logout',{'stamina_minutes':duration(m[2])//60,'logged_out_at':local_datetime(m[1] or 'agora',now)}
-    m=match(r'corrige minha stamina para (.+)')
+    m=match(r'(?:corrige minha stamina para|minha e?stamina (?:esta|ta)(?: em)?) (.+)')
     if m:return 'stamina.correct',{'stamina_minutes':duration(m[1])//60,'reference_at':iso(now)}
     m=match(r'(?:que horas minha stamina chega em|quando recupero) (\d+)(?: horas?)?')
     if m:return 'stamina.time_to',{'target_stamina_minutes':int(m[1])*60}

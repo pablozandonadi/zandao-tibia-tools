@@ -36,7 +36,7 @@ def tibiano(text):
     return text
 
 
-UNKNOWN_REPLY = 'Não entendi. Fale Hey Tibia Tudo e tente novamente.'
+UNKNOWN_REPLY = 'Não entendi. Fale Hey Tibia e tente novamente.'
 GREETING = 'Pode falar.'
 
 
@@ -46,7 +46,7 @@ def normalize(text):
 
 
 def command_after_wake(text):
-    match = re.fullmatch(r'(?:hey|ei|hei)\s+tibia\s+tudo(?:\s+(.*))?', normalize(text))
+    match = re.fullmatch(r'(?:hey|ei|hei)\s+tibia(?:\s+tudo)?(?:\s+(.*))?', normalize(text))
     return None if match is None else (match.group(1) or '')
 
 
@@ -94,7 +94,7 @@ def duration_seconds(duration):
 
 
 def recognition_grammar():
-    wakes = ['ei tíbia tudo', 'hei tíbia tudo']
+    wakes = ['ei tíbia', 'hei tíbia', 'ei tíbia tudo', 'hei tíbia tudo']
     durations = set(NUMBERS)
     for tens, value in NUMBERS.items():
         if value >= 20 and value % 10 == 0:
@@ -353,7 +353,7 @@ def main():
     timers = []
     if args.text is not None:
         command = command_after_wake(args.text)
-        reply = tibiano('Inclua Ei Tíbia Tudo antes do comando.') if command is None else (GREETING if not command else dispatch(command, data_dir, timers, time.monotonic()))
+        reply = tibiano('Inclua Ei Tíbia antes do comando.') if command is None else (GREETING if not command else dispatch(command, data_dir, timers, time.monotonic()))
         print(reply)
         if not args.no_speech:
             prepare_speech(args)(reply)
@@ -395,7 +395,7 @@ def main():
             recognizer.Reset()
             listening = True
 
-    print('Teste de voz ativo. Diga Ei Tíbia Tudo. Ctrl+C encerra e apaga os timers.')
+    print('Teste de voz ativo. Diga Ei Tíbia. Ctrl+C encerra e apaga os timers.')
     print('O áudio é processado localmente; este teste não grava áudio nem altera o app.')
     armed_until = 0
     pending_prefix = ''

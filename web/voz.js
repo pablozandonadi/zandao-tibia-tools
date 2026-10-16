@@ -24,7 +24,7 @@
     el('voz-esfera').setAttribute('aria-label', data.direto ? 'Desligar comandos diretos' : 'Ligar comandos diretos');
     el('voz-esfera').setAttribute('aria-pressed', String(Boolean(data.direto)));
     el('voz-esfera').disabled = busy || !data.microfone || data.estado === 'preparando';
-    el('voz-ouvi').textContent = data.ouvi || 'Aguardando “Hey Tibia Tudo”.';
+    el('voz-ouvi').textContent = data.ouvi || 'Aguardando “Hey Tibia”.';
     el('voz-entendi').textContent = data.entendi || '—';
     el('voz-resposta').textContent = data.resposta || 'As respostas aparecerão aqui.';
     el('voz-microfone').textContent = data.microfone ? 'Pausar microfone' : (data.estado === 'erro' ? 'Tentar novamente' : 'Retomar microfone');

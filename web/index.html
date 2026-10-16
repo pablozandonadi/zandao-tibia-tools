@@ -1003,13 +1003,13 @@
       <p id="assistente-feedback" role="status" aria-live="polite"></p>
       <div data-assistente-panel="overview"><p id="assistente-overview" class="dica"></p>
       <div class="card calmo">
-        <div class="voz-intro"><p id="voz-status" role="status">Aguardando comando: Hey tibia tudo</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
+        <div class="voz-intro"><p id="voz-status" role="status">Aguardando comando: Hey Tibia</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
         <div class="voz-assistente">
           <button id="voz-esfera" class="voz-esfera" type="button" data-estado="preparando" aria-label="Ligar comandos diretos" aria-pressed="false" aria-describedby="voz-status"><span aria-hidden="true"></span></button>
         </div>
         <div class="voz-ajuda" id="voz-ajuda-area">
           <button id="voz-ajuda" class="btn btn-sm" type="button" aria-label="Como usar a voz" aria-describedby="voz-ajuda-texto" aria-expanded="false">ⓘ</button>
-          <div id="voz-ajuda-texto" class="card calmo" role="tooltip" hidden>Fale Hey Tibia Tudo, espere o sinal e diga o comando, ou diga tudo junto. Exemplo: Hey Tibia Tudo, timer de 5 minutos. Clique na esfera para ligar comandos diretos contínuos, sem repetir a ativação; clique novamente para voltar à ativação por voz. Pausar microfone desliga também o modo direto. Timers manuais e de voz aparecem juntos; vencimentos são preservados ao reabrir. Com reconhecimento online habilitado em Configurações, o áudio dos comandos após ativação ou enquanto o modo direto estiver ligado é enviado para reconhecimento. O aplicativo não grava áudio. Modelos locais são baixados no primeiro uso; prefira headset para evitar eco.</div>
+          <div id="voz-ajuda-texto" class="card calmo" role="tooltip" hidden>Fale Hey Tibia, espere o sinal e diga o comando, ou diga tudo junto. Exemplo: Hey Tibia, timer de 5 minutos. Clique na esfera para ligar comandos diretos contínuos, sem repetir a ativação; clique novamente para voltar à ativação por voz. Pausar microfone desliga também o modo direto. Timers manuais e de voz aparecem juntos; vencimentos são preservados ao reabrir. Com reconhecimento online habilitado em Configurações, o áudio dos comandos após ativação ou enquanto o modo direto estiver ligado é enviado para reconhecimento. O aplicativo não grava áudio. Modelos locais são baixados no primeiro uso; prefira headset para evitar eco.</div>
         </div>
         <form id="voz-form" class="voz-form">
           <label for="voz-valor">Duração<input id="voz-valor" type="number" value="30" min="1" max="180" step="1" required></label>
@@ -1023,7 +1023,7 @@
       <div id="voz-lista"></div>
       <details class="card calmo voz-diagnostico" open>
         <summary>Último comando</summary>
-        <p><b>Ouvi:</b> <span id="voz-ouvi">Aguardando “Hey Tibia Tudo”.</span></p>
+        <p><b>Ouvi:</b> <span id="voz-ouvi">Aguardando “Hey Tibia”.</span></p>
         <p><b>Entendi:</b> <span id="voz-entendi">—</span></p>
         <p><b>Resposta:</b> <span id="voz-resposta">As respostas aparecerão aqui.</span></p>
       </details>
@@ -1084,7 +1084,7 @@
       </section>
       <section data-assistente-panel="instrucoes" id="assistente-instrucoes" class="instrucoes" hidden>
         <h2 class="sub">Instruções: o que falar</h2>
-        <p class="dica">Fale <b>Hey Tibia Tudo</b>, espere o sinal e diga a frase — ou tudo junto: “Hey Tibia Tudo, timer de 5 minutos”. Com a esfera ligada, fale direto, sem o Hey Tibia Tudo. Começar com “não” cancela: nada é executado. Nomes (boss, item, timer) e números podem mudar. Não precisa ser exato: vírgulas, “eu” ou “ok” no começo, “por favor” no fim e sinônimos (“acabei de matar”, “fiz o”, “bota um timer”, “acabei de logar”) também funcionam.</p>
+        <p class="dica">Fale <b>Hey Tibia</b>, espere o sinal e diga a frase — ou tudo junto: “Hey Tibia, timer de 5 minutos”. Com a esfera ligada, fale direto, sem o Hey Tibia. Começar com “não” cancela: nada é executado. Nomes (boss, item, timer) e números podem mudar. Não precisa ser exato: vírgulas, “eu” ou “ok” no começo, “por favor” no fim e sinônimos (“acabei de matar”, “fiz o”, “bota um timer”, “acabei de logar”) também funcionam.</p>
         <div class="instrucoes-grid">
           <div class="card calmo"><h3>⏱️ Timers</h3><ul>
             <li><q>timer de 5 minutos</q></li><li><q>alarme de 2 horas</q></li><li><q>inicia um timer chamado boost de 45 minutos</q></li><li><q>me avisa daqui a 10 minutos</q></li>

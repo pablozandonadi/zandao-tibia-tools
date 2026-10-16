@@ -81,3 +81,28 @@ test('prompt reservation retains margin and valid token usage settles once',asyn
  assert.equal((await s.req(wav(),id,'/transcribe',true,{'X-Vocabulary':vocabularyHeader(['Drume'])})).status,409);
  assert.equal(s.db.prepare("SELECT cost FROM buckets WHERE key LIKE 'g:%'").get().cost,30000);
 });
+
+test('429 diagnoses request budget and burst limits without leaking identities or changing reservations',async()=>{
+ const cases=[
+  [{VOICE_USER_DAILY_LIMIT:'1'},'user_daily_requests',86400],
+  [{VOICE_GLOBAL_DAILY_LIMIT:'1'},'global_daily_requests',86400],
+  [{VOICE_USER_DAILY_MICRO_USD:'50000'},'user_daily_budget',86400],
+  [{VOICE_GLOBAL_DAILY_MICRO_USD:'50000'},'global_daily_budget',86400],
+  [{VOICE_USER_BURST_LIMIT:'1'},'user_burst',60],
+  [{VOICE_IP_BURST_LIMIT:'1'},'ip_burst',60]
+ ];
+ for(const [config,reason,maxRetry] of cases){
+  const s=await setup(config);
+  assert.equal((await s.req()).status,200);
+  const before=s.db.prepare("SELECT count,cost FROM buckets WHERE key LIKE 'g:%'").get();
+  const response=await s.req();
+  assert.equal(response.status,429);
+  const body=await response.json();
+  assert.deepEqual(Object.keys(body).sort(),['error','limit_reason','retry_after_seconds']);
+  assert.equal(body.error,'voice_request_failed');
+  assert.equal(body.limit_reason,reason);
+  assert.ok(Number.isInteger(body.retry_after_seconds)&&body.retry_after_seconds>=1&&body.retry_after_seconds<=maxRetry);
+  assert.equal(s.calls,1);
+  assert.deepEqual(s.db.prepare("SELECT count,cost FROM buckets WHERE key LIKE 'g:%'").get(),before);
+ }
+});
