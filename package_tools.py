@@ -19,6 +19,7 @@ def validate_resources(source):
     allowed=set(json.loads((source/'packaging-resources.json').read_text(encoding='utf-8'))['files'])
     actual={p.relative_to(source).as_posix() for directory in ['web','sons_padrao'] for p in (source/directory).rglob('*') if p.is_file()}
     actual.add('icon.ico')
+    if (source/'voice/domain_actions.json').is_file():actual.add('voice/domain_actions.json')
     if actual!=allowed:
         raise ValueError('Recursos fora da allowlist: '+', '.join(sorted(actual^allowed)[:10]))
 
@@ -30,7 +31,7 @@ def validate_layout(app,source):
         if path.is_symlink():raise ValueError('Link não permitido no pacote')
         if not path.is_file():continue
         name=path.relative_to(app).as_posix()
-        if path.name in PRIVATE_FILES or path.name.startswith('mirrors.json.') or any(part.startswith(('cache_','sons_usuario')) for part in path.relative_to(app).parts):
+        if path.name in PRIVATE_FILES or path.name.startswith(('mirrors.json.','assistente-tibiano.json')) or any(part.startswith(('cache_','sons_usuario')) for part in path.relative_to(app).parts):
             raise ValueError('Dados privados/cache no pacote: '+name)
         if '/' not in name and name not in {'ZandaoTibiaTools.exe','sbom.json','package-manifest.json'}:
             raise ValueError('Arquivo não autorizado na raiz: '+name)

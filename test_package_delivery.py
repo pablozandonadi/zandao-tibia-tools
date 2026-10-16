@@ -51,3 +51,17 @@ class DeliveryTests(unittest.TestCase):
                 target.write_bytes(b'fake-private-payload')
                 with self.assertRaisesRegex(ValueError,'Dados privados'):
                     p.validate_layout(app,source)
+
+class AssistantDeliveryTests(unittest.TestCase):
+    source = DeliveryTests.source
+    app = DeliveryTests.app
+    def test_contract_json_is_an_explicit_resource(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source=self.source(directory);(source/'voice').mkdir();(source/'voice/domain_actions.json').write_text('{}')
+            manifest=source/'packaging-resources.json';data=json.loads(manifest.read_text());data['files'].append('voice/domain_actions.json');manifest.write_text(json.dumps(data))
+            p.validate_resources(source)
+    def test_all_assistant_private_variants_are_rejected_at_any_depth(self):
+        for name in ('assistente-tibiano.json','assistente-tibiano.json.tmp','assistente-tibiano.json.bak','assistente-tibiano.json.antes-do-backup'):
+            with self.subTest(name=name),tempfile.TemporaryDirectory() as directory:
+                source=self.source(directory);app=self.app(directory);target=app/'_internal'/'nested'/name;target.parent.mkdir(parents=True);target.write_text('{}')
+                with self.assertRaisesRegex(ValueError,'Dados privados'):p.validate_layout(app,source)

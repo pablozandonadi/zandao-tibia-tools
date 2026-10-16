@@ -13,6 +13,20 @@ import wave
 import voz_credenciais
 
 ENDPOINT = 'https://tibia-tudo-voz.pablo-0af.workers.dev'
+DOMAIN_SCHEMAS = json.loads(Path(__file__).with_name('domain_actions.json').read_text(encoding='utf-8'))
+
+def _schema_valid(value, schema):
+    kinds=schema['type'] if isinstance(schema['type'],list) else [schema['type']]
+    kind='null' if value is None else 'boolean' if type(value) is bool else 'integer' if type(value) is int else 'string' if isinstance(value,str) else 'array' if isinstance(value,list) else 'object' if isinstance(value,dict) else 'invalid'
+    if kind not in kinds:return False
+    if kind=='null':return True
+    if 'enum' in schema and value not in schema['enum']:return False
+    if kind=='object':return set(value)==set(schema['properties']) and all(_schema_valid(v,schema['properties'][k]) for k,v in value.items())
+    if kind=='integer':return schema.get('minimum',value)<=value<=schema.get('maximum',value)
+    if kind=='string':return schema.get('minLength',0)<=len(value)<=schema.get('maxLength',len(value)) and ('pattern' not in schema or re.fullmatch(schema['pattern'],value) is not None)
+    if kind=='array':return schema.get('minItems',0)<=len(value)<=schema.get('maxItems',len(value)) and all(_schema_valid(v,schema['items']) for v in value)
+    return True
+
 TOKEN = re.compile(r'[A-Za-z0-9_-]{43}')
 
 class RemoteAIError(Exception):
@@ -27,7 +41,7 @@ def valid_intent(value):
     if not isinstance(value, dict) or set(value) != {'action','parameters','needs_clarification','clarification'}:
         return False
     action, parameters = value['action'], value['parameters']
-    fields = {'create_timer': {'seconds'}, 'cancel_last_timer': set(), 'cancel_timer': {'timer_id'}, 'query_timer': {'timer_id'}, 'shared': {'level'}, 'unknown': set()}
+    fields = {**{k:set(v['properties']) for k,v in DOMAIN_SCHEMAS.items()}, 'create_timer': {'seconds'}, 'cancel_last_timer': set(), 'cancel_timer': {'timer_id'}, 'query_timer': {'timer_id'}, 'shared': {'level'}, 'unknown': set()}
     if not isinstance(action,str) or action not in fields or not isinstance(parameters,dict) or set(parameters) != fields[action]:
         return False
     clarification=value['clarification']
@@ -35,6 +49,7 @@ def valid_intent(value):
         return False
     if clarification is not None and (not isinstance(clarification,str) or not clarification.strip() or len(clarification)>300):
         return False
+    if action in DOMAIN_SCHEMAS:return _schema_valid(parameters,DOMAIN_SCHEMAS[action])
     if action=='create_timer':
         return type(parameters['seconds']) is int and 1<=parameters['seconds']<=10800
     if action=='shared':
@@ -42,6 +57,19 @@ def valid_intent(value):
     if action in ('cancel_timer','query_timer'):
         return isinstance(parameters['timer_id'],str) and re.fullmatch(r'[a-zA-Z0-9_-]{1,80}',parameters['timer_id']) is not None
     return True
+
+
+
+def safe_temporal_intent(intent, text):
+    import unicodedata
+    if intent['needs_clarification']:return intent
+    schema=DOMAIN_SCHEMAS.get(intent['action'],{})
+    date_fields=[key for key in schema.get('properties',{}) if key.endswith('_at') or key=='target_datetime']
+    normalized=''.join(c for c in unicodedata.normalize('NFD',text.lower()) if not unicodedata.combining(c))
+    explicit=re.search(r'\b(?:ontem|amanha|hoje|ha|as|faz|atras|antes|depois|daqui)\b|\bmais\s+cedo\b|\b\d{1,2}:\d{2}\b|\d{4}-\d{2}-\d{2}t',normalized)
+    if date_fields and (explicit or intent['action'] in ('boss.kill.correct_time','stamina.project','stamina.reverse')):
+        return {'action':'unknown','parameters':{},'needs_clarification':True,'clarification':'Confirme a data pelo formulário. Datas do fallback online não são presumidas; use o comando local com horário explícito.'}
+    return intent
 
 
 def load_settings(folder):
@@ -138,4 +166,4 @@ class RemoteAIClient:
         if not isinstance(text,str) or not text.strip() or len(text)>500: raise RemoteAIError('Texto de comando inválido.')
         result=self._post('/interpret',json.dumps({'request_id':request_id,'text':text},ensure_ascii=False).encode('utf-8'),request_id,'application/json')
         if set(result)!={'request_id','intent'} or not valid_intent(result['intent']): raise RemoteAIError('Resposta online inválida.')
-        return result['intent']
+        return safe_temporal_intent(result['intent'],text)

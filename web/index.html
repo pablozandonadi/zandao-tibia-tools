@@ -682,6 +682,7 @@
 <link rel="stylesheet" href="network.css">
 <link rel="stylesheet" href="brand.css">
 <script defer src="brand.js"></script>
+<link rel="stylesheet" href="assistente.css">
 </head>
 <body>
 <div id="gadget-topo" title="Arraste para mover a janela · duplo clique volta ao tamanho normal"><span class="gt-grip">• • •</span><button id="gadget-fechar" title="Fechar o app">✕</button></div>
@@ -704,7 +705,7 @@
     <div class="nav-item" tabindex="0" data-pagina="radio" title="Brasil Hits"><span class="nav-icon" aria-hidden="true">📻</span><span class="txt"> Rádio</span></div>
     <div class="nav-item" tabindex="0" data-pagina="mirror" title="Mirror — recortes do Tibia"><span class="nav-icon" aria-hidden="true">▣</span><span class="txt"> Mirror</span></div>
     <div class="nav-item" tabindex="0" data-pagina="audio" title="Timers de áudio"><span class="nav-icon" aria-hidden="true">🔔</span><span class="txt"> Timers</span></div>
-    <div class="nav-item" tabindex="0" data-pagina="voz" title="Assistente de voz"><span class="nav-icon" aria-hidden="true">🎙️</span><span class="txt"> Voz</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="voz" title="Assistente Tibiano"><span class="nav-icon" aria-hidden="true">🎙️</span><span class="txt"> Assistente Tibiano</span></div>
     <div class="nav-item" tabindex="0" data-pagina="prints" title="Prints"><span class="nav-icon" aria-hidden="true">📸</span><span class="txt"> Prints</span></div>
     <div class="nav-item" id="gs-menu" tabindex="0" data-pagina="guildstats" title="Guild Stats"><span class="nav-icon" aria-hidden="true">📈</span><span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
     <div class="nav-item" tabindex="0" data-pagina="rede" title="Networking — conexões e estabilidade"><span class="nav-icon" aria-hidden="true">📶</span><span class="txt"> Networking</span></div>
@@ -915,7 +916,7 @@
       <h1 class="titulo">Ferramentas</h1>
       <div class="grid-ferr">
         <div class="card calmo">
-          <h2 class="sub">🤝 Shared XP</h2>
+          <h2 class="sub">🤝 Shared XP</h2><p class="dica"><button class="btn btn-sm" type="button" onclick="irPara('voz');assistenteSelect('shared')">Abrir no Assistente Tibiano</button></p>
           <label class="campo-label" for="f-levels">Levels da party (separados por vírgula)</label>
           <input type="text" id="f-levels" placeholder="ex.: 483, 350, 420, 512">
           <div id="f-shared-res" class="resultado-ferr">Digite um level para ver a faixa, ou os levels da party para saber se o shared funciona.</div>
@@ -987,7 +988,18 @@
     </section>
 
     <section class="page" id="page-voz">
-      <h1 class="titulo">Voz</h1>
+      <h1 class="titulo">Assistente Tibiano</h1>
+      <p id="assistente-context" role="status">Carregando personagem e mundo…</p>
+      <nav class="assistente-nav" aria-label="Módulos do Assistente Tibiano">
+        <button type="button" class="btn btn-sm" data-assistente-tab="overview">Visão Geral e Voz</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="timers">Timers Gerais</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="shared">Shared XP</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="bosses">Boss Tracker + Bosstiary</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="stamina">Calculadora de Stamina</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="market">Market Tracker</button>
+      </nav>
+      <p id="assistente-feedback" role="status" aria-live="polite"></p>
+      <div data-assistente-panel="overview"><p id="assistente-overview" class="dica"></p>
       <div class="card calmo">
         <div class="voz-intro"><p id="voz-status" role="status">Preparando o assistente local…</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
         <div class="voz-assistente">
@@ -1001,7 +1013,7 @@
           <label for="voz-unidade">Unidade<select id="voz-unidade"><option value="segundo">Segundos</option><option value="minuto">Minutos</option></select></label>
           <button class="btn btn-primary" id="voz-criar" type="submit">+ Criar timer</button>
         </form>
-        <p class="dica">De 1 a 180 segundos ou minutos. Timers de voz e manuais aparecem juntos abaixo e duram enquanto o aplicativo estiver aberto.</p>
+        <p class="dica">De 1 a 180 segundos ou minutos. Timers de voz e manuais aparecem juntos abaixo. Vencimentos são preservados ao reabrir; alertas são emitidos com o aplicativo aberto.</p>
         <p id="voz-feedback" role="alert"></p>
       </div>
       <details class="card calmo voz-diagnostico">
@@ -1023,6 +1035,29 @@
         <p><b>Resposta:</b> <span id="voz-resposta">As respostas aparecerão aqui.</span></p>
         <p class="dica">Ativação e respostas faladas são locais. Com online ativado, somente o comando autorizado é enviado para reconhecimento. O aplicativo não grava áudio. Modelos locais são baixados no primeiro uso; prefira headset para evitar eco.</p>
       </details>
+      </div>
+      <section data-assistente-panel="timers" hidden>
+        <h2 class="sub">Timers Gerais</h2><p class="dica">Globais por padrão. Ex.: “Inicia um timer chamado boost de 45 minutos”, “Adiciona 5 minutos ao timer do boost”.</p>
+        <form class="card calmo" id="assistente-form-timers"></form><div id="assistente-result-timers" role="status"></div><div id="assistente-timers-list"></div>
+      </section>
+      <section data-assistente-panel="shared" hidden>
+        <h2 class="sub">Shared XP</h2><p class="dica">Consultas hipotéticas não alteram o cadastro. Ex.: “Meu level é 438. Qual é a shared?”, “Level 350 entra na minha shared?”. Somente a condição de level é calculada.</p>
+        <form class="card calmo" id="assistente-form-shared"></form><div id="assistente-result-shared" role="status"></div>
+        <form id="assistente-level-form" class="card calmo voz-form"><label for="assistente-level">Alterar level local<input id="assistente-level" type="number" min="1" max="100000" required></label><label for="assistente-level-confirm"><input id="assistente-level-confirm" type="checkbox"> Confirmo atualizar o cadastro do personagem mostrado acima</label><button class="btn btn-sm" type="submit">Confirmar level</button></form>
+      </section>
+      <section data-assistente-panel="bosses" hidden>
+        <h2 class="sub">Boss Tracker + Bosstiary</h2><p class="dica">Ex.: “Matei o Oberon agora”, “Atualiza meu Oberon para 87 kills”, “Desfaz a última kill do Oberon”. Abates reais e progresso são separados. Cooldown desconhecido não gera alertas. Catálogo inicial parcial; importe somente dados com fonte conferida.</p>
+        <form class="card calmo" id="assistente-form-bosses"></form><div id="assistente-result-bosses" role="status"></div>
+      </section>
+      <section data-assistente-panel="stamina" hidden>
+        <h2 class="sub">Calculadora de Stamina</h2><p class="dica">Referências declaradas, sem leitura do jogo. Projeção pressupõe offline contínuo: 10 min iniciais, 3 min por minuto até 39h e 6 min até 42h. Ex.: “Estou deslogando agora, minha stamina está em 38 horas”. Horários manuais usam seu fuso local.</p>
+        <form class="card calmo" id="assistente-form-stamina"></form><div id="assistente-result-stamina" role="status"></div>
+      </section>
+      <section data-assistente-panel="market" hidden>
+        <h2 class="sub">Market Tracker</h2><p class="dica">Preços informados por você, pelo formulário ou por voz; histórico privado por mundo, item e oferta. Sem atualização automática. Ex.: “TC tá 36.5k”, “Gold Token a 40k tá caro?” (somente consulta). GP, K e KK; separador de milhar ambíguo pede confirmação.</p>
+        <label for="assistente-world">Mundo dos preços<input id="assistente-world" type="text" maxlength="120" placeholder="Mundo do personagem ativo"></label><form class="card calmo" id="assistente-form-market"></form><div id="assistente-result-market" role="status"></div>
+      </section>
+      <details class="card calmo"><summary>Histórico auditável das ações do personagem</summary><div id="assistente-history"></div><p class="dica">Somente eventos de domínio; áudio e transcrições não são gravados. Correções preservam a trilha.</p></details>
     </section>
 
     <!-- ================= TIMERS DE ÁUDIO ================= -->
@@ -3441,6 +3476,7 @@ else window.addEventListener('pywebviewready', iniciar);
 <script src="radio.js"></script>
 <script src="mirror.js"></script>
 <script src="voz.js"></script>
+<script src="assistente.js"></script>
 <script>PERS_OUVINTES.push(() => mirrorLoad()); window.addEventListener("pywebviewready", () => mirrorLoad());</script>
 <dialog id="apoio-dialog" class="apoio-dialog" aria-labelledby="apoio-titulo"><h2 id="apoio-titulo">Apoie o Tibia Tudo ☕</h2><p>Gostou das ferramentas? Sua contribuição ajuda a manter e melhorar o projeto. Qualquer valor é bem-vindo.</p><img class="apoio-qr" src="assets/brand/pix.png" alt="QR Code Pix para apoiar o Tibia Tudo"><p>Recebedor: <b>Pablo Zandonadi</b></p><label for="apoio-pix">Pix copia e cola</label><textarea id="apoio-pix" readonly spellcheck="false">00020126580014BR.GOV.BCB.PIX0136361fa425-8509-45c1-bf3f-b7ffe03417e25204000053039865802BR5915Pablo Zandonadi6009SAO PAULO62140510zsHJv5VizV630498CD</textarea><p id="apoio-status" role="status"></p><button class="btn btn-primary" id="apoio-copiar">Copiar Pix</button> <button class="btn" id="apoio-fechar">Fechar</button><p class="dica">Contribuição voluntária. Confira o recebedor no seu banco antes de confirmar.</p><p class="dica">Sprites: Lupus Aurelius (Dice) e Makadamia (Coffee), via Tibia Fanart.</p></dialog>
 </body>

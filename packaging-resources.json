@@ -2,6 +2,7 @@
   "schema": 1,
   "files": [
     "icon.ico",
+    "voice/domain_actions.json",
     "sons_padrao/Bober.mp3",
     "sons_padrao/Fui Deletado.mp3",
     "sons_padrao/Jingle.mp3",
@@ -1623,6 +1624,8 @@
     "web/task_items.js",
     "web/timers.css",
     "web/timers.js",
+    "web/assistente.css",
+    "web/assistente.js",
     "web/voz.css",
     "web/voz.js",
     "web/world_board.css",

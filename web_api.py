@@ -16,6 +16,7 @@ import publicacao_beta
 import radio_brasilhits
 import audio_timers
 import voz
+import assistente_tibiano
 import mirror_core
 from mirror_service import MirrorService
 import backup
@@ -1342,8 +1343,45 @@ class API:
     def _voz_obter(self):
         with self._voz_lock:
             if self._voz is None:
-                self._voz = voz.Servico(BASE_DIR)
+                self._voz = voz.Servico(BASE_DIR, store=assistente_tibiano.Store(BASE_DIR))
             return self._voz
+
+    def assistente_estado(self):
+        try:
+            service=self._voz_obter()
+            with PERSONAGEM_LOCK, service._lock:
+                store=service.store
+                context=store.context()
+                return {'context':context, 'timers':store.execute('timer.list',{},context)['timers'],
+                        'catalog':store.execute('boss.catalog',{},context),
+                        'history':store.execute('history',{},context)['events']}
+        except (ValueError,OSError) as error:
+            return {'erro':str(error)}
+
+    def assistente_executar(self, intent, arguments=None, context=None, request_id=None):
+        try:
+            service=self._voz_obter()
+            with PERSONAGEM_LOCK, service._lock:
+                result=service.store.execute(intent, arguments, context, request_id)
+                result['message']=assistente_tibiano.reply(result)
+                return result
+        except (ValueError,OSError,TypeError) as error:
+            return {'erro':str(error)}
+
+    def assistente_level(self, character_id, level, confirmed=False):
+        if confirmed is not True:
+            return {'erro':'Confirme explicitamente a alteração do cadastro.'}
+        try:
+            assistente_tibiano.integer(level)
+            with PERSONAGEM_LOCK, personagens._trava:
+                dados=personagens.carregar()
+                person=next((p for p in dados['lista'] if p['nome']==character_id),None)
+                if person is None: return {'erro':'Personagem não encontrado.'}
+                person['level']=level
+                personagens._gravar(dados)
+            return {'message':'Level local atualizado com confirmação.'}
+        except (ValueError,OSError) as error:
+            return {'erro':str(error)}
 
     def voz_iniciar(self):
         return self._voz_obter().iniciar()
@@ -1478,7 +1516,7 @@ class API:
     def _caminhos_backup(self):
         return {"world_board": world_board.ARQUIVO, "historico": historico.HIST_PATH, "personagens": personagens.ARQUIVO, "embuimentos": DADOS_PATH,
                 "prints": organizer.SETTINGS_PATH, "prints_rotina": prints_schedule.ARQUIVO, "janela": PREFS_PATH, "audio": audio_timers.ARQUIVO, "mirror": mirror_core.ARQUIVO,
-                "precos": precos.PRECOS_PATH, "rodas": roda.RODAS_PATH, "sets": sets.SETS_PATH, "classificador": classificador.SESSOES_PATH}
+                "assistente": os.path.join(BASE_DIR,"assistente-tibiano.json"), "precos": precos.PRECOS_PATH, "rodas": roda.RODAS_PATH, "sets": sets.SETS_PATH, "classificador": classificador.SESSOES_PATH}
 
     def config_exportar(self):
         pacote = backup.exportar(self._caminhos_backup(), VERSAO_APP)

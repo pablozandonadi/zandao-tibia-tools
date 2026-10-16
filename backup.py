@@ -26,6 +26,7 @@ VERSAO_FORMATO = 1
 
 # chave -> rótulo para a tela (todos os arquivos são .json)
 ITENS = {
+    "assistente": "Assistente Tibiano: timers, bosses, stamina e Market privados",
     "world_board": "Checagens do World Board por personagem e mundo",
     "historico": "Histórico de hunts",
     "personagens": "Meus personagens",
@@ -77,6 +78,9 @@ def importar(dados, caminhos):
     """Restaura o backup. Devolve a lista do que foi restaurado. Levanta ValueError se não for um backup nosso."""
     if not isinstance(dados, dict) or dados.get("formato") != FORMATO or not isinstance(dados.get("arquivos"), dict):
         raise ValueError("Esse arquivo não parece ser um backup do Tibia Tudo.")
+    if "assistente" in dados["arquivos"] and "assistente" in caminhos:
+        from assistente_tibiano import validate_state
+        validate_state(dados["arquivos"]["assistente"])
     restaurados = []
     for chave, conteudo in dados["arquivos"].items():
         if chave not in ITENS or chave not in caminhos:

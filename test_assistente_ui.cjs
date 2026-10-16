@@ -1,0 +1,10 @@
+const assert = require('node:assert/strict');
+global.window={addEventListener(){}};
+global.document={getElementById(){return null;}};
+const ui=require('./web/assistente.js');
+assert.deepEqual(ui.payload('timer.create',{duration_seconds:'90',label:'boost',personal:false}),{duration_seconds:90,label:'boost',personal:false});
+assert.deepEqual(ui.payload('shared.check',{party_levels:'200, 300',include_active:false}),{party_levels:[200,300],include_active:false});
+assert.deepEqual(ui.payload('market.price.add',{item:'TC',price:'1.5kk',offer_type:'buy',observed_at:''}),{item:'TC',price:'1.5kk',offer_type:'buy'});
+assert.equal(ui.payload('boss.kill',{boss_id:'drume',boosted:false,killed_at:'2026-10-16T08:00'}).killed_at,new Date('2026-10-16T08:00').toISOString());
+assert.throws(()=>ui.payload('shared.check',{party_levels:'200, ruim'}));
+(async()=>{let received;const api={async assistente_executar(...args){received=args;return {message:'feito'};}};const ctx={character_id:'Original',world_id:'Antica'};await ui.execute(api,'market.price.add',{item:'TC',price:'35k',offer_type:'sell'},ctx,'request-one');ctx.character_id='Mudou';assert.equal(received[2].character_id,'Original');assert.equal(received[3],'request-one');console.log('Assistente UI: typed forms, UTC, context snapshot and exact request passed');})().catch(e=>{console.error(e);process.exitCode=1;});

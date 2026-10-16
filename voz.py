@@ -1,4 +1,5 @@
 """Assistente local: timers compartilhados entre voz e interface, sem bloquear a janela."""
+import assistente_tibiano as assistente
 import hashlib
 import json
 import math
@@ -19,9 +20,12 @@ from voice.spike_assistente import (GREETING, UNKNOWN_REPLY, PiperSpeech, comman
 
 
 class Servico:
-    def __init__(self, pasta=None):
+    def __init__(self, pasta=None, store=None):
         self.pasta = Path(pasta or data_dir())
         self._lock = threading.RLock()
+        self.store = store
+        self._command_context = None
+        self._domain_request_id = None
         self._timers = []
         self._ids = {}
         self._estado = 'preparando'
@@ -65,6 +69,9 @@ class Servico:
             timers = [{'id': self._ids[id(timer)], 'label': timer[1],
                        'duracao': duration_seconds(duration_from(timer[1])),
                        'restante': max(0, timer[0] - now)} for timer in self._timers if timer[0] > now]
+            if self.store:
+                context = self.store.context()
+                timers = [{'id': t['id'], 'label': t['label'], 'duracao': t['duration_seconds'], 'restante': t['remaining_seconds']} for t in self.store.execute('timer.list', {}, context)['timers'] if t['status']=='active' and t['remaining_seconds']>0]
             return {'estado': 'falando' if self._speaking.is_set() and self._estado != 'pausado' else self._estado, 'detalhe': self._detalhe,
                     'ouvi': self._ouvi, 'resposta': self._resposta, 'timers': timers,
                     'microfone': bool(self._mic and self._mic.is_alive() and not self._mic_stop.is_set()),
@@ -108,6 +115,13 @@ class Servico:
 
     def _watch(self):
         while not self._stop.wait(.1):
+            if self.store:
+                try:
+                    for alert in self.store.poll(): self._reply(alert['message'])
+                except (ValueError, OSError):
+                    self._status('erro', 'Não consegui salvar os alertas. Dados preservados; tente novamente.')
+                self._stop.wait(.9)
+                continue
             with self._lock:
                 now = time.monotonic()
                 expired = [timer for timer in self._timers if timer[0] <= now]
@@ -117,8 +131,17 @@ class Servico:
             for _, label in expired:
                 self._reply(f'Timer de {label} terminou.')
 
-    def comando(self, text, state=None):
+    def comando(self, text, state=None, source="voice"):
         with self._lock:
+            if self.store:
+                try:
+                    command = assistente.parse(text, self.store.clock())
+                    if command is None: return UNKNOWN_REPLY
+                    intent, arguments = command
+                    context = self._command_context if self._command_context is not None else self.store.context()
+                    return assistente.reply(self.store.execute(intent, arguments, context, self._domain_request_id, source=source))
+                except (ValueError, OSError) as error:
+                    return str(error) if isinstance(error, ValueError) else 'Não consegui salvar. Nenhuma alteração foi confirmada.'
             reply = dispatch(text, self.pasta, self._timers, time.monotonic(), state)
             self._sync_ids()
         return reply
@@ -144,6 +167,8 @@ class Servico:
                 command = text
             else:
                 self._generation += 1
+                self._command_context = self.store.context() if self.store else None
+                self._domain_request_id = str(uuid.uuid4())
                 self._pending_prefix = ''
                 self._command_state.clear()
             self._ouvi = text
@@ -199,10 +224,25 @@ class Servico:
         if intent['needs_clarification']:
             return intent['clarification']
         action, parameters = intent['action'], intent['parameters']
+        if self.store and action in assistente.FIELDS:
+            try:
+                arguments={k:v for k,v in parameters.items() if v is not None}
+                if action=='boss.kill' and arguments.get('boosted') is True:
+                    return 'Confirme no formulário que era o Archfoe boosted do dia e elegível; nenhum abate foi registrado.'
+                return assistente.reply(self.store.execute(action, arguments, self._command_context or self.store.context(), self._domain_request_id, source='voice'))
+            except (ValueError,OSError) as error:
+                return str(error) if isinstance(error,ValueError) else 'Não consegui salvar. Nenhuma alteração foi confirmada.'
         if action == 'create_timer':
             return self.comando(f"timer de {parameters['seconds']} segundos")
         if action == 'cancel_last_timer':
             return self.comando('cancelar ultimo timer')
+        if self.store and action == 'shared':
+            args = {'reference_level': parameters['level']} if parameters['level'] is not None else {}
+            return assistente.reply(self.store.execute('shared.range', args, self._command_context or self.store.context()))
+        if self.store and action in ('cancel_timer', 'query_timer'):
+            try:
+                return assistente.reply(self.store.execute('timer.cancel' if action=='cancel_timer' else 'timer.get', {'timer_id':parameters['timer_id']}, self._command_context or self.store.context(), self._domain_request_id, source='voice'))
+            except ValueError as error: return str(error)
         if action == 'shared':
             return shared_reply(self.pasta, parameters['level'])
         if action in ('cancel_timer', 'query_timer'):
@@ -250,6 +290,9 @@ class Servico:
                 self.receber_texto(text)
                 return
             self._generation += 1
+            if command is not None or self._command_context is None:
+                self._command_context = self.store.context() if self.store else None
+            self._domain_request_id = str(uuid.uuid4())
             generation = self._generation
             client = self._online_client
             self._remote_busy = True
@@ -301,6 +344,8 @@ class Servico:
             if not self._ready.is_set() or self._mic_stop.is_set():
                 return {'erro': 'O microfone ainda está preparando. Aguarde e tente novamente.'}
             self._generation += 1
+            self._command_context = self.store.context() if self.store else None
+            self._domain_request_id = str(uuid.uuid4())
             self._command_state.clear()
             self._pending_prefix = ''
             self._armed_until = time.monotonic() + 8
@@ -312,11 +357,20 @@ class Servico:
             return {'erro': 'Informe um número inteiro de 1 a 180.'}
         if unidade not in ('segundo', 'minuto'):
             return {'erro': 'Escolha segundos ou minutos.'}
-        reply = self.comando(f'timer de {int(valor)} {unidade}')
+        if self.store:
+            self._command_context = self.store.context()
+            self._domain_request_id = str(uuid.uuid4())
+        reply = self.comando(f'timer de {int(valor)} {unidade}', source='manual')
         self._reply(reply)
         return self.estado()
 
     def cancelar(self, timer_id):
+        if self.store:
+            try:
+                result=self.store.execute('timer.cancel', {'timer_id':timer_id}, self.store.context(), str(uuid.uuid4()))
+                self._reply(assistente.reply(result))
+                return self.estado()
+            except (ValueError,OSError) as error: return {'erro':str(error)}
         with self._lock:
             self._sync_ids()
             selected = next((timer for timer in self._timers if self._ids[id(timer)] == timer_id and timer[0] > time.monotonic()), None)

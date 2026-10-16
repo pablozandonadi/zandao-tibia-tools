@@ -69,7 +69,7 @@ python -m PyInstaller --noconfirm --clean --windowed --name "ZandaoTibiaTools" `
     --collect-all piper --collect-all onnxruntime `
     --add-data "$metadata;." --add-data "$taskPolicy;." `
     --icon (Join-Path $raiz "icon.ico") `
-    --add-data "$(Join-Path $raiz 'web');web" --add-data "$(Join-Path $raiz 'sons_padrao');sons_padrao" --add-data "$(Join-Path $raiz 'icon.ico');." `
+    --add-data "$(Join-Path $raiz 'voice/domain_actions.json');voice" --add-data "$(Join-Path $raiz 'web');web" --add-data "$(Join-Path $raiz 'sons_padrao');sons_padrao" --add-data "$(Join-Path $raiz 'icon.ico');." `
     --distpath (Join-Path $PastaBuild "dist") --workpath (Join-Path $PastaBuild "work") --specpath $spec `
     (Join-Path $raiz "zandao_tibia_tools.py")
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller falhou" }
