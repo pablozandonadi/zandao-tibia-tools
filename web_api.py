@@ -1352,9 +1352,11 @@ class API:
             with PERSONAGEM_LOCK, service._lock:
                 store=service.store
                 context=store.context()
+                history=store.execute('history',{},context)['events']
+                # revision muda a cada gravação: a aba Bosstiary só recarrega quando algo mudou (ex.: "matei" por voz).
                 return {'context':context, 'timers':store.execute('timer.list',{},context)['timers'],
                         'catalog':store.execute('boss.catalog',{},context),
-                        'history':store.execute('history',{},context)['events']}
+                        'revision':history[-1]['id'] if history else None}
         except (ValueError,OSError) as error:
             return {'erro':str(error)}
 

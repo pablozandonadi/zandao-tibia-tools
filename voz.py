@@ -332,6 +332,7 @@ class Servico:
             self._command_state.clear()
             self._status('transcrevendo', 'Reconhecendo o comando online…')
         request_id = str(uuid.uuid4())
+        transcript = None
         try:
             transcript = client.transcribe(wav, request_id)
             with self._lock:
@@ -357,7 +358,7 @@ class Servico:
             with self._lock:
                 if self._remote_current(generation):
                     # Never retry a possibly billed request; retain deterministic local fallback.
-                    local = command if command is not None else text
+                    local = transcript or (command if command is not None else text)
                     reply = self.comando(local, self._command_state) if local else UNKNOWN_REPLY
                     if reply == UNKNOWN_REPLY:
                         reply = 'Reconhecimento online indisponível. Tente um comando local.' if self._direct_mode else 'Reconhecimento online indisponível. Fale Hey Tibia Tudo e tente um comando local.'

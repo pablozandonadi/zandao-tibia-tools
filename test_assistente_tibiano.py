@@ -265,6 +265,47 @@ class FinishUpdateTests(StoreCase):
         self.call('timer.create',{'duration_seconds':30})
         a.Store(self.path,clock=lambda:NOW).execute('timer.create',{'duration_seconds':40},CTX)
         self.assertEqual(2,len(self.call('timer.list')['timers']))
+    def online(self, transcript, intent=None):
+        import struct,voz
+        from unittest.mock import Mock
+        from voice.remote_ai_client import RemoteAIClient
+        with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):
+            service=voz.Servico(self.path,store=self.store)
+        self.addCleanup(service.close)
+        client=Mock(spec=RemoteAIClient);client.transcribe.return_value=transcript;client.interpret.return_value=intent
+        service._online_enabled=True;service._online_client=client;service._ready.set();service.escutar()
+        service.receber_audio('',struct.pack('<h',1000)*16000,16000)
+        return client,service
+    def test_online_ai_understands_free_speech_first(self):
+        intent={'action':'stamina.logout','parameters':{'stamina_minutes':2460,'logged_out_at':None},'needs_clarification':False,'clarification':None}
+        client,_=self.online('vou sair do jogo, tô com 41 horas de stamina',intent)
+        client.interpret.assert_called_once()
+        self.assertEqual(2460,self.call('stamina.get')['stamina']['stamina_minutes'])
+    def test_online_timer_stays_local_without_ai(self):
+        client,_=self.online('timer de 30 segundos')
+        client.interpret.assert_not_called()
+        self.assertEqual(30,self.call('timer.list')['timers'][0]['duration_seconds'])
+    def test_full_stamina_question_is_local(self):
+        self.assertEqual(('stamina.time_to',{'target_stamina_minutes':2520}),a.parse('Quando minha estamina estará cheia?',NOW))
+        self.assertEqual(2340,a.parse('quando a stamina fica verde',NOW)[1]['target_stamina_minutes'])
+        client,_=self.online('Quando minha estamina estará cheia?')
+        client.interpret.assert_not_called()
+    def test_online_ai_unsure_without_local_match_asks(self):
+        intent={'action':'unknown','parameters':{},'needs_clarification':True,'clarification':'Qual boss?'}
+        _,service=self.online('marca aquele boss la',intent)
+        self.assertEqual('Qual boss?',service.estado()['resposta'])
+    def test_every_phrase_in_instructions_is_understood(self):
+        import html,re
+        page=(Path(__file__).parent/'web'/'index.html').read_text(encoding='utf-8')
+        section=page[page.index('id="assistente-instrucoes"'):]
+        section=section[:section.index('</section>')]
+        phrases=[html.unescape(p) for p in re.findall(r'<q>(.*?)</q>',section)]
+        self.assertGreater(len(phrases),40)
+        for phrase in phrases:
+            with self.subTest(phrase=phrase):
+                self.assertIsNotNone(a.parse(phrase,NOW))
+    def test_boss_view_has_bosstiary_goals(self):
+        self.assertEqual([5,20,60],self.call('bosstiary.get',{'boss_id':'drume'})['boss']['goals'])
     def test_bridge_parameter_is_not_js_arguments(self):
         import inspect,web_api
         self.assertNotIn('arguments',inspect.signature(web_api.API.assistente_executar).parameters)

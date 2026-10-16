@@ -81,15 +81,53 @@ async function refresh(){
  try{const data=await window.pywebview.api.assistente_estado();if(data.erro)throw new Error(data.erro);state=data;
  for(const input of document.querySelectorAll('select[name=timer_id],select[name=boss_id]')){const previous=input.value;const rows=input.name==='timer_id'?data.timers.map(t=>[t.id,`${t.label} (${t.status})`]):data.catalog.bosses.map(b=>[b.boss_id,b.name]);const sig=rows.join('\n');if(input.dataset.sig===sig)continue;input.dataset.sig=sig;input.replaceChildren();for(const [value,title] of rows){const option=node('option',title);option.value=value;input.append(option);}if(rows.some(r=>r[0]===previous))input.value=previous;}
  if(!el('assistente-world').value)el('assistente-world').value=data.context.world_id||'';
- el('assistente-context').textContent=`Personagem: ${data.context.character_id||'Selecione em Meus personagens'} · Level: ${data.context.level||'—'} · Mundo: ${data.context.world_id||'Não informado'}`;el('assistente-overview').textContent=`${data.timers.filter(t=>t.status==='active').length} timers ativos · Bosses e stamina por personagem · Market privado por mundo. Alertas funcionam enquanto o aplicativo está aberto e são reconciliados uma vez ao reabrir.`;renderTimers(data.timers);const history=el('assistente-history');history.replaceChildren(table(data.history.slice().reverse().map(e=>({...e,date:stamp(e.at)})),[['date','Horário'],['intent','Ação'],['character_id','Personagem'],['world_id','Mundo']]));}
+ el('assistente-context').textContent=`Personagem: ${data.context.character_id||'Selecione em Meus personagens'} · Level: ${data.context.level||'—'} · Mundo: ${data.context.world_id||'Não informado'}`;el('assistente-overview').textContent=`${data.timers.filter(t=>t.status==='active').length} timers ativos · Bosses e stamina por personagem · Market privado por mundo. Alertas funcionam enquanto o aplicativo está aberto e são reconciliados uma vez ao reabrir.`;renderTimers(data.timers);
+ const names=el('bosstiary-nomes');if(names&&names.children.length!==data.catalog.bosses.length)names.replaceChildren(...data.catalog.bosses.map(b=>{const o=node('option');o.value=b.name;return o;}));
+ const key=`${data.context.character_id}|${data.revision}`;if(active==='bosstiary'&&key!==bosstiaryKey){bosstiaryKey=key;await loadBosstiary();}}
  catch(e){el('assistente-feedback').textContent=e.message;}
 }
-function select(module){active=module;for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));refresh();}
+// Bosstiary: lista do personagem em uso, no estilo da Cyclopedia do Tibia.
+const STAR_NAMES=['Prowess','Expertise','Mastery'];let bosstiaryRows=[],bosstiaryKey='';
+const bossImage=name=>`assets/creatures/${name.split(' (')[0].toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')}.gif`;
+async function loadBosstiary(){
+ const out=el('bosstiary-lista');
+ if(!state.context.character_id){bosstiaryRows=[];out.replaceChildren(node('p','Selecione um personagem em Meus personagens.','dica'));return;}
+ const data=await window.pywebview.api.assistente_executar('boss.cooldown.list',{},{...state.context});
+ if(data.erro){out.replaceChildren(node('p',data.erro,'dica'));return;}
+ bosstiaryRows=data.bosses;renderBosstiary();
+}
+function bossCard(b){
+ const card=node('article',undefined,'card calmo bosstiary-card'),goals=b.goals||[],stars=goals.filter(g=>b.progress>=g).length;
+ const img=node('img');img.alt='';img.loading='lazy';img.src=bossImage(b.name);img.addEventListener('error',()=>img.replaceWith(node('span','?','bosstiary-sombra')));
+ const bar=node('progress');bar.max=b.next_goal||goals.at(-1)||1;bar.value=Math.min(b.progress,bar.max);bar.setAttribute('aria-label',`Progresso de ${b.name}`);
+ const goal=!goals.length?'Fora do Bosstiary':b.next_goal?`faltam ${b.missing} para ${STAR_NAMES[stars]}`:'Mastery completo';
+ card.append(node('strong',b.name),img,node('p',`Total kills: ${b.progress}`),bar,node('span',goals.length?'★'.repeat(stars)+'☆'.repeat(3-stars):'','bosstiary-estrelas'),node('p',goal,'dica'));
+ card.append(button('+1 kill',()=>bosstiaryRun('boss.kill',{boss_id:b.boss_id})),button('Editar total',()=>{el('bosstiary-boss').value=b.name;el('bosstiary-total').value=b.progress;el('bosstiary-total').focus();}));
+ return card;
+}
+function renderBosstiary(){
+ const all=el('bosstiary-todos').checked,q=el('bosstiary-busca').value.trim().toLowerCase();
+ const cats=new Set([...document.querySelectorAll('[data-bosstiary-cat]:checked')].map(i=>i.dataset.bosstiaryCat));
+ const rows=bosstiaryRows.filter(b=>(all||b.progress>0)&&cats.has(b.category)&&(!q||[b.name,...b.aliases].some(n=>n.toLowerCase().includes(q)))).sort((x,y)=>y.progress-x.progress||x.name.localeCompare(y.name));
+ const shown=rows.slice(0,80),killed=bosstiaryRows.filter(b=>b.progress>0).length;
+ el('bosstiary-lista').replaceChildren(...shown.map(bossCard));
+ el('bosstiary-resumo').textContent=`${killed} bosses com kills neste personagem · mostrando ${shown.length} de ${rows.length}${rows.length>shown.length?' (use a busca)':''}`;
+ if(!rows.length)el('bosstiary-lista').append(node('p',all||q?'Nenhum boss encontrado.':'Nenhum boss com kills ainda. Cadastre acima o total que você já tem.','dica'));
+}
+async function bosstiaryRun(intent,args){
+ const status=el('assistente-feedback');
+ try{const data=await execute(window.pywebview.api,intent,args,{...state.context},crypto.randomUUID());if(data.erro)throw new Error(data.erro);status.textContent=data.message||'Concluído.';await loadBosstiary();}
+ catch(e){status.textContent=e.message||'Não foi possível concluir.';}
+}
+function select(module){active=module;if(module==='bosstiary'){bosstiaryKey='';}for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));refresh();}
 function boot(){
  if(booted||!el('assistente-context')||!window.pywebview||!window.pywebview.api)return;booted=true;
  for(const b of document.querySelectorAll('[data-assistente-tab]'))b.addEventListener('click',()=>select(b.dataset.assistenteTab));
  for(const [module,ops] of Object.entries(operations)){const root=el('assistente-form-'+module);const wrap=node('label','Operação');const choice=node('select');choice.id='assistente-op-'+module;for(const [intent,title] of ops){const option=node('option',title);option.value=intent;choice.append(option);}choice.addEventListener('change',()=>renderFields(module));wrap.append(choice);const inputs=node('div',undefined,'voz-form assistente-fields');inputs.id='assistente-fields-'+module;const submit=node('button','Executar','btn btn-primary');submit.type='submit';root.append(wrap,inputs,submit);renderFields(module);root.addEventListener('submit',e=>{e.preventDefault();try{const values={};for(const key of ops.find(op=>op[0]===choice.value)[2]){const input=el(`assistente-${module}-${key}`);values[key]=input.type==='checkbox'?input.checked:input.value;}run(module,choice.value,payload(choice.value,values));}catch(error){el('assistente-feedback').textContent=error.message;}});}
  el('assistente-level-form').addEventListener('submit',async e=>{e.preventDefault();try{const context={...state.context};if(!el('assistente-level-confirm').checked)throw new Error('Marque a confirmação para alterar o cadastro.');const result=await window.pywebview.api.assistente_level(context.character_id,Number(el('assistente-level').value),true);if(result.erro)throw new Error(result.erro);el('assistente-feedback').textContent=result.message;el('assistente-level-confirm').checked=false;await refresh();}catch(error){el('assistente-feedback').textContent=error.message;}});
+ el('bosstiary-form').addEventListener('submit',e=>{e.preventDefault();bosstiaryRun('bosstiary.set_total',{boss_id:el('bosstiary-boss').value.trim(),total_kills:Number(el('bosstiary-total').value)});});
+ for(const input of document.querySelectorAll('[data-bosstiary-cat],#bosstiary-todos'))input.addEventListener('change',renderBosstiary);
+ el('bosstiary-busca').addEventListener('input',renderBosstiary);
  select('overview');setInterval(()=>{if(el('page-voz').classList.contains('shown')&&!busy)refresh();},2000);
 }
 window.assistenteLoad=refresh;window.assistenteSelect=select;

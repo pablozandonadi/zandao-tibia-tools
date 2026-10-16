@@ -994,9 +994,11 @@
         <button type="button" class="btn btn-sm" data-assistente-tab="overview">Visão Geral e Voz</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="timers">Timers Gerais</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="shared">Shared XP</button>
-        <button type="button" class="btn btn-sm" data-assistente-tab="bosses">Boss Tracker + Bosstiary</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="bosstiary">Bosstiary</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="bosses">Boss Tracker</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="stamina">Calculadora de Stamina</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="market">Market Tracker</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="instrucoes">Instruções</button>
       </nav>
       <p id="assistente-feedback" role="status" aria-live="polite"></p>
       <div data-assistente-panel="overview"><p id="assistente-overview" class="dica"></p>
@@ -1034,8 +1036,27 @@
         <form class="card calmo" id="assistente-form-shared"></form><div id="assistente-result-shared" role="status"></div>
         <form id="assistente-level-form" class="card calmo voz-form"><label for="assistente-level">Alterar level local<input id="assistente-level" type="number" min="1" max="100000" required></label><label for="assistente-level-confirm"><input id="assistente-level-confirm" type="checkbox"> Confirmo atualizar o cadastro do personagem mostrado acima</label><button class="btn btn-sm" type="submit">Confirmar level</button></form>
       </section>
+      <section data-assistente-panel="bosstiary" hidden>
+        <h2 class="sub">Bosstiary</h2><p class="dica">Do personagem em uso. Cadastre uma vez o total que você já tem de cada boss; depois cada “Matei o Drume” (voz ou botão +1) soma aqui.</p>
+        <form id="bosstiary-form" class="card calmo voz-form">
+          <label for="bosstiary-boss">Boss<input id="bosstiary-boss" list="bosstiary-nomes" maxlength="120" autocomplete="off" placeholder="Digite o nome" required></label>
+          <datalist id="bosstiary-nomes"></datalist>
+          <label for="bosstiary-total">Total de kills<input id="bosstiary-total" type="number" min="0" max="1000000" step="1" required></label>
+          <button class="btn btn-primary" type="submit">Salvar total</button>
+        </form>
+        <div class="bosstiary-filtros">
+          <label><input type="checkbox" data-bosstiary-cat="bane" checked> Bane</label>
+          <label><input type="checkbox" data-bosstiary-cat="archfoe" checked> Archfoe</label>
+          <label><input type="checkbox" data-bosstiary-cat="nemesis" checked> Nemesis</label>
+          <label><input type="checkbox" data-bosstiary-cat="unknown" checked> Outros</label>
+          <label><input type="checkbox" id="bosstiary-todos"> Mostrar também sem kills</label>
+          <input id="bosstiary-busca" type="search" placeholder="Buscar boss" aria-label="Buscar boss">
+        </div>
+        <p id="bosstiary-resumo" class="dica" role="status"></p>
+        <div id="bosstiary-lista" class="bosstiary-grid"></div>
+      </section>
       <section data-assistente-panel="bosses" hidden>
-        <h2 class="sub">Boss Tracker + Bosstiary</h2><p class="dica">Ex.: “Matei o Oberon agora”, “Atualiza meu Oberon para 87 kills”, “Desfaz a última kill do Oberon”. Abates reais e progresso são separados. Cooldown desconhecido não gera alertas. Catálogo inicial parcial; importe somente dados com fonte conferida.</p>
+        <h2 class="sub">Boss Tracker</h2><p class="dica">Ex.: “Matei o Oberon agora”, “Atualiza meu Oberon para 87 kills”, “Desfaz a última kill do Oberon”. Cooldown desconhecido não gera alertas.</p>
         <form class="card calmo" id="assistente-form-bosses"></form><div id="assistente-result-bosses" role="status"></div>
       </section>
       <section data-assistente-panel="stamina" hidden>
@@ -1046,7 +1067,31 @@
         <h2 class="sub">Market Tracker</h2><p class="dica">Preços informados por você, pelo formulário ou por voz; histórico privado por mundo, item e oferta. Sem atualização automática. Ex.: “TC tá 36.5k”, “Gold Token a 40k tá caro?” (somente consulta). GP, K e KK; separador de milhar ambíguo pede confirmação.</p>
         <label for="assistente-world">Mundo dos preços<input id="assistente-world" type="text" maxlength="120" placeholder="Mundo do personagem ativo"></label><form class="card calmo" id="assistente-form-market"></form><div id="assistente-result-market" role="status"></div>
       </section>
-      <details class="card calmo"><summary>Histórico auditável das ações do personagem</summary><div id="assistente-history"></div><p class="dica">Somente eventos de domínio; áudio e transcrições não são gravados. Correções preservam a trilha.</p></details>
+      <section data-assistente-panel="instrucoes" id="assistente-instrucoes" class="instrucoes" hidden>
+        <h2 class="sub">Instruções: o que falar</h2>
+        <p class="dica">Fale <b>Hey Tibia Tudo</b>, espere o sinal e diga a frase — ou tudo junto: “Hey Tibia Tudo, timer de 5 minutos”. Com a esfera ligada, fale direto, sem o Hey Tibia Tudo. Começar com “não” cancela: nada é executado. Nomes (boss, item, timer) e números podem mudar.</p>
+        <div class="instrucoes-grid">
+          <div class="card calmo"><h3>⏱️ Timers</h3><ul>
+            <li><q>timer de 5 minutos</q></li><li><q>alarme de 2 horas</q></li><li><q>inicia um timer chamado boost de 45 minutos</q></li><li><q>me avisa daqui a 10 minutos</q></li>
+            <li><q>quanto falta no timer do boost</q></li><li><q>adiciona 5 minutos ao timer do boost</q></li><li><q>quais timers estão rodando</q></li>
+            <li><q>cancela o último timer</q></li><li><q>cancela o timer de 2 minutos</q></li><li><q>repete o último timer</q></li></ul></div>
+          <div class="card calmo"><h3>👑 Bosses e Bosstiary</h3><ul>
+            <li><q>matei o Drume</q></li><li><q>matei o Drume há meia hora</q></li><li><q>matei o Oberon ontem às 22</q></li><li><q>acabei de fazer o Scarlett</q></li>
+            <li><q>atualiza meu Oberon para 87 kills</q></li><li><q>adiciona 3 kills no Drume</q></li><li><q>desfaz a última kill do Drume</q></li>
+            <li><q>corrige: matei o Drume ontem às 22</q></li><li><q>quantas kills tenho no Drume</q></li><li><q>quanto falta pro Drume</q></li>
+            <li><q>me avisa quando o Drume liberar</q></li><li><q>meus bosses</q></li></ul></div>
+          <div class="card calmo"><h3>⚡ Stamina</h3><ul>
+            <li><q>estou deslogando agora, minha stamina está em 38 horas</q></li><li><q>vou fazer logout, minha stamina está em 41 horas</q></li>
+            <li><q>desloguei há 20 minutos com 39 horas</q></li><li><q>estou logando agora</q></li><li><q>corrige minha stamina para 40 horas</q></li>
+            <li><q>quando minha stamina estará cheia</q></li><li><q>quando a stamina fica verde</q></li><li><q>que horas minha stamina chega em 40</q></li>
+            <li><q>amanhã às 10, quanto terei de stamina</q></li><li><q>qual o último horário para deslogar e ficar com 42 horas amanhã às 18</q></li></ul></div>
+          <div class="card calmo"><h3>🤝 Shared XP</h3><ul>
+            <li><q>qual é meu shared</q></li><li><q>até que level divide experiência</q></li><li><q>shared do level 300</q></li><li><q>level 350 entra na minha shared</q></li></ul></div>
+          <div class="card calmo"><h3>💰 Market</h3><ul>
+            <li><q>TC tá 36.5k</q></li><li><q>registra Gold Token a 40k na compra</q></li><li><q>Gold Token a 40k tá caro</q></li><li><q>qual a mediana do TC nos últimos 7 dias</q></li>
+            <li><q>adiciona Silver Token na minha lista</q></li><li><q>corrige o último registro do TC para 38k</q></li><li><q>me avisa se o TC for registrado abaixo de 35k</q></li></ul></div>
+        </div>
+      </section>
     </section>
 
     <!-- ================= TIMERS DE ÁUDIO ================= -->

@@ -161,7 +161,7 @@ class Store:
         available=last+timedelta(minutes=boss['cooldown_minutes']) if last and boss['cooldown_type']=='fixed' and boss['cooldown_minutes'] is not None else None
         return {**boss,'progress':total,'real_kills':len(kills),'last_killed_at':iso(last) if last else None,
                 'available_at':iso(available) if available else None,'remaining_seconds':max(0,(available-now).total_seconds()) if available else None,
-                'next_goal':target,'missing':target-total if target else None,'complete':bool(targets and total>=targets[-1])}
+                'goals':targets,'next_goal':target,'missing':target-total if target else None,'complete':bool(targets and total>=targets[-1])}
 
     def _timer(self,d,args,ctx,now,history=False):
         timers=[t for t in d['timers'] if (not t['character_id'] or t['character_id']==ctx.get('character_id')) and (history or t['status']=='active' and instant(t['ends_at'])>now)]
@@ -489,6 +489,8 @@ def parse(text, now=None):
     m=match(r'(?:que horas minha stamina chega em|quando recupero) (\d+)(?: horas?)?')
     if m:return 'stamina.time_to',{'target_stamina_minutes':int(m[1])*60}
     if t=='quando recupero o bonus de stamina':return 'stamina.time_to',{'target_stamina_minutes':2340}
+    m=re.search(r'\bquando\b.*\be?stamina\b.*\b(cheia|completa|full|verde|bonus)\b',t)
+    if m:return 'stamina.time_to',{'target_stamina_minutes':2340 if m[1] in ('verde','bonus') else 2520}
     m=match(r'(amanha .+|hoje .+),? quanto terei de stamina')
     if m:return 'stamina.project',{'target_datetime':local_datetime(m[1],now)}
     m=match(r'se eu deslogar (.+?),? quanto terei (.+)')
