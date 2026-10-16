@@ -149,7 +149,7 @@ class Servico:
         self._recentes = {name: at for name, at in self._recentes.items() if now - at < 3600}
         return sorted(self._recentes, key=self._recentes.get, reverse=True)
 
-    def registrar_resultado(self, intent, args, result, context):
+    def registrar_resultado(self, intent, args, result, context, mostrar_entendi=True):
         with self._lock:
             values = dict(args or {})
             self._recentes_do_contexto(context)
@@ -157,7 +157,8 @@ class Servico:
                 name = result['boss']['name']
                 values['boss_id'] = name
                 self._recentes[name] = time.monotonic()
-            self._entendi = assistente.describe(intent, values)
+            if mostrar_entendi:
+                self._entendi = assistente.describe(intent, values)
 
     def _vocabulario(self, context):
         recentes = self._recentes_do_contexto(context)

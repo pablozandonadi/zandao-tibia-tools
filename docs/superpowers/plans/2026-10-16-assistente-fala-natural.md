@@ -214,3 +214,14 @@
 - [ ] **Step 3: Implementar.**
 - [ ] **Step 4: Rodar** → OK.
 - [ ] **Step 5: Publicar a entrega 4** como na Tarefa 4 (com deploy do Worker após o "pode" do usuário). Ao final, revisão de todo o conjunto (`superpowers:requesting-code-review`) e encerramento da sessão "Melhorar instruções da IA de voz no Worker" (o trabalho dela foi absorvido aqui).
+
+
+## Coordenação — validação e publicação da Entrega 1 (16/10/2026)
+
+- Base conferida: Beta89, commit0a4716393c9745839f8adbcdc064ee2e89ba395d. As entregas anteriores do Claude foram preservadas.
+- Contrato sincronizado com os schemas pendentes stamina.get e boss.cooldown.set; testes do cliente e do Worker aprovados.
+- Validação:729 testes Python completos;86 testes focados após ajuste final que impede uma ação manual de alterar Ouvi/Entendi/Resposta.
+- Usuário autorizou expressamente publicar o Worker. Deploy186fc50e-2c14-42aa-89f1-da168ca37195 concluído; STT real com áudio sintético em memória reconheceu Drume e NLU real retornou stamina.get. Nenhuma gravação de domínio, áudio ou transcrição persistida.
+- Teto globalUS$0,20/dia preservado. Limite individual padrão versionadoUS$0,05; override operacional de testeUS$0,10 já existente foi mantido.
+- Beta90 compilou/publicou com sucesso (run38974415758); a correção final do diagnóstico manual segue para nova Beta. Confirmar a tag e os artefatos no pipeline antes da entrega.
+- Entregas2–4 (diálogo/memória/modelos/contexto NLU) ainda não iniciadas nesta retomada.

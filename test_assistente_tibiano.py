@@ -171,7 +171,7 @@ class IntegrationTests(StoreCase):
                 result=api.assistente_executar('boss.kill',{'boss_id':'oberon'},CTX)
                 execute.assert_called_once()
             self.assertEqual(result['boss']['real_kills'],1)
-            self.assertIn('Grand Master Oberon',service.estado()['entendi'])
+            self.assertIn('Drume',service.estado()['entendi'])
             self.assertEqual(service._vocabulario(CTX)[:2],['Drume','Grand Master Oberon'])
         with patch('voz.time.monotonic',return_value=3701):
             service._vocabulario(CTX)
@@ -196,6 +196,26 @@ class IntegrationTests(StoreCase):
         self.assertIn('Drume',service.estado()['entendi'])
         self.assertIn('1 abates reais',service.estado()['resposta'])
         self.assertNotIn('Drume',service._vocabulario(other))
+
+    def test_manual_action_updates_vocabulary_without_mixing_voice_feedback(self):
+        import voz
+        import web_api
+        with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):
+            service=voz.Servico(self.path,store=self.store)
+        self.addCleanup(service.close)
+        with patch('voz.play_wake_sound'):
+            service.receber_texto('hey tibia tudo matei o Drume agora')
+        fields=('ouvi','entendi','resposta')
+        before={key:service.estado()[key] for key in fields}
+        self.assertIn('Drume',before['ouvi'])
+        self.assertTrue(before['entendi'].startswith('Registrar abate · Drume'))
+        self.assertIn('Drume',before['resposta'])
+        api=object.__new__(web_api.API)
+        api._voz_obter=lambda:service
+        result=api.assistente_executar('boss.kill',{'boss_id':'oberon'},CTX)
+        self.assertEqual(result['boss']['real_kills'],1)
+        self.assertIn('Grand Master Oberon',service._recentes)
+        self.assertEqual(before,{key:service.estado()[key] for key in fields})
 
     def test_entendi_and_recent_boss_on_domain_nlu(self):
         import voz

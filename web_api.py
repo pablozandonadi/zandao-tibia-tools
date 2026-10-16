@@ -1367,7 +1367,7 @@ class API:
             with PERSONAGEM_LOCK, service._lock:
                 context = dict(context if context is not None else service.store.context())
                 result=service.store.execute(intent, argumentos, context, request_id)
-                service.registrar_resultado(intent, argumentos, result, context)
+                service.registrar_resultado(intent, argumentos, result, context, mostrar_entendi=False)
                 result['message']=assistente_tibiano.reply(result)
                 return result
         except (ValueError,OSError,TypeError) as error:
