@@ -995,7 +995,7 @@
         <button type="button" class="btn btn-sm" data-assistente-tab="timers">Timers Gerais</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="shared">Shared XP</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="bosstiary">Bosstiary</button>
-        <button type="button" class="btn btn-sm" data-assistente-tab="bosses">Boss Tracker</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="bosses">Boss Cooldowns</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="stamina">Calculadora de Stamina</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="market">Market Tracker</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="instrucoes">Instruções</button>
@@ -1056,8 +1056,11 @@
         <div id="bosstiary-lista" class="bosstiary-grid"></div>
       </section>
       <section data-assistente-panel="bosses" hidden>
-        <h2 class="sub">Boss Tracker</h2><p class="dica">Ex.: “Matei o Oberon agora”, “Atualiza meu Oberon para 87 kills”, “Desfaz a última kill do Oberon”. Cooldown desconhecido não gera alertas.</p>
-        <form class="card calmo" id="assistente-form-bosses"></form><div id="assistente-result-bosses" role="status"></div>
+        <h2 class="sub">Boss Cooldowns</h2><p class="dica">Bosses que este personagem matou. Tempo em vermelho = ainda em cooldown. Cooldowns da TibiaWiki; quando faltar, informe aqui ou por voz: “o cooldown do Drume é 20 horas”.</p>
+        <input id="cooldowns-busca" type="search" placeholder="Buscar boss" aria-label="Buscar boss nos cooldowns">
+        <ul id="cooldowns-lista" class="cooldowns-lista" aria-live="polite"></ul>
+        <details class="card calmo"><summary>Mais ações (corrigir horário, desfazer abate, alerta)</summary>
+        <form id="assistente-form-bosses"></form><div id="assistente-result-bosses" role="status"></div></details>
       </section>
       <section data-assistente-panel="stamina" hidden>
         <h2 class="sub">Calculadora de Stamina</h2><p class="dica">Referências declaradas, sem leitura do jogo. Projeção pressupõe offline contínuo: 10 min iniciais, 3 min por minuto até 39h e 6 min até 42h. Ex.: “Estou deslogando agora, minha stamina está em 38 horas”. Horários manuais usam seu fuso local.</p>
@@ -1079,7 +1082,7 @@
             <li><q>matei o Drume</q></li><li><q>matei o Drume há meia hora</q></li><li><q>matei o Oberon ontem às 22</q></li><li><q>acabei de fazer o Scarlett</q></li>
             <li><q>atualiza meu Oberon para 87 kills</q></li><li><q>adiciona 3 kills no Drume</q></li><li><q>desfaz a última kill do Drume</q></li>
             <li><q>corrige: matei o Drume ontem às 22</q></li><li><q>quantas kills tenho no Drume</q></li><li><q>quanto falta pro Drume</q></li>
-            <li><q>me avisa quando o Drume liberar</q></li><li><q>meus bosses</q></li></ul></div>
+            <li><q>me avisa quando o Drume liberar</q></li><li><q>meus bosses</q></li><li><q>o cooldown do Black Knight é 2 horas</q></li></ul></div>
           <div class="card calmo"><h3>⚡ Stamina</h3><ul>
             <li><q>estou deslogando agora, minha stamina está em 38 horas</q></li><li><q>vou fazer logout, minha stamina está em 41 horas</q></li>
             <li><q>desloguei há 20 minutos com 39 horas</q></li><li><q>estou logando agora</q></li><li><q>corrige minha stamina para 40 horas</q></li>

@@ -51,7 +51,7 @@ class StoreTests(StoreCase):
         self.assertFalse((self.path/'assistente-tibiano.json').exists())
     def test_boss_atomic_boost_undo_and_profile_isolation(self):
         k=self.call('boss.kill',{'boss_id':'oberon','boosted':True},'kill1')['boss']
-        self.assertEqual((1,3,None),(k['real_kills'],k['progress'],k['available_at']))
+        self.assertEqual((1,3,(NOW+timedelta(hours=20)).isoformat()),(k['real_kills'],k['progress'],k['available_at']))
         self.assertEqual(0,self.call('bosstiary.get',{'boss_id':'oberon'},context={'character_id':'Outro','world_id':'Secura'})['boss']['real_kills'])
         self.call('bosstiary.set_total',{'boss_id':'oberon','total_kills':87})
         self.call('boss.kill.undo',{'boss_id':'oberon'})
@@ -304,6 +304,21 @@ class FinishUpdateTests(StoreCase):
         for phrase in phrases:
             with self.subTest(phrase=phrase):
                 self.assertIsNotNone(a.parse(phrase,NOW))
+    def test_wiki_cooldown_gives_release_time(self):
+        boss=self.call('boss.kill',{'boss_id':'drume'})['boss']
+        self.assertEqual((1200,'wiki'),(boss['cooldown_minutes'],boss['status']))
+        self.assertEqual((NOW+timedelta(hours=20)).isoformat(),boss['available_at'])
+        self.assertIn('Libera em 20h 0min',a.reply({'boss':boss}))
+        self.assertIsNone(self.call('bosstiary.get',{'boss_id':'Ekatrix'})['boss']['cooldown_minutes'])
+    def test_player_cooldown_by_voice_survives_reload(self):
+        intent,args=a.parse('o cooldown do Black Knight é 2 horas',NOW)
+        self.assertEqual(('boss.cooldown.set',120),(intent,args['cooldown_minutes']))
+        self.call(intent,args)
+        self.call('boss.kill',{'boss_id':'Black Knight'})
+        boss=a.Store(self.path,clock=lambda:NOW).execute('bosstiary.get',{'boss_id':'black knight'},CTX)['boss']
+        self.assertEqual((120,'player',(NOW+timedelta(hours=2)).isoformat()),(boss['cooldown_minutes'],boss['status'],boss['available_at']))
+    def test_span_matches_tibia_widget(self):
+        self.assertEqual(['3h 12min','45min','2d 4h','1min'],[a.span(s) for s in (11520,2700,187200,5)])
     def test_boss_view_has_bosstiary_goals(self):
         self.assertEqual([5,20,60],self.call('bosstiary.get',{'boss_id':'drume'})['boss']['goals'])
     def test_bridge_parameter_is_not_js_arguments(self):

@@ -25,11 +25,11 @@ GOALS = {'bane':[25,100,300], 'archfoe':[5,20,60], 'nemesis':[1,3,5]}
 SEED = boss_catalog.catalog_seed()
 
 def merge_catalog(stored):
-    """Catálogo embutido atualiza cópias 'partial' antigas; importações do usuário continuam valendo."""
+    """Catálogo embutido atualiza cópias antigas dele mesmo; importações e cooldowns informados pelo jogador continuam valendo."""
     merged={b['boss_id']:deepcopy(b) for b in SEED}
     for b in stored:
         known=merged.get(b['boss_id'])
-        if known and b.get('status')=='partial':known['aliases']=list(dict.fromkeys(known['aliases']+b['aliases']))[:10]
+        if known and b.get('status') in ('partial','wiki'):known['aliases']=list(dict.fromkeys(known['aliases']+b['aliases']))[:10]
         else:merged[b['boss_id']]=b
     return list(merged.values())
 
@@ -290,6 +290,9 @@ class Store:
                 if not view['available_at']:raise ValueError('Cooldown desconhecido. Não é possível criar alerta confiável.')
                 if any(v['kind']=='boss' and v.get('boss_id')==bid and v['character_id']==char and v['at']==view['available_at'] and not v.get('cancelled') for v in d['alerts']):return {'boss':view},False
                 d['alerts'].append({'id':uuid.uuid4().hex,'kind':'boss','boss_id':bid,'character_id':char,'world_id':None,'at':view['available_at'],'message':b['name']+' disponível (estimativa).','fired':False})
+            elif action=='boss.cooldown.set':
+                b.update(cooldown_type='fixed',cooldown_minutes=integer(p.get('cooldown_minutes'),1,525600),status='player',
+                         source='Informado pelo jogador',verified_at=instant(now).astimezone(LOCAL).date().isoformat())
             else: raise ValueError('Ação de boss desconhecida.')
             view=self._boss_view(d,b,char,now)
             if action in ('boss.kill','boss.kill.correct_time','boss.kill.undo'):
@@ -398,7 +401,7 @@ FIELDS = {
  'timer.get':{'timer_id','label','duration_seconds','last'},'timer.cancel':{'timer_id','label','duration_seconds','last'},
  'timer.extend':{'timer_id','label','duration_seconds','last','delta_seconds'},'timer.repeat':{'timer_id','label','duration_seconds','last'},'timer.edit':{'timer_id','label','duration_seconds'},
  'boss.catalog':set(),'boss.catalog.import':{'bosses'},'boss.kill':{'boss_id','killed_at','boosted'},'boss.cooldown.get':{'boss_id'},'boss.cooldown.list':set(),
- 'bosstiary.get':{'boss_id'},'bosstiary.set_total':{'boss_id','total_kills'},'bosstiary.increment':{'boss_id','delta_kills'},'boss.kill.undo':{'boss_id','event_id'},'boss.kill.correct_time':{'boss_id','event_id','corrected_at'},'boss.alert':{'boss_id'},
+ 'bosstiary.get':{'boss_id'},'bosstiary.set_total':{'boss_id','total_kills'},'bosstiary.increment':{'boss_id','delta_kills'},'boss.kill.undo':{'boss_id','event_id'},'boss.kill.correct_time':{'boss_id','event_id','corrected_at'},'boss.alert':{'boss_id'},'boss.cooldown.set':{'boss_id','cooldown_minutes'},
  'stamina.logout':{'stamina_minutes','logged_out_at'},'stamina.correct':{'stamina_minutes','reference_at'},'stamina.login':{'logged_in_at'},'stamina.get':set(),
  'stamina.project':{'target_datetime','starting_stamina_minutes','logged_out_at'},'stamina.time_to':{'target_stamina_minutes'},'stamina.reverse':{'desired_stamina_minutes','desired_at','starting_stamina_minutes'},'stamina.alert':{'target_stamina_minutes'},
  'market.price.add':{'item','price','offer_type','observed_at'},'market.stats':{'item','price','offer_type','days'},'market.price.correct':{'observation_id','item','price','offer_type','reason'},'market.price.delete':{'observation_id','item','offer_type','reason'},'market.item.watch':{'item'},'market.watch.list':set(),'market.alert.create':{'item','offer_type','direction','price'},'market.alert.list':set()
@@ -481,6 +484,8 @@ def parse(text, now=None):
     m=match(r'(?:quantas kills tenho (?:no |na )|quantas faltam para completar o bosstiary (?:do |da ))(.+)')
     if m:return 'bosstiary.get',{'boss_id':m[1]}
     if t in ('quais bosses estao disponiveis','mostra os bosses do meu personagem','meus bosses'):return 'boss.cooldown.list',{}
+    m=match(r'(?:define |coloca )?(?:o )?cooldown (?:do |da |de )?(.+?) (?:e |eh |para |pra )(?:de )?(.+)')
+    if m:return 'boss.cooldown.set',{'boss_id':m[1],'cooldown_minutes':duration(m[2])//60}
     if t in ('estou logando agora','registrar login'):return 'stamina.login',{'logged_in_at':iso(now)}
     m=match(r'(?:estou deslogando agora[, ]*minha stamina esta em |desloguei (.+?) com )(.+)')
     if m:return 'stamina.logout',{'stamina_minutes':duration(m[2])//60,'logged_out_at':local_datetime(m[1] or 'agora',now)}
@@ -520,6 +525,11 @@ def parse(text, now=None):
     return None
 
 
+def span(seconds):
+    """3h 12min, 45min ou 2d 4h: o mesmo formato do Boss Cooldowns do Tibia."""
+    minutes=max(1,int(seconds+59)//60);days,hours,rest=minutes//1440,minutes//60%24,minutes%60
+    return f'{days}d {hours}h' if days else f'{hours}h {rest}min' if hours else f'{rest}min'
+
 def reply(result):
     if 'timer' in result:
         t=result['timer'];remaining=result['timer'].get('remaining_seconds')
@@ -530,7 +540,8 @@ def reply(result):
     if 'compatible' in result:return ('Compatível' if result['compatible'] else 'Incompatível')+' por level. '+result['note']
     if 'range' in result:return f"Seu shared vai do level {result['range'][0]} até {result['range'][1]}."
     if 'boss' in result:
-        b=result['boss'];cooldown=f" Disponível em {int(b['remaining_seconds'])} segundos." if b['remaining_seconds'] is not None else ' Cooldown não verificado.'
+        b=result['boss'];left=b['remaining_seconds']
+        cooldown=f" Libera em {span(left)}." if left else ' Disponível.' if b['cooldown_minutes'] else ' Cooldown não informado.'
         goal=f" Faltam {b['missing']} para a próxima meta." if b['missing'] is not None else (' Bosstiary completo.' if b['complete'] else ' Meta não verificada.')
         return f"{b['name']}: {b['real_kills']} abates reais, {b['progress']} de progresso."+goal+cooldown
     if 'stamina_minutes' in result:return f"Stamina estimada: {result['stamina_minutes']//60}h{result['stamina_minutes']%60:02d}. Se permanecer offline."
@@ -583,7 +594,7 @@ def validate_state(d):
             if b['category'] not in (*GOALS,'unknown','not_applicable') or b['cooldown_type'] not in ('fixed','unknown','server_save','event','spawn'):raise ValueError()
             if b['cooldown_type']=='fixed':
                 integer(b['cooldown_minutes'],1,525600)
-                if b['status']!='verified' or not b['source'].startswith('https://'):raise ValueError()
+                if b['status'] not in ('verified','wiki','player') or b['status']!='player' and not b['source'].startswith('https://'):raise ValueError()
                 datetime.strptime(b['verified_at'],'%Y-%m-%d')
             elif b['cooldown_minutes'] is not None:raise ValueError()
         for alert in d['alerts']:

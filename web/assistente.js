@@ -83,7 +83,7 @@ async function refresh(){
  if(!el('assistente-world').value)el('assistente-world').value=data.context.world_id||'';
  el('assistente-context').textContent=`Personagem: ${data.context.character_id||'Selecione em Meus personagens'} · Level: ${data.context.level||'—'} · Mundo: ${data.context.world_id||'Não informado'}`;el('assistente-overview').textContent=`${data.timers.filter(t=>t.status==='active').length} timers ativos · Bosses e stamina por personagem · Market privado por mundo. Alertas funcionam enquanto o aplicativo está aberto e são reconciliados uma vez ao reabrir.`;renderTimers(data.timers);
  const names=el('bosstiary-nomes');if(names&&names.children.length!==data.catalog.bosses.length)names.replaceChildren(...data.catalog.bosses.map(b=>{const o=node('option');o.value=b.name;return o;}));
- const key=`${data.context.character_id}|${data.revision}`;if(active==='bosstiary'&&key!==bosstiaryKey){bosstiaryKey=key;await loadBosstiary();}}
+ const key=`${data.context.character_id}|${data.revision}`;if(['bosstiary','bosses'].includes(active)&&key!==bosstiaryKey){bosstiaryKey=key;await loadBosstiary();}}
  catch(e){el('assistente-feedback').textContent=e.message;}
 }
 // Bosstiary: lista do personagem em uso, no estilo da Cyclopedia do Tibia.
@@ -91,10 +91,26 @@ const STAR_NAMES=['Prowess','Expertise','Mastery'];let bosstiaryRows=[],bosstiar
 const bossImage=name=>`assets/creatures/${name.split(' (')[0].toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')}.gif`;
 async function loadBosstiary(){
  const out=el('bosstiary-lista');
- if(!state.context.character_id){bosstiaryRows=[];out.replaceChildren(node('p','Selecione um personagem em Meus personagens.','dica'));return;}
+ if(!state.context.character_id){bosstiaryRows=[];renderCooldowns();out.replaceChildren(node('p','Selecione um personagem em Meus personagens.','dica'));return;}
  const data=await window.pywebview.api.assistente_executar('boss.cooldown.list',{},{...state.context});
  if(data.erro){out.replaceChildren(node('p',data.erro,'dica'));return;}
- bosstiaryRows=data.bosses;renderBosstiary();
+ bosstiaryRows=data.bosses;renderBosstiary();renderCooldowns();
+}
+// Boss Cooldowns: igual ao widget do Tibia (imagem, nome, tempo em vermelho; o que libera primeiro em cima).
+function span(ms){const m=Math.max(1,Math.ceil(ms/60000)),d=Math.floor(m/1440),h=Math.floor(m/60)%24;return d?`${d}d ${h}h`:h?`${h}h ${m%60}min`:`${m%60}min`;}
+function renderCooldowns(){
+ const list=el('cooldowns-lista'),q=el('cooldowns-busca').value.trim().toLowerCase(),now=Date.now();
+ const rows=bosstiaryRows.filter(b=>b.last_killed_at&&(!q||[b.name,...b.aliases].some(n=>n.toLowerCase().includes(q))))
+  .map(b=>({b,left:b.available_at?new Date(b.available_at)-now:null}))
+  .sort((x,y)=>(x.left===null?2e15:x.left>0?x.left:1e15)-(y.left===null?2e15:y.left>0?y.left:1e15)||x.b.name.localeCompare(y.b.name));
+ list.replaceChildren(...rows.map(({b,left})=>{
+  const li=node('li'),img=node('img');img.alt='';img.src=bossImage(b.name);img.addEventListener('error',()=>img.replaceWith(node('span','?','bosstiary-sombra')));
+  li.append(img,node('strong',b.name));
+  if(left===null){const form=node('form',undefined,'cooldowns-informar'),hours=node('input');hours.type='number';hours.min='1';hours.max='8760';hours.step='1';hours.required=true;hours.placeholder='horas';hours.setAttribute('aria-label',`Cooldown de ${b.name} em horas`);
+   form.append(hours,node('button','Informar','btn btn-sm'));form.addEventListener('submit',e=>{e.preventDefault();bosstiaryRun('boss.cooldown.set',{boss_id:b.boss_id,cooldown_minutes:Number(hours.value)*60});});li.append(form);}
+  else li.append(left>0?node('span',span(left),'cooldowns-tempo'):node('span','Disponível','cooldowns-livre'));
+  return li;}));
+ if(!rows.length)list.append(node('li',q?'Nenhum boss encontrado.':'Nenhum abate registrado neste personagem. Diga “matei o Drume” ou use +1 kill no Bosstiary.','dica'));
 }
 function bossCard(b){
  const card=node('article',undefined,'card calmo bosstiary-card'),goals=b.goals||[],stars=goals.filter(g=>b.progress>=g).length;
@@ -119,7 +135,7 @@ async function bosstiaryRun(intent,args){
  try{const data=await execute(window.pywebview.api,intent,args,{...state.context},crypto.randomUUID());if(data.erro)throw new Error(data.erro);status.textContent=data.message||'Concluído.';await loadBosstiary();}
  catch(e){status.textContent=e.message||'Não foi possível concluir.';}
 }
-function select(module){active=module;if(module==='bosstiary'){bosstiaryKey='';}for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));refresh();}
+function select(module){active=module;if(module==='bosstiary'||module==='bosses'){bosstiaryKey='';}for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));refresh();}
 function boot(){
  if(booted||!el('assistente-context')||!window.pywebview||!window.pywebview.api)return;booted=true;
  for(const b of document.querySelectorAll('[data-assistente-tab]'))b.addEventListener('click',()=>select(b.dataset.assistenteTab));
@@ -128,6 +144,8 @@ function boot(){
  el('bosstiary-form').addEventListener('submit',e=>{e.preventDefault();bosstiaryRun('bosstiary.set_total',{boss_id:el('bosstiary-boss').value.trim(),total_kills:Number(el('bosstiary-total').value)});});
  for(const input of document.querySelectorAll('[data-bosstiary-cat],#bosstiary-todos'))input.addEventListener('change',renderBosstiary);
  el('bosstiary-busca').addEventListener('input',renderBosstiary);
+ el('cooldowns-busca').addEventListener('input',renderCooldowns);
+ setInterval(()=>{if(active==='bosses'&&el('page-voz').classList.contains('shown'))renderCooldowns();},20000);
  select('overview');setInterval(()=>{if(el('page-voz').classList.contains('shown')&&!busy)refresh();},2000);
 }
 window.assistenteLoad=refresh;window.assistenteSelect=select;
