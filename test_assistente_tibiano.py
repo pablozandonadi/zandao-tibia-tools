@@ -101,6 +101,11 @@ class ParserTests(StoreCase):
         for text in ['não matei Oberon','sem registrar TC tá 35k','jamais cancela timer']:
             with self.assertRaises(ValueError):a.parse(text,NOW)
         self.assertEqual('2026-10-17T17:00:00+00:00',a.local_datetime('amanhã às 13',NOW))
+    def test_asr_time_requires_a_duration(self):
+        self.assertEqual(('timer.create', {'duration_seconds':1800}), a.parse('time trinta minutos', NOW))
+        self.assertIsNone(a.parse('time', NOW))
+        with self.assertRaises(ValueError): a.parse('time de futebol', NOW)
+
     def test_unknown_actions_and_extra_fields_cannot_write(self):
         with self.assertRaises(ValueError):self.call('timer.create',{'duration_seconds':30,'arbitrary':True})
         self.assertFalse((self.path/'assistente-tibiano.json').exists())
@@ -116,6 +121,32 @@ class IntegrationTests(StoreCase):
         self.assertEqual(1,len(self.call('timer.list')['timers']))
         self.assertIn('cancelado',service.comando('cancela o ultimo timer'))
         self.assertEqual([],service.estado()['timers'])
+    def test_asr_time_from_wake_reaches_shared_store(self):
+        import voz
+        with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'),patch('voz.play_wake_sound') as ding:
+            service=voz.Servico(self.path,store=self.store)
+            self.addCleanup(service.close)
+            service.receber_texto('hei tíbia tudo time trinta minutos')
+            ding.assert_called_once()
+        timers=self.call('timer.list')['timers']
+        self.assertEqual(1,len(timers))
+        self.assertEqual(1800,timers[0]['duration_seconds'])
+        self.assertEqual(1,len(service.estado()['timers']))
+
+    def test_direct_mode_captures_each_command_context(self):
+        import voz
+        with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):
+            service=voz.Servico(self.path,store=self.store)
+        self.addCleanup(service.close)
+        service._ready.set()
+        service.escutar()
+        service.receber_texto('matei o Drume agora')
+        path=self.path/'meus_personagens.json'
+        data=json.loads(path.read_text());data['atual']='Outro';path.write_text(json.dumps(data))
+        service.receber_texto('matei o Drume agora')
+        self.assertEqual(1,self.call('bosstiary.get',{'boss_id':'drume'})['boss']['real_kills'])
+        self.assertEqual(1,self.call('bosstiary.get',{'boss_id':'drume'},context={'character_id':'Outro','world_id':'Secura'})['boss']['real_kills'])
+
     def test_captured_context_survives_profile_change(self):
         import voz
         with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):
@@ -207,3 +238,33 @@ class OriginPersistenceTests(StoreCase):
         self.assertEqual('voice',event['source'])
         self.assertEqual(obs['id'],event['entity_id'])
         self.assertEqual(event['id'],row['event_id'])
+
+class FinishUpdateTests(StoreCase):
+    def test_free_logout_speech_is_stamina_not_price(self):
+        self.assertEqual(('stamina.logout',{'stamina_minutes':2460,'logged_out_at':NOW.isoformat()}),
+                         a.parse('Vou fazer logout agora, minha estamina está em quarenta e uma horas.',NOW))
+        self.assertEqual(2400,a.parse('deslogando, stamina 40h',NOW)[1]['stamina_minutes'])
+        for text in ['o boss a caminho','minha stamina ta 40 horas']:
+            self.assertIsNone(a.parse(text,NOW),text)
+        with self.assertRaises(ValueError):a.parse('TC tá 1.500',NOW)
+    def test_full_boss_catalog_with_spoken_alias(self):
+        bosses=self.call('boss.catalog')['bosses']
+        self.assertGreater(len(bosses),500)
+        a.validate_state({**self.store._read(),'catalog':bosses})
+        self.assertEqual('Drume',self.call('boss.kill',{'boss_id':'drumi'})['boss']['name'])
+    def test_old_three_boss_file_keeps_kills_and_gains_catalog(self):
+        self.call('boss.kill',{'boss_id':'drume'})
+        path=self.path/'assistente-tibiano.json';d=json.loads(path.read_text())
+        d['catalog']=[{**b,'aliases':['meu-apelido']} if b['boss_id']=='drume' else b for b in d['catalog'] if b['boss_id'] in ('drume','grand-master-oberon','scarlett-etzel')]
+        path.write_text(json.dumps(d))
+        store=a.Store(self.path,clock=lambda:NOW)
+        self.assertEqual(1,store.execute('bosstiary.get',{'boss_id':'meu-apelido'},CTX)['boss']['real_kills'])
+        self.assertEqual(1,store.execute('bosstiary.get',{'boss_id':'drumi'},CTX)['boss']['real_kills'])
+        self.assertGreater(len(store.execute('boss.catalog',{},CTX)['bosses']),500)
+    def test_cache_sees_writes_from_another_instance(self):
+        self.call('timer.create',{'duration_seconds':30})
+        a.Store(self.path,clock=lambda:NOW).execute('timer.create',{'duration_seconds':40},CTX)
+        self.assertEqual(2,len(self.call('timer.list')['timers']))
+    def test_bridge_parameter_is_not_js_arguments(self):
+        import inspect,web_api
+        self.assertNotIn('arguments',inspect.signature(web_api.API.assistente_executar).parameters)

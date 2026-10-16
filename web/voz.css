@@ -30,3 +30,7 @@
 @keyframes voz-orbita{to{rotate:360deg}}
 @keyframes voz-pulso{50%{scale:.88;opacity:.55}}
 @media(prefers-reduced-motion:reduce){.voz-esfera,.voz-esfera::before,.voz-esfera::after,.voz-esfera span{animation:none;transition:none}}
+
+.voz-ajuda { position: relative; text-align: right; }
+#voz-ajuda-texto { position: absolute; right: 0; top: 100%; width: min(380px, 80vw); z-index: 5; text-align: left; }
+#voz-ajuda-texto[hidden] { display: none; }

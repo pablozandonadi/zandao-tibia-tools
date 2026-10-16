@@ -21,8 +21,9 @@
     el('voz-status').textContent = data.detalhe || 'Preparando assistente…';
     el('voz-status').dataset.estado = data.estado || '';
     el('voz-esfera').dataset.estado = data.estado || 'espera';
-    el('voz-esfera').setAttribute('aria-label', 'Falar um comando');
-    el('voz-esfera').disabled = data.estado === 'preparando';
+    el('voz-esfera').setAttribute('aria-label', data.direto ? 'Desligar comandos diretos' : 'Ligar comandos diretos');
+    el('voz-esfera').setAttribute('aria-pressed', String(Boolean(data.direto)));
+    el('voz-esfera').disabled = busy || !data.microfone || data.estado === 'preparando';
     el('voz-ouvi').textContent = data.ouvi || 'Aguardando “Hey Tibia Tudo”.';
     el('voz-resposta').textContent = data.resposta || 'As respostas aparecerão aqui.';
     el('voz-microfone').textContent = data.microfone ? 'Pausar microfone' : (data.estado === 'erro' ? 'Tentar novamente' : 'Retomar microfone');
@@ -68,6 +69,7 @@
     finally {
       busy = false;
       el('voz-microfone').disabled = false;
+      el('voz-esfera').disabled = !snapshot.microfone || snapshot.estado === 'preparando';
       for (const card of cards.values()) card.querySelector('button').disabled = false;
     }
   }
@@ -85,6 +87,7 @@
       busy = false;
       el('voz-criar').disabled = false;
       el('voz-microfone').disabled = false;
+      el('voz-esfera').disabled = !snapshot.microfone || snapshot.estado === 'preparando';
       for (const card of cards.values()) card.querySelector('button').disabled = false;
     }
   }
@@ -103,6 +106,17 @@
     });
     el('voz-esfera').addEventListener('click', () => mutate('voz_escutar'));
     el('voz-microfone').addEventListener('click', () => mutate(snapshot.microfone ? 'voz_parar' : 'voz_iniciar'));
+    const help = el('voz-ajuda');
+    const tip = el('voz-ajuda-texto');
+    const showHelp = open => { tip.hidden = !open; help.setAttribute('aria-expanded', String(open)); };
+    const helpArea = el('voz-ajuda-area');
+    let helpPinned = false, helpFocused = false;
+    helpArea.addEventListener('mouseenter', () => showHelp(true));
+    helpArea.addEventListener('mouseleave', () => { if (!helpPinned && !helpFocused) showHelp(false); });
+    help.addEventListener('focus', () => { helpFocused = true; showHelp(true); });
+    help.addEventListener('blur', () => { helpFocused = false; if (!helpPinned) showHelp(false); });
+    help.addEventListener('click', () => { helpPinned = !helpPinned; showHelp(helpPinned); });
+    help.addEventListener('keydown', event => { if (event.key === 'Escape') { helpPinned = false; showHelp(false); } });
     mutate('voz_iniciar');
     setInterval(() => {
       countdown();

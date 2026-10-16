@@ -22,6 +22,9 @@ class VozTests(unittest.TestCase):
         threads = patch('voz.threading.Thread')
         threads.start()
         self.addCleanup(threads.stop)
+        ding = patch('voz.play_wake_sound')
+        self.ding = ding.start()
+        self.addCleanup(ding.stop)
         self.service = Servico(self.tmp.name)
         self.addCleanup(self.service.close)
 
@@ -47,7 +50,57 @@ class VozTests(unittest.TestCase):
             self.assertEqual(len(self.service.estado()['timers']), 2)
         with patch('voz.time.monotonic', return_value=200):
             self.service.receber_texto('timer de 10 segundos')
-            self.assertEqual(len(self.service._timers), 2)
+            self.assertEqual(len(self.service._timers), 3)
+
+    def test_direct_mode_continues_until_toggle_and_pause_resets_it(self):
+        self.service._ready.set()
+        self.service._mic = Mock(is_alive=Mock(return_value=True))
+        self.assertFalse(self.service.estado()['direto'])
+        self.assertTrue(self.service.escutar()['direto'])
+        with patch('voz.time.monotonic', return_value=100):
+            self.service.receber_texto('time trinta minutos')
+        with patch('voz.time.monotonic', return_value=200):
+            self.service.receber_texto('timer de 20 segundos')
+            self.service._speaking.set()
+            self.service.receber_texto('timer de 1 segundo')
+            self.service._speaking.clear()
+            self.assertEqual(len(self.service.estado()['timers']), 2)
+            self.assertTrue(self.service.estado()['direto'])
+            self.assertFalse(self.service.escutar()['direto'])
+            self.service.receber_texto('timer de 1 segundo')
+            self.assertEqual(len(self.service.estado()['timers']), 2)
+            self.assertEqual(self.service.estado()['detalhe'], 'Aguardando comando: Hey tibia tudo')
+            self.service.escutar()
+            self.service.parar()
+            self.assertFalse(self.service.estado()['direto'])
+        self.ding.assert_not_called()
+
+    def test_wake_ding_gate_ttl_and_combined_command(self):
+        clock = [100]
+        def ding():
+            self.assertTrue(self.service._speaking.is_set())
+            self.assertTrue(self.service._audio_reset.is_set())
+            self.service.receber_texto('hey tibia tudo timer de 1 segundo')
+            clock[0] = 105
+        self.ding.side_effect = ding
+        with patch('voz.time.monotonic', side_effect=lambda: clock[0]), patch.object(self.service._stop, 'wait'):
+            self.service.receber_texto('timer de 30 segundos')
+            self.ding.assert_not_called()
+            self.service.receber_texto('hei tíbia tudo')
+            self.ding.assert_called_once()
+            self.assertEqual(self.service._armed_until, 113)
+            self.assertFalse(self.service._speaking.is_set())
+            self.assertTrue(self.service._falas.empty())
+            self.service.receber_texto('hei tíbia tudo time trinta minutos')
+            self.assertEqual(self.ding.call_count, 2)
+            self.assertEqual(self.service.estado()['timers'][0]['duracao'], 1800)
+
+    def test_ding_failure_does_not_block_combined_command(self):
+        self.ding.side_effect = OSError('no speakers')
+        self.service.receber_texto('hei tíbia tudo time trinta minutos')
+        self.assertFalse(self.service._speaking.is_set())
+        self.assertTrue(self.service._audio_reset.is_set())
+        self.assertEqual(self.service.estado()['timers'][0]['duracao'], 1800)
 
     def test_clarification_expires_and_manual_pause_clears_session(self):
         with patch('voz.time.monotonic', return_value=100):
@@ -273,6 +326,44 @@ class VozTests(unittest.TestCase):
             self.assertEqual(self.service._timers,[(190,'90 segundos')])
             client.transcribe.assert_called_once()
             client.interpret.assert_not_called()
+
+    def test_direct_online_rejects_silence_but_accepts_voiced_empty_vosk(self):
+        client=self._online('timer de 30 segundos')
+        self.service._ready.set()
+        self.service.escutar()
+        for pcm in (b'', b'\0\0'*16000, struct.pack('<h',299)*16000):
+            self.service.receber_audio('',pcm,16000)
+        client.transcribe.assert_not_called()
+        # Quiet pre-roll/tail must not dilute a voiced block below the capture threshold.
+        pcm=b'\0\0'*8000+struct.pack('<h',500)*1600+b'\0\0'*12800
+        self.service.receber_audio('',pcm,16000)
+        client.transcribe.assert_called_once()
+        self.assertEqual(len(self.service._timers),1)
+
+    def test_direct_online_continues_and_toggle_discards_inflight_result(self):
+        client=self._online('timer de 30 segundos')
+        self.service._ready.set()
+        self.service.escutar()
+        pcm=struct.pack('<h',1000)*16000
+        with patch('voz.time.monotonic',return_value=100):
+            self.service.receber_audio('unk',pcm,16000)
+        with patch('voz.time.monotonic',return_value=200):
+            self.service.receber_audio('unk',pcm,16000)
+        self.assertEqual(client.transcribe.call_count,2)
+        self.assertEqual(len(self.service._timers),2)
+        client.transcribe.side_effect=lambda *args:(self.service.escutar(),'timer de 1 segundo')[1]
+        self.service.receber_audio('unk',pcm,16000)
+        self.assertFalse(self.service.estado()['direto'])
+        self.assertEqual(len(self.service._timers),2)
+        self.service.receber_audio('unk',pcm,16000)
+        self.assertEqual(client.transcribe.call_count,3)
+        self.ding.assert_not_called()
+
+    def test_pause_during_ding_discards_combined_command(self):
+        self.ding.side_effect=self.service._mic_stop.set
+        self.service.receber_texto('hey tibia tudo timer de 30 segundos')
+        self.assertEqual(self.service._timers,[])
+        self.assertFalse(self.service._speaking.is_set())
 
     def test_online_same_phrase_cuts_wake_audio_and_requires_timestamps(self):
         client=self._online('alarme de meio minuto')

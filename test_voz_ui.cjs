@@ -9,19 +9,19 @@ class Element {
   remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
   querySelector(tag) { return this.children.find(child => child.tagName === tag); }
 }
-const ids = ['page-voz', 'voz-status', 'voz-esfera', 'voz-ouvi', 'voz-resposta', 'voz-microfone', 'voz-lista', 'voz-vazio', 'voz-quantidade', 'voz-feedback', 'voz-form', 'voz-valor', 'voz-unidade', 'voz-criar', 'voz-online-form', 'voz-online-token', 'voz-online-enabled', 'voz-online-status'];
+const ids = ['page-voz', 'voz-status', 'voz-esfera', 'voz-ouvi', 'voz-resposta', 'voz-microfone', 'voz-lista', 'voz-vazio', 'voz-quantidade', 'voz-feedback', 'voz-form', 'voz-valor', 'voz-unidade', 'voz-criar', 'voz-online-form', 'voz-online-token', 'voz-online-enabled', 'voz-online-status', 'voz-ajuda', 'voz-ajuda-texto', 'voz-ajuda-area'];
 const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
 global.document = {getElementById: id => elements[id], createElement: tag => new Element(tag)};
 const intervals = [];
 global.setInterval = callback => intervals.push(callback);
 global.window = {addEventListener() {}};
 const ui = require('./web/voz.js');
-let timers = [], snapshots = 0, starts = 0;
+let timers = [], snapshots = 0, starts = 0, direct = false;
 const calls = [];
 const state = () => ({estado: 'ouvindo', detalhe: 'Ouvindo', microfone: true, ouvi: '<img src=x onerror=alert(1)>', resposta: 'Fala comigo, tibiano.', timers});
 window.pywebview = {api: {
   async voz_configurar_online(...args) { calls.push(['online', ...args]); return {...state(), online_enabled: args[1], online_configured: true}; },
-  async voz_escutar() { calls.push(['listen']); return {...state(), estado: 'escutando'}; },
+  async voz_escutar() { calls.push(['listen']); direct = !direct; return {...state(), direto: direct}; },
   async voz_parar() { calls.push(['pause']); return {...state(), estado: 'pausado', microfone: false}; },
   async voz_iniciar() { starts++; return state(); },
   async voz_estado() { snapshots++; return state(); },
@@ -35,11 +35,33 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
   await flush();
   assert.equal(starts, 1, 'Start automatically, only once');
   assert.equal(elements['voz-ouvi'].textContent, '<img src=x onerror=alert(1)>');
-  assert.equal(typeof elements['voz-esfera'].listeners.click, 'function', 'Orb starts a command');
+  assert.equal(typeof elements['voz-esfera'].listeners.click, 'function', 'Orb toggles microphone');
   await elements['voz-esfera'].listeners.click();
   assert.deepEqual(calls.shift(), ['listen']);
-  assert.equal(elements['voz-esfera'].dataset.estado, 'escutando');
-  assert.equal(elements['voz-esfera']['aria-label'], 'Falar um comando');
+  assert.equal(elements['voz-esfera']['aria-label'], 'Desligar comandos diretos');
+  assert.equal(elements['voz-esfera']['aria-pressed'], 'true');
+  await elements['voz-esfera'].listeners.click();
+  assert.deepEqual(calls.shift(), ['listen']);
+  assert.equal(starts, 1);
+  assert.equal(elements['voz-esfera']['aria-pressed'], 'false');
+  assert.equal(elements['voz-esfera']['aria-label'], 'Ligar comandos diretos');
+  elements['voz-ajuda-area'].listeners.mouseenter();
+  assert.equal(elements['voz-ajuda'].listeners.mouseleave, undefined, 'Moving from button into tooltip must not dismiss it');
+  assert.equal(elements['voz-ajuda-texto'].hidden, false);
+  elements['voz-ajuda'].listeners.keydown({key: 'Escape'});
+  assert.equal(elements['voz-ajuda-texto'].hidden, true);
+  elements['voz-ajuda'].listeners.click();
+  assert.equal(elements['voz-ajuda-texto'].hidden, false);
+  elements['voz-ajuda'].listeners.blur();
+  elements['voz-ajuda-area'].listeners.mouseleave();
+  assert.equal(elements['voz-ajuda-texto'].hidden, false, 'Click pins help while pointer leaves');
+  elements['voz-ajuda'].listeners.keydown({key: 'Escape'});
+  assert.equal(elements['voz-ajuda-texto'].hidden, true);
+  elements['voz-ajuda'].listeners.focus();
+  elements['voz-ajuda-area'].listeners.mouseleave();
+  assert.equal(elements['voz-ajuda-texto'].hidden, false, 'Keyboard focus retains help');
+  elements['voz-ajuda'].listeners.blur();
+  assert.equal(elements['voz-ajuda-texto'].hidden, true);
   ui.render({...state(), estado: 'erro'});
   assert.equal(elements['voz-esfera'].dataset.estado, 'erro');
   elements['voz-valor'].value = '30';
@@ -72,5 +94,9 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
   assert.equal(elements['voz-online-token'].value, '');
   assert.deepEqual(calls.at(-1), ['online', 'a'.repeat(43), true]);
   assert.equal(elements['voz-online-enabled'].checked, true);
+  const html = require('node:fs').readFileSync(require('node:path').join(__dirname, 'web/index.html'), 'utf8');
+  assert.equal((html.match(/id="voz-online-form"/g) || []).length, 1);
+  assert.ok(html.indexOf('id="voz-online-form"') > html.indexOf('id="page-config"'));
+  assert.equal(html.includes('<summary>Reconhecimento online</summary>'), false);
   console.log('voz UI: auto-start, create, cancel, poll and safe transcript passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

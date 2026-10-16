@@ -18,6 +18,20 @@ from spike_assistente import command_after_wake, dispatch, minutes_from, shared_
 
 
 class VoiceSpikeTests(unittest.TestCase):
+    def test_wake_audio_is_short_cached_pcm_and_played_without_tts(self):
+        import io
+        import wave
+        audio = spike_assistente.wake_audio()
+        self.assertIs(audio, spike_assistente.wake_audio())
+        with wave.open(io.BytesIO(audio), 'rb') as wav:
+            self.assertEqual((wav.getnchannels(), wav.getsampwidth()), (1, 2))
+            self.assertAlmostEqual(wav.getnframes() / wav.getframerate(), .18, places=2)
+        winsound = SimpleNamespace(PlaySound=Mock(), SND_MEMORY=4)
+        with patch.dict(sys.modules, {'winsound':winsound}), patch('spike_assistente.speak') as speech:
+            spike_assistente.play_wake_sound()
+        winsound.PlaySound.assert_called_once_with(audio, 4)
+        speech.assert_not_called()
+
     def test_complete_wake_required(self):
         for text in ('tibia tudo', 'tibia tudo timer de 30 segundos', 'hey tibia', 'hey tudo', 'hey', 'oi tibia tudo', 'conversa tibia tudo'):
             with self.subTest(text=text):

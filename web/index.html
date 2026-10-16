@@ -1001,31 +1001,21 @@
       <p id="assistente-feedback" role="status" aria-live="polite"></p>
       <div data-assistente-panel="overview"><p id="assistente-overview" class="dica"></p>
       <div class="card calmo">
-        <div class="voz-intro"><p id="voz-status" role="status">Preparando o assistente local…</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
+        <div class="voz-intro"><p id="voz-status" role="status">Aguardando comando: Hey tibia tudo</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
         <div class="voz-assistente">
-          <button id="voz-esfera" class="voz-esfera" type="button" data-estado="preparando" aria-label="Falar um comando" aria-describedby="voz-status"><span aria-hidden="true"></span></button>
-          <p class="dica">Clique na esfera para falar um comando.</p>
+          <button id="voz-esfera" class="voz-esfera" type="button" data-estado="preparando" aria-label="Ligar comandos diretos" aria-pressed="false" aria-describedby="voz-status"><span aria-hidden="true"></span></button>
         </div>
-        <p class="dica">Fale <b>Hey Tibia Tudo</b>, espere a resposta na tela e diga o comando; ou diga tudo junto: <b>Hey Tibia Tudo, timer de 5 minutos</b>. Funciona com o aplicativo minimizado.</p>
-        <p class="dica">Exemplos: “alarme de trinta segundos”, “novo temporizador de dois minutos”, “cancelar alarme” e “qual é meu nível compartilhado”. O reconhecimento de “timer” e “shared” ainda pode variar.</p>
+        <div class="voz-ajuda" id="voz-ajuda-area">
+          <button id="voz-ajuda" class="btn btn-sm" type="button" aria-label="Como usar a voz" aria-describedby="voz-ajuda-texto" aria-expanded="false">ⓘ</button>
+          <div id="voz-ajuda-texto" class="card calmo" role="tooltip" hidden>Fale Hey Tibia Tudo, espere o sinal e diga o comando, ou diga tudo junto. Exemplo: Hey Tibia Tudo, timer de 5 minutos. Clique na esfera para ligar comandos diretos contínuos, sem repetir a ativação; clique novamente para voltar à ativação por voz. Pausar microfone desliga também o modo direto. Timers manuais e de voz aparecem juntos; vencimentos são preservados ao reabrir. Com reconhecimento online habilitado em Configurações, o áudio dos comandos após ativação ou enquanto o modo direto estiver ligado é enviado para reconhecimento. O aplicativo não grava áudio. Modelos locais são baixados no primeiro uso; prefira headset para evitar eco.</div>
+        </div>
         <form id="voz-form" class="voz-form">
           <label for="voz-valor">Duração<input id="voz-valor" type="number" value="30" min="1" max="180" step="1" required></label>
           <label for="voz-unidade">Unidade<select id="voz-unidade"><option value="segundo">Segundos</option><option value="minuto">Minutos</option></select></label>
           <button class="btn btn-primary" id="voz-criar" type="submit">+ Criar timer</button>
         </form>
-        <p class="dica">De 1 a 180 segundos ou minutos. Timers de voz e manuais aparecem juntos abaixo. Vencimentos são preservados ao reabrir; alertas são emitidos com o aplicativo aberto.</p>
         <p id="voz-feedback" role="alert"></p>
       </div>
-      <details class="card calmo voz-diagnostico">
-        <summary>Reconhecimento online</summary>
-        <p class="dica">Opcional. Envia somente o áudio do comando após Hey Tibia Tudo ou clique na esfera. Use o código individual recebido do responsável; o acesso fica protegido neste usuário do Windows.</p>
-        <form id="voz-online-form" class="voz-form">
-          <label for="voz-online-token">Código de acesso individual<input id="voz-online-token" type="password" maxlength="43" autocomplete="off" spellcheck="false" placeholder="Deixe vazio para manter o acesso salvo"></label>
-          <label for="voz-online-enabled"><input id="voz-online-enabled" type="checkbox"> Ativar reconhecimento online</label>
-          <button class="btn btn-sm" type="submit">Salvar</button>
-        </form>
-        <p id="voz-online-status" role="status">Reconhecimento local. Nenhum acesso online salvo.</p>
-      </details>
       <h2 class="sub" id="voz-quantidade">0 timers ativos</h2>
       <p class="dica" id="voz-vazio">Nenhum timer ativo. Crie um por voz ou pelo formulário.</p>
       <div id="voz-lista"></div>
@@ -1033,7 +1023,6 @@
         <summary>Último comando</summary>
         <p><b>Ouvi:</b> <span id="voz-ouvi">Aguardando “Hey Tibia Tudo”.</span></p>
         <p><b>Resposta:</b> <span id="voz-resposta">As respostas aparecerão aqui.</span></p>
-        <p class="dica">Ativação e respostas faladas são locais. Com online ativado, somente o comando autorizado é enviado para reconhecimento. O aplicativo não grava áudio. Modelos locais são baixados no primeiro uso; prefira headset para evitar eco.</p>
       </details>
       </div>
       <section data-assistente-panel="timers" hidden>
@@ -1124,6 +1113,17 @@
     <section class="page" id="page-config">
       <h1 class="titulo">Configurações</h1>
       <div class="grid-ferr">
+        <details class="card calmo voz-diagnostico">
+          <summary>Acesso de voz (avançado)</summary>
+          <p class="dica">Opcional. Configure o código individual recebido do responsável para reconhecimento online. O acesso salvo é preservado; não informe uma chave de API.</p>
+          <form id="voz-online-form" class="voz-form">
+            <label for="voz-online-token">Código de acesso individual<input id="voz-online-token" type="password" maxlength="43" autocomplete="off" spellcheck="false" placeholder="Deixe vazio para manter o acesso salvo"></label>
+            <label for="voz-online-enabled"><input id="voz-online-enabled" type="checkbox"> Ativar reconhecimento online</label>
+            <button class="btn btn-sm" type="submit">Salvar</button>
+          </form>
+          <p id="voz-online-status" role="status">Reconhecimento local. Nenhum acesso online salvo.</p>
+        </details>
+
         <div class="card" id="cfg-personagens">
           <h2 class="sub">👤 Meus personagens</h2>
           <p class="dica" style="margin:0 0 10px">O app confere cada personagem no tibia.com (nome, level, vocação e mundo). O personagem em uso acompanha o Tibia em primeiro plano quando já está nesta lista. Você também pode escolhê-lo em <b>Usar</b>.</p>

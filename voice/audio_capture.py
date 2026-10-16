@@ -2,6 +2,12 @@
 from array import array
 
 
+def has_voice(audio):
+    samples = array('h', audio)
+    # shortcut: limiar fixo de energia; calibrar com corpus de headsets antes de trocar por VAD.
+    return bool(samples) and sum(value * value for value in samples) / len(samples) >= 300 ** 2
+
+
 class Capture:
     def __init__(self, samplerate):
         self.preroll_bytes = int(samplerate * .5) * 2
@@ -17,9 +23,7 @@ class Capture:
         self.discarding = False
 
     def feed(self, audio):
-        samples = array('h', audio)
-        # shortcut: limiar fixo de energia; calibrar com corpus de headsets antes de trocar por VAD.
-        voiced = bool(samples) and sum(value * value for value in samples) / len(samples) >= 300 ** 2
+        voiced = has_voice(audio)
         if self.discarding:
             self.silence = 0 if voiced else self.silence + len(audio)
             if self.silence >= self.tail_bytes:

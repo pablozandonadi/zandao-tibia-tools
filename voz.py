@@ -12,9 +12,9 @@ import uuid
 import zipfile
 
 from app_paths import data_dir
-from voice.audio_capture import Capture
+from voice.audio_capture import Capture, has_voice
 from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, pcm_wav, save_settings, valid_intent
-from voice.spike_assistente import (GREETING, UNKNOWN_REPLY, PiperSpeech, command_after_wake,
+from voice.spike_assistente import (GREETING, UNKNOWN_REPLY, PiperSpeech, command_after_wake, play_wake_sound,
                                     cancel_selection, dispatch, duration_from, duration_seconds, negated, normalize,
                                     recognition_grammar, shared_reply, speak, tibiano, timer_prefix)
 
@@ -41,6 +41,7 @@ class Servico:
         self._speech = speak
         self._mic = None
         self._armed_until = 0
+        self._direct_mode = False
         self._pending_prefix = ''
         self._command_state = {}
         self._clarification_done = None
@@ -59,6 +60,9 @@ class Servico:
                 return
             self._estado, self._detalhe = estado, detalhe
 
+    def _wait_status(self):
+        self._status('espera', 'Aguardando comando, sem ativação.' if self._direct_mode else 'Aguardando comando: Hey tibia tudo')
+
     def _sync_ids(self):
         self._ids = {id(timer): self._ids.get(id(timer), uuid.uuid4().hex) for timer in self._timers}
 
@@ -74,6 +78,7 @@ class Servico:
                 timers = [{'id': t['id'], 'label': t['label'], 'duracao': t['duration_seconds'], 'restante': t['remaining_seconds']} for t in self.store.execute('timer.list', {}, context)['timers'] if t['status']=='active' and t['remaining_seconds']>0]
             return {'estado': 'falando' if self._speaking.is_set() and self._estado != 'pausado' else self._estado, 'detalhe': self._detalhe,
                     'ouvi': self._ouvi, 'resposta': self._resposta, 'timers': timers,
+                    'direto': self._direct_mode,
                     'microfone': bool(self._mic and self._mic.is_alive() and not self._mic_stop.is_set()),
                     'online_enabled': self._online_enabled, 'online_configured': self._online_client is not None}
 
@@ -136,7 +141,7 @@ class Servico:
             if self.store:
                 try:
                     command = assistente.parse(text, self.store.clock())
-                    if command is None: return UNKNOWN_REPLY
+                    if command is None: return 'Não entendi. Tente: timer de dois minutos.' if self._direct_mode else UNKNOWN_REPLY
                     intent, arguments = command
                     context = self._command_context if self._command_context is not None else self.store.context()
                     return assistente.reply(self.store.execute(intent, arguments, context, self._domain_request_id, source=source))
@@ -144,7 +149,19 @@ class Servico:
                     return str(error) if isinstance(error, ValueError) else 'Não consegui salvar. Nenhuma alteração foi confirmada.'
             reply = dispatch(text, self.pasta, self._timers, time.monotonic(), state)
             self._sync_ids()
-        return reply
+        return 'Não entendi. Tente: timer de dois minutos.' if self._direct_mode and reply == UNKNOWN_REPLY else reply
+
+    def _wake_ding(self):
+        self._audio_reset.set()
+        self._speaking.set()
+        try:
+            play_wake_sound()
+            self._stop.wait(.15)
+        except Exception:
+            self._detalhe = 'O sinal de ativação falhou; acompanhe o estado na tela.'
+        finally:
+            self._audio_reset.set()
+            self._speaking.clear()
 
     def receber_texto(self, text):
         with self._lock:
@@ -158,14 +175,22 @@ class Servico:
             if self._command_state.get('cancel') and command is not None:
                 return
             if command is None:
-                if now > self._armed_until or not text:
+                if (not self._direct_mode and now > self._armed_until) or not text:
                     return
                 if self._command_state.get('cancel') and normalize(text) not in ('ultimo', 'o ultimo') and duration_from(cancel_selection(text)) is None:
                     return
                 if self._pending_prefix and duration_from(normalize(text)) is None:
                     return
                 command = text
+                if self._direct_mode and not self._command_state and not self._pending_prefix:
+                    self._generation += 1
+                    self._command_context = self.store.context() if self.store else None
+                    self._domain_request_id = str(uuid.uuid4())
             else:
+                self._wake_ding()
+                if self._stop.is_set() or self._mic_stop.is_set():
+                    return
+                now = time.monotonic()
                 self._generation += 1
                 self._command_context = self.store.context() if self.store else None
                 self._domain_request_id = str(uuid.uuid4())
@@ -191,7 +216,7 @@ class Servico:
             done = self._reply(reply)
             self._clarification_done = done if self._command_state.get('cancel') else None
             self._armed_until = now + 8 if self._command_state.get('cancel') else 0
-            self._status('espera', 'Aguardando Hey Tibia Tudo.')
+            self._wait_status()
 
     def configurar_online(self, token, enabled):
         # Revoke in-flight authorization before slow DPAPI/disk I/O.
@@ -266,7 +291,7 @@ class Servico:
             if not self._online_enabled or self._online_client is None or self._command_state.get('cancel') or self._pending_prefix or negated(text):
                 self.receber_texto(text)
                 return
-            if command == '' or (command is None and now > self._armed_until):
+            if command == '' or (command is None and not self._direct_mode and now > self._armed_until):
                 self.receber_texto(text)
                 return
             if command is not None:
@@ -286,11 +311,18 @@ class Servico:
                     return
             try:
                 wav = pcm_wav(pcm, samplerate)
+                block = max(1, samplerate // 10) * 2
+                if not any(has_voice(pcm[start:start + block]) for start in range(0, len(pcm), block)):
+                    return
             except ValueError:
                 self.receber_texto(text)
                 return
+            if command is not None:
+                self._wake_ding()
+                if self._stop.is_set() or self._mic_stop.is_set():
+                    return
             self._generation += 1
-            if command is not None or self._command_context is None:
+            if command is not None or self._direct_mode or self._command_context is None:
                 self._command_context = self.store.context() if self.store else None
             self._domain_request_id = str(uuid.uuid4())
             generation = self._generation
@@ -307,7 +339,7 @@ class Servico:
                     return
                 self._ouvi = transcript
                 reply = self.comando(transcript, self._command_state)
-            if reply == UNKNOWN_REPLY:
+            if reply in (UNKNOWN_REPLY, 'Não entendi. Tente: timer de dois minutos.'):
                 self._status('interpretando', 'Interpretando o comando…')
                 intent = client.interpret(transcript, request_id)
                 with self._lock:
@@ -320,7 +352,7 @@ class Servico:
                 done = self._reply(reply)
                 self._clarification_done = done if self._command_state.get('cancel') else None
                 self._armed_until = time.monotonic() + 8 if self._command_state.get('cancel') else 0
-                self._status('espera', 'Aguardando Hey Tibia Tudo.')
+                self._wait_status()
         except (RemoteAIError, OSError, ValueError, TypeError):
             with self._lock:
                 if self._remote_current(generation):
@@ -328,28 +360,30 @@ class Servico:
                     local = command if command is not None else text
                     reply = self.comando(local, self._command_state) if local else UNKNOWN_REPLY
                     if reply == UNKNOWN_REPLY:
-                        reply = 'Reconhecimento online indisponível. Fale Hey Tibia Tudo e tente um comando local.'
+                        reply = 'Reconhecimento online indisponível. Tente um comando local.' if self._direct_mode else 'Reconhecimento online indisponível. Fale Hey Tibia Tudo e tente um comando local.'
                     self._reply(reply)
                     self._armed_until = 0
                     self._command_state.clear()
-                    self._status('espera', 'Aguardando Hey Tibia Tudo.')
+                    self._wait_status()
         finally:
             with self._lock:
                 self._remote_busy = False
                 self._audio_reset.set()
 
     def escutar(self):
-        self.iniciar()
         with self._lock:
             if not self._ready.is_set() or self._mic_stop.is_set():
                 return {'erro': 'O microfone ainda está preparando. Aguarde e tente novamente.'}
             self._generation += 1
-            self._command_context = self.store.context() if self.store else None
-            self._domain_request_id = str(uuid.uuid4())
+            self._direct_mode = not self._direct_mode
+            self._armed_until = 0
+            self._command_context = None
+            self._domain_request_id = None
             self._command_state.clear()
             self._pending_prefix = ''
-            self._armed_until = time.monotonic() + 8
-            self._status('escutando', 'Pode falar o comando, sem ativação.')
+            self._clarification_done = None
+            self._audio_reset.set()
+            self._wait_status()
         return self.estado()
 
     def criar(self, valor, unidade):
@@ -396,6 +430,7 @@ class Servico:
         self._ready.clear()
         with self._lock:
             self._generation += 1
+            self._direct_mode = False
             self._armed_until = 0
             self._pending_prefix = ''
             self._command_state.clear()
@@ -499,14 +534,14 @@ class Servico:
             with sd.RawInputStream(samplerate=samplerate, blocksize=max(1, samplerate // 10), dtype='int16', channels=1, callback=callback):
                 self._cancelled()
                 self._ready.set()
-                self._status('espera', 'Aguardando Hey Tibia Tudo.')
+                self._wait_status()
                 while not self._stop.is_set() and not self._mic_stop.is_set():
                     if self._armed_until and time.monotonic() > self._armed_until and not self._speaking.is_set():
                         with self._lock:
                             self._armed_until = 0
                             self._pending_prefix = ''
                             self._command_state.clear()
-                        self._status('espera', 'Aguardando Hey Tibia Tudo.')
+                        self._wait_status()
                     try:
                         audio = chunks.get(timeout=.1)
                     except queue.Empty:
@@ -545,7 +580,7 @@ class Servico:
                     recognizer.Reset()
                     self.receber_audio(text, segment, samplerate, result.get('result'))
                     if time.monotonic() > self._armed_until:
-                        self._status('espera', 'Aguardando Hey Tibia Tudo.')
+                        self._wait_status()
         except InterruptedError:
             pass
         except Exception as exc:

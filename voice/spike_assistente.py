@@ -10,6 +10,8 @@ from pathlib import Path
 import queue
 import re
 import subprocess
+import struct
+from functools import lru_cache
 import time
 import unicodedata
 import wave
@@ -235,6 +237,24 @@ def speak(text):
             print('A resposta em voz falhou; use o texto exibido.')
     except (subprocess.TimeoutExpired, OSError):
         print('A resposta em voz falhou; use o texto exibido. O teste continua.')
+
+
+@lru_cache(maxsize=1)
+def wake_audio():
+    rate, duration = 22050, .18
+    samples = [int(6500 * math.sin(2 * math.pi * 880 * i / rate) *
+                   min(1, i / (rate * .008)) * math.exp(-22 * i / rate))
+               for i in range(int(rate * duration))]
+    buffer = io.BytesIO()
+    with wave.open(buffer, 'wb') as wav:
+        wav.setparams((1, 2, rate, 0, 'NONE', 'not compressed'))
+        wav.writeframes(struct.pack('<' + 'h' * len(samples), *samples))
+    return buffer.getvalue()
+
+
+def play_wake_sound():
+    import winsound
+    winsound.PlaySound(wake_audio(), winsound.SND_MEMORY)
 
 
 class PiperSpeech:

@@ -1358,11 +1358,12 @@ class API:
         except (ValueError,OSError) as error:
             return {'erro':str(error)}
 
-    def assistente_executar(self, intent, arguments=None, context=None, request_id=None):
+    # "argumentos", não "arguments": o wrapper JS do pywebview usa o nome do parâmetro e "arguments" apaga a chamada.
+    def assistente_executar(self, intent, argumentos=None, context=None, request_id=None):
         try:
             service=self._voz_obter()
             with PERSONAGEM_LOCK, service._lock:
-                result=service.store.execute(intent, arguments, context, request_id)
+                result=service.store.execute(intent, argumentos, context, request_id)
                 result['message']=assistente_tibiano.reply(result)
                 return result
         except (ValueError,OSError,TypeError) as error:

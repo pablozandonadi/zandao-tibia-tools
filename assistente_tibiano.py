@@ -11,6 +11,7 @@ import statistics
 import threading
 import uuid
 
+import boss_catalog
 from tibia_info import faixa_shared
 
 UTC = timezone.utc
@@ -21,10 +22,16 @@ RULES = {'shared':'https://www.tibia.com/support/?entryid=92&subtopic=gethelp',
          'stamina':'https://www.tibia.com/support/?entryid=75&subtopic=gethelp',
          'bosstiary':'https://www.tibia.com/gameguides/?section=interface&subtopic=manual'}
 GOALS = {'bane':[25,100,300], 'archfoe':[5,20,60], 'nemesis':[1,3,5]}
-SEED = [dict(boss_id=b, name=n, aliases=aliases, category='archfoe', cooldown_type='unknown',
-             cooldown_minutes=None, source=RULES['bosstiary'], verified_at='2026-10-16', status='partial')
-        for b,n,aliases in [('grand-master-oberon','Grand Master Oberon',['oberon']),
-                             ('scarlett-etzel','Scarlett Etzel',['scarlett']),('drume','Drume',[])]]
+SEED = boss_catalog.catalog_seed()
+
+def merge_catalog(stored):
+    """Catálogo embutido atualiza cópias 'partial' antigas; importações do usuário continuam valendo."""
+    merged={b['boss_id']:deepcopy(b) for b in SEED}
+    for b in stored:
+        known=merged.get(b['boss_id'])
+        if known and b.get('status')=='partial':known['aliases']=list(dict.fromkeys(known['aliases']+b['aliases']))[:10]
+        else:merged[b['boss_id']]=b
+    return list(merged.values())
 
 def integer(value, low=1, high=100000):
     if type(value) is not int or not low <= value <= high:
@@ -77,6 +84,7 @@ class Store:
     def __init__(self, folder, clock=None):
         self.folder=Path(folder);self.path=self.folder/'assistente-tibiano.json'
         self.clock=clock or (lambda: datetime.now(UTC))
+        self._cache=None  # (mtime_ns, size) do arquivo já validado + estado serializado
         with LOCK: self._read()
 
     def _read(self):
@@ -84,7 +92,11 @@ class Store:
             return {'version':1,'timers':[],'kills':[],'totals':{},'stamina':{},'prices':[],
                     'watchlist':{},'alerts':[],'events':[],'requests':{},'catalog_version':1,'catalog':deepcopy(SEED)}
         try:
-            if self.path.stat().st_size>MAX_STORE_BYTES: raise ValueError()
+            st=self.path.stat()
+            if st.st_size>MAX_STORE_BYTES: raise ValueError()
+            # UI e alertas leem várias vezes por segundo; só revalida quando o arquivo muda.
+            # shortcut: escrita externa com mesmo tamanho no mesmo tique de mtime passa despercebida; trocar por hash se surgir restauração externa frequente.
+            if self._cache and self._cache[0]==(st.st_mtime_ns,st.st_size): return json.loads(self._cache[1])
             d=validate_state(json.loads(self.path.read_text(encoding='utf-8-sig')))
             if not isinstance(d,dict) or d.get('version')!=1: raise ValueError()
             empty={'timers':list,'kills':list,'totals':dict,'stamina':dict,'prices':list,'watchlist':dict,'alerts':list,'events':list,'requests':dict,'catalog':list}
@@ -94,6 +106,8 @@ class Store:
                 if t['status'] not in ('active','completed','cancelled'): raise ValueError()
             for p in d['prices']:
                 label(p['id']);label(p['world_id']);item_name(p['item']);price_gp(p['price_gp']);instant(p['at']);self._offer(p['offer_type'])
+            d['catalog']=merge_catalog(d['catalog'])
+            self._cache=((st.st_mtime_ns,st.st_size),json.dumps(d,ensure_ascii=False))
             return d
         except (ValueError,TypeError,KeyError,UnicodeError):
             raise ValueError('Dados do Assistente inválidos ou de versão desconhecida. Arquivo preservado; restaure um backup válido.') from None
@@ -109,6 +123,7 @@ class Store:
             with tmp.open('w',encoding='utf-8') as f:
                 f.write(serialized.decode('utf-8'));f.flush();os.fsync(f.fileno())
             os.replace(tmp,self.path)
+            st=self.path.stat();self._cache=((st.st_mtime_ns,st.st_size),serialized.decode('utf-8'))
         finally:
             tmp.unlink(missing_ok=True)
 
@@ -420,7 +435,7 @@ def parse(text, now=None):
     def duration(value):
         d=duration_from(normalize(value))
         if d:return duration_seconds(d)
-        m=re.fullmatch(r'(.+?) horas?(?: e (.+?) minutos?)?',normalize(value))
+        m=re.fullmatch(r'(.+?) ?(?:horas?|h)(?: e (.+?) minutos?)?',normalize(value))
         if m:return number(m[1])*3600+(number(m[2])*60 if m[2] else 0)
         raise ValueError('Informe duração clara em horas, minutos ou segundos.')
     if 'unk' in t.split():return None
@@ -437,7 +452,7 @@ def parse(text, now=None):
             try:args['duration_seconds']=duration(m[2])
             except ValueError:args['label']=m[2]
         return ('timer.repeat' if t.startswith(('repete','repetir')) else 'timer.cancel'),args
-    m=match(r'(?:(?:cria|criar|coloca|inicia|iniciar|novo|nova|gera|gere|gerar|ligar|liga|ligue) (?:um |uma )?)?(?:timer|alarme|temporizador|cronometro)(?: chamado (.+?))? (?:de |por |pra |para )?(.+)')
+    m=match(r'(?:(?:cria|criar|coloca|inicia|iniciar|novo|nova|gera|gere|gerar|ligar|liga|ligue) (?:um |uma )?)?(?:timer|time|alarme|temporizador|cronometro)(?: chamado (.+?))? (?:de |por |pra |para )?(.+)')
     if not m and t.startswith('me avisa daqui a '):return 'timer.create',{'duration_seconds':duration(raw[len('me avisa daqui a '):])}
     if m:
         args={'duration_seconds':duration(m[2])}
@@ -489,11 +504,15 @@ def parse(text, now=None):
     if m:return 'market.alert.create',{'item':m[1],'offer_type':'sell','direction':'below' if m[2].lower()=='abaixo' else 'above','price':m[3]}
     m=match(r'(?:qual a mediana (?:do |da )?)(.+?)(?: nos ultimos (7|30|90) dias)?')
     if m:return 'market.stats',{'item':m[1],'offer_type':'sell','days':int(m[2] or 30)}
-    m=match(r'(?:registra |registrar )?(.+?) (?:ta |esta |a )(.+?)(?: (?:na |no )(compra|venda|negociado))?(?: no meu mundo)?')
+    # Fala livre de logout ("vou fazer logout agora, minha estamina está em 41 horas"); o ASR às vezes escreve "estamina".
+    m=re.search(r'\b(?:logout|deslog\w*)\b.*?\be?stamina (?:esta |ta |e |fica )?(?:em |com |de )?(.+)',t)
+    if m:return 'stamina.logout',{'stamina_minutes':duration(m[1])//60,'logged_out_at':iso(now)}
+    m=match(r'(?:registra |registrar )?(.+?) (?:ta |esta |a )(\d.*?)(?: (?:na |no )(compra|venda|negociado))?(?: no meu mundo)?')
     if m:
         item,price=m[1],m[2];offer={'compra':'buy','venda':'sell','negociado':'traded'}.get((m[3] or '').lower(),'sell')
         query=re.search(r'\s+(?:ta |esta )?(?:barato|caro).*$',price,re.I)
         if query:price=price[:query.start()].strip()
+        if not re.fullmatch(r'\d[\d.,]*\s*(?:kk|k|gp|gold)?',price,re.I):return None  # "40 horas" não é preço: deixa a IA online tentar
         price_gp(price)
         return ('market.stats' if query else 'market.price.add'),{'item':item,'price':price,'offer_type':offer}
     return None
