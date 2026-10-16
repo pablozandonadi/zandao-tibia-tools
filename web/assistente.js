@@ -83,7 +83,8 @@ async function refresh(){
  if(!el('assistente-world').value)el('assistente-world').value=data.context.world_id||'';
  el('assistente-context').textContent=`Personagem: ${data.context.character_id||'Selecione em Meus personagens'} · Level: ${data.context.level||'—'} · Mundo: ${data.context.world_id||'Não informado'}`;el('assistente-overview').textContent=`${data.timers.filter(t=>t.status==='active').length} timers ativos · Bosses e stamina por personagem · Market privado por mundo. Alertas funcionam enquanto o aplicativo está aberto e são reconciliados uma vez ao reabrir.`;renderTimers(data.timers);
  const names=el('bosstiary-nomes');if(names&&names.children.length!==data.catalog.bosses.length)names.replaceChildren(...data.catalog.bosses.map(b=>{const o=node('option');o.value=b.name;return o;}));
- const key=`${data.context.character_id}|${data.revision}`;if(['bosstiary','bosses'].includes(active)&&key!==bosstiaryKey){bosstiaryKey=key;await loadBosstiary();}}
+ const key=`${data.context.character_id}|${data.revision}`;if(['bosstiary','bosses'].includes(active)&&key!==bosstiaryKey){bosstiaryKey=key;await loadBosstiary();}
+ if(active==='stamina')await renderStamina();}
  catch(e){el('assistente-feedback').textContent=e.message;}
 }
 // Bosstiary: lista do personagem em uso, no estilo da Cyclopedia do Tibia.
@@ -107,7 +108,7 @@ function renderCooldowns(){
   const li=node('li'),img=node('img');img.alt='';img.src=bossImage(b.name);img.addEventListener('error',()=>img.replaceWith(node('span','?','bosstiary-sombra')));
   li.append(img,node('strong',b.name));
   if(left===null){const form=node('form',undefined,'cooldowns-informar'),hours=node('input');hours.type='number';hours.min='1';hours.max='8760';hours.step='1';hours.required=true;hours.placeholder='horas';hours.setAttribute('aria-label',`Cooldown de ${b.name} em horas`);
-   form.append(hours,node('button','Informar','btn btn-sm'));form.addEventListener('submit',e=>{e.preventDefault();bosstiaryRun('boss.cooldown.set',{boss_id:b.boss_id,cooldown_minutes:Number(hours.value)*60});});li.append(form);}
+   form.append(hours,node('button','Informar','btn btn-sm'));form.addEventListener('submit',e=>{e.preventDefault();quickRun('boss.cooldown.set',{boss_id:b.boss_id,cooldown_minutes:Number(hours.value)*60});});li.append(form);}
   else li.append(left>0?node('span',span(left),'cooldowns-tempo'):node('span','Disponível','cooldowns-livre'));
   return li;}));
  if(!rows.length)list.append(node('li',q?'Nenhum boss encontrado.':'Nenhum abate registrado neste personagem. Diga “matei o Drume” ou use +1 kill no Bosstiary.','dica'));
@@ -118,7 +119,7 @@ function bossCard(b){
  const bar=node('progress');bar.max=b.next_goal||goals.at(-1)||1;bar.value=Math.min(b.progress,bar.max);bar.setAttribute('aria-label',`Progresso de ${b.name}`);
  const goal=!goals.length?'Fora do Bosstiary':b.next_goal?`faltam ${b.missing} para ${STAR_NAMES[stars]}`:'Mastery completo';
  card.append(node('strong',b.name),img,node('p',`Total kills: ${b.progress}`),bar,node('span',goals.length?'★'.repeat(stars)+'☆'.repeat(3-stars):'','bosstiary-estrelas'),node('p',goal,'dica'));
- card.append(button('+1 kill',()=>bosstiaryRun('boss.kill',{boss_id:b.boss_id})),button('Editar total',()=>{el('bosstiary-boss').value=b.name;el('bosstiary-total').value=b.progress;el('bosstiary-total').focus();}));
+ card.append(button('+1 kill',()=>quickRun('boss.kill',{boss_id:b.boss_id})),button('Editar total',()=>{el('bosstiary-boss').value=b.name;el('bosstiary-total').value=b.progress;el('bosstiary-total').focus();}));
  return card;
 }
 function renderBosstiary(){
@@ -130,10 +131,26 @@ function renderBosstiary(){
  el('bosstiary-resumo').textContent=`${killed} bosses com kills neste personagem · mostrando ${shown.length} de ${rows.length}${rows.length>shown.length?' (use a busca)':''}`;
  if(!rows.length)el('bosstiary-lista').append(node('p',all||q?'Nenhum boss encontrado.':'Nenhum boss com kills ainda. Cadastre acima o total que você já tem.','dica'));
 }
-async function bosstiaryRun(intent,args){
+async function quickRun(intent,args,after=loadBosstiary){
  const status=el('assistente-feedback');
- try{const data=await execute(window.pywebview.api,intent,args,{...state.context},crypto.randomUUID());if(data.erro)throw new Error(data.erro);status.textContent=data.message||'Concluído.';await loadBosstiary();}
+ try{const data=await execute(window.pywebview.api,intent,args,{...state.context},crypto.randomUUID());if(data.erro)throw new Error(data.erro);status.textContent=data.message||'Concluído.';await after();}
  catch(e){status.textContent=e.message||'Não foi possível concluir.';}
+}
+// Stamina agora: barra até 42h com as cores do Tibia (verde >= 39h, laranja >= 14h, vermelho abaixo).
+const hhmm=m=>`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
+async function renderStamina(){
+ const r=await window.pywebview.api.assistente_executar('stamina.get',{},{...state.context});
+ let minutes=null,text=r.erro&&!r.erro.startsWith('Registre')?r.erro:'Ao deslogar, digite a stamina abaixo (ou fale “estou deslogando, minha stamina está em 38 horas”).';
+ if(!r.erro){
+  const short=v=>new Date(v).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const ref=r.stamina,since=`desde ${short(ref.reference_at)} (há ${span(Date.now()-new Date(ref.reference_at))})`,when=v=>new Date(v)<=Date.now()?'já':short(v);
+  if(ref.offline){minutes=r.estimate_minutes;text=`Offline ${since} · Verde (39h): ${when(r.green_at)} · Cheia (42h): ${when(r.full_at)}`;}
+  else{minutes=Math.max(0,ref.stamina_minutes-r.online_minutes);text=`Online ${since} · No login: ${hhmm(ref.stamina_minutes)} · A barra mostra quanto sobra se você caçou o tempo todo`;}
+ }
+ el('stamina-valor').textContent=minutes===null?'--:--':hhmm(minutes);
+ const fill=el('stamina-fill');fill.style.width=`${(minutes||0)*100/2520}%`;fill.dataset.nivel=minutes>=2340?'verde':minutes>=840?'laranja':'vermelho';
+ el('stamina-barra').setAttribute('aria-label',minutes===null?'Stamina sem referência':`Stamina ${hhmm(minutes)} de 42:00`);
+ el('stamina-detalhe').textContent=text;
 }
 function select(module){active=module;if(module==='bosstiary'||module==='bosses'){bosstiaryKey='';}for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));refresh();}
 function boot(){
@@ -141,10 +158,14 @@ function boot(){
  for(const b of document.querySelectorAll('[data-assistente-tab]'))b.addEventListener('click',()=>select(b.dataset.assistenteTab));
  for(const [module,ops] of Object.entries(operations)){const root=el('assistente-form-'+module);const wrap=node('label','Operação');const choice=node('select');choice.id='assistente-op-'+module;for(const [intent,title] of ops){const option=node('option',title);option.value=intent;choice.append(option);}choice.addEventListener('change',()=>renderFields(module));wrap.append(choice);const inputs=node('div',undefined,'voz-form assistente-fields');inputs.id='assistente-fields-'+module;const submit=node('button','Executar','btn btn-primary');submit.type='submit';root.append(wrap,inputs,submit);renderFields(module);root.addEventListener('submit',e=>{e.preventDefault();try{const values={};for(const key of ops.find(op=>op[0]===choice.value)[2]){const input=el(`assistente-${module}-${key}`);values[key]=input.type==='checkbox'?input.checked:input.value;}run(module,choice.value,payload(choice.value,values));}catch(error){el('assistente-feedback').textContent=error.message;}});}
  el('assistente-level-form').addEventListener('submit',async e=>{e.preventDefault();try{const context={...state.context};if(!el('assistente-level-confirm').checked)throw new Error('Marque a confirmação para alterar o cadastro.');const result=await window.pywebview.api.assistente_level(context.character_id,Number(el('assistente-level').value),true);if(result.erro)throw new Error(result.erro);el('assistente-feedback').textContent=result.message;el('assistente-level-confirm').checked=false;await refresh();}catch(error){el('assistente-feedback').textContent=error.message;}});
- el('bosstiary-form').addEventListener('submit',e=>{e.preventDefault();bosstiaryRun('bosstiary.set_total',{boss_id:el('bosstiary-boss').value.trim(),total_kills:Number(el('bosstiary-total').value)});});
+ el('bosstiary-form').addEventListener('submit',e=>{e.preventDefault();quickRun('bosstiary.set_total',{boss_id:el('bosstiary-boss').value.trim(),total_kills:Number(el('bosstiary-total').value)});});
  for(const input of document.querySelectorAll('[data-bosstiary-cat],#bosstiary-todos'))input.addEventListener('change',renderBosstiary);
  el('bosstiary-busca').addEventListener('input',renderBosstiary);
  el('cooldowns-busca').addEventListener('input',renderCooldowns);
+ el('stamina-rapido').addEventListener('submit',e=>{e.preventDefault();const [h,m='0']=el('stamina-hhmm').value.trim().split(':');const minutes=Number(h)*60+Number(m);
+  if(!Number.isInteger(minutes)||Number(m)>59||minutes>2520){el('assistente-feedback').textContent='Digite como no jogo, por exemplo 41:21 (máximo 42:00).';return;}
+  quickRun('stamina.logout',{stamina_minutes:minutes},renderStamina);});
+ el('stamina-logar').addEventListener('click',()=>quickRun('stamina.login',{},renderStamina));
  setInterval(()=>{if(active==='bosses'&&el('page-voz').classList.contains('shown'))renderCooldowns();},20000);
  select('overview');setInterval(()=>{if(el('page-voz').classList.contains('shown')&&!busy)refresh();},2000);
 }

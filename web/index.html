@@ -1064,7 +1064,18 @@
       </section>
       <section data-assistente-panel="stamina" hidden>
         <h2 class="sub">Calculadora de Stamina</h2><p class="dica">Referências declaradas, sem leitura do jogo. Projeção pressupõe offline contínuo: 10 min iniciais, 3 min por minuto até 39h e 6 min até 42h. Ex.: “Estou deslogando agora, minha stamina está em 38 horas”. Horários manuais usam seu fuso local.</p>
-        <form class="card calmo" id="assistente-form-stamina"></form><div id="assistente-result-stamina" role="status"></div>
+        <div class="card calmo stamina-agora">
+          <div class="stamina-topo"><span>Stamina agora</span><strong id="stamina-valor">--:--</strong></div>
+          <div class="stamina-barra" role="img" id="stamina-barra" aria-label="Stamina sem referência"><div id="stamina-fill"></div><span class="stamina-marca" title="39h: bônus verde"></span></div>
+          <p id="stamina-detalhe" class="dica" role="status"></p>
+          <form id="stamina-rapido" class="voz-form">
+            <label for="stamina-hhmm">Stamina ao deslogar (como no jogo)<input id="stamina-hhmm" placeholder="41:21" pattern="\d{1,2}(:\d{2})?" maxlength="5" required></label>
+            <button class="btn btn-primary" type="submit">Deslogar agora</button>
+            <button class="btn btn-sm" type="button" id="stamina-logar">Logar agora</button>
+          </form>
+        </div>
+        <details class="card calmo"><summary>Mais cálculos (projeção, último horário para deslogar, alertas)</summary>
+        <form id="assistente-form-stamina"></form></details><div id="assistente-result-stamina" role="status"></div>
       </section>
       <section data-assistente-panel="market" hidden>
         <h2 class="sub">Market Tracker</h2><p class="dica">Preços informados por você, pelo formulário ou por voz; histórico privado por mundo, item e oferta. Sem atualização automática. Ex.: “TC tá 36.5k”, “Gold Token a 40k tá caro?” (somente consulta). GP, K e KK; separador de milhar ambíguo pede confirmação.</p>
@@ -1086,7 +1097,7 @@
           <div class="card calmo"><h3>⚡ Stamina</h3><ul>
             <li><q>estou deslogando agora, minha stamina está em 38 horas</q></li><li><q>vou fazer logout, minha stamina está em 41 horas</q></li>
             <li><q>desloguei há 20 minutos com 39 horas</q></li><li><q>estou logando agora</q></li><li><q>corrige minha stamina para 40 horas</q></li>
-            <li><q>quando minha stamina estará cheia</q></li><li><q>quando a stamina fica verde</q></li><li><q>que horas minha stamina chega em 40</q></li>
+            <li><q>qual é minha stamina</q></li><li><q>quando minha stamina estará cheia</q></li><li><q>quando a stamina fica verde</q></li><li><q>que horas minha stamina chega em 40</q></li>
             <li><q>amanhã às 10, quanto terei de stamina</q></li><li><q>qual o último horário para deslogar e ficar com 42 horas amanhã às 18</q></li></ul></div>
           <div class="card calmo"><h3>🤝 Shared XP</h3><ul>
             <li><q>qual é meu shared</q></li><li><q>até que level divide experiência</q></li><li><q>shared do level 300</q></li><li><q>level 350 entra na minha shared</q></li></ul></div>

@@ -318,7 +318,11 @@ class Store:
             if action=='stamina.project' and ('starting_stamina_minutes' in p or 'logged_out_at' in p):
                 ref={'stamina_minutes':integer(p.get('starting_stamina_minutes',ref['stamina_minutes'] if ref else None),0,2520),'reference_at':iso(p.get('logged_out_at')),'offline':True}
             if not ref: raise ValueError('Registre stamina e horário de logout primeiro.')
-            if action=='stamina.get': return {'stamina':ref,'note':'Valores declarados; projeção exige offline contínuo.'},False
+            if action=='stamina.get':
+                at=instant(ref['reference_at']);elapsed=max(0,(now-at).total_seconds()/60);start=ref['stamina_minutes']
+                if not ref['offline']:return {'stamina':ref,'online_minutes':int(elapsed),'note':'Online declarado; o app não sabe quanto você gastou.'},False
+                return {'stamina':ref,'estimate_minutes':stamina_at(start,elapsed),'green_at':iso(at+timedelta(minutes=recovery_minutes(start,2340))),
+                        'full_at':iso(at+timedelta(minutes=recovery_minutes(start,2520))),'note':'Valores declarados; projeção exige offline contínuo.'},False
             if action=='stamina.login':
                 at=instant(p.get('logged_in_at',now))
                 if not instant(ref['reference_at'])<=at<=now: raise ValueError('Horário de login inválido.')
@@ -494,6 +498,7 @@ def parse(text, now=None):
     m=match(r'(?:que horas minha stamina chega em|quando recupero) (\d+)(?: horas?)?')
     if m:return 'stamina.time_to',{'target_stamina_minutes':int(m[1])*60}
     if t=='quando recupero o bonus de stamina':return 'stamina.time_to',{'target_stamina_minutes':2340}
+    if re.fullmatch(r'(?:qual e? ?(?:a )?minha e?stamina|quanto tenho de e?stamina|quanta e?stamina eu tenho)(?: agora)?',t):return 'stamina.get',{}
     m=re.search(r'\bquando\b.*\be?stamina\b.*\b(cheia|completa|full|verde|bonus)\b',t)
     if m:return 'stamina.time_to',{'target_stamina_minutes':2340 if m[1] in ('verde','bonus') else 2520}
     m=match(r'(amanha .+|hoje .+),? quanto terei de stamina')
@@ -544,6 +549,11 @@ def reply(result):
         cooldown=f" Libera em {span(left)}." if left else ' Disponível.' if b['cooldown_minutes'] else ' Cooldown não informado.'
         goal=f" Faltam {b['missing']} para a próxima meta." if b['missing'] is not None else (' Bosstiary completo.' if b['complete'] else ' Meta não verificada.')
         return f"{b['name']}: {b['real_kills']} abates reais, {b['progress']} de progresso."+goal+cooldown
+    if 'estimate_minutes' in result:
+        m=result['estimate_minutes'];full=instant(result['full_at']).astimezone(LOCAL).strftime('%d/%m às %H:%M')
+        return f"Stamina estimada: {m//60}h{m%60:02d}, se ficou offline. Cheia em {full}."
+    if 'online_minutes' in result:
+        m=result['stamina']['stamina_minutes'];return f"Online desde o login, que foi com {m//60}h{m%60:02d}. Registre o valor ao deslogar."
     if 'stamina_minutes' in result:return f"Stamina estimada: {result['stamina_minutes']//60}h{result['stamina_minutes']%60:02d}. Se permanecer offline."
     if 'at' in result:return 'Estimativa: '+instant(result['at']).astimezone(LOCAL).strftime('%d/%m às %H:%M')+'. Se permanecer offline.'
     if 'stamina' in result:return 'Referência de stamina registrada. '+result.get('note','')

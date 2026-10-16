@@ -317,6 +317,16 @@ class FinishUpdateTests(StoreCase):
         self.call('boss.kill',{'boss_id':'Black Knight'})
         boss=a.Store(self.path,clock=lambda:NOW).execute('bosstiary.get',{'boss_id':'black knight'},CTX)['boss']
         self.assertEqual((120,'player',(NOW+timedelta(hours=2)).isoformat()),(boss['cooldown_minutes'],boss['status'],boss['available_at']))
+    def test_stamina_now_offline_and_online(self):
+        self.call('stamina.logout',{'stamina_minutes':2280})
+        later=a.Store(self.path,clock=lambda:NOW+timedelta(minutes=190))
+        r=later.execute('stamina.get',{},CTX)
+        self.assertEqual((2340,'2026-10-16T15:10:00+00:00','2026-10-17T09:10:00+00:00'),(r['estimate_minutes'],r['green_at'],r['full_at']))
+        self.assertIn('Stamina estimada: 39h00',a.reply(r))
+        later.execute('stamina.login',{},CTX)
+        r=a.Store(self.path,clock=lambda:NOW+timedelta(minutes=250)).execute('stamina.get',{},CTX)
+        self.assertEqual((2340,60),(r['stamina']['stamina_minutes'],r['online_minutes']))
+        self.assertEqual(('stamina.get',{}),a.parse('Qual é minha stamina?',NOW))
     def test_span_matches_tibia_widget(self):
         self.assertEqual(['3h 12min','45min','2d 4h','1min'],[a.span(s) for s in (11520,2700,187200,5)])
     def test_boss_view_has_bosstiary_goals(self):
