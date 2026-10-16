@@ -2,6 +2,7 @@
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+import difflib
 import hashlib
 import json
 import os
@@ -9,6 +10,7 @@ from pathlib import Path
 import re
 import statistics
 import threading
+import unicodedata
 import uuid
 
 import boss_catalog
@@ -67,6 +69,11 @@ def item_name(value):
     value=label(value)
     return {'tc':'Tibia Coin','tibia coin':'Tibia Coin','tibia coins':'Tibia Coin','te ce':'Tibia Coin',
             'gold token':'Gold Token','silver token':'Silver Token'}.get(value.lower(),value)
+
+def boss_key(text):
+    """Chave de comparação: sem acento, caixa, pontuação nem artigo inicial ("The Pale Worm" == "pale worm")."""
+    text=''.join(c for c in unicodedata.normalize('NFD',text.lower()) if not unicodedata.combining(c))
+    return re.sub(r'^(?:the|o|a|os|as) ','',' '.join(re.sub(r'[^a-z0-9]+',' ',text).split()))
 
 def recovery_minutes(start, target):
     integer(start,0,2520);integer(target,0,2520)
@@ -148,10 +155,21 @@ class Store:
         return value
 
     def _boss(self,d,identity):
-        identity=label(identity).lower()
-        found=next((b for b in d['catalog'] if identity in [b['boss_id'].lower(),b['name'].lower(),*[v.lower() for v in b['aliases']]]),None)
-        if found is None: raise ValueError('Boss não cadastrado. Importe o catálogo com fonte e regras explícitas.')
-        return found
+        """Nome exato, depois palavras contidas, depois parecido (erro de transcrição); nunca escolhe entre dois."""
+        key=boss_key(label(identity));keys={}
+        for b in d['catalog']:
+            for n in (b['boss_id'],b['name'],*b['aliases']):keys.setdefault(boss_key(n),{})[b['boss_id']]=b
+        def one(found):
+            if len(found)==1:return next(iter(found.values()))
+            raise ValueError(f'Qual boss? {", ".join(sorted(b["name"] for b in found.values())[:5])}.')
+        if key in keys:return one(keys[key])
+        contained={i:b for k,bs in keys.items() if re.search(rf'\b{re.escape(key)}\b',k) for i,b in bs.items()}
+        if contained:return one(contained)
+        close=difflib.get_close_matches(key,keys,n=5,cutoff=.6)
+        sure={i:b for k in close if difflib.SequenceMatcher(None,key,k).ratio()>=.85 for i,b in keys[k].items()}
+        if sure:return one(sure)
+        guesses=sorted({b['name'] for k in close for b in keys[k].values()})[:3]
+        raise ValueError(f'Não achei o boss "{identity}". '+(f'Você quis dizer: {", ".join(guesses)}?' if guesses else 'Confira o nome na aba Bosstiary.'))
 
     def _boss_view(self,d,boss,char,now):
         kills=[k for k in d['kills'] if k['character_id']==char and k['boss_id']==boss['boss_id'] and not k['undone']]

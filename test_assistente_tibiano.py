@@ -338,6 +338,13 @@ class FinishUpdateTests(StoreCase):
             for variant in (f'{first}, {rest}',f'Eu {phrase}.',f'{phrase}, por favor',f'Ok, {phrase}!'):
                 with self.subTest(variant=variant):
                     self.assertEqual(a.parse(phrase,NOW),a.parse(variant,NOW))
+    def test_boss_names_are_forgiving_but_never_guess_between_two(self):
+        name=lambda spoken:self.call('bosstiary.get',{'boss_id':spoken})['boss']['name']
+        self.assertEqual('Scarlett Etzel',name('Scarlet Etzel'))
+        self.assertEqual('Ferumbras Mortal Shell',name('mortal shell'))
+        self.assertEqual('Grand Master Oberon',name('grand master oberon!'))
+        with self.assertRaisesRegex(ValueError,'Você quis dizer'):name('Ferumbrass Shel')
+        with self.assertRaisesRegex(ValueError,'Confira o nome'):name('xyzzy')
     def test_common_synonyms(self):
         self.assertEqual('boss.kill',a.parse('acabei de matar o Drume',NOW)[0])
         self.assertEqual('Drume',a.parse('fiz o Drume',NOW)[1]['boss_id'])

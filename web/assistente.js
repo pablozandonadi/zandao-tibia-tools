@@ -99,23 +99,34 @@ async function loadBosstiary(){
 }
 // Boss Cooldowns: igual ao widget do Tibia (imagem, nome, tempo em vermelho; o que libera primeiro em cima).
 function span(ms){const m=Math.max(1,Math.ceil(ms/60000)),d=Math.floor(m/1440),h=Math.floor(m/60)%24;return d?`${d}d ${h}h`:h?`${h}h ${m%60}min`:`${m%60}min`;}
+const noImage=new Set();
+function bossPicture(name){
+ const src=bossImage(name);if(noImage.has(src))return node('span','?','bosstiary-sombra');
+ const img=node('img');img.alt='';img.loading='lazy';img.src=src;img.addEventListener('error',()=>{noImage.add(src);img.replaceWith(node('span','?','bosstiary-sombra'));});return img;
+}
+function cooldownForm(b){
+ const form=node('form',undefined,'cooldowns-informar'),hours=node('input');hours.type='number';hours.min='1';hours.max='8760';hours.step='1';hours.required=true;hours.placeholder='horas';hours.setAttribute('aria-label',`Cooldown de ${b.name} em horas`);
+ form.append(hours,node('button','Salvar','btn btn-sm'));form.addEventListener('submit',e=>{e.preventDefault();quickRun('boss.cooldown.set',{boss_id:b.boss_id,cooldown_minutes:Number(hours.value)*60});});return form;
+}
 function renderCooldowns(){
  const list=el('cooldowns-lista'),q=el('cooldowns-busca').value.trim().toLowerCase(),now=Date.now();
- const rows=bosstiaryRows.filter(b=>b.last_killed_at&&(!q||[b.name,...b.aliases].some(n=>n.toLowerCase().includes(q))))
-  .map(b=>({b,left:b.available_at?new Date(b.available_at)-now:null}))
-  .sort((x,y)=>(x.left===null?2e15:x.left>0?x.left:1e15)-(y.left===null?2e15:y.left>0?y.left:1e15)||x.b.name.localeCompare(y.b.name));
+ const order=({b,left})=>left>0?left:b.cooldown_minutes?1e15:2e15;
+ const rows=bosstiaryRows.filter(b=>!q||[b.name,...b.aliases].some(n=>n.toLowerCase().includes(q)))
+  .map(b=>({b,left:b.available_at?new Date(b.available_at)-now:0}))
+  .sort((x,y)=>order(x)-order(y)||x.b.name.localeCompare(y.b.name));
  list.replaceChildren(...rows.map(({b,left})=>{
-  const li=node('li'),img=node('img');img.alt='';img.src=bossImage(b.name);img.addEventListener('error',()=>img.replaceWith(node('span','?','bosstiary-sombra')));
-  li.append(img,node('strong',b.name));
-  if(left===null){const form=node('form',undefined,'cooldowns-informar'),hours=node('input');hours.type='number';hours.min='1';hours.max='8760';hours.step='1';hours.required=true;hours.placeholder='horas';hours.setAttribute('aria-label',`Cooldown de ${b.name} em horas`);
-   form.append(hours,node('button','Informar','btn btn-sm'));form.addEventListener('submit',e=>{e.preventDefault();quickRun('boss.cooldown.set',{boss_id:b.boss_id,cooldown_minutes:Number(hours.value)*60});});li.append(form);}
-  else li.append(left>0?node('span',span(left),'cooldowns-tempo'):node('span','Disponível','cooldowns-livre'));
+  const li=node('li');li.append(bossPicture(b.name),node('strong',b.name));
+  if(left>0){const t=node('span',span(left),'cooldowns-tempo');t.dataset.until=b.available_at;li.append(t);}
+  else if(b.cooldown_minutes)li.append(node('span','Disponível','cooldowns-livre'));
+  else li.append(button('Informar cooldown',e=>{const form=cooldownForm(b);e.currentTarget.replaceWith(form);form.querySelector('input').focus();}));
   return li;}));
- if(!rows.length)list.append(node('li',q?'Nenhum boss encontrado.':'Nenhum abate registrado neste personagem. Diga “matei o Drume” ou use +1 kill no Bosstiary.','dica'));
+ if(!rows.length)list.append(node('li','Nenhum boss encontrado.','dica'));
 }
+// A cada 20 s só os tempos mudam; a lista inteira não é redesenhada.
+function tickCooldowns(){for(const t of document.querySelectorAll('#cooldowns-lista [data-until]')){const left=new Date(t.dataset.until)-Date.now();if(left>0)t.textContent=span(left);else{t.className='cooldowns-livre';t.textContent='Disponível';delete t.dataset.until;}}}
 function bossCard(b){
  const card=node('article',undefined,'card calmo bosstiary-card'),goals=b.goals||[],stars=goals.filter(g=>b.progress>=g).length;
- const img=node('img');img.alt='';img.loading='lazy';img.src=bossImage(b.name);img.addEventListener('error',()=>img.replaceWith(node('span','?','bosstiary-sombra')));
+ const img=bossPicture(b.name);
  const bar=node('progress');bar.max=b.next_goal||goals.at(-1)||1;bar.value=Math.min(b.progress,bar.max);bar.setAttribute('aria-label',`Progresso de ${b.name}`);
  const goal=!goals.length?'Fora do Bosstiary':b.next_goal?`faltam ${b.missing} para ${STAR_NAMES[stars]}`:'Mastery completo';
  card.append(node('strong',b.name),img,node('p',`Total kills: ${b.progress}`),bar,node('span',goals.length?'★'.repeat(stars)+'☆'.repeat(3-stars):'','bosstiary-estrelas'),node('p',goal,'dica'));
@@ -123,13 +134,13 @@ function bossCard(b){
  return card;
 }
 function renderBosstiary(){
- const all=el('bosstiary-todos').checked,q=el('bosstiary-busca').value.trim().toLowerCase();
+ const onlyKilled=el('bosstiary-com-kills').checked,q=el('bosstiary-busca').value.trim().toLowerCase();
  const cats=new Set([...document.querySelectorAll('[data-bosstiary-cat]:checked')].map(i=>i.dataset.bosstiaryCat));
- const rows=bosstiaryRows.filter(b=>(all||b.progress>0)&&cats.has(b.category)&&(!q||[b.name,...b.aliases].some(n=>n.toLowerCase().includes(q)))).sort((x,y)=>y.progress-x.progress||x.name.localeCompare(y.name));
- const shown=rows.slice(0,80),killed=bosstiaryRows.filter(b=>b.progress>0).length;
- el('bosstiary-lista').replaceChildren(...shown.map(bossCard));
- el('bosstiary-resumo').textContent=`${killed} bosses com kills neste personagem · mostrando ${shown.length} de ${rows.length}${rows.length>shown.length?' (use a busca)':''}`;
- if(!rows.length)el('bosstiary-lista').append(node('p',all||q?'Nenhum boss encontrado.':'Nenhum boss com kills ainda. Cadastre acima o total que você já tem.','dica'));
+ const rows=bosstiaryRows.filter(b=>(!onlyKilled||b.progress>0)&&cats.has(b.category)&&(!q||[b.name,...b.aliases].some(n=>n.toLowerCase().includes(q)))).sort((x,y)=>y.progress-x.progress||x.name.localeCompare(y.name));
+ const killed=bosstiaryRows.filter(b=>b.progress>0).length;
+ el('bosstiary-lista').replaceChildren(...rows.map(bossCard));
+ el('bosstiary-resumo').textContent=`${killed} bosses com kills neste personagem · mostrando ${rows.length} de ${bosstiaryRows.length}`;
+ if(!rows.length)el('bosstiary-lista').append(node('p',onlyKilled&&!q?'Nenhum boss com kills ainda. Cadastre acima o total que você já tem.':'Nenhum boss encontrado.','dica'));
 }
 async function quickRun(intent,args,after=loadBosstiary){
  const status=el('assistente-feedback');
@@ -159,14 +170,14 @@ function boot(){
  for(const [module,ops] of Object.entries(operations)){const root=el('assistente-form-'+module);const wrap=node('label','Operação');const choice=node('select');choice.id='assistente-op-'+module;for(const [intent,title] of ops){const option=node('option',title);option.value=intent;choice.append(option);}choice.addEventListener('change',()=>renderFields(module));wrap.append(choice);const inputs=node('div',undefined,'voz-form assistente-fields');inputs.id='assistente-fields-'+module;const submit=node('button','Executar','btn btn-primary');submit.type='submit';root.append(wrap,inputs,submit);renderFields(module);root.addEventListener('submit',e=>{e.preventDefault();try{const values={};for(const key of ops.find(op=>op[0]===choice.value)[2]){const input=el(`assistente-${module}-${key}`);values[key]=input.type==='checkbox'?input.checked:input.value;}run(module,choice.value,payload(choice.value,values));}catch(error){el('assistente-feedback').textContent=error.message;}});}
  el('assistente-level-form').addEventListener('submit',async e=>{e.preventDefault();try{const context={...state.context};if(!el('assistente-level-confirm').checked)throw new Error('Marque a confirmação para alterar o cadastro.');const result=await window.pywebview.api.assistente_level(context.character_id,Number(el('assistente-level').value),true);if(result.erro)throw new Error(result.erro);el('assistente-feedback').textContent=result.message;el('assistente-level-confirm').checked=false;await refresh();}catch(error){el('assistente-feedback').textContent=error.message;}});
  el('bosstiary-form').addEventListener('submit',e=>{e.preventDefault();quickRun('bosstiary.set_total',{boss_id:el('bosstiary-boss').value.trim(),total_kills:Number(el('bosstiary-total').value)});});
- for(const input of document.querySelectorAll('[data-bosstiary-cat],#bosstiary-todos'))input.addEventListener('change',renderBosstiary);
+ for(const input of document.querySelectorAll('[data-bosstiary-cat],#bosstiary-com-kills'))input.addEventListener('change',renderBosstiary);
  el('bosstiary-busca').addEventListener('input',renderBosstiary);
  el('cooldowns-busca').addEventListener('input',renderCooldowns);
  el('stamina-rapido').addEventListener('submit',e=>{e.preventDefault();const [h,m='0']=el('stamina-hhmm').value.trim().split(':');const minutes=Number(h)*60+Number(m);
   if(!Number.isInteger(minutes)||Number(m)>59||minutes>2520){el('assistente-feedback').textContent='Digite como no jogo, por exemplo 41:21 (máximo 42:00).';return;}
   quickRun('stamina.logout',{stamina_minutes:minutes},renderStamina);});
  el('stamina-logar').addEventListener('click',()=>quickRun('stamina.login',{},renderStamina));
- setInterval(()=>{if(active==='bosses'&&el('page-voz').classList.contains('shown'))renderCooldowns();},20000);
+ setInterval(()=>{if(active==='bosses'&&el('page-voz').classList.contains('shown'))tickCooldowns();},20000);
  select('overview');setInterval(()=>{if(el('page-voz').classList.contains('shown')&&!busy)refresh();},2000);
 }
 window.assistenteLoad=refresh;window.assistenteSelect=select;
