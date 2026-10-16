@@ -433,6 +433,10 @@ def parse(text, now=None):
     if negated(text):raise ValueError('Tudo bem. Nenhuma ação executada.')
     now=instant(now or datetime.now(UTC))
     raw=''.join(c for c in unicodedata.normalize('NFD',text.strip().rstrip('.?!')) if not unicodedata.combining(c))
+    # Tolerância: pontuação fora de números ("36.5k" e "22:30" ficam), "eu"/"por favor" nas pontas e espaços extras não mudam o comando.
+    raw=' '.join(re.sub(r'(?<!\d)[,.;:!?"“”()]+|[,.;:!?"“”()]+(?!\d)',' ',raw).split())
+    raw=re.sub(r'^(?:(?:hey|ei|hei|ok|entao|bom|olha|tipo|ai|eu|por favor|tibia tudo)\s+)+','',raw,flags=re.I)
+    raw=re.sub(r'(?:\s+(?:por favor|pra mim|ai|obrigado))+$','',raw,flags=re.I)
     t=normalize(raw)
     def match(pattern):return re.fullmatch(pattern,raw,flags=re.I)
     def number(value):
@@ -459,7 +463,7 @@ def parse(text, now=None):
             try:args['duration_seconds']=duration(m[2])
             except ValueError:args['label']=m[2]
         return ('timer.repeat' if t.startswith(('repete','repetir')) else 'timer.cancel'),args
-    m=match(r'(?:(?:cria|criar|coloca|inicia|iniciar|novo|nova|gera|gere|gerar|ligar|liga|ligue) (?:um |uma )?)?(?:timer|time|alarme|temporizador|cronometro)(?: chamado (.+?))? (?:de |por |pra |para )?(.+)')
+    m=match(r'(?:(?:cria|criar|coloca|inicia|iniciar|novo|nova|gera|gere|gerar|ligar|liga|ligue|bota|bote|poe|faz|faca|marca|marque|programa) (?:um |uma )?)?(?:timer|time|alarme|temporizador|cronometro)(?: chamado (.+?))? (?:de |por |pra |para )?(.+)')
     if not m and t.startswith('me avisa daqui a '):return 'timer.create',{'duration_seconds':duration(raw[len('me avisa daqui a '):])}
     if m:
         args={'duration_seconds':duration(m[2])}
@@ -473,7 +477,7 @@ def parse(text, now=None):
     m=match(r'(?:meu level e |se eu fosse |level )(\d+).*')
     if m:return 'shared.range',{'reference_level':int(m[1])}
     if re.search(r'\batualiza (?:meu )?(?:level|nivel)\b',t):raise ValueError('Confirme a alteração do level no formulário Shared XP; consultas não alteram o cadastro.')
-    m=match(r'(?:matei (?:o |a )?|acabei de fazer (?:o |a )?)(.+?)(?: (agora|ha .+|ontem .+|hoje .+|as .+))?')
+    m=match(r'(?:(?:matei|matamos|derrubei|derrubamos|acabei de matar|acabamos de matar) (?:o |a )?|(?:acabei de fazer|acabamos de fazer) (?:o |a )?|(?:fiz|fizemos) (?:o |a ))(.+?)(?: (agora|ha .+|ontem .+|hoje .+|as .+))?')
     if m:return 'boss.kill',{'boss_id':m[1],'killed_at':local_datetime(m[2] or 'agora',now)}
     m=match(r'(?:atualiza|atualizar) (?:meu |minha )?(.+?) para (.+?) kills')
     if m:return 'bosstiary.set_total',{'boss_id':m[1],'total_kills':number(m[2])}
@@ -490,7 +494,7 @@ def parse(text, now=None):
     if t in ('quais bosses estao disponiveis','mostra os bosses do meu personagem','meus bosses'):return 'boss.cooldown.list',{}
     m=match(r'(?:define |coloca )?(?:o )?cooldown (?:do |da |de )?(.+?) (?:e |eh |para |pra )(?:de )?(.+)')
     if m:return 'boss.cooldown.set',{'boss_id':m[1],'cooldown_minutes':duration(m[2])//60}
-    if t in ('estou logando agora','registrar login'):return 'stamina.login',{'logged_in_at':iso(now)}
+    if re.fullmatch(r'(?:estou |to |acabei de |vou )?(?:logando|loguei|logar|entrei no jogo|entrando no jogo|registrar login)(?: agora)?',t):return 'stamina.login',{'logged_in_at':iso(now)}
     m=match(r'(?:estou deslogando agora[, ]*minha stamina esta em |desloguei (.+?) com )(.+)')
     if m:return 'stamina.logout',{'stamina_minutes':duration(m[2])//60,'logged_out_at':local_datetime(m[1] or 'agora',now)}
     m=match(r'corrige minha stamina para (.+)')
@@ -517,7 +521,7 @@ def parse(text, now=None):
     m=match(r'(?:qual a mediana (?:do |da )?)(.+?)(?: nos ultimos (7|30|90) dias)?')
     if m:return 'market.stats',{'item':m[1],'offer_type':'sell','days':int(m[2] or 30)}
     # Fala livre de logout ("vou fazer logout agora, minha estamina está em 41 horas"); o ASR às vezes escreve "estamina".
-    m=re.search(r'\b(?:logout|deslog\w*)\b.*?\be?stamina (?:esta |ta |e |fica )?(?:em |com |de )?(.+)',t)
+    m=re.search(r'\b(?:logout|deslog\w*|sai\w* do jogo|offline)\b.*?\be?stamina (?:esta |ta |e |fica )?(?:em |com |de )?(.+)',t)
     if m:return 'stamina.logout',{'stamina_minutes':duration(m[1])//60,'logged_out_at':iso(now)}
     m=match(r'(?:registra |registrar )?(.+?) (?:ta |esta |a )(\d.*?)(?: (?:na |no )(compra|venda|negociado))?(?: no meu mundo)?')
     if m:

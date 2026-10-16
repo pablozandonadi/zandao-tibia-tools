@@ -329,6 +329,22 @@ class FinishUpdateTests(StoreCase):
         self.assertEqual(('stamina.get',{}),a.parse('Qual é minha stamina?',NOW))
     def test_span_matches_tibia_widget(self):
         self.assertEqual(['3h 12min','45min','2d 4h','1min'],[a.span(s) for s in (11520,2700,187200,5)])
+    def test_instruction_phrases_tolerate_small_changes(self):
+        import html,re
+        page=(Path(__file__).parent/'web'/'index.html').read_text(encoding='utf-8')
+        section=page[page.index('id="assistente-instrucoes"'):];section=section[:section.index('</section>')]
+        for phrase in [html.unescape(p) for p in re.findall(r'<q>(.*?)</q>',section)]:
+            first,_,rest=phrase.partition(' ')
+            for variant in (f'{first}, {rest}',f'Eu {phrase}.',f'{phrase}, por favor',f'Ok, {phrase}!'):
+                with self.subTest(variant=variant):
+                    self.assertEqual(a.parse(phrase,NOW),a.parse(variant,NOW))
+    def test_common_synonyms(self):
+        self.assertEqual('boss.kill',a.parse('acabei de matar o Drume',NOW)[0])
+        self.assertEqual('Drume',a.parse('fiz o Drume',NOW)[1]['boss_id'])
+        self.assertEqual(('timer.create',{'duration_seconds':300}),a.parse('bota um timer de 5 minutos',NOW))
+        self.assertEqual('stamina.login',a.parse('acabei de logar',NOW)[0])
+        self.assertEqual(2400,a.parse('vou sair do jogo, minha stamina está em 40 horas',NOW)[1]['stamina_minutes'])
+        self.assertEqual('36.5k',a.parse('TC tá 36.5k.',NOW)[1]['price'])
     def test_boss_view_has_bosstiary_goals(self):
         self.assertEqual([5,20,60],self.call('bosstiary.get',{'boss_id':'drume'})['boss']['goals'])
     def test_bridge_parameter_is_not_js_arguments(self):
