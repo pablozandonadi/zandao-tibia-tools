@@ -4,6 +4,7 @@ import base64
 from collections import OrderedDict
 import io
 import json
+import math
 import os
 from pathlib import Path
 import queue
@@ -30,14 +31,11 @@ CANCEL_VERBS = ('cancelar', 'cancela', 'cancele', 'excluir', 'exclui', 'exclua',
 
 
 def tibiano(text):
-    if 'tibiano' in text.lower():
-        return text
-    punctuation = text[-1] if text[-1:] in ('.', '?', '!') else '.'
-    return text.rstrip('.?!') + ', tibiano' + punctuation
+    return text
 
 
-UNKNOWN_REPLY = tibiano('Não entendi. Repita o comando.')
-GREETING = 'Fala comigo, tibiano.'
+UNKNOWN_REPLY = 'Não entendi. Fale Hey Tibia Tudo e tente novamente.'
+GREETING = 'Pode falar.'
 
 
 def normalize(text):
@@ -46,11 +44,15 @@ def normalize(text):
 
 
 def command_after_wake(text):
-    match = re.fullmatch(r'(?:hey|ei|oi|hei|ei a)?\s*tibia\s+tudo(?:\s+(.*))?', normalize(text))
+    match = re.fullmatch(r'(?:hey|ei|hei)\s+tibia\s+tudo(?:\s+(.*))?', normalize(text))
     return None if match is None else (match.group(1) or '')
 
 
 def duration_from(text):
+    if text == 'meio minuto':
+        return 30, 'segundo'
+    if text == 'um minuto e meio':
+        return 90, 'segundo'
     # Match the entire duration: never silently use the suffix of an unknown number.
     match = re.fullmatch(r'(.+?)\s+(minutos?|segundos?)', text)
     if not match:
@@ -90,7 +92,7 @@ def duration_seconds(duration):
 
 
 def recognition_grammar():
-    wakes = ['ei tíbia tudo', 'oi tíbia tudo', 'tíbia tudo']
+    wakes = ['ei tíbia tudo', 'hei tíbia tudo']
     durations = set(NUMBERS)
     for tens, value in NUMBERS.items():
         if value >= 20 and value % 10 == 0:
@@ -108,7 +110,7 @@ def recognition_grammar():
             if noun == 'timer':
                 continue  # The Portuguese Vosk model has no exact token for timer.
             commands.extend((f'{verb} um {noun} de', f'{verb} {noun} de'))
-    commands.extend(['por favor', 'daqui a', *TIMER_LINKS])
+    commands.extend(['por favor', 'daqui a', 'me avisa daqui a', 'um minuto e meio', 'meio minuto', 'quanto falta naquele timer', 'não', 'não crie', 'não cancela', *TIMER_LINKS])
     commands.extend(noun for noun in TIMER_NAMES if noun != 'timer')
     for verb in CANCEL_VERBS:
         commands.append(verb)
@@ -124,15 +126,17 @@ def recognition_grammar():
     return wakes + commands + ['[unk]']
 
 
-def shared_reply(data_dir):
+def shared_reply(data_dir, level=None):
     try:
-        data = json.loads((Path(data_dir) / 'meus_personagens.json').read_text(encoding='utf-8-sig'))
+        data = {} if level is not None else json.loads((Path(data_dir) / 'meus_personagens.json').read_text(encoding='utf-8-sig'))
         chars = [p for p in data.get('lista', []) if isinstance(p, dict) and p.get('nome')]
         current = next((p for p in chars if p['nome'] == data.get('atual')), chars[0] if chars else None)
-        level = current.get('level') if current else None
+        level = level if level is not None else (current.get('level') if current else None)
         if isinstance(level, bool) or not isinstance(level, int) or level < 1:
             return tibiano('Selecione um personagem com level válido no Tibia Tudo.')
-        return tibiano(f'Seu shared vai do level {(2 * level + 2) // 3} até {3 * level // 2}. Pelo level salvo no aplicativo.')
+        from tibia_info import faixa_shared
+        minimum, maximum = faixa_shared(level)
+        return f'Seu shared vai do level {minimum} até {maximum}.'
     except (OSError, ValueError, AttributeError, TypeError):
         return tibiano('Não consegui ler os personagens. Confira a pasta de dados escolhida.')
 
@@ -145,8 +149,18 @@ def timer_prefix(text):
     return re.fullmatch(rf'(?:(?:{verbs})\s+)?(?:(?:um|novo|nova)\s+)?(?:{names})(?:\s+(?:{links}))?', text) is not None
 
 
+def cancel_selection(text):
+    return re.sub(r'^(?:o\s+(?:timer\s+)?de\s+|de\s+)', '', normalize(text))
+
+
+def negated(text):
+    return re.search(r'\b(?:nao|nunca|nem|jamais|sem|evite|evita|evitar)\b|\b(?:deixe|deixa) de\b', normalize(text)) is not None
+
+
 def dispatch(text, data_dir, timers, now, state=None):
     text = normalize(text)
+    if negated(text):
+        return 'Tudo bem. Nenhuma ação executada.'
     if 'unk' in text.split():
         return UNKNOWN_REPLY
     text = re.sub(r'^(?:por favor\s+)|(?:\s+por favor)$', '', text)
@@ -154,13 +168,15 @@ def dispatch(text, data_dir, timers, now, state=None):
     names = '|'.join(normalize(noun) for noun in TIMER_NAMES)
     links = '|'.join(TIMER_LINKS)
     cancel_verbs = '|'.join(CANCEL_VERBS)
+    text = re.sub(rf'^({cancel_verbs}) o de ', r'\1 timer de ', text)
     cancel = re.fullmatch(rf'(?:{cancel_verbs})\s+(?:o\s+|um\s+)?(?:(ultimo)\s+)?(?:{names})(?:\s+(?:de\s+)?(.+))?', text)
-    selection = re.sub(r'^de\s+', '', text)
+    selection = cancel_selection(text)
     pending = state is not None and state.get('cancel', False)
-    if cancel or (pending and duration_from(selection) is not None):
-        target = cancel[2] if cancel else selection
+    last = text in ('ultimo', 'o ultimo')
+    if cancel or (pending and (duration_from(selection) is not None or last)):
+        target = cancel[2] if cancel else (None if last else selection)
         duration = duration_from(target) if target else None
-        if target and (duration is None or not 1 <= duration[0] <= 180):
+        if target and (duration is None or not 1 <= duration_seconds(duration) <= 10800):
             return UNKNOWN_REPLY
         active = [index for index, timer in enumerate(timers) if timer[0] > now]
         if state is not None:
@@ -172,27 +188,35 @@ def dispatch(text, data_dir, timers, now, state=None):
             active = [index for index in active if duration_seconds(duration_from(timers[index][1])) == seconds]
             if not active:
                 return tibiano('Não existe timer ativo com essa duração.')
-        elif len(active) > 1 and not (cancel and cancel[1]):
+        if len(active) > 1 and not (last or (cancel and cancel[1])):
             if state is not None:
                 state['cancel'] = True
             labels = ', '.join(timers[index][1] for index in active)
             return tibiano(f'Você tem {len(active)} timers ativos: {labels}. Qual deseja cancelar?')
-        # For duplicate durations, cancel only the most recently created matching timer.
         _, label = timers.pop(active[-1])
         return tibiano(f'Um timer de {label} cancelado.')
     if state is not None:
         state['cancel'] = False
+    if re.fullmatch(r'quanto (?:falta|tempo falta)(?: naquele| no| nesse)? timer', text):
+        active = [timer for timer in timers if timer[0] > now]
+        if not active:
+            return 'Nenhum timer ativo.'
+        if len(active) != 1:
+            return 'Qual timer? Consulte os timers na tela.'
+        return f'Faltam {max(1, math.ceil(active[0][0] - now))} segundos.'
+    text = re.sub(r'^me avisa daqui a ', 'timer de ', text)
     timer = re.fullmatch(rf'(?:(?:{verbs})\s+)?(?:(?:um|novo|nova)\s+)?(?:{names})\s+(?:(?:{links})\s+(?:e\s+)?)?(?:daqui a\s+)?(.+)', text)
     duration = duration_from(timer[1] if timer else text)
     if timer or duration is not None:
-        if duration is None or not 1 <= duration[0] <= 180:
-            return tibiano('Diga uma duração de 1 a 180 segundos ou minutos.')
+        if duration is None or not 1 <= duration_seconds(duration) <= 10800:
+            return tibiano('Diga uma duração de 1 segundo a 180 minutos.')
         value, unit = duration
         label = f'{value} {unit}{"s" if value != 1 else ""}'
         timers.append((now + value * (60 if unit == 'minuto' else 1), label))
         return tibiano(f'Timer de {label} iniciado.')
     if any(word in text.split() for word in ('shared', 'share', 'shareio', 'cher', 'xer', 'compartilhado', 'compartilhada')) or 'divide experiencia' in text or 'compartilho experiencia' in text:
-        return shared_reply(data_dir)
+        explicit = re.search(r'\blevel (\d+)\b', text)
+        return shared_reply(data_dir, int(explicit[1]) if explicit else None)
     return UNKNOWN_REPLY
 
 
@@ -386,7 +410,7 @@ def main():
                 state['cancel'] = False
             print(f'Ouvi: {text}')
             if not command:
-                answer(GREETING)
+                print(GREETING)
                 armed_until = time.monotonic() + 8
             elif all(word == 'unk' for word in normalize(command).split()):
                 print('Áudio não reconhecido; aguardando o comando.')
@@ -400,7 +424,7 @@ def main():
                 pending_prefix = ''
                 reply = dispatch(command, data_dir, timers, time.monotonic(), state)
                 answer(reply)
-                armed_until = time.monotonic() + 8 if reply == UNKNOWN_REPLY or state['cancel'] else 0
+                armed_until = time.monotonic() + 8 if state['cancel'] else 0
 
 
 if __name__ == '__main__':

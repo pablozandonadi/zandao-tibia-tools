@@ -41,3 +41,13 @@ class DeliveryTests(unittest.TestCase):
             self.assertTrue((app/'ZandaoTibiaTools.exe').exists())
             self.assertFalse((snapshot/'preferencias.json').exists())
             self.assertTrue((storage/'atualizacao-pendente.json').exists())
+
+    def test_online_credentials_rejected_at_any_package_depth(self):
+        for filename in ('voice-online.json','voice-online.dpapi','voice-online.tmp','voice-online.json.tmp','voice-online.dpapi.tmp'):
+            with self.subTest(filename=filename), tempfile.TemporaryDirectory() as directory:
+                source=self.source(directory);app=self.app(directory)
+                target=app/'_internal'/'nested'/filename
+                target.parent.mkdir(parents=True)
+                target.write_bytes(b'fake-private-payload')
+                with self.assertRaisesRegex(ValueError,'Dados privados'):
+                    p.validate_layout(app,source)

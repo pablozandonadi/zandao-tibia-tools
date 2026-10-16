@@ -20,10 +20,15 @@
     received = performance.now();
     el('voz-status').textContent = data.detalhe || 'Preparando assistente…';
     el('voz-status').dataset.estado = data.estado || '';
+    el('voz-esfera').dataset.estado = data.estado || 'espera';
+    el('voz-esfera').setAttribute('aria-label', 'Falar um comando');
+    el('voz-esfera').disabled = data.estado === 'preparando';
     el('voz-ouvi').textContent = data.ouvi || 'Aguardando “Hey Tibia Tudo”.';
-    el('voz-resposta').textContent = data.resposta || 'As respostas aparecerão aqui, tibiano.';
+    el('voz-resposta').textContent = data.resposta || 'As respostas aparecerão aqui.';
     el('voz-microfone').textContent = data.microfone ? 'Pausar microfone' : (data.estado === 'erro' ? 'Tentar novamente' : 'Retomar microfone');
     el('voz-microfone').disabled = busy;
+    el('voz-online-enabled').checked = data.online_enabled === true;
+    el('voz-online-status').textContent = data.online_enabled ? 'Online ativado para comandos autorizados.' : (data.online_configured ? 'Acesso salvo; reconhecimento online desligado.' : 'Reconhecimento local. Nenhum acesso online salvo.');
     const ids = new Set((data.timers || []).map(timer => timer.id));
     for (const [id, card] of cards) {
       if (!ids.has(id)) { card.remove(); cards.delete(id); }
@@ -75,7 +80,7 @@
       const data = await bridge()[method](...args);
       if (data.erro) throw new Error(data.erro);
       render(data);
-    } catch (error) { el('voz-feedback').textContent = error.message || 'Não consegui concluir o comando, tibiano.'; }
+    } catch (error) { el('voz-feedback').textContent = error.message || 'Não consegui concluir o comando.'; }
     finally {
       busy = false;
       el('voz-criar').disabled = false;
@@ -90,6 +95,13 @@
       event.preventDefault();
       mutate('voz_criar', Number(el('voz-valor').value), el('voz-unidade').value);
     });
+    el('voz-online-form').addEventListener('submit', event => {
+      event.preventDefault();
+      const token = el('voz-online-token').value;
+      el('voz-online-token').value = '';
+      mutate('voz_configurar_online', token, el('voz-online-enabled').checked);
+    });
+    el('voz-esfera').addEventListener('click', () => mutate('voz_escutar'));
     el('voz-microfone').addEventListener('click', () => mutate(snapshot.microfone ? 'voz_parar' : 'voz_iniciar'));
     mutate('voz_iniciar');
     setInterval(() => {

@@ -1348,11 +1348,17 @@ class API:
     def voz_iniciar(self):
         return self._voz_obter().iniciar()
 
+    def voz_escutar(self):
+        return self._voz_obter().escutar()
+
     def voz_parar(self):
         return self._voz_obter().parar()
 
     def voz_estado(self):
         return self._voz_obter().estado()
+
+    def voz_configurar_online(self, token, enabled):
+        return self._voz_obter().configurar_online(token, enabled)
 
     def voz_criar(self, valor, unidade):
         return self._voz_obter().criar(valor, unidade)

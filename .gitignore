@@ -70,3 +70,6 @@ prints_schedule.json.antes-do-backup
 # Perfis Mirror privados
 mirrors.json
 mirrors.json.*
+
+# Acesso individual online protegido por usuário/canal
+voice-online.*

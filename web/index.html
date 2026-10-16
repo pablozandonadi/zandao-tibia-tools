@@ -990,7 +990,11 @@
       <h1 class="titulo">Voz</h1>
       <div class="card calmo">
         <div class="voz-intro"><p id="voz-status" role="status">Preparando o assistente local…</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
-        <p class="dica">Diga <b>“Hey Tibia Tudo”</b>, espere <b>“Fala comigo, tibiano”</b> e peça um timer ou consulte seu shared. Funciona enquanto você joga, inclusive minimizado.</p>
+        <div class="voz-assistente">
+          <button id="voz-esfera" class="voz-esfera" type="button" data-estado="preparando" aria-label="Falar um comando" aria-describedby="voz-status"><span aria-hidden="true"></span></button>
+          <p class="dica">Clique na esfera para falar um comando.</p>
+        </div>
+        <p class="dica">Fale <b>Hey Tibia Tudo</b>, espere a resposta na tela e diga o comando; ou diga tudo junto: <b>Hey Tibia Tudo, timer de 5 minutos</b>. Funciona com o aplicativo minimizado.</p>
         <p class="dica">Exemplos: “alarme de trinta segundos”, “novo temporizador de dois minutos”, “cancelar alarme” e “qual é meu nível compartilhado”. O reconhecimento de “timer” e “shared” ainda pode variar.</p>
         <form id="voz-form" class="voz-form">
           <label for="voz-valor">Duração<input id="voz-valor" type="number" value="30" min="1" max="180" step="1" required></label>
@@ -1000,14 +1004,24 @@
         <p class="dica">De 1 a 180 segundos ou minutos. Timers de voz e manuais aparecem juntos abaixo e duram enquanto o aplicativo estiver aberto.</p>
         <p id="voz-feedback" role="alert"></p>
       </div>
+      <details class="card calmo voz-diagnostico">
+        <summary>Reconhecimento online</summary>
+        <p class="dica">Opcional. Envia somente o áudio do comando após Hey Tibia Tudo ou clique na esfera. Use o código individual recebido do responsável; o acesso fica protegido neste usuário do Windows.</p>
+        <form id="voz-online-form" class="voz-form">
+          <label for="voz-online-token">Código de acesso individual<input id="voz-online-token" type="password" maxlength="43" autocomplete="off" spellcheck="false" placeholder="Deixe vazio para manter o acesso salvo"></label>
+          <label for="voz-online-enabled"><input id="voz-online-enabled" type="checkbox"> Ativar reconhecimento online</label>
+          <button class="btn btn-sm" type="submit">Salvar</button>
+        </form>
+        <p id="voz-online-status" role="status">Reconhecimento local. Nenhum acesso online salvo.</p>
+      </details>
       <h2 class="sub" id="voz-quantidade">0 timers ativos</h2>
-      <p class="dica" id="voz-vazio">Nenhum timer ativo, tibiano. Crie um por voz ou pelo formulário.</p>
+      <p class="dica" id="voz-vazio">Nenhum timer ativo. Crie um por voz ou pelo formulário.</p>
       <div id="voz-lista"></div>
       <details class="card calmo voz-diagnostico" open>
         <summary>Último comando</summary>
         <p><b>Ouvi:</b> <span id="voz-ouvi">Aguardando “Hey Tibia Tudo”.</span></p>
-        <p><b>Resposta:</b> <span id="voz-resposta">As respostas aparecerão aqui, tibiano.</span></p>
-        <p class="dica">Áudio processado no computador, sem gravação. Modelos gratuitos são baixados no primeiro uso. Prefira headset para evitar eco.</p>
+        <p><b>Resposta:</b> <span id="voz-resposta">As respostas aparecerão aqui.</span></p>
+        <p class="dica">Ativação e respostas faladas são locais. Com online ativado, somente o comando autorizado é enviado para reconhecimento. O aplicativo não grava áudio. Modelos locais são baixados no primeiro uso; prefira headset para evitar eco.</p>
       </details>
     </section>
 

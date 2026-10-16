@@ -18,6 +18,38 @@ from spike_assistente import command_after_wake, dispatch, minutes_from, shared_
 
 
 class VoiceSpikeTests(unittest.TestCase):
+    def test_complete_wake_required(self):
+        for text in ('tibia tudo', 'tibia tudo timer de 30 segundos', 'hey tibia', 'hey tudo', 'hey', 'oi tibia tudo', 'conversa tibia tudo'):
+            with self.subTest(text=text):
+                self.assertIsNone(command_after_wake(text))
+        self.assertNotIn('tíbia tudo', recognition_grammar())
+        self.assertNotIn('oi tíbia tudo', recognition_grammar())
+
+    def test_natural_half_minutes_and_seconds_limit(self):
+        for text, seconds in (('coloca um timer de um minuto e meio', 90), ('me avisa daqui a meio minuto', 30), ('cronometro de 10800 segundos', 10800)):
+            timers = []
+            dispatch(text, '.', timers, 100)
+            self.assertEqual(len(timers), 1)
+            self.assertEqual(timers[0][0], 100 + seconds)
+        for text in ('timer de 10801 segundos', 'nao crie timer de 30 segundos', 'nao cancela timer'):
+            timers = [(200, '100 segundos')]
+            dispatch(text, '.', timers, 100)
+            self.assertEqual(timers, [(200, '100 segundos')])
+
+    def test_duplicate_duration_requires_choice_and_explicit_last(self):
+        timers = [(200, '2 minutos'), (300, '120 segundos')]
+        state = {}
+        self.assertIn('Qual', dispatch('cancela o de dois minutos', '.', timers, 100, state))
+        self.assertEqual(len(timers), 2)
+        self.assertIn('cancelado', dispatch('o ultimo', '.', timers, 100, state))
+        self.assertEqual(timers, [(200, '2 minutos')])
+
+    def test_remaining_and_explicit_shared_use_domain_function(self):
+        self.assertIn('40 segundos', dispatch('quanto falta naquele timer', '.', [(140, '2 minutos')], 100))
+        with patch('tibia_info.faixa_shared', return_value=(300, 675)) as shared:
+            self.assertIn('300 até 675', dispatch('qual e minha shared no level 450', '.', [], 0))
+            shared.assert_called_once_with(450)
+
     def test_new_timers_cancel_selection_and_remaining_timer(self):
         timers, state = [], {}
         dispatch('novo timer de 40 segundos', '.', timers, 100, state)
@@ -32,10 +64,12 @@ class VoiceSpikeTests(unittest.TestCase):
         self.assertEqual(timers, [])
         self.assertIn('Nenhum timer ativo', dispatch('remover timer', '.', timers, 100, state))
 
-    def test_cancel_matches_duration_latest_and_ignores_expired(self):
+    def test_cancel_matches_unique_duration_and_ignores_expired(self):
         timers = [(90, '1 minuto'), (200, '2 minutos'), (300, '120 segundos'), (400, '40 segundos')]
-        dispatch('cancelar timer de dois minutos', '.', timers, 100)
-        self.assertEqual(timers, [(90, '1 minuto'), (200, '2 minutos'), (400, '40 segundos')])
+        self.assertIn('Qual', dispatch('cancelar timer de dois minutos', '.', timers, 100))
+        self.assertEqual(len(timers), 4)
+        dispatch('excluir o último timer', '.', timers, 100)
+        self.assertEqual(timers[-1], (300, '120 segundos'))
         dispatch('excluir o último timer', '.', timers, 100)
         self.assertEqual(timers, [(90, '1 minuto'), (200, '2 minutos')])
         for invalid in ('cancelar timer de [unk] dois minutos', 'cancelar timer de vinte e onze minutos', 'cancelar timer de nove segundos'):
@@ -44,15 +78,15 @@ class VoiceSpikeTests(unittest.TestCase):
         dispatch('cancelar timer', '.', timers, 100)
         self.assertEqual(timers, [(90, '1 minuto')])
 
-    def test_shared_question_variations_and_all_replies_address_tibiano(self):
+    def test_shared_question_variations_and_short_replies(self):
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / 'meus_personagens.json').write_text('{"lista":[{"nome":"A","level":300}]}', encoding='utf-8')
             for text in ('até que level shareio', 'qual é o meu share', 'até que level divide experiência', 'qual meu compartilhado'):
                 reply = dispatch(text, tmp, [], 100)
                 self.assertIn('200 até 450', reply)
-                self.assertEqual(reply.count('tibiano'), 1)
+                self.assertNotIn('tibiano', reply)
             for text in ('novo timer de 20 segundos', 'timer de 181 minutos', 'cancelar timer', 'não sei'):
-                self.assertEqual(dispatch(text, tmp, [], 100).count('tibiano'), 1)
+                self.assertEqual(dispatch(text, tmp, [], 100).count('tibiano'), 0)
 
     def test_voice_windows_start_after_spoken_greeting_and_selection(self):
         clock = [100]
@@ -89,13 +123,13 @@ class VoiceSpikeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as model, patch.dict('sys.modules', {'sounddevice': sd, 'vosk': vosk}), patch('sys.argv', ['spike', '--model', model, '--channel', 'source']), patch('spike_assistente.prepare_speech', return_value=speech), patch('spike_assistente.time.monotonic', side_effect=lambda: clock[0]), patch('spike_assistente.time.sleep'), patch('spike_assistente.queue.Queue', return_value=chunks), patch('builtins.print'):
             with self.assertRaises(KeyboardInterrupt):
                 main()
-        self.assertEqual(spoken[0], GREETING)
+        self.assertNotIn(GREETING, spoken)
         self.assertTrue(any('2 timers ativos' in reply for reply in spoken))
-        self.assertIn('Um timer de 2 minutos cancelado, tibiano.', spoken)
-        self.assertIn('Um timer de 40 segundos cancelado, tibiano.', spoken)
+        self.assertIn('Um timer de 2 minutos cancelado.', spoken)
+        self.assertIn('Um timer de 40 segundos cancelado.', spoken)
         # Expired follow-up is ignored, then a fresh wake command creates normally.
-        self.assertIn('Timer de 4 minutos iniciado, tibiano.', spoken)
-        self.assertIn('Você tem 3 timers ativos: 2 minutos, 3 minutos, 4 minutos. Qual deseja cancelar, tibiano?', spoken)
+        self.assertIn('Timer de 4 minutos iniciado.', spoken)
+        self.assertIn('Você tem 3 timers ativos: 2 minutos, 3 minutos, 4 minutos. Qual deseja cancelar?', spoken)
 
     def test_wake_and_accents(self):
         self.assertEqual(command_after_wake('Hey Tíbia Tudo ligar um timer de 30 minutos'), 'ligar um timer de 30 minutos')
@@ -138,7 +172,7 @@ class VoiceSpikeTests(unittest.TestCase):
             self.assertEqual(timers, [(100 + expected * 60, f'{expected} minutos')])
         timers = []
         self.assertIn('1 segundo iniciado', dispatch('iniciar um alarme de um segundo', '.', timers, 0))
-        for invalid in ('ligar um timer de zero segundos', 'timer de 181 segundos', 'timer de 0 minutos', 'time aleatório de 30 segundos'):
+        for invalid in ('ligar um timer de zero segundos', 'timer de 10801 segundos', 'timer de 0 minutos', 'time aleatório de 30 segundos'):
             dispatch(invalid, '.', timers, 0)
         self.assertEqual(len(timers), 1)
 
@@ -192,10 +226,10 @@ class VoiceSpikeTests(unittest.TestCase):
                 main()
         lines = [call.args[0] for call in output.call_args_list]
         self.assertEqual(lines.count(GREETING), 1)
-        self.assertEqual(lines.count('Não entendi. Repita o comando, tibiano.'), 1)
-        self.assertEqual(lines.count('Timer de 30 segundos iniciado, tibiano.'), 1)
+        self.assertEqual(lines.count('Não entendi. Fale Hey Tibia Tudo e tente novamente.'), 1)
+        self.assertEqual(lines.count('Timer de 30 segundos iniciado.'), 0)  # A fresh wake is required after failure.
         self.assertNotIn('Ouvi: conversa ambiente', lines)
-        self.assertIn('Ouvi: cria um alarme pra trinta segundos', lines)
+        self.assertNotIn('Ouvi: cria um alarme pra trinta segundos', lines)
         self.assertIn(GREETING, lines)
 
     def test_split_timer_prefix_and_strict_duration(self):
@@ -232,9 +266,9 @@ class VoiceSpikeTests(unittest.TestCase):
                 main()
         lines = [call.args[0] for call in output.call_args_list]
         self.assertEqual(lines.count('Aguardando duração (8 segundos).'), 2)
-        self.assertEqual(prepare.return_value.call_count, 5)
-        self.assertEqual([call.args[0] for call in prepare.return_value.call_args_list], [GREETING, 'Timer de 30 segundos iniciado, tibiano.', 'Timer de 29 minutos iniciado, tibiano.', GREETING, 'Timer de 2 minutos iniciado, tibiano.'])
-        self.assertEqual(recognizer.Reset.call_count, 5)
+        self.assertEqual(prepare.return_value.call_count, 3)
+        self.assertEqual([call.args[0] for call in prepare.return_value.call_args_list], ['Timer de 30 segundos iniciado.', 'Timer de 29 minutos iniciado.', 'Timer de 2 minutos iniciado.'])
+        self.assertEqual(recognizer.Reset.call_count, 3)
 
     def test_real_schema_selected_and_reloaded(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -266,7 +300,7 @@ class VoiceSpikeTests(unittest.TestCase):
         self.assertIn('noventa e nove minutos', grammar)
         self.assertIn('cento e oitenta segundos', grammar)
         self.assertIn('qual é meu nível compartilhado', grammar)
-        self.assertFalse(any(word in phrase.split() for phrase in grammar for word in ('hey', 'timer', 'shared', 'level')))
+        self.assertFalse(any(word in phrase.split() for phrase in grammar for word in ('hey', 'shared', 'level')))
         for phrase in grammar:
             if phrase.endswith((' minuto', ' minutos', ' segundo', ' segundos')):
                 timers = []

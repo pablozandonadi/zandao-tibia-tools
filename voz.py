@@ -1,6 +1,7 @@
 """Assistente local: timers compartilhados entre voz e interface, sem bloquear a janela."""
 import hashlib
 import json
+import math
 from pathlib import Path
 import queue
 import threading
@@ -10,9 +11,11 @@ import uuid
 import zipfile
 
 from app_paths import data_dir
+from voice.audio_capture import Capture
+from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, pcm_wav, save_settings, valid_intent
 from voice.spike_assistente import (GREETING, UNKNOWN_REPLY, PiperSpeech, command_after_wake,
-                                    dispatch, duration_from, duration_seconds, normalize,
-                                    recognition_grammar, speak, tibiano, timer_prefix)
+                                    cancel_selection, dispatch, duration_from, duration_seconds, negated, normalize,
+                                    recognition_grammar, shared_reply, speak, tibiano, timer_prefix)
 
 
 class Servico:
@@ -28,9 +31,19 @@ class Servico:
         self._stop = threading.Event()
         self._mic_stop = threading.Event()
         self._speaking = threading.Event()
+        self._ready = threading.Event()
+        self._audio_reset = threading.Event()
         self._falas = queue.Queue()
         self._speech = speak
         self._mic = None
+        self._armed_until = 0
+        self._pending_prefix = ''
+        self._command_state = {}
+        self._clarification_done = None
+        self._generation = 0
+        self._remote_busy = False
+        self._online_enabled, token = load_settings(self.pasta)
+        self._online_client = RemoteAIClient(token) if token else None
         self._watcher = threading.Thread(target=self._watch, daemon=True, name='voz-timers')
         self._speaker = threading.Thread(target=self._say_loop, daemon=True, name='voz-falas')
         self._watcher.start()
@@ -52,9 +65,10 @@ class Servico:
             timers = [{'id': self._ids[id(timer)], 'label': timer[1],
                        'duracao': duration_seconds(duration_from(timer[1])),
                        'restante': max(0, timer[0] - now)} for timer in self._timers if timer[0] > now]
-            return {'estado': self._estado, 'detalhe': self._detalhe,
+            return {'estado': 'falando' if self._speaking.is_set() and self._estado != 'pausado' else self._estado, 'detalhe': self._detalhe,
                     'ouvi': self._ouvi, 'resposta': self._resposta, 'timers': timers,
-                    'microfone': bool(self._mic and self._mic.is_alive() and not self._mic_stop.is_set())}
+                    'microfone': bool(self._mic and self._mic.is_alive() and not self._mic_stop.is_set()),
+                    'online_enabled': self._online_enabled, 'online_configured': self._online_client is not None}
 
     def _reply(self, text, wait=False):
         text = tibiano(text)
@@ -66,6 +80,7 @@ class Servico:
             while not done.wait(.1):
                 if self._stop.is_set() or self._mic_stop.is_set():
                     break
+        return done
 
     def _say_loop(self):
         while not self._stop.is_set():
@@ -73,6 +88,7 @@ class Servico:
                 text, done = self._falas.get(timeout=.2)
             except queue.Empty:
                 continue
+            self._audio_reset.set()
             self._speaking.set()
             try:
                 self._speech(text)
@@ -81,7 +97,13 @@ class Servico:
                 with self._lock:
                     self._detalhe = 'A saída de voz falhou; acompanhe as respostas na tela.'
             finally:
+                self._audio_reset.set()
                 self._speaking.clear()
+                with self._lock:
+                    if self._clarification_done is done:
+                        if not self._stop.is_set() and not self._mic_stop.is_set() and self._command_state.get('cancel'):
+                            self._armed_until = time.monotonic() + 8
+                        self._clarification_done = None
                 done.set()
 
     def _watch(self):
@@ -100,6 +122,190 @@ class Servico:
             reply = dispatch(text, self.pasta, self._timers, time.monotonic(), state)
             self._sync_ids()
         return reply
+
+    def receber_texto(self, text):
+        with self._lock:
+            if self._speaking.is_set() or self._mic_stop.is_set() or self._stop.is_set():
+                return
+            now = time.monotonic()
+            if now > self._armed_until:
+                self._command_state.clear()
+                self._pending_prefix = ''
+            command = command_after_wake(text)
+            if self._command_state.get('cancel') and command is not None:
+                return
+            if command is None:
+                if now > self._armed_until or not text:
+                    return
+                if self._command_state.get('cancel') and normalize(text) not in ('ultimo', 'o ultimo') and duration_from(cancel_selection(text)) is None:
+                    return
+                if self._pending_prefix and duration_from(normalize(text)) is None:
+                    return
+                command = text
+            else:
+                self._generation += 1
+                self._pending_prefix = ''
+                self._command_state.clear()
+            self._ouvi = text
+            if not command:
+                self._armed_until = now + 8
+                self._status('escutando', 'Pode falar o comando.')
+                return
+            if all(word == 'unk' for word in normalize(command).split()):
+                return
+            if timer_prefix(command):
+                self._pending_prefix = command
+                self._armed_until = now + 8
+                self._status('escutando', 'Diga a duração do timer.')
+                return
+            if self._pending_prefix and duration_from(normalize(command)) is not None:
+                command = f'{self._pending_prefix} {command}'
+            self._pending_prefix = ''
+            self._status('processando', 'Processando comando…')
+            reply = self.comando(command, self._command_state)
+            done = self._reply(reply)
+            self._clarification_done = done if self._command_state.get('cancel') else None
+            self._armed_until = now + 8 if self._command_state.get('cancel') else 0
+            self._status('espera', 'Aguardando Hey Tibia Tudo.')
+
+    def configurar_online(self, token, enabled):
+        # Revoke in-flight authorization before slow DPAPI/disk I/O.
+        with self._lock:
+            self._generation += 1
+            generation = self._generation
+            self._armed_until = 0
+            self._command_state.clear()
+            self._pending_prefix = ''
+            self._clarification_done = None
+            self._online_enabled = False
+            self._online_client = None
+        try:
+            enabled, stored = save_settings(self.pasta, token, enabled)
+        except (OSError, ValueError, AttributeError, TypeError):
+            return {'erro': 'Não consegui salvar o acesso protegido. Reconhecimento online desligado nesta sessão.'}
+        with self._lock:
+            if generation != self._generation:
+                return {'erro': 'Essa configuração foi substituída por outra interação. Tente salvar novamente.'}
+            self._online_enabled = enabled
+            self._online_client = RemoteAIClient(stored) if stored else None
+        return self.estado()
+
+    def _remote_current(self, generation):
+        return generation == self._generation and not self._stop.is_set() and not self._mic_stop.is_set() and not self._speaking.is_set()
+
+    def _intent_reply(self, intent):
+        if not valid_intent(intent):
+            raise RemoteAIError('Resposta online inválida.')
+        if intent['needs_clarification']:
+            return intent['clarification']
+        action, parameters = intent['action'], intent['parameters']
+        if action == 'create_timer':
+            return self.comando(f"timer de {parameters['seconds']} segundos")
+        if action == 'cancel_last_timer':
+            return self.comando('cancelar ultimo timer')
+        if action == 'shared':
+            return shared_reply(self.pasta, parameters['level'])
+        if action in ('cancel_timer', 'query_timer'):
+            self._sync_ids()
+            selected = next((timer for timer in self._timers if self._ids[id(timer)] == parameters['timer_id'] and timer[0] > time.monotonic()), None)
+            if selected is None:
+                return 'Esse timer já terminou ou não foi identificado. Consulte os timers na tela.'
+            if action == 'query_timer':
+                return f'Faltam {max(1, math.ceil(selected[0] - time.monotonic()))} segundos.'
+            self._timers.remove(selected)
+            self._sync_ids()
+            return f'Um timer de {selected[1]} cancelado.'
+        return UNKNOWN_REPLY
+
+    def receber_audio(self, text, pcm, samplerate, words=None):
+        with self._lock:
+            if self._remote_busy or self._speaking.is_set() or self._mic_stop.is_set() or self._stop.is_set():
+                return
+            command = command_after_wake(text)
+            now = time.monotonic()
+            if not self._online_enabled or self._online_client is None or self._command_state.get('cancel') or self._pending_prefix or negated(text):
+                self.receber_texto(text)
+                return
+            if command == '' or (command is None and now > self._armed_until):
+                self.receber_texto(text)
+                return
+            if command is not None:
+                # Only aligned Vosk words authorize cutting a wake from the same segment.
+                try:
+                    if not isinstance(words, list) or len(words) < 4 or [normalize(w['word']) for w in words] != normalize(text).split():
+                        raise ValueError()
+                    previous = 0.0
+                    for word in words:
+                        start, end = word['start'], word['end']
+                        if type(start) not in (int, float) or type(end) not in (int, float) or not math.isfinite(start) or not math.isfinite(end) or not previous <= start < end <= len(pcm) / (samplerate * 2):
+                            raise ValueError()
+                        previous = end
+                    pcm = pcm[math.ceil(words[2]['end'] * samplerate) * 2:]
+                except (KeyError, TypeError, ValueError, ZeroDivisionError):
+                    self.receber_texto(text)
+                    return
+            try:
+                wav = pcm_wav(pcm, samplerate)
+            except ValueError:
+                self.receber_texto(text)
+                return
+            self._generation += 1
+            generation = self._generation
+            client = self._online_client
+            self._remote_busy = True
+            self._armed_until = 0
+            self._command_state.clear()
+            self._status('transcrevendo', 'Reconhecendo o comando online…')
+        request_id = str(uuid.uuid4())
+        try:
+            transcript = client.transcribe(wav, request_id)
+            with self._lock:
+                if not self._remote_current(generation):
+                    return
+                self._ouvi = transcript
+                reply = self.comando(transcript, self._command_state)
+            if reply == UNKNOWN_REPLY:
+                self._status('interpretando', 'Interpretando o comando…')
+                intent = client.interpret(transcript, request_id)
+                with self._lock:
+                    if not self._remote_current(generation):
+                        return
+                    reply = self._intent_reply(intent)
+            with self._lock:
+                if not self._remote_current(generation):
+                    return
+                done = self._reply(reply)
+                self._clarification_done = done if self._command_state.get('cancel') else None
+                self._armed_until = time.monotonic() + 8 if self._command_state.get('cancel') else 0
+                self._status('espera', 'Aguardando Hey Tibia Tudo.')
+        except (RemoteAIError, OSError, ValueError, TypeError):
+            with self._lock:
+                if self._remote_current(generation):
+                    # Never retry a possibly billed request; retain deterministic local fallback.
+                    local = command if command is not None else text
+                    reply = self.comando(local, self._command_state) if local else UNKNOWN_REPLY
+                    if reply == UNKNOWN_REPLY:
+                        reply = 'Reconhecimento online indisponível. Fale Hey Tibia Tudo e tente um comando local.'
+                    self._reply(reply)
+                    self._armed_until = 0
+                    self._command_state.clear()
+                    self._status('espera', 'Aguardando Hey Tibia Tudo.')
+        finally:
+            with self._lock:
+                self._remote_busy = False
+                self._audio_reset.set()
+
+    def escutar(self):
+        self.iniciar()
+        with self._lock:
+            if not self._ready.is_set() or self._mic_stop.is_set():
+                return {'erro': 'O microfone ainda está preparando. Aguarde e tente novamente.'}
+            self._generation += 1
+            self._command_state.clear()
+            self._pending_prefix = ''
+            self._armed_until = time.monotonic() + 8
+            self._status('escutando', 'Pode falar o comando, sem ativação.')
+        return self.estado()
 
     def criar(self, valor, unidade):
         if isinstance(valor, bool) or not isinstance(valor, (int, float)) or not 1 <= valor <= 180 or int(valor) != valor:
@@ -133,6 +339,13 @@ class Servico:
 
     def parar(self):
         self._mic_stop.set()
+        self._ready.clear()
+        with self._lock:
+            self._generation += 1
+            self._armed_until = 0
+            self._pending_prefix = ''
+            self._command_state.clear()
+            self._clarification_done = None
         self._status('pausado', 'Microfone pausado. Seus timers continuam contando.')
         return self.estado()
 
@@ -214,70 +427,76 @@ class Servico:
             model = vosk.Model(str(model_path))
             samplerate = int(sd.query_devices(kind='input')['default_samplerate'])
             recognizer = vosk.KaldiRecognizer(model, samplerate, json.dumps(recognition_grammar(), ensure_ascii=False))
-            chunks = queue.Queue(maxsize=12)
+            recognizer.SetWords(True)
+            chunks = queue.Queue(maxsize=32)
+            overflow = threading.Event()
+            capture = Capture(samplerate)
 
             def callback(data, frames, timing, status):
-                if not self._speaking.is_set() and not self._mic_stop.is_set():
+                if status:
+                    overflow.set()
+                if not self._speaking.is_set() and not self._remote_busy and not self._mic_stop.is_set():
                     try:
                         chunks.put_nowait(bytes(data))
                     except queue.Full:
-                        pass
+                        overflow.set()
 
-            def answer(text):
-                self._reply(text, wait=True)
-                while True:
-                    try:
-                        chunks.get_nowait()
-                    except queue.Empty:
-                        break
-                recognizer.Reset()
-
-            state, pending_prefix, armed_until = {}, '', 0
             self._cancelled()
-            with sd.RawInputStream(samplerate=samplerate, blocksize=4000, dtype='int16', channels=1, callback=callback):
+            with sd.RawInputStream(samplerate=samplerate, blocksize=max(1, samplerate // 10), dtype='int16', channels=1, callback=callback):
                 self._cancelled()
-                self._status('ouvindo', 'Diga “Hey Tibia Tudo”. Estou ouvindo, tibiano.')
+                self._ready.set()
+                self._status('espera', 'Aguardando Hey Tibia Tudo.')
                 while not self._stop.is_set() and not self._mic_stop.is_set():
+                    if self._armed_until and time.monotonic() > self._armed_until and not self._speaking.is_set():
+                        with self._lock:
+                            self._armed_until = 0
+                            self._pending_prefix = ''
+                            self._command_state.clear()
+                        self._status('espera', 'Aguardando Hey Tibia Tudo.')
                     try:
-                        audio = chunks.get(timeout=.2)
+                        audio = chunks.get(timeout=.1)
                     except queue.Empty:
                         continue
-                    if self._speaking.is_set():
+                    if self._speaking.is_set() or self._audio_reset.is_set() or overflow.is_set():
+                        capture.reset()
+                        self._audio_reset.clear()
                         recognizer.Reset()
+                        while True:
+                            try:
+                                chunks.get_nowait()
+                            except queue.Empty:
+                                break
+                        if overflow.is_set():
+                            overflow.clear()
+                            with self._lock:
+                                self._armed_until = 0
+                                self._command_state.clear()
+                                self._pending_prefix = ''
+                            self._status('espera', 'Áudio interrompido. Repita Hey Tibia Tudo e o comando.')
                         continue
-                    if not recognizer.AcceptWaveform(audio):
+                    segment = capture.feed(audio)
+                    if capture.exceeded:
+                        capture.exceeded = False
+                        with self._lock:
+                            self._armed_until = 0
+                            self._pending_prefix = ''
+                            self._command_state.clear()
+                        self._status('espera', 'Comando muito longo. Repita Hey Tibia Tudo e um comando curto.')
+                    if segment is None:
                         continue
-                    text = json.loads(recognizer.Result()).get('text', '')
-                    if time.monotonic() > armed_until:
-                        state.clear()
-                        pending_prefix = ''
-                    command = command_after_wake(text)
-                    if command is None:
-                        if time.monotonic() > armed_until or not text:
-                            continue
-                        command = text
-                    else:
-                        pending_prefix = ''
-                        state.clear()
-                    with self._lock:
-                        self._ouvi = text
-                    if not command:
-                        answer(GREETING)
-                        armed_until = time.monotonic() + 8
-                    elif all(word == 'unk' for word in normalize(command).split()):
-                        continue
-                    elif timer_prefix(command):
-                        pending_prefix = command
-                        armed_until = time.monotonic() + 8
-                    else:
-                        if pending_prefix and duration_from(normalize(command)) is not None:
-                            command = f'{pending_prefix} {command}'
-                        pending_prefix = ''
-                        reply = self.comando(command, state)
-                        answer(reply)
-                        armed_until = time.monotonic() + 8 if reply == UNKNOWN_REPLY or state.get('cancel') else 0
+                    self._status('processando', 'Reconhecendo comando local…')
+                    recognizer.AcceptWaveform(segment)
+                    result = json.loads(recognizer.FinalResult())
+                    text = result.get('text', '')
+                    recognizer.Reset()
+                    self.receber_audio(text, segment, samplerate, result.get('result'))
+                    if time.monotonic() > self._armed_until:
+                        self._status('espera', 'Aguardando Hey Tibia Tudo.')
         except InterruptedError:
             pass
         except Exception as exc:
             if not self._stop.is_set() and not self._mic_stop.is_set():
                 self._status('erro', f'Não consegui iniciar a voz ({type(exc).__name__}). Confira internet, microfone e permissão do Windows; use Tentar novamente. Timers manuais continuam disponíveis.')
+
+        finally:
+            self._ready.clear()
