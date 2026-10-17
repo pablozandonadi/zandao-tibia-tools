@@ -4,7 +4,7 @@ Em 16/10/2026 o usuário preferiu um chat de texto à voz. A voz foi **pausada, 
 
 ## O que foi pausado
 
-- `web/voz.js`: o `boot()` não chama mais `mutate('voz_iniciar')`. A API cria `Servico(..., silencioso=True)`: não cria o speaker e bloqueia iniciar/escutar. Microfone, Vosk, Piper, SAPI e downloads não iniciam pelo chat. Um único watcher usa `Store.poll`; os avisos aparecem em texto na tela. O formulário de timer manual, a lista de timers e o polling continuam.
+- `web/voz.js`: o `boot()` não chama mais `mutate('voz_iniciar')`. A API cria `Servico(..., silencioso=True)`: não cria o speaker e bloqueia iniciar/escutar. Microfone, Vosk, Piper, SAPI e downloads não iniciam pelo chat. Um único watcher usa `Store.poll`; os avisos aparecem em texto na tela. Os avisos (timer, boss, stamina, mercado) também viram toast com som (`audio_tocar`, ou bipe de 880 Hz) em **qualquer aba** e notificação da bandeja (`web_api._notificar_aviso`): `voz.js` consulta `voz_estado` a cada 2 s fora do Assistente e mostra cada id uma só vez (ids existentes no boot não repetem). O formulário de timer manual, a lista de timers e o polling continuam.
 - `web/index.html`: status e “Pausar microfone”, esfera, ajuda ⓘ e “Último comando” ficam em `<div id="voz-pausado" hidden>`. Continuam no DOM para o `voz.js` não quebrar, mas não aparecem.
 - Continuam no código e nos testes: `voz.py`, `voice/`, as pontes `voz_*` do `web_api.py` e as rotas `/transcribe` e `/interpret` do Worker.
 - O código de acesso online (Configurações) agora serve ao chat; a voz o reaproveita se for religada.
