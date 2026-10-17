@@ -95,12 +95,12 @@ class Chat:
                 self._geracao += 1
                 self._perfil = perfil
             geracao = self._geracao
-        somente_resposta = False
+        somente_resposta, erro_local = False, None
         try:
             comando = assistente.parse(texto, self.store.clock())
         except ValueError as error:
             if permitir_ia and (str(error) == SEM_ACAO or str(error).startswith('Comando ambíguo.')):
-                comando, somente_resposta = None, True
+                comando, somente_resposta, erro_local = None, True, str(error)
             else:
                 return self._fim(texto, str(error), NADA, 'erro', geracao, registrar=permitir_ia)
         if comando:
@@ -111,10 +111,12 @@ class Chat:
             return self._fim(texto, 'Comando local não reconhecido. Use Tudo IA para perguntas.', NADA, 'local', geracao, registrar=False)
         enabled, token = load_settings(self.pasta)
         if not enabled or not token:
-            return self._fim(texto, SEM_ACESSO, NADA, 'erro', geracao, registrar=permitir_ia)
+            return self._fim(texto, erro_local if somente_resposta else SEM_ACESSO, NADA, 'erro', geracao, registrar=permitir_ia)
         try:
             ia = RemoteAIClient(token).chat(self._mensagens(texto), str(uuid.uuid4()))
         except (RemoteAIError, OSError) as error:
+            if somente_resposta:
+                return self._fim(texto, erro_local, NADA, 'erro', geracao, registrar=permitir_ia)
             mensagem = IA_INDISPONIVEL
             if isinstance(error, RemoteAIError) and error.status == 401:
                 mensagem = 'Código de acesso recusado. Confira em Configurações.'
@@ -126,7 +128,7 @@ class Chat:
         if ia['kind'] == 'out_of_scope':
             return self._fim(texto, FORA_DO_ESCOPO, NADA, 'fora', geracao, registrar=permitir_ia)
         if somente_resposta:
-            return self._fim(texto, SEM_ACAO, NADA, 'ia', geracao, registrar=permitir_ia)
+            return self._fim(texto, erro_local, NADA, 'ia', geracao, registrar=permitir_ia)
         intent = ia['intent']
         if intent['needs_clarification']:
             return self._fim(texto, intent['clarification'], NADA, 'ia', geracao, registrar=permitir_ia)

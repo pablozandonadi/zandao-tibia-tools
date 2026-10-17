@@ -1360,7 +1360,7 @@ class API:
                 return {'context':context, 'timers':store.execute('timer.list',{},context)['timers'],
                         'catalog':store.execute('boss.catalog',{},context),
                         'revision':history[-1]['id'] if history else None,
-                        'log':[{'id':event['id'],'texto':assistente_tibiano.describe(event['intent'],event.get('arguments',{}))} for event in history[-30:]]}
+                        'log':[{'id':event['id'],'texto':event['arguments'].get('message') if event['intent']=='alert.fired' else assistente_tibiano.describe(event['intent'],event.get('arguments',{}))} for event in history[-30:]]}
         except (ValueError,OSError) as error:
             return {'erro':str(error)}
 

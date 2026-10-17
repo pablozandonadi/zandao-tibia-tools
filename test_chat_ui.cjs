@@ -119,8 +119,8 @@ const submit = () => { let prevented = false; form.listeners.submit({preventDefa
   window.chatAvisos([{id:'alerta',texto:'Timer terminou.'}]);
   ui.selecionar('log');
   assert.equal(form.hidden,true);
+  assert.equal(caixa.children.length,1,'Alerta já está no histórico: não duplica no Server Log');
   assert.equal(tag(caixa.children[0],'p').textContent,'Registrar abate · Drume');
-  assert.equal(tag(caixa.children[1],'p').textContent,'Timer terminou.');
   const previousCalls=calls.length;
   await ui.enviar('não enviar');
   assert.equal(calls.length,previousCalls,'Server Log nunca envia mensagens');

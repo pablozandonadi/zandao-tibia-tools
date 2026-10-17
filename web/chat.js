@@ -34,11 +34,15 @@
       el('chat-canal-' + nome).setAttribute('aria-controls', 'chat-mensagens');
     }
     el('chat-mensagens').replaceChildren(...linhas[canal].map(m => linha(m.classe, m.texto, m.entendi)));
+    el('chat-mensagens').scrollTop = el('chat-mensagens').scrollHeight;
     el('chat-form').hidden = canal === 'log';
     el('chat-canal-ajuda').textContent = canal === 'log' ? 'Registros e alertas do Tibia Tudo. Não lê o chat nem o log do jogo.' : canal === 'local' ? 'Comandos locais, sem envio à IA.' : 'Perguntas sobre Tibia e ferramentas do Tibia Tudo. Comandos locais primeiro.';
   }
   function atualizarLog() {
-    linhas.log = [...registros.map(r => ({classe:'chat-registro', texto:r.texto})), ...avisos.map(r => ({classe:'chat-alerta', texto:r.texto}))].slice(-50);
+    // alertas já estão no histórico (alert.fired): não somar os avisos aqui
+    const novo = registros.map(r => ({id:r.id, classe:'chat-registro', texto:r.texto})).slice(-50);
+    if (JSON.stringify(novo) === JSON.stringify(linhas.log)) return;
+    linhas.log = novo;
     if (canal === 'log') selecionar('log');
   }
   async function enviar(texto) {

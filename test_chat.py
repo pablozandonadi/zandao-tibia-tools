@@ -113,11 +113,29 @@ class ParteC(ChatCase):
                 self.assertEqual(self.chat.responder(text)['resposta'],'Resposta sobre Tibia.')
         self.assertEqual(self.eventos(),[])
         self.assertEqual(self.store.execute('market.stats',{'item':'TC'},CTX)['count'],0)
-        for text in ('não matei o Drume','vale mais prey ou imbuement?'):
-            self.ia.return_value=acao('boss.kill',DRUME)
-            self.assertEqual(self.chat.responder(text)['resposta'],chat.SEM_ACAO)
+        self.ia.return_value=acao('boss.kill',DRUME)
+        self.assertEqual(self.chat.responder('não matei o Drume')['resposta'],chat.SEM_ACAO)
+        self.assertTrue(self.chat.responder('vale mais prey ou imbuement?')['resposta'].startswith('Comando ambíguo'))
         self.assertEqual(self.abates(),0)
         self.assertEqual(self.eventos(),[])
+
+    def test_perguntas_de_preco_nao_salvam_preco_falso(self):
+        for text in ('quanto tempo pra chegar a 300','como chegar a 400','compensa vender tc a 36k?','devo comprar tc a 40k','por quanto vendo tc a 35k?','o preço do tc ta 36k?'):
+            with self.subTest(text=text):
+                self.assertEqual(self.chat.responder(text)['origem'],'ia')
+        self.assertEqual(self.eventos(),[])
+        self.assertEqual(self.store.execute('market.stats',{'item':'TC'},CTX)['count'],0)
+
+    def test_negacao_e_ambiguidade_sem_ia_mantem_a_resposta_local(self):
+        esperado={'não matei o Drume':chat.SEM_ACAO,'timer de 5 ou 10 minutos':'Comando ambíguo'}
+        for text,inicio in esperado.items():
+            for falha in ('sem_acesso','http','rede'):
+                with self.subTest(text=text,falha=falha):
+                    self.ia.side_effect=RemoteAIError('x',status=500) if falha=='http' else OSError('rede')
+                    with patch('chat.load_settings',return_value=(False,None) if falha=='sem_acesso' else (True,TOKEN)):
+                        r=self.chat.responder(text)
+                    self.assertTrue(r['resposta'].startswith(inicio),r)
+                    self.assertEqual('erro',r['origem'])
 
     def test_duracoes_abreviadas_e_invalidas_nao_vao_a_ia(self):
         for phrase,seconds in [('timer de 5 min',300),('timer 30s',30),('alarme 45 min',2700),('timer 1h30',5400),('timer 5m',300),('timer 30seg',30)]:
@@ -430,6 +448,9 @@ class Ponte(ChatCase):
             self.assertFalse(state['microfone'])
             self.assertEqual(state['estado'],'texto')
             speech.assert_not_called();ding.assert_not_called();models.assert_not_called()
+            log=[row['texto'] for row in api.assistente_estado()['log']]
+            self.assertIn('terminou',log[-1])
+            self.assertFalse(any('não reconhecido' in texto for texto in log))
             self.assertIn('erro',api.assistente_chat('timer 30s','log'))
 
     def test_excecao_inesperada_vira_erro_amigavel(self):

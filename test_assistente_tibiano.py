@@ -481,6 +481,10 @@ class FinishUpdateTests(StoreCase):
         self.assertEqual('stamina.login',a.parse('acabei de logar',NOW)[0])
         self.assertEqual(2400,a.parse('vou sair do jogo, minha stamina está em 40 horas',NOW)[1]['stamina_minutes'])
         self.assertEqual('36.5k',a.parse('TC tá 36.5k.',NOW)[1]['price'])
+        self.assertEqual('market.price.add',a.parse('TC tá 36.5k',NOW)[0])
+        self.assertEqual('market.stats',a.parse('Gold Token a 40k tá caro?',NOW)[0])
+        for text in ('quanto tempo pra chegar a 300','como chegar a 400','compensa vender tc a 36k?','devo comprar tc a 40k','por quanto vendo tc a 35k?','o preço do tc ta 36k?','TC tá 36k?'):
+            with self.subTest(text=text):self.assertIsNone(a.parse(text,NOW))
     def test_boss_view_has_bosstiary_goals(self):
         self.assertEqual([5,20,60],self.call('bosstiary.get',{'boss_id':'drume'})['boss']['goals'])
     def test_bridge_parameter_is_not_js_arguments(self):

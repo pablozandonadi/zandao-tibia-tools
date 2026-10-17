@@ -497,6 +497,7 @@ def parse(text, now=None):
     if not isinstance(text,str) or not text.strip() or len(text)>500:raise ValueError('Comando vazio ou muito longo.')
     if negated(text):raise ValueError('Tudo bem. Nenhuma ação executada.')
     now=instant(now or datetime.now(UTC))
+    pergunta=text.strip().endswith('?')
     raw=''.join(c for c in unicodedata.normalize('NFD',text.strip().rstrip('.?!')) if not unicodedata.combining(c))
     # Tolerância: pontuação fora de números ("36.5k" e "22:30" ficam), "eu"/"por favor" nas pontas e espaços extras não mudam o comando.
     raw=' '.join(re.sub(r'(?<!\d)[,.;:!?"“”()]+|[,.;:!?"“”()]+(?!\d)',' ',raw).split())
@@ -599,11 +600,12 @@ def parse(text, now=None):
     if m:return 'stamina.logout',{'stamina_minutes':duration(m[1])//60,'logged_out_at':iso(now)}
     m=match(r'(?:registra |registrar )?(.+?) (?:ta |esta |a )(\d.*?)(?: (?:na |no )(compra|venda|negociado))?(?: no meu mundo)?')
     if m:
-        if re.search(r'\d$',m[1].strip()):return None
+        if re.search(r'\d$',m[1].strip()) or re.match(r'(?:qual|quais|quanto|quantos|quantas|como|onde|quando|por que|por quanto|devo|compensa|vale|o preco)\b',m[1].strip(),re.I):return None  # pergunta: a IA online responde
         item,price=m[1],m[2];offer={'compra':'buy','venda':'sell','negociado':'traded'}.get((m[3] or '').lower(),'sell')
         query=re.search(r'\s+(?:ta |esta )?(?:barato|caro).*$',price,re.I)
         if query:price=price[:query.start()].strip()
         if not re.fullmatch(r'\d[\d.,]*\s*(?:kk|k|gp|gold)?',price,re.I):return None  # "40 horas" não é preço: deixa a IA online tentar
+        if pergunta and not query:return None
         price_gp(price)
         return ('market.stats' if query else 'market.price.add'),{'item':item,'price':price,'offer_type':offer}
     return None
