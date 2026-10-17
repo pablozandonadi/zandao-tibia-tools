@@ -1,7 +1,8 @@
 (function () {
   'use strict';
   let snapshot = {timers: []}, received = 0, started = false, busy = false;
-  const cards = new Map();
+  const cards = new Map(), vistos = new Set();
+  let primeiro = true, ciclo = 0;
   const el = id => document.getElementById(id);
   const bridge = () => window.pywebview && window.pywebview.api;
   function format(seconds) {
@@ -61,6 +62,26 @@
     el('voz-quantidade').textContent = `${ids.size} ${ids.size === 1 ? 'timer ativo' : 'timers ativos'}`;
     countdown();
   }
+  // Avisos (timer, boss, stamina, mercado) valem em qualquer aba: toast + som, uma vez por id; no 1º estado só marca como vistos.
+  function bipe() {
+    const Contexto = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Contexto(), osc = ctx.createOscillator();
+    osc.frequency.value = 880;
+    osc.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.2);
+  }
+  async function tocar() {
+    try { await bridge().audio_tocar('padrao:Potion.mp3', 100); } catch (error) { try { bipe(); } catch (e) { /* sem áudio: segue só com o toast */ } }
+  }
+  function notificar(avisos) {
+    const novos = avisos.filter(aviso => !vistos.has(aviso.id));
+    novos.forEach(aviso => vistos.add(aviso.id));
+    if (primeiro) { primeiro = false; return; }
+    if (!novos.length) return;
+    for (const aviso of novos) { try { window.toast(aviso.texto); } catch (error) { /* toast ausente */ } }
+    tocar();
+  }
   async function refresh() {
     if (!bridge() || busy) return;
     busy = true;
@@ -68,6 +89,7 @@
       const data = await bridge().voz_estado();
       if (data.erro) throw new Error(data.erro);
       render(data);
+      notificar(data.avisos || []);
     } catch (error) { el('voz-feedback').textContent = error.message || 'Não consegui consultar os timers.'; }
     finally {
       busy = false;
@@ -124,7 +146,7 @@
     refresh();
     setInterval(() => {
       countdown();
-      if (el('page-voz').classList.contains('shown')) refresh();
+      if (el('page-voz').classList.contains('shown') || ++ciclo % 2 === 0) refresh(); // outras abas: a cada 2 s
     }, 1000);
   }
   window.vozLoad = refresh;

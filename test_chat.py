@@ -428,6 +428,7 @@ class Ponte(ChatCase):
         api=object.__new__(self.web_api.API)
         api._voz=None;api._voz_lock=threading.Lock()
         api._chat=None;api._chat_lock=threading.Lock()
+        api._notificar_aviso=Mock()
         with patch('voz.threading.Thread') as threads,patch('voz.speak') as speech,patch('voz.play_wake_sound') as ding,patch.object(voz.Servico,'_models') as models:
             service=api._voz_obter()
             self.addCleanup(service.close)
@@ -444,6 +445,8 @@ class Ponte(ChatCase):
             with patch.object(service._stop,'wait',side_effect=[False,False,True]):service._watch()
             state=api.voz_estado()
             self.assertTrue(any('terminou' in row['texto'] for row in state['avisos']))
+            self.assertEqual(api._notificar_aviso.call_count,2)  # só os 2 alertas do poll; criar timer não notifica
+            self.assertIn('terminou',api._notificar_aviso.call_args.args[0])
             self.assertTrue(service._falas.empty())
             self.assertFalse(state['microfone'])
             self.assertEqual(state['estado'],'texto')

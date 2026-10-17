@@ -1346,7 +1346,7 @@ class API:
     def _voz_obter(self):
         with self._voz_lock:
             if self._voz is None:
-                self._voz = voz.Servico(BASE_DIR, store=assistente_tibiano.Store(BASE_DIR), silencioso=True)
+                self._voz = voz.Servico(BASE_DIR, store=assistente_tibiano.Store(BASE_DIR), silencioso=True, notificador=lambda texto: getattr(self, '_notificar_aviso', None) and self._notificar_aviso(texto))
             return self._voz
 
     def assistente_estado(self):

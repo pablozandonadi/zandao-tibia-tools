@@ -22,11 +22,12 @@ from voice.spike_assistente import (GREETING, UNKNOWN_REPLY, PiperSpeech, comman
 
 
 class Servico:
-    def __init__(self, pasta=None, store=None, silencioso=False):
+    def __init__(self, pasta=None, store=None, silencioso=False, notificador=None):
         self.pasta = Path(pasta or data_dir())
         self._lock = threading.RLock()
         self.store = store
         self._silencioso = silencioso
+        self._notificador = notificador
         self._avisos = []
         self._command_context = None
         self._domain_request_id = None
@@ -136,7 +137,11 @@ class Servico:
         while not self._stop.wait(.1):
             if self.store:
                 try:
-                    for alert in self.store.poll(): self._reply(alert['message'])
+                    for alert in self.store.poll():
+                        self._reply(alert['message'])
+                        if self._silencioso and self._notificador:
+                            try: self._notificador(alert['message'])
+                            except Exception: pass  # notificação nativa é extra; o aviso já está na tela
                 except (ValueError, OSError):
                     self._status('erro', 'Não consegui salvar os alertas. Dados preservados; tente novamente.')
                 self._stop.wait(.9)

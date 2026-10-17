@@ -85,6 +85,11 @@ def main():
                 tray.icon.visible = True
                 tray.icon.notify(message, "Tibia Tudo · Rede")
         api._rede.notifier = avisar_rede
+        def avisar_assistente(message):
+            if tray.ready.is_set():
+                tray.icon.visible = True
+                tray.icon.notify(message, "Tibia Tudo · Assistente")
+        api._notificar_aviso = avisar_assistente
     except Exception:
         pass  # If tray setup fails, the X still closes normally.
     if api._rede.config["enabled"]:

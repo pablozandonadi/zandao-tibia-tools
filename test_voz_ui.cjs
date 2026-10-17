@@ -14,15 +14,16 @@ const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
 global.document = {getElementById: id => elements[id], createElement: tag => new Element(tag)};
 const intervals = [];
 global.setInterval = callback => intervals.push(callback);
-global.window = {addEventListener() {}};
+global.window = {addEventListener() {}, toast: (texto, erro) => toasts.push([texto, erro])};
 const ui = require('./web/voz.js');
-let timers = [], snapshots = 0, starts = 0, direct = false;
+let avisosApi = [{id: 'velho', texto: 'Antigo'}], toasts = [], sons = 0, timers = [], snapshots = 0, starts = 0, direct = false;
 const calls = [];
-const state = () => ({estado: 'ouvindo', detalhe: 'Ouvindo', microfone: true, ouvi: '<img src=x onerror=alert(1)>', resposta: 'Fala comigo, tibiano.', timers, online_enabled: true, online_configured: true});
+const state = () => ({estado: 'ouvindo', detalhe: 'Ouvindo', microfone: true, ouvi: '<img src=x onerror=alert(1)>', resposta: 'Fala comigo, tibiano.', timers, online_enabled: true, online_configured: true, avisos: avisosApi});
 window.pywebview = {api: {
   async voz_configurar_online(...args) { calls.push(['online', ...args]); return {...state(), online_enabled: args[1], online_configured: true}; },
   async voz_escutar() { calls.push(['listen']); direct = !direct; return {...state(), direto: direct}; },
   async voz_parar() { calls.push(['pause']); return {...state(), estado: 'pausado', microfone: false}; },
+  async audio_tocar(...args) { sons++; assert.deepEqual(args, ['padrao:Potion.mp3', 100]); return true; },
   async voz_iniciar() { starts++; return state(); },
   async voz_estado() { snapshots++; return state(); },
   async voz_criar(...args) { calls.push(['create', ...args]); timers = [...timers, {id: 'id-1', label: '30 segundos', restante: 30, duracao: 30}]; return state(); },
@@ -89,11 +90,41 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
   const previous = snapshots;
   intervals[0]();
   await flush();
-  assert.equal(snapshots, previous, 'Hidden page does not poll');
+  assert.equal(snapshots, previous, 'Aba oculta: o 1º segundo só faz a contagem regressiva');
+  intervals[0]();
+  await flush();
+  assert.equal(snapshots, previous + 1, 'Aba oculta consulta os avisos a cada 2 s');
   elements['page-voz'].shown = true;
   intervals[0]();
   await flush();
-  assert.equal(snapshots, previous + 1);
+  assert.equal(snapshots, previous + 2, 'Aba de voz consulta a cada 1 s');
+  elements['page-voz'].shown = false;
+  assert.deepEqual(toasts, [], 'Aviso que já existia no boot nunca reaparece');
+  assert.equal(sons, 0);
+  avisosApi = [...avisosApi, {id: 'a', texto: 'Timer de 30 s terminou.'}, {id: 'b', texto: '<b>Boss disponível</b>'}];
+  await ui.refresh();
+  await flush();
+  assert.deepEqual(toasts, [['Timer de 30 s terminou.', undefined], ['<b>Boss disponível</b>', undefined]], 'Um toast (texto puro) por id novo');
+  assert.equal(sons, 1, 'Um único som por consulta, mesmo com vários avisos');
+  await ui.refresh();
+  await flush();
+  assert.equal(toasts.length, 2, 'Ids já vistos não repetem');
+  assert.equal(sons, 1);
+  const audioReal = window.pywebview.api.audio_tocar;
+  delete window.pywebview.api.audio_tocar;
+  delete window.AudioContext;
+  avisosApi = [...avisosApi, {id: 'c', texto: 'Stamina cheia.'}];
+  await ui.refresh();
+  await flush();
+  assert.equal(toasts.length, 3, 'Sem áudio disponível o toast aparece e nada lança');
+  let bipes = 0, frequencia = 0;
+  window.AudioContext = function () { this.destination = {}; this.currentTime = 0; this.createOscillator = () => ({frequency: {set value(v) { frequencia = v; }}, connect() {}, start() { bipes++; }, stop() {}}); };
+  avisosApi = [...avisosApi, {id: 'd', texto: 'Mercado.'}];
+  await ui.refresh();
+  await flush();
+  assert.deepEqual([bipes, frequencia], [1, 880], 'Sem o motor de timers cai no bipe de 880 Hz');
+  delete window.AudioContext;
+  window.pywebview.api.audio_tocar = audioReal;
   elements['voz-online-token'].value = 'a'.repeat(43);
   elements['voz-online-enabled'].checked = true;
   assert.equal(typeof elements['voz-online-form'].listeners.submit, 'function');
