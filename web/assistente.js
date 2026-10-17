@@ -52,7 +52,7 @@ function chart(out,rows,title='Evolução dos preços informados no período sel
 function renderTimers(timers,target){
  const list=target||el('assistente-timers-list');list.replaceChildren();
  for(const t of timers){const card=node('article',undefined,'card calmo');const remain=Math.max(0,Math.ceil((new Date(t.ends_at)-Date.now())/1000));card.append(node('strong',t.label),node('p',`${t.status==='active'?remain+' segundos':t.status==='completed'?'Concluído':'Cancelado'} · ${stamp(t.ends_at)} · ${t.character_id||'Global'}`));if(t.status==='active'){card.append(button('+1 min',()=>run('timers','timer.extend',{timer_id:t.id,delta_seconds:60})),button('Cancelar',()=>run('timers','timer.cancel',{timer_id:t.id})),button('Editar',()=>{el('assistente-op-timers').value='timer.edit';renderFields('timers',{timer_id:t.id,label:t.label,duration_seconds:t.duration_seconds});}));}card.append(button('Repetir',()=>run('timers','timer.repeat',{timer_id:t.id})));list.append(card);}
- if(!timers.length)list.append(node('p','Nenhum timer. Crie um pelo formulário ou por voz.','dica'));
+ if(!timers.length)list.append(node('p','Nenhum timer. Crie um pelo formulário ou pelo Chat.','dica'));
 }
 function renderFields(module,initial={}){
  const intent=el('assistente-op-'+module).value;const keys=operations[module].find(op=>op[0]===intent)[2],container=el('assistente-fields-'+module);container.replaceChildren();

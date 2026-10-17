@@ -16,6 +16,7 @@ import publicacao_beta
 import radio_brasilhits
 import audio_timers
 import voz
+import chat
 import assistente_tibiano
 import mirror_core
 from mirror_service import MirrorService
@@ -316,6 +317,8 @@ class API:
         self._audio = None      # motor dos timers de áudio (liga em audio_iniciar)
         self._voz = None
         self._voz_lock = threading.Lock()
+        self._chat = None
+        self._chat_lock = threading.Lock()
         self._mirror = None
         self._mirror_api_lock = threading.Lock()
         self._capturas = {}     # tipo ('party'/'solo'/'dano') -> {"texto", "t"}: últimos textos do Tibia copiados
@@ -1387,6 +1390,23 @@ class API:
             return {'message':'Level local atualizado com confirmação.'}
         except (ValueError,OSError) as error:
             return {'erro':str(error)}
+
+    def _chat_obter(self):
+        with self._chat_lock:
+            if self._chat is None:
+                self._chat = chat.Chat(self._voz_obter().store, BASE_DIR)
+            return self._chat
+
+    # Sem PERSONAGEM_LOCK: o Chat mistura trecho local e rede, e a rede nunca roda sob lock; a Store tem o próprio lock.
+    def assistente_chat(self, texto):
+        try:
+            return self._chat_obter().responder(texto)
+        except Exception:
+            return {'erro': 'Não consegui responder agora.'}
+
+    def assistente_chat_limpar(self):
+        self._chat_obter().limpar()
+        return {'ok': True}
 
     def voz_iniciar(self):
         return self._voz_obter().iniciar()

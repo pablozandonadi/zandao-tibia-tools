@@ -227,6 +227,24 @@ class IntegrationTests(StoreCase):
         self.assertEqual(service.estado()['entendi'],'Registrar abate · Drume')
         self.assertIn('Drume',service._recentes)
 
+    def test_intent_reply_with_store_keeps_voice_source_and_legacy_actions(self):
+        import voz
+        from voice.spike_assistente import UNKNOWN_REPLY
+        with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):
+            service=voz.Servico(self.path,store=self.store)
+        self.addCleanup(service.close)
+        intent=lambda action,parameters:{'action':action,'parameters':parameters,'needs_clarification':False,'clarification':None}
+        service._intent_reply(intent('market.price.add',{'item':'TC','price':'35k','offer_type':'sell','observed_at':None}))
+        self.assertEqual('voice',self.call('history')['events'][-1]['source'])
+        self.assertEqual('Timer de 30 segundos iniciado.',service._intent_reply(intent('create_timer',{'seconds':30})))
+        self.assertEqual('Criar timer · 30 s',service.estado()['entendi'])
+        self.assertIn('Seu shared vai do level 67',service._intent_reply(intent('shared',{'level':100})))
+        self.assertEqual('Consultar shared · level 100',service.estado()['entendi'])
+        self.assertEqual('Timer de 30 segundos cancelado.',service._intent_reply(intent('cancel_last_timer',{})))
+        self.assertEqual(UNKNOWN_REPLY,service._intent_reply(intent('unknown',{})))
+        self.assertEqual('',service.estado()['entendi'])
+        self.assertIn('nenhum abate foi registrado',service._intent_reply(intent('boss.kill',{'boss_id':'drume','killed_at':None,'boosted':True})))
+
     def test_user_spoken_phrases_execute_locally_in_temporary_profile(self):
         import voz
         with patch.object(voz.Servico,'_watch'),patch.object(voz.Servico,'_say_loop'):

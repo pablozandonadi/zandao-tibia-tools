@@ -30,7 +30,7 @@
     el('voz-microfone').textContent = data.microfone ? 'Pausar microfone' : (data.estado === 'erro' ? 'Tentar novamente' : 'Retomar microfone');
     el('voz-microfone').disabled = busy;
     el('voz-online-enabled').checked = data.online_enabled === true;
-    el('voz-online-status').textContent = data.online_enabled ? 'Online ativado para comandos autorizados.' : (data.online_configured ? 'Acesso salvo; reconhecimento online desligado.' : 'Reconhecimento local. Nenhum acesso online salvo.');
+    el('voz-online-status').textContent = data.online_enabled ? 'IA do chat ativada.' : (data.online_configured ? 'Acesso salvo; IA do chat desligada.' : 'Chat só com comandos locais. Nenhum acesso online salvo.');
     const ids = new Set((data.timers || []).map(timer => timer.id));
     for (const [id, card] of cards) {
       if (!ids.has(id)) { card.remove(); cards.delete(id); }
@@ -118,7 +118,7 @@
     help.addEventListener('blur', () => { helpFocused = false; if (!helpPinned) showHelp(false); });
     help.addEventListener('click', () => { helpPinned = !helpPinned; showHelp(helpPinned); });
     help.addEventListener('keydown', event => { if (event.key === 'Escape') { helpPinned = false; showHelp(false); } });
-    mutate('voz_iniciar');
+    // Voz pausada (docs/voz-pausado.md): para religar, chame mutate('voz_iniciar') aqui e tire o hidden de #voz-pausado.
     setInterval(() => {
       countdown();
       if (el('page-voz').classList.contains('shown')) refresh();

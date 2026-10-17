@@ -1,5 +1,6 @@
 """Assistente local: timers compartilhados entre voz e interface, sem bloquear a janela."""
 import assistente_tibiano as assistente
+import chat
 import hashlib
 import json
 import math
@@ -151,14 +152,11 @@ class Servico:
 
     def registrar_resultado(self, intent, args, result, context, mostrar_entendi=True):
         with self._lock:
-            values = dict(args or {})
             self._recentes_do_contexto(context)
-            if values.get('boss_id') and result.get('boss'):
-                name = result['boss']['name']
-                values['boss_id'] = name
-                self._recentes[name] = time.monotonic()
+            if (args or {}).get('boss_id') and result.get('boss'):
+                self._recentes[result['boss']['name']] = time.monotonic()
             if mostrar_entendi:
-                self._entendi = assistente.describe(intent, values)
+                self._entendi = chat.entendi_de(intent, args, result)
 
     def _vocabulario(self, context):
         recentes = self._recentes_do_contexto(context)
@@ -292,36 +290,14 @@ class Servico:
         if intent['needs_clarification']:
             return intent['clarification']
         action, parameters = intent['action'], intent['parameters']
-        if self.store and action in assistente.FIELDS:
-            try:
-                arguments={k:v for k,v in parameters.items() if v is not None}
-                if action=='boss.kill' and arguments.get('boosted') is True:
-                    return 'Confirme no formulário que era o Archfoe boosted do dia e elegível; nenhum abate foi registrado.'
-                context = self._command_context or self.store.context()
-                result = self.store.execute(action, arguments, context, self._domain_request_id, source='voice')
-                self.registrar_resultado(action, arguments, result, context)
-                return assistente.reply(result)
-            except (ValueError,OSError) as error:
-                return str(error) if isinstance(error,ValueError) else 'Não consegui salvar. Nenhuma alteração foi confirmada.'
+        if self.store and action != 'unknown':
+            context = self._command_context or self.store.context()
+            return chat.executar_intencao(self.store, action, parameters, context, self._domain_request_id, source='voice',
+                                          ao_executar=lambda i, a, r: self.registrar_resultado(i, a, r, context))[0]
         if action == 'create_timer':
             return self.comando(f"timer de {parameters['seconds']} segundos")
         if action == 'cancel_last_timer':
             return self.comando('cancelar ultimo timer')
-        if self.store and action == 'shared':
-            args = {'reference_level': parameters['level']} if parameters['level'] is not None else {}
-            context = self._command_context or self.store.context()
-            result = self.store.execute('shared.range', args, context)
-            self.registrar_resultado('shared.range', args, result, context)
-            return assistente.reply(result)
-        if self.store and action in ('cancel_timer', 'query_timer'):
-            try:
-                action = 'timer.cancel' if action=='cancel_timer' else 'timer.get'
-                args = {'timer_id':parameters['timer_id']}
-                context = self._command_context or self.store.context()
-                result = self.store.execute(action, args, context, self._domain_request_id, source='voice')
-                self.registrar_resultado(action, args, result, context)
-                return assistente.reply(result)
-            except ValueError as error: return str(error)
         if action == 'shared':
             return shared_reply(self.pasta, parameters['level'])
         if action in ('cancel_timer', 'query_timer'):

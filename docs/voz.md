@@ -1,5 +1,7 @@
 # Voz
 
+> **Pausada em 16/10/2026:** o aplicativo agora usa um chat de texto e o microfone não inicia mais sozinho. Veja [voz-pausado.md](voz-pausado.md) para o que mudou e como religar.
+
 O menu **Voz** reúne timers criados pelo microfone e pelo formulário. A contagem continua em qualquer página e com o aplicativo minimizado. Cancelar um card remove somente aquele timer. Timers duram até o aplicativo fechar.
 
 O microfone inicia automaticamente. No primeiro uso, baixa aproximadamente 95 MB de modelos locais para `voice_models`, na pasta de dados Beta ou estável. O status mostra a preparação. **Pausar microfone** preserva os timers; o formulário continua disponível se o reconhecimento falhar.

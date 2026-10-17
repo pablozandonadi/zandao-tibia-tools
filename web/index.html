@@ -991,7 +991,7 @@
       <h1 class="titulo">Assistente Tibiano</h1>
       <p id="assistente-context" role="status">Carregando personagem e mundo…</p>
       <nav class="assistente-nav" aria-label="Módulos do Assistente Tibiano">
-        <button type="button" class="btn btn-sm" data-assistente-tab="overview">Visão Geral e Voz</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="overview">Chat</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="timers">Timers Gerais</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="shared">Shared XP</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="bosstiary">Bosstiary</button>
@@ -1002,15 +1002,8 @@
       </nav>
       <p id="assistente-feedback" role="status" aria-live="polite"></p>
       <div data-assistente-panel="overview"><p id="assistente-overview" class="dica"></p>
+      <div class="card calmo chat"><div id="chat-mensagens" role="log" aria-live="polite"></div><form id="chat-form" class="chat-form"><label for="chat-texto" class="sr-only">Mensagem</label><input id="chat-texto" maxlength="500" autocomplete="off" placeholder="Pergunte sobre Tibia ou dê um comando"><button class="btn btn-primary" type="submit">Enviar</button><button class="btn btn-sm" type="button" id="chat-limpar">Limpar</button></form></div>
       <div class="card calmo">
-        <div class="voz-intro"><p id="voz-status" role="status">Aguardando comando: Hey Tibia</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
-        <div class="voz-assistente">
-          <button id="voz-esfera" class="voz-esfera" type="button" data-estado="preparando" aria-label="Ligar comandos diretos" aria-pressed="false" aria-describedby="voz-status"><span aria-hidden="true"></span></button>
-        </div>
-        <div class="voz-ajuda" id="voz-ajuda-area">
-          <button id="voz-ajuda" class="btn btn-sm" type="button" aria-label="Como usar a voz" aria-describedby="voz-ajuda-texto" aria-expanded="false">ⓘ</button>
-          <div id="voz-ajuda-texto" class="card calmo" role="tooltip" hidden>Fale Hey Tibia, espere o sinal e diga o comando, ou diga tudo junto. Exemplo: Hey Tibia, timer de 5 minutos. Clique na esfera para ligar comandos diretos contínuos, sem repetir a ativação; clique novamente para voltar à ativação por voz. Pausar microfone desliga também o modo direto. Timers manuais e de voz aparecem juntos; vencimentos são preservados ao reabrir. Com reconhecimento online habilitado em Configurações, o áudio dos comandos após ativação ou enquanto o modo direto estiver ligado é enviado para reconhecimento. O aplicativo não grava áudio. Modelos locais são baixados no primeiro uso; prefira headset para evitar eco.</div>
-        </div>
         <form id="voz-form" class="voz-form">
           <label for="voz-valor">Duração<input id="voz-valor" type="number" value="30" min="1" max="180" step="1" required></label>
           <label for="voz-unidade">Unidade<select id="voz-unidade"><option value="segundo">Segundos</option><option value="minuto">Minutos</option></select></label>
@@ -1019,14 +1012,26 @@
         <p id="voz-feedback" role="alert"></p>
       </div>
       <h2 class="sub" id="voz-quantidade">0 timers ativos</h2>
-      <p class="dica" id="voz-vazio">Nenhum timer ativo. Crie um por voz ou pelo formulário.</p>
+      <p class="dica" id="voz-vazio">Nenhum timer ativo. Crie um pelo chat ou pelo formulário.</p>
       <div id="voz-lista"></div>
-      <details class="card calmo voz-diagnostico" open>
-        <summary>Último comando</summary>
-        <p><b>Ouvi:</b> <span id="voz-ouvi">Aguardando “Hey Tibia”.</span></p>
-        <p><b>Entendi:</b> <span id="voz-entendi">—</span></p>
-        <p><b>Resposta:</b> <span id="voz-resposta">As respostas aparecerão aqui.</span></p>
-      </details>
+      <div id="voz-pausado" hidden>
+        <div class="card calmo">
+          <div class="voz-intro"><p id="voz-status" role="status">Aguardando comando: Hey Tibia</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
+          <div class="voz-assistente">
+            <button id="voz-esfera" class="voz-esfera" type="button" data-estado="preparando" aria-label="Ligar comandos diretos" aria-pressed="false" aria-describedby="voz-status"><span aria-hidden="true"></span></button>
+          </div>
+          <div class="voz-ajuda" id="voz-ajuda-area">
+            <button id="voz-ajuda" class="btn btn-sm" type="button" aria-label="Como usar a voz" aria-describedby="voz-ajuda-texto" aria-expanded="false">ⓘ</button>
+            <div id="voz-ajuda-texto" class="card calmo" role="tooltip" hidden>Fale Hey Tibia, espere o sinal e diga o comando, ou diga tudo junto. Exemplo: Hey Tibia, timer de 5 minutos. Clique na esfera para ligar comandos diretos contínuos, sem repetir a ativação; clique novamente para voltar à ativação por voz. Pausar microfone desliga também o modo direto. Timers manuais e de voz aparecem juntos; vencimentos são preservados ao reabrir. Com reconhecimento online habilitado em Configurações, o áudio dos comandos após ativação ou enquanto o modo direto estiver ligado é enviado para reconhecimento. O aplicativo não grava áudio. Modelos locais são baixados no primeiro uso; prefira headset para evitar eco.</div>
+          </div>
+        </div>
+        <details class="card calmo voz-diagnostico" open>
+          <summary>Último comando</summary>
+          <p><b>Ouvi:</b> <span id="voz-ouvi">Aguardando “Hey Tibia”.</span></p>
+          <p><b>Entendi:</b> <span id="voz-entendi">—</span></p>
+          <p><b>Resposta:</b> <span id="voz-resposta">As respostas aparecerão aqui.</span></p>
+        </details>
+      </div>
       </div>
       <section data-assistente-panel="timers" hidden>
         <h2 class="sub">Timers Gerais</h2><p class="dica">Globais por padrão. Ex.: “Inicia um timer chamado boost de 45 minutos”, “Adiciona 5 minutos ao timer do boost”.</p>
@@ -1083,8 +1088,8 @@
         <label for="assistente-world">Mundo dos preços<input id="assistente-world" type="text" maxlength="120" placeholder="Mundo do personagem ativo"></label><form class="card calmo" id="assistente-form-market"></form><div id="assistente-result-market" role="status"></div>
       </section>
       <section data-assistente-panel="instrucoes" id="assistente-instrucoes" class="instrucoes" hidden>
-        <h2 class="sub">Instruções: o que falar</h2>
-        <p class="dica">Fale <b>Hey Tibia</b>, espere o sinal e diga a frase — ou tudo junto: “Hey Tibia, timer de 5 minutos”. Com a esfera ligada, fale direto, sem o Hey Tibia. Começar com “não” cancela: nada é executado. Nomes (boss, item, timer) e números podem mudar. Não precisa ser exato: vírgulas, “eu” ou “ok” no começo, “por favor” no fim e sinônimos (“acabei de matar”, “fiz o”, “bota um timer”, “acabei de logar”) também funcionam.</p>
+        <h2 class="sub">Instruções: o que digitar</h2>
+        <p class="dica">Digite no <b>Chat</b>. Os comandos listados abaixo funcionam na hora e de graça. Outras perguntas sobre Tibia vão para a IA e precisam do acesso online, em Configurações. Começar com “não” cancela: nada é executado. Nomes (boss, item, timer) e números podem mudar. Não precisa ser exato: vírgulas, “eu” ou “ok” no começo, “por favor” no fim e sinônimos (“acabei de matar”, “fiz o”, “bota um timer”, “acabei de logar”) também funcionam.</p>
         <div class="instrucoes-grid">
           <div class="card calmo"><h3>⏱️ Timers</h3><ul>
             <li><q>timer de 5 minutos</q></li><li><q>alarme de 2 horas</q></li><li><q>inicia um timer chamado boost de 45 minutos</q></li><li><q>me avisa daqui a 10 minutos</q></li>
@@ -1174,14 +1179,14 @@
       <h1 class="titulo">Configurações</h1>
       <div class="grid-ferr">
         <details class="card calmo voz-diagnostico">
-          <summary>Acesso de voz (avançado)</summary>
-          <p class="dica">Opcional. Configure o código individual recebido do responsável para reconhecimento online. O acesso salvo é preservado; não informe uma chave de API.</p>
+          <summary>Acesso online do chat</summary>
+          <p class="dica">Opcional. Configure o código individual recebido do responsável para o chat conversar com a IA. Os comandos da aba Instruções funcionam sem isso. O acesso salvo é preservado; não informe uma chave de API.</p>
           <form id="voz-online-form" class="voz-form">
             <label for="voz-online-token">Código de acesso individual<input id="voz-online-token" type="password" maxlength="43" autocomplete="off" spellcheck="false" placeholder="Deixe vazio para manter o acesso salvo"></label>
-            <label for="voz-online-enabled"><input id="voz-online-enabled" type="checkbox"> Ativar reconhecimento online</label>
+            <label for="voz-online-enabled"><input id="voz-online-enabled" type="checkbox"> Ativar IA no chat</label>
             <button class="btn btn-sm" type="submit">Salvar</button>
           </form>
-          <p id="voz-online-status" role="status">Reconhecimento local. Nenhum acesso online salvo.</p>
+          <p id="voz-online-status" role="status">Chat só com comandos locais. Nenhum acesso online salvo.</p>
         </details>
 
         <div class="card" id="cfg-personagens">
@@ -3537,6 +3542,7 @@ else window.addEventListener('pywebviewready', iniciar);
 <script src="mirror.js"></script>
 <script src="voz.js"></script>
 <script src="assistente.js"></script>
+<script src="chat.js"></script>
 <script>PERS_OUVINTES.push(() => mirrorLoad()); window.addEventListener("pywebviewready", () => mirrorLoad());</script>
 <dialog id="apoio-dialog" class="apoio-dialog" aria-labelledby="apoio-titulo"><h2 id="apoio-titulo">Apoie o Tibia Tudo ☕</h2><p>Gostou das ferramentas? Sua contribuição ajuda a manter e melhorar o projeto. Qualquer valor é bem-vindo.</p><img class="apoio-qr" src="assets/brand/pix.png" alt="QR Code Pix para apoiar o Tibia Tudo"><p>Recebedor: <b>Pablo Zandonadi</b></p><label for="apoio-pix">Pix copia e cola</label><textarea id="apoio-pix" readonly spellcheck="false">00020126580014BR.GOV.BCB.PIX0136361fa425-8509-45c1-bf3f-b7ffe03417e25204000053039865802BR5915Pablo Zandonadi6009SAO PAULO62140510zsHJv5VizV630498CD</textarea><p id="apoio-status" role="status"></p><button class="btn btn-primary" id="apoio-copiar">Copiar Pix</button> <button class="btn" id="apoio-fechar">Fechar</button><p class="dica">Contribuição voluntária. Confira o recebedor no seu banco antes de confirmar.</p><p class="dica">Sprites: Lupus Aurelius (Dice) e Makadamia (Coffee), via Tibia Fanart.</p></dialog>
 </body>
