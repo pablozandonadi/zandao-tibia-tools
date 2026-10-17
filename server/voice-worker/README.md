@@ -179,7 +179,7 @@ As mensagens vão como `input` do Responses API (nunca dentro das instruções).
 Resposta `{request_id,kind,text,intent}`:
 
 - `reply`: `text` não vazio até 600 caracteres e `intent` null.
-- `action`: `intent` válido pelas mesmas regras do `/interpret`, inclusive o guard temporal aplicado ao texto da última mensagem do jogador; `text` null ou string até 600 caracteres.
+- `action`: `intent` válido pelas mesmas regras do `/interpret`, inclusive o guard temporal, aplicado ao texto de todas as mensagens do jogador (uma data dita num turno anterior vale para o `sim` seguinte); `text` null ou string até 600 caracteres.
 - `out_of_scope`: `text` e `intent` null.
 
 Saída do modelo fora desse contrato, ou `status:"incomplete"`, recebe 502. O pior caso da resposta pública (600 + intent) fica abaixo de 4 KiB, dentro dos 8 KiB lidos pelo cliente. O cliente (`RemoteAIClient.chat`) revalida o corpo e a resposta com o mesmo contrato. Esta rota ainda não foi implantada nem validada contra a OpenAI real.

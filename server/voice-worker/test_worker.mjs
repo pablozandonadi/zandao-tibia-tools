@@ -180,15 +180,27 @@ test('chat body over 16000 bytes fails with 503 before reserving anything',async
  assert.equal((await chat(s,convo(6,'a'.repeat(500)),{},id)).status,200);
  assert.equal(reserves,1);assert.equal(s.calls,1);assert.ok(sizes[0]<=16000);
 });
-test('chat applies the temporal guard to the last player message only',async()=>{
+test('chat applies the temporal guard over every player message',async()=>{
  const kill={action:'boss.kill',parameters:{boss_id:'drume',killed_at:null,boosted:false},needs_clarification:false,clarification:null};
- for(const [intent,last] of [[kill,'matei o Drume ontem'],[{action:'stamina.project',parameters:{target_datetime:null},needs_clarification:false,clarification:null},'projete minha stamina']]){
+ const project={action:'stamina.project',parameters:{target_datetime:null},needs_clarification:false,clarification:null};
+ for(const [intent,turns] of [[kill,[say('user','oi'),say('assistant','Olá!'),say('user','matei o Drume ontem')]],[project,[say('user','oi'),say('assistant','Olá!'),say('user','projete minha stamina')]],[kill,[say('user','ontem foi legal'),say('assistant','Que bom!'),say('user','matei o Drume')]],[kill,[say('user','matei o Drume ontem'),say('assistant','Confirma o abate do Drume?'),say('user','sim')]]]){
   const s=await setup({},modelSays({kind:'action',text:'Anotado.',intent}));
-  const r=await chat(s,[say('user','oi'),say('assistant','Olá!'),say('user',last)]);
+  const r=await chat(s,turns);
   assert.equal(r.status,200);const body=await r.json();
-  assert.equal(body.kind,'action');assert.equal(body.intent.action,'unknown');assert.equal(body.intent.needs_clarification,true);
+  assert.equal(body.kind,'action');assert.equal(body.intent.action,'unknown');assert.equal(body.intent.needs_clarification,true,JSON.stringify(turns));
  }
  const s=await setup({},modelSays({kind:'action',text:null,intent:kill}));
- const r=await chat(s,[say('user','ontem foi legal'),say('assistant','Que bom!'),say('user','matei o Drume')]);
+ const r=await chat(s,[say('user','matei o Drume'),say('assistant','Confirma o abate do Drume?'),say('user','sim')]);
  assert.equal(r.status,200);assert.deepEqual((await r.json()).intent,kill);
+});
+test('interpret body over 12000 bytes fails with 503 before reserving anything',async()=>{
+ const s=await setup(roomy,modelSays({intent:timer30}));
+ const gate=s.env.VOICE_GATE.get(),reserve=gate.reserve.bind(gate);let reserves=0;gate.reserve=(...args)=>{reserves++;return reserve(...args);};
+ const id=crypto.randomUUID();
+ assert.equal((await s.req(JSON.stringify({request_id:id,text:'€'.repeat(500)}),id,'/interpret')).status,503);
+ assert.equal(reserves,0);assert.equal(s.calls,0);
+ assert.equal(s.db.prepare('SELECT count(*) n FROM requests').get().n,0);
+ assert.equal(s.db.prepare("SELECT count(*) n FROM buckets WHERE key LIKE 'u:%' OR key LIKE 'g:%'").get().n,0);
+ assert.equal((await s.req(JSON.stringify({request_id:id,text:'a'.repeat(500)}),id,'/interpret')).status,200);
+ assert.equal(reserves,1);assert.equal(s.calls,1);
 });

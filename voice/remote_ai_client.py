@@ -217,4 +217,4 @@ class RemoteAIClient:
                 kind=='reply' and isinstance(text,str) and text.strip() and len(text)<=600 and intent is None
                 or kind=='action' and valid_intent(intent) and (text is None or isinstance(text,str) and len(text)<=600)
                 or kind=='out_of_scope' and text is None and intent is None): raise RemoteAIError('Resposta online inválida.')
-        return {'kind':kind,'text':text,'intent':safe_temporal_intent(intent,messages[-1]['text']) if kind=='action' else None}
+        return {'kind':kind,'text':text,'intent':safe_temporal_intent(intent,'\n'.join(m['text'] for m in messages if m['role']=='user')) if kind=='action' else None}

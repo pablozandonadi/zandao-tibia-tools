@@ -137,8 +137,12 @@ class RemoteClientTests(unittest.TestCase):
                 client=self._chat_client({'request_id':rid,**reply})
                 result=client.chat([{'role':'user','text':'oi'},{'role':'assistant','text':'Olá!'},{'role':'user','text':text}],rid)
                 self.assertEqual(result,{'kind':reply['kind'],'text':reply['text'],'intent':want})
-        client=self._chat_client({'request_id':rid,'kind':'action','text':None,'intent':kill})
-        self.assertEqual(client.chat([{'role':'user','text':'ontem foi legal'},{'role':'assistant','text':'Que bom!'},{'role':'user','text':'matei o Drume'}],rid)['intent'],kill)
+        for turns,want in [([{'role':'user','text':'ontem foi legal'},{'role':'assistant','text':'Que bom!'},{'role':'user','text':'matei o Drume'}],unknown),
+                           ([{'role':'user','text':'matei o Drume ontem'},{'role':'assistant','text':'Confirma o abate do Drume?'},{'role':'user','text':'sim'}],unknown),
+                           ([{'role':'user','text':'matei o Drume'},{'role':'assistant','text':'Confirma o abate do Drume?'},{'role':'user','text':'sim'}],kill)]:
+            with self.subTest(turns=turns):
+                client=self._chat_client({'request_id':rid,'kind':'action','text':None,'intent':kill})
+                self.assertEqual(client.chat(turns,rid)['intent'],want)
 
     def test_chat_rejects_invalid_responses(self):
         from voice.remote_ai_client import RemoteAIError
