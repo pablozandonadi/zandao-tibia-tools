@@ -37,10 +37,8 @@ def gerar(r, campos=None):
     lines += [f"🐪 *Yasir:* {y} ({source})", f"🧳 *Rashid:* {r.get('rashid') or '❓'}", f"⭐ *Criatura boostada:* {boost('criatura')}", f"👑 *Boss boostado:* {boost('boss')}", f"🌙 *Dream Court:* {(dream.get('nome') or '❓') if not dream.get('velho') else '❓'} · rotação prevista", f"🔱 *Boss Deeplings:* {text('deeplings')}", f"🧭 *Região boostada:* {text('regiao')}", f"⚙️ *Roshamuul:* {text('roshamuul')}", f"🚪 *Fury Gate:* {state('fury_gates')}", f"🪓 *Bibby's Bloodbath:* {state('warpath')}", f"🏟️ *Tibia Drome:* {text('drome', 'Rotação termina no SS de ' + day(calendar['drome_fim']) if calendar.get('drome_fim') else '❓')}", f"🪙 *Tibia Coin ({text('coin_hora')}):* comprar {text('coin_compra')} gp · vender {text('coin_venda')} gp", '', '🌍 *Outras world changes:*']
     kills = r.get('killstatistics') or {}
     if kills.get('estado') == 'disponivel':
-        queried = datetime.fromtimestamp(kills['consulta'], timezone.utc).isoformat() if kills.get('consulta') else 'não informado'
         counts = '; '.join(f"{b['nome']}: {b['last_day_killed'] if b.get('last_day_killed') is not None else '❓'}" for b in kills.get('bosses', []))
-        lines[-2:-2] = [f"📊 *Dream Court — mortes (Last Day):* {counts}",
-                        f"_Consulta do aplicativo: {queried}. Processamento TibiaData: {kills.get('processamento') or 'não informado'}. Last Day não equivale necessariamente ao último server save e não confirma o boss atual._"]
+        lines[-2:-2] = [f"📊 *Dream Court — mortes (Last Day):* {counts}"]
     lines += [f"• {e.get('rotulo', e['nome'])} · {e.get('local', '')}" + (f" · {e['detalhe']}" if e.get('detalhe') else '') for e in events if e['id'] not in ('oriental_trader', 'fury_gates', 'warpath')]
     if not current:
         lines.append('❓ World Board de hoje ainda não registrado neste perfil.')

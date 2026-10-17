@@ -1,11 +1,14 @@
 """Comandos de Tibia no chat do Assistente: bomdia, kill, boss, online, char, death, guild. Só dados públicos da TibiaData."""
 import re
+from string import capwords
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 
+import guild_stats
 import tibia_info
 import zandaobot
 import zandaobot_report
+import zandaobot_sources as sources
 
 COMANDO = re.compile(r'\s*!?\s*(bom\s?dia|kill|boss|online|char|death|guild)\b\s*(.*?)\s*', re.I | re.S)
 MUNDO = re.compile(r'[A-Za-z]{2,40}')
@@ -13,6 +16,7 @@ NOME = re.compile(r"[A-Za-z][A-Za-z '\-.]{1,39}")
 FALHA = 'Não consegui consultar a TibiaData agora (ou o nome não existe). Tente de novo em instantes.'
 VOCACOES = ('Knight', 'Paladin', 'Sorcerer', 'Druid', 'Monk')
 BRT = timezone(timedelta(hours=-3))
+RANKING = 'https://guildstats.eu/top-experience?world={}&time=0'  # time=0 é "Yesterday"; só traz o top 500 do mundo
 
 
 def _get(chave, endpoint):
@@ -42,9 +46,61 @@ def _mortes(deaths, limite):
     return [f"• {_data(m.get('time'))} — Lv {m.get('level', '?')} — {m.get('reason', '')}" for m in deaths[:limite] if isinstance(m, dict)]
 
 
-def _bomdia(rest, mundo):
-    r = zandaobot.buscar(rest or mundo)
-    return r['erro'] if r.get('erro') else zandaobot_report.gerar(r, {'comunidade': 'tibianos'})
+def _kk(n):
+    return f'{n / 1e9:.2f}kkk' if abs(n) >= 1e9 else f'{n / 1e6:.2f}kk'
+
+
+def _ranking(mundo):
+    """Top 500 de XP de ontem do mundo no GuildStats: [(nome, level, xp)] ou None."""
+    def buscar():
+        p = guild_stats.Tables()
+        p.feed(sources.get_text(RANKING.format(quote(mundo)), 6_000_000))
+        linhas = [(r[1], r[2], int(r[3].replace(',', ''))) for t in p.tables for r in t['rows']
+                  if len(r) >= 7 and r[0].isdigit() and re.fullmatch(r'[+-]?[\d,]+', r[3])]
+        if not linhas:
+            raise ValueError('Ranking vazio')
+        return linhas
+    return sources.cached('gs-topxp:' + mundo.lower(), buscar, ttl=1800)['dados']
+
+
+def _xp_guild(nome, mundo):
+    d, _ = _get('guild:' + nome.lower(), '/guild/' + quote(nome))
+    membros = {str(x.get('name', '')).casefold() for x in (d.get('guild') or {}).get('members') or [] if isinstance(x, dict)}
+    ranking = _ranking(mundo) if membros and MUNDO.fullmatch(mundo or '') else None
+    if ranking is None:
+        return '🏆 Top XP de ontem: indisponível agora (GuildStats ou TibiaData).'
+    achados = sorted((x for x in ranking if x[0].casefold() in membros), key=lambda x: -x[2])
+    if not achados:
+        return f'🏆 Top XP de ontem — {nome}: nenhum membro ficou no top 500 do mundo no GuildStats.'
+    linhas = [f'🏆 Top XP de ontem — {nome} (GuildStats)']
+    linhas += [f"{i}. {n} (Lv {lv}) — {'+' if xp >= 0 else '-'}{_kk(abs(xp))}" for i, (n, lv, xp) in enumerate(achados[:10], 1)]
+    linhas.append(f'_{len(achados)} de {len(membros)} membros aparecem no top 500 de XP do mundo._')
+    return '\n'.join(linhas)
+
+
+def _ou(texto, rotulo):
+    return f'{rotulo}: indisponível agora.' if texto == FALHA else texto
+
+
+def _bomdia(rest, mundo, personagem, hoje):
+    m = rest or mundo
+    r = zandaobot.buscar(m)
+    if r.get('erro'):
+        return r['erro']
+    msg = zandaobot_report.gerar(r, {'comunidade': 'tibianos', 'assinatura': personagem})
+    extras = [_ou(_kill('', m), '⚔️ Criaturas mortas ontem')] if m and MUNDO.fullmatch(m) else []
+    ficha = _ficha(personagem) if personagem and NOME.fullmatch(personagem) else None
+    if ficha:
+        char = ficha[0]
+        guild = (char.get('guild') or {}).get('name')
+        # a guild é do personagem em uso: com outro mundo explícito no comando, não se aplica
+        if guild and (not rest or rest.casefold() == str(char.get('world', '')).casefold()):
+            extras += [_ou(_guild(guild, hoje), '🏰 Guild'), _xp_guild(guild, char.get('world') or m)]
+    if not extras:
+        return msg
+    corte = msg.rfind('⏰ Próximo SS')
+    bloco = '\n\n'.join(extras)
+    return msg + '\n\n' + bloco if corte < 0 else msg[:corte] + bloco + '\n\n' + msg[corte:]
 
 
 def _kill(rest, mundo):
@@ -63,7 +119,7 @@ def _kill(rest, mundo):
         return f'Sem abates registrados ontem em {m}.'
     top = sorted(vivos, key=lambda x: (-x[1], x[0]))[:10]
     linhas = [f'⚔️ Top 10 criaturas mortas ontem — 🌍 {m.capitalize()}' + (' (dados antigos)' if velho else '')]
-    linhas += [f'{i}. {nome} — {n:,} mortes'.replace(',', '.') for i, (nome, n) in enumerate(top, 1)]
+    linhas += [f'{i}. {capwords(nome)} — {n:,} mortes'.replace(',', '.') for i, (nome, n) in enumerate(top, 1)]
     return '\n'.join(linhas)
 
 
@@ -162,7 +218,7 @@ def _guild(rest, hoje):
     return '\n'.join(linhas)
 
 
-def responder(texto, mundo='', hoje=None):
+def responder(texto, mundo='', hoje=None, personagem=''):
     """Resposta em texto, ou None quando a mensagem não é um destes comandos."""
     m = COMANDO.fullmatch(texto or '')
     if not m:
@@ -171,7 +227,7 @@ def responder(texto, mundo='', hoje=None):
     hoje = hoje or date.today()
     try:
         if cmd == 'bomdia':
-            return _bomdia(rest, mundo)
+            return _bomdia(rest, mundo, personagem, hoje)
         if cmd == 'guild':
             return _guild(rest, hoje)
         return {'kill': _kill, 'boss': _boss, 'online': _online, 'char': _char, 'death': _death}[cmd](rest, mundo)

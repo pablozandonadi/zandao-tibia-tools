@@ -92,3 +92,17 @@
 .zb-kills th:first-child {width:48%;text-align:left;font-weight:500}
 .zb-kills td,.zb-kills thead th {text-align:right}
 .zb-kills p {font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.zb-calendar>summary,.wb-panel>summary{cursor:pointer;font-size:15px;font-weight:700;font-family:var(--font-body);display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.zb-calendar>summary>span,.wb-panel>summary>span{font-size:11px;font-weight:400;color:var(--zb-muted)}
+.zb-calendar[open]>summary,.wb-panel[open]>summary{margin-bottom:8px}
+.zb-list-title>span{margin-left:6px;font-size:10px;font-weight:400;color:var(--zb-muted)}
+.zb-event{align-items:center}
+.zb-event-dot{margin-top:0}
+.zb-event-main{flex:1}
+.zb-event-meta{display:flex;flex-wrap:wrap;gap:6px}
+.zb-event .zb-chip{font-size:10px;padding:1px 8px;border:1px solid var(--zb-border);border-radius:999px;color:var(--zb-muted)}
+.zb-event-when{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;text-align:right}
+.zb-event-when b{font-size:12px;font-weight:650;white-space:nowrap}
+.zb-event-ativo .zb-event-when small{color:#55d39e}
+.zb-event-proximo .zb-event-when small{color:#7fb2ff}
+@media(max-width:500px){.zb-event{flex-wrap:wrap}.zb-event-when{margin-left:16px;align-items:flex-start;text-align:left}}

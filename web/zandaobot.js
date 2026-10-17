@@ -1,4 +1,13 @@
-const ZB = {follow:true, world:'', serial:0};
+const ZB = {follow:true, world:'', serial:0, open:{}};
+const zbOpen = (key, def) => ((key in ZB.open) ? ZB.open[key] : def) ? 'open' : '';
+const zbShort = v => /^\d{4}-\d{2}-\d{2}$/.test(v||'') ? v.slice(8)+'/'+v.slice(5,7) : '—';
+const zbDays = v => { if(!/^\d{4}-\d{2}-\d{2}$/.test(v||'')) return null; const [y,m,d]=v.split('-').map(Number), t=new Date(); return Math.round((Date.UTC(y,m-1,d)-Date.UTC(t.getFullYear(),t.getMonth(),t.getDate()))/864e5); };
+function zbWhen(e) {
+  const ativo=e.estado==='ativo', k=zbDays(ativo?e.fim:e.inicio);
+  if(k===null) return '';
+  const verbo=ativo?'termina':'começa';
+  return k<=0?verbo+' hoje':k===1?verbo+' amanhã':verbo+' em '+k+' dias';
+}
 const zbStamp = v => v ? new Date(v*1000).toLocaleString('pt-BR') : 'Não disponível';
 const zbDate = v => /^\d{4}-\d{2}-\d{2}$/.test(v||'') ? v.split('-').reverse().join('/') : '—';
 const zbLinks = {dream:'https://tibia.fandom.com/wiki/Dream_Scar/Boss_of_the_Day',yasir:'https://tibiatrade.gg/mini-world-changes',board:'https://www.tibiawiki.com.br/wiki/World_Board',calendar:'https://tibiacalendar.com/en/calendar'};
@@ -26,7 +35,10 @@ function zbCard(title, value, options={}) {
 function zbCalendar(c={}) {
   const stale=c.estado==='desatualizado';
   const groups=[['ativo','Em andamento'],['proximo','Próximos 60 dias']];
-  return `<section class="zb-panel zb-calendar"><div class="zb-section-heading"><h2>Calendário de eventos</h2>${stale?'<span class="zb-badge zb-warning">Dados anteriores</span>':''}</div>${c.estado==='indisponivel'?'<p class="zb-warning-text">Calendário geral indisponível. Atualize para tentar novamente.</p>':''}<div class="zb-calendar-columns">${groups.map(([key,title])=>`<div><h3 class="zb-list-title">${title}</h3><div class="zb-event-list">${(c.eventos||[]).filter(e=>e.estado===key).map(e=>`<div class="zb-event"><span class="zb-event-dot ${key==='ativo'&&!stale?'zb-event-active':''}"></span><div><b>${esc(e.titulo)}</b><span>${esc(zbDate(e.inicio))} → ${esc(zbDate(e.fim))}</span><small>${esc(e.escopo)}${e.server_save?' · no server save':''}</small></div></div>`).join('')||`<p class="zb-empty">${c.estado==='indisponivel'?'Informação indisponível.':'Nenhum evento listado.'}</p>`}</div></div>`).join('')}</div><div class="zb-panel-footer"><span>Os eventos terminam no server save da data indicada.</span><details class="zb-source"><summary>Fonte do calendário</summary><div><p>Consulta: ${esc(zbStamp(c.consulta))}</p><p>${esc(c.nota||'')}</p>${zbLink('calendar')}</div></details></div></section>`;
+  const events=c.eventos||[];
+  const count=key=>events.filter(e=>e.estado===key).length;
+  const row=(e,key)=>`<div class="zb-event zb-event-${key}"><span class="zb-event-dot ${key==='ativo'&&!stale?'zb-event-active':''}"></span><div class="zb-event-main"><b>${esc(e.titulo)}</b><div class="zb-event-meta"><span class="zb-chip">${esc(e.escopo)}</span>${e.server_save?'<span class="zb-chip">até o server save</span>':''}</div></div><div class="zb-event-when"><b>${esc(zbShort(e.inicio))} → ${esc(zbShort(e.fim))}</b><small>${esc(zbWhen(e))}</small></div></div>`;
+  return `<details class="zb-panel zb-calendar" data-zb-key="calendar" ${zbOpen('calendar',true)}><summary>Calendário de eventos <span>${count('ativo')} em andamento · ${count('proximo')} próximos</span>${stale?'<span class="zb-badge zb-warning">Dados anteriores</span>':''}</summary>${c.estado==='indisponivel'?'<p class="zb-warning-text">Calendário geral indisponível. Atualize para tentar novamente.</p>':''}<div class="zb-calendar-columns">${groups.map(([key,title])=>`<div><h3 class="zb-list-title">${title} <span>${count(key)}</span></h3><div class="zb-event-list">${events.filter(e=>e.estado===key).map(e=>row(e,key)).join('')||`<p class="zb-empty">${c.estado==='indisponivel'?'Informação indisponível.':'Nenhum evento listado.'}</p>`}</div></div>`).join('')}</div><div class="zb-panel-footer"><span>Os eventos terminam no server save da data indicada.</span><details class="zb-source"><summary>Fonte do calendário</summary><div><p>Consulta: ${esc(zbStamp(c.consulta))}</p><p>${esc(c.nota||'')}</p>${zbLink('calendar')}</div></details></div></details>`;
 }
 function zbKillStatistics(k={}) {
   const available=k.estado==='disponivel'||k.estado==='desatualizado';
@@ -63,8 +75,9 @@ function zbRender(r) {
   const online=server.name?`${server.players_online??'—'} jogadores · ${server.status==='online'?'online':server.status||'status desconhecido'}`:'Status indisponível';
   const save=new Date(r.server_save_ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const selectWorld=!r.mundo?`<div class="zb-panel zb-selection"><h2>Selecione o mundo de Tibia</h2><p>Yasir e Dream Court variam por mundo. Escolha abaixo ou pesquise no campo acima.</p><div class="zb-select-actions"><select id="zb-world-pick" aria-label="Selecionar mundo para Yasir e Dream Court"><option value="">Carregando mundos…</option></select><button class="zb-world-button" id="zb-config-world">Cadastrar personagem</button></div><small>Para usar o mundo automaticamente, cadastre e escolha seu personagem nas configurações desta instalação.</small></div>`:'';
-  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>${r.mundo?'Hoje em '+esc(world):'Resumo de hoje'}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div>${selectWorld}<div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta">${r.mundo?`<div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div>`:''}<div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}${wbPanel(r)}${zbCalendar(r.calendario)}${notice}${mini}${announcements}`;
+  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>${r.mundo?'Hoje em '+esc(world):'Resumo de hoje'}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div>${selectWorld}<div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta">${r.mundo?`<div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div>`:''}<div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}${zbCalendar(r.calendario)}${wbPanel(r)}${notice}${mini}${announcements}`;
   wbBind(r);
+  $('zb-result').querySelectorAll('details[data-zb-key]').forEach(d=>d.addEventListener('toggle',()=>{ZB.open[d.dataset.zbKey]=d.open;}));
   const picker=$('zb-world-pick');
   if(picker) {
     picker.onchange=()=>{if(picker.value){ZB.follow=false;ZB.world=picker.value;zbLoad();}};

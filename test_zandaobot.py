@@ -150,9 +150,8 @@ class TestKillStatistics(unittest.TestCase):
         import zandaobot_report
         message = zandaobot_report.gerar(result)
         self.assertIn('Maxxenius · rotação prevista', message)
-        self.assertIn('Last Day não equivale necessariamente', message)
-        self.assertIn('Consulta do aplicativo:', message)
-        self.assertIn('Processamento TibiaData: 2026-10-15T14:03:02+00:00', message)
+        self.assertNotIn('Consulta do aplicativo', message)
+        self.assertNotIn('Processamento TibiaData', message)
         result['killstatistics']['estado'] = 'desatualizado'
         self.assertNotIn('mortes (Last Day)', zandaobot_report.gerar(result))
 
