@@ -115,6 +115,18 @@ def eventos_compensacao(avisos, mundo, hoje=None):
                        'fonte': 'https://www.tibia.com/news/?subtopic=newsarchive&id=' + str(item['id'])})
     return events
 
+def _imagem_noticia(item_id, forcar=False):
+    """Primeira imagem do anúncio (só static.tibia.com/images/news), ou None. A imagem não muda: cache de 6 h."""
+    if type(item_id) is not int:
+        return None
+    r = _consultar(f'noticia:{item_id}', f'/news/id/{item_id}', forcar, 21600)
+    dados = r['dados'] if isinstance(r['dados'], dict) else {}
+    noticia = dados.get('news') if isinstance(dados.get('news'), dict) else {}
+    html = noticia.get('content_html') if isinstance(noticia.get('content_html'), str) else ''
+    achou = re.search(r'<img[^>]+src="(https://static\.tibia\.com/images/news/[A-Za-z0-9_./-]+\.(?:png|jpe?g|gif))"', html)
+    return achou.group(1) if achou else None
+
+
 def buscar(mundo='', forcar=False):
     mundo = (mundo or '').strip()
     if mundo and not re.fullmatch(r'[A-Za-z]{2,40}', mundo):
@@ -141,11 +153,14 @@ def buscar(mundo='', forcar=False):
     calendario = schedule.result()
     calendario['eventos'] = sorted(calendario.get('eventos', []) + eventos_compensacao(avisos_mundo, mundo), key=lambda e: (e['inicio'], e['titulo']))
     avisos = [x for x in n['dados'].get('news', []) if x.get('category') == 'community'][:8]
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        imagens = list(pool.map(lambda x: _imagem_noticia(x.get('id'), bool(forcar)), avisos))
     return {
         **tibia_info.resumo_do_dia(), 'boostados': b,
         'mundo': info.get('name') or mundo, 'servidor': mundo_info,
         'servidor_velho': w['velho'], 'servidor_consulta': w['consulta'],
-        'anuncios': [{'titulo': x.get('news', ''), 'data': x.get('date', ''), 'id': x.get('id')} for x in avisos],
+        'anuncios': [{'titulo': (x.get('news') or '').strip(), 'data': x.get('date', ''), 'id': x.get('id'),
+                      'categoria': x.get('category'), 'imagem': img} for x, img in zip(avisos, imagens)],
         'anuncios_velhos': n['velho'], 'anuncios_consulta': n['consulta'],
         'avisos_mundo': avisos_mundo,
         'avisos_mundo_velhos': ticker['velho'] or any(x['velho'] or not x['completo'] for x in avisos_mundo),

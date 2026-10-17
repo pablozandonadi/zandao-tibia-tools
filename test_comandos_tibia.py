@@ -29,9 +29,9 @@ class ComandosTibia(unittest.TestCase):
     def setUp(self):
         zandaobot._cache.clear()
 
-    def run_(self, texto, mundo='Antica', mapa=None, hoje=date(2026, 10, 17)):
+    def run_(self, texto, mundo='Antica', mapa=None, hoje=date(2026, 10, 17), personagem=''):
         with patch.object(tibia_info, '_get_json', side_effect=fonte(mapa or {})):
-            return c.responder(texto, mundo, hoje)
+            return c.responder(texto, mundo, hoje, personagem=personagem)
 
     def test_texto_que_nao_e_comando_devolve_none(self):
         self.assertIsNone(c.responder('quanto falta no timer do drume', 'Antica'))
@@ -51,7 +51,7 @@ class ComandosTibia(unittest.TestCase):
     def test_kill_aceita_mundo_no_comando_e_pede_quando_falta(self):
         r = self.run_('!kill Rasteibra', mundo='', mapa={'/killstatistics/Rasteibra': ks(('Hydra', 5))})
         self.assertIn('Hydra', r)
-        self.assertIn('Informe o mundo', self.run_('kill', mundo=''))
+        self.assertIn('kill {mundo}', self.run_('kill', mundo=''))
 
     def test_kill_sem_rede_avisa_sem_inventar(self):
         r = self.run_('kill')
@@ -82,7 +82,7 @@ class ComandosTibia(unittest.TestCase):
         self.assertIn('Não consegui', self.run_('char Fulano'))
 
     def test_death_exige_personagem(self):
-        self.assertIn('death <personagem>', self.run_('death'))
+        self.assertIn('death {personagem}', self.run_('death'))
 
     def test_guild_conta_quem_entrou_em_7_dias(self):
         membros = [{'name': 'Novo', 'level': 355, 'vocation': 'Royal Paladin', 'status': 'online', 'joined': '2026-10-14'},
@@ -186,6 +186,92 @@ class BomDiaCompleto(unittest.TestCase):
         with patch.object(c, 'responder', return_value='ok') as resp:
             chat.Chat(store, '.').responder('bomdia', permitir_ia=False)
         resp.assert_called_once_with('bomdia', 'Antica', personagem='Elite Nestos')
+
+
+class PadroesDoPersonagem(unittest.TestCase):
+    """Sem argumento, os comandos usam o personagem em uso; com argumento, consultam o que foi pedido."""
+
+    def setUp(self):
+        zandaobot._cache.clear()
+        c.sources._cache.clear()
+
+    def run_(self, texto, mapa=None, mundo='Antica', personagem='Elite Nestos', html=RANKING_HTML):
+        mapa = {'/character/Elite%20Nestos': CHAR, '/guild/Quixada': GUILD,
+                '/world/Antica': {'world': {'name': 'Antica', 'players_online': 315}}, **(mapa or {})}
+        with patch.object(tibia_info, '_get_json', side_effect=fonte(mapa)), \
+                patch.object(c.sources, 'get_text', side_effect=lambda url, limit=0: html), \
+                patch.object(zandaobot, 'mundos', return_value={'mundos': ['Antica', 'Secura'], 'velho': False}):
+            return c.responder(texto, mundo, date(2026, 10, 17), personagem=personagem)
+
+    def test_char_e_death_sem_argumento_usam_o_personagem(self):
+        self.assertIn('📜 Elite Nestos', self.run_('char'))
+        self.assertIn('Elite Nestos', self.run_('death'))
+
+    def test_char_com_argumento_troca_o_alvo(self):
+        outro = {'character': {'character': {'name': 'Outro', 'level': 10, 'vocation': 'Druid', 'world': 'Antica'}, 'deaths': []}}
+        r = self.run_('char Outro', mapa={'/character/Outro': outro})
+        self.assertIn('Outro', r)
+        self.assertNotIn('Elite Nestos', r)
+
+    def test_guild_sem_argumento_usa_a_guild_do_personagem(self):
+        self.assertIn('🏰 Quixada', self.run_('guild'))
+
+    def test_online_sem_argumento_traz_mundo_e_guild(self):
+        r = self.run_('online')
+        self.assertIn('315', r)
+        self.assertIn('Quixada online', r)
+        self.assertIn('Zaz', r)
+
+    def test_online_com_argumento_nao_traz_a_guild_do_personagem(self):
+        r = self.run_('online Antica')
+        self.assertIn('315', r)
+        self.assertNotIn('Quixada', r)
+
+    def test_exp_sem_argumento_traz_top10_do_mundo_e_da_guild(self):
+        r = self.run_('exp')
+        mundo, guild = r.split('Top XP de ontem — Quixada')
+        self.assertIn('Top 10 XP de ontem — 🌍 Antica', mundo)
+        self.assertIn('Estranho', mundo)
+        self.assertIn('Zaz', guild)
+        self.assertNotIn('Estranho', guild)
+
+    def test_exp_aceita_mundo_ou_guild_explicitos(self):
+        self.assertIn('🌍 Secura', self.run_('exp Secura'))
+        r = self.run_('exp Quixada')
+        self.assertIn('Top XP de ontem — Quixada', r)
+        self.assertNotIn('Top 10 XP', r)
+
+    def test_exp_mostra_so_10_do_mundo(self):
+        linhas = ''.join(f'<tr><td>{i}</td><td>Jog{i}</td><td>500</td><td>+{i},000,000</td><td>1h</td><td>EK</td><td>Antica</td></tr>' for i in range(1, 16))
+        html = '<table><tr><th>#</th></tr>' + linhas + '</table>'
+        r = self.run_('exp', html=html, personagem='')
+        self.assertEqual(len([l for l in r.splitlines() if l[:1].isdigit()]), 10)
+        self.assertIn('Jog15', r)
+        self.assertNotIn('Jog5 ', r)
+
+    def test_ranking_fora_do_ar_avisa(self):
+        def falha(url, limit=0):
+            raise OSError('sem rede')
+        self.assertIn('indisponível agora', self.run_('exp', html=falha))
+
+    def test_frase_para_a_ia_nao_vira_comando(self):
+        frases = ['guild como eu entro numa guild', 'guild war como funciona', 'boss como derrotar o ferumbras', 'char qual a melhor build?',
+                  'online quantos players tem agora', 'exp o que é exp?', 'bom dia, tudo bem?', 'kill the monster tomorrow',
+                  'death me explica como evitar', 'bomdia pessoal como estão todos', 'online guild com muita gente jogando agora',
+                  'quero saber da guild do meu amigo', 'me mostra o boss de hoje']
+        for frase in frases:
+            with self.subTest(frase=frase):
+                self.assertIsNone(self.run_(frase))
+
+    def test_nomes_com_cara_de_nome_continuam_sendo_comando(self):
+        for texto in ('guild Mal Upados', 'guild Os Devotos', 'exp Mal Upados', 'char Elite Nestos', 'online Quixada', '!kill Antica'):
+            with self.subTest(texto=texto):
+                self.assertIsNotNone(self.run_(texto))
+
+    def test_sem_personagem_orienta_o_usuario(self):
+        self.assertIn('Configurações', self.run_('char', personagem=''))
+        self.assertIn('Informe a guild', self.run_('guild', personagem=''))
+        self.assertIn('Configurações', self.run_('exp', mundo='', personagem=''))
 
 
 if __name__ == '__main__':

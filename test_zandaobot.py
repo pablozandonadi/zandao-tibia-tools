@@ -155,6 +155,28 @@ class TestKillStatistics(unittest.TestCase):
         result['killstatistics']['estado'] = 'desatualizado'
         self.assertNotIn('mortes (Last Day)', zandaobot_report.gerar(result))
 
+    def test_anuncios_trazem_imagem_so_do_dominio_oficial_e_so_da_comunidade(self):
+        oficial = '<p><img style="x" src="https://static.tibia.com/images/news/orcsoberfest_transparent_350.png" width="350"/></p>'
+        externa = '<img src="https://evil.example/news/x.png"><img src="https://static.tibia.com/images/other/y.png">'
+        itens = [{'id': 1, 'date': '2026-10-07', 'news': 'Orcsoberfest ', 'category': 'community'},
+                 {'id': 2, 'date': '2026-10-06', 'news': 'Sem imagem', 'category': 'community'},
+                 {'id': 3, 'date': '2026-10-05', 'news': 'Patch', 'category': 'development'}]
+        def get(url):
+            if url.endswith('/news/latest'):
+                return {'news': itens}
+            if url.endswith('/news/id/1'):
+                return {'news': {'content_html': oficial}}
+            if url.endswith('/news/id/2'):
+                return {'news': {'content_html': externa}}
+            if '/world/' in url:
+                return {'world': {'name': 'Xybra'}}
+            return {'news': []}
+        with patch.object(tibia_info, '_get_json', side_effect=get), patch.object(tibia_info, 'boostados', return_value={}):
+            result = zandaobot.buscar('Xybra')
+        titulos = [(a['titulo'], a['categoria'], a['imagem']) for a in result['anuncios']]
+        self.assertEqual(titulos, [('Orcsoberfest', 'community', 'https://static.tibia.com/images/news/orcsoberfest_transparent_350.png'),
+                                   ('Sem imagem', 'community', None)])
+
 
 if __name__ == '__main__':
     unittest.main()

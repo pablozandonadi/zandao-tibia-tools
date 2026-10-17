@@ -997,14 +997,15 @@
             <li><q>TC tá 36.5k</q></li><li><q>registra Gold Token a 40k na compra</q></li><li><q>Gold Token a 40k tá caro</q></li><li><q>qual a mediana do TC nos últimos 7 dias</q></li>
             <li><q>adiciona Silver Token na minha lista</q></li><li><q>corrige o último registro do TC para 38k</q></li><li><q>me avisa se o TC for registrado abaixo de 35k</q></li></ul></div>
           <div class="card calmo"><h3>🌍 Consultas Tibia</h3><ul>
-            <li><code>bomdia {mundo}</code> resumo do dia, kill do mundo e guild do personagem</li>
+            <li><code>bomdia {mundo}</code> resumo do dia, kill do mundo, guild e top 10 XP da guild</li>
             <li><code>kill {mundo}</code> top 10 criaturas mortas ontem</li>
             <li><code>boss {mundo}</code> boosted e bosses mortos ontem</li>
-            <li><code>online {mundo}</code> jogadores online · <code>online {guild}</code> membros online</li>
+            <li><code>online {mundo ou guild}</code> sozinho: o mundo e a guild do personagem em uso</li>
+            <li><code>exp {mundo ou guild}</code> sozinho: top 10 XP de ontem do mundo e da guild</li>
             <li><code>char {personagem}</code> ficha e mortes recentes</li>
             <li><code>death {personagem}</code> mortes dos últimos 30 dias</li>
             <li><code>guild {guild}</code> online, vocações e quem entrou</li></ul>
-            <p class="dica">Troque o que está entre chaves pelo nome, sem as chaves. <code>{mundo}</code> é opcional: sem ele, usa o mundo do personagem em uso. Ex.: <code>kill Antica</code>.</p></div>
+            <p class="dica">Digite o comando <b>sozinho</b> e ele usa o personagem em uso (mundo, guild e nome). Para consultar outro, acrescente o que está entre chaves, sem as chaves. Ex.: <code>kill Antica</code>, <code>guild Mal Upados</code>. Frases para a IA que apenas citam essas palavras não são tratadas como comando.</p></div>
         </div>
       </section>
       <p id="chat-digitando" role="status" hidden>O assistente está digitando…</p><form id="chat-form" class="chat-form"><label for="chat-texto" class="sr-only">Mensagem</label><input id="chat-texto" maxlength="500" autocomplete="off" placeholder="Pergunte sobre Tibia ou dê um comando"><button class="btn btn-primary" type="submit">Enviar</button><button class="btn btn-sm" type="button" id="chat-limpar">Limpar</button></form></div>

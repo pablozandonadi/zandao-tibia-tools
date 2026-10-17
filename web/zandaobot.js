@@ -18,8 +18,19 @@ function zbImageSrc(raw) {
   try {
     const u=new URL(raw);
     if(u.protocol==='https:' && u.hostname==='static.tibia.com' && !u.username && !u.password && !u.search && !u.hash && /^\/images\/global\/header\/monsters\/[a-z0-9-]+\.gif$/.test(u.pathname)) return u.href;
+    if(u.protocol==='https:' && u.hostname==='static.tibia.com' && !u.username && !u.password && !u.search && !u.hash && /^\/images\/news\/[A-Za-z0-9_.\/-]+\.(?:png|jpe?g|gif)$/.test(u.pathname)) return u.href;
   } catch(e) {}
   return '';
+}
+const zbNewsIcons = {community:'🎉', development:'🛠️', technical:'⚙️', cipsoft:'🏢'};
+function zbAnnouncements(r) {
+  const items=(r.anuncios||[]).map(x=>{
+    const safe=zbImageSrc(x.imagem), icon=zbNewsIcons[x.categoria]||'📰';
+    const thumb=`<span class="zb-news-thumb"><span class="zb-news-fallback" ${safe?'hidden':''} aria-hidden="true">${icon}</span>${safe?`<img src="${esc(safe)}" alt="" loading="lazy">`:''}</span>`;
+    const body=`${thumb}<span class="zb-news-body"><b>${esc(x.titulo)}</b><small>${esc(zbDate(x.data))}</small></span>`;
+    return Number.isInteger(x.id)?`<a class="zb-news" href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">${body}<span class="zb-news-go" aria-hidden="true">↗</span></a>`:`<div class="zb-news">${body}</div>`;
+  }).join('');
+  return `<section class="zb-panel zb-news-panel"><div class="zb-section-heading"><h2>Últimos anúncios oficiais</h2>${r.anuncios_velhos?'<span class="zb-badge zb-warning">Dados anteriores</span>':''}</div><div class="zb-news-list">${items||'<p class="zb-empty">Nenhum anúncio disponível.</p>'}</div><p class="zb-muted zb-news-stamp">Consulta: ${esc(zbStamp(r.anuncios_consulta))}</p></section>`;
 }
 function zbSprite(src, label, icon) {
   const safe=zbImageSrc(src);
@@ -71,11 +82,10 @@ function zbRender(r) {
   const mini=changes.length?`<details class="zb-panel zb-extra"><summary>Mini World Changes em ${esc(world)} <span>${changes.length}${yasir.mudancas_velhas?' · consulta anterior':''}</span></summary><div class="zb-tags">${changes.map(name=>`<span class="zb-tag">${esc(name)}</span>`).join('')}</div></details>`:'';
   const alerts=r.avisos_mundo||[];
   const notice=alerts.length?`<section class="zb-panel zb-notice"><h2>Avisos de ${esc(world)}</h2>${r.avisos_mundo_velhos?'<p class="zb-warning-text">Alguns avisos não foram atualizados.</p>':''}${alerts.map(x=>`<p><small>${esc(zbDate(x.data))}</small> ${esc(x.texto)}${Number.isInteger(x.id)?` <a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler anúncio ↗</a>`:''}</p>`).join('')}</section>`:'';
-  const announcements=`<details class="zb-panel zb-extra"><summary>Últimos anúncios oficiais</summary><p class="zb-muted">${r.anuncios_velhos?'Falha ao atualizar. ':''}Consulta: ${esc(zbStamp(r.anuncios_consulta))}</p>${(r.anuncios||[]).map(x=>`<p><small>${esc(zbDate(x.data))}</small> ${esc(x.titulo)}${Number.isInteger(x.id)?` <a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler ↗</a>`:''}</p>`).join('')||'<p class="zb-muted">Nenhum anúncio disponível.</p>'}</details>`;
   const online=server.name?`${server.players_online??'—'} jogadores · ${server.status==='online'?'online':server.status||'status desconhecido'}`:'Status indisponível';
   const save=new Date(r.server_save_ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const selectWorld=!r.mundo?`<div class="zb-panel zb-selection"><h2>Selecione o mundo de Tibia</h2><p>Yasir e Dream Court variam por mundo. Escolha abaixo ou pesquise no campo acima.</p><div class="zb-select-actions"><select id="zb-world-pick" aria-label="Selecionar mundo para Yasir e Dream Court"><option value="">Carregando mundos…</option></select><button class="zb-world-button" id="zb-config-world">Cadastrar personagem</button></div><small>Para usar o mundo automaticamente, cadastre e escolha seu personagem nas configurações desta instalação.</small></div>`:'';
-  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>${r.mundo?'Hoje em '+esc(world):'Resumo de hoje'}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div>${selectWorld}<div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta">${r.mundo?`<div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div>`:''}<div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}${zbCalendar(r.calendario)}${wbPanel(r)}${notice}${mini}${announcements}`;
+  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>${r.mundo?'Hoje em '+esc(world):'Resumo de hoje'}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div>${selectWorld}<div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta">${r.mundo?`<div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div>`:''}<div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}<div class="zb-feed-grid">${zbCalendar(r.calendario)}${zbAnnouncements(r)}</div>${wbPanel(r)}${notice}${mini}`;
   wbBind(r);
   $('zb-result').querySelectorAll('details[data-zb-key]').forEach(d=>d.addEventListener('toggle',()=>{ZB.open[d.dataset.zbKey]=d.open;}));
   const picker=$('zb-world-pick');
@@ -89,7 +99,7 @@ function zbRender(r) {
     else picker.innerHTML='<option value="">Digite o mundo no campo acima</option>';
     $('zb-config-world').onclick=()=>{ZB.follow=true;if(typeof irPara==='function')irPara('config');};
   }
-  $('zb-result').querySelectorAll('.zb-sprite img').forEach(img=>img.addEventListener('error',()=>{img.hidden=true;img.previousElementSibling.hidden=false;},{once:true}));
+  $('zb-result').querySelectorAll('.zb-sprite img, .zb-news-thumb img').forEach(img=>img.addEventListener('error',()=>{img.hidden=true;img.previousElementSibling.hidden=false;},{once:true}));
   $('zb-result').querySelectorAll('[data-zb-world]').forEach(btn=>btn.onclick=()=>{ZB.follow=false;ZB.world=btn.dataset.zbWorld;zbLoad();});
 }
 async function zbLoad(force=false) {
