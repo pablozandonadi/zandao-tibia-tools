@@ -6,9 +6,9 @@ import assistente_tibiano as assistente
 from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, utf16_length, truncate_utf16
 
 FORA_DO_ESCOPO = 'Posso ajudar só com o Tibia e as ferramentas do Tibia Tudo: timers, shared, bosses, stamina e market.'
-SEM_ACESSO = 'Para conversar com a IA, ative o acesso online em Configurações. Os comandos da aba Instruções funcionam sem isso.'
-IA_INDISPONIVEL = 'Não consegui falar com a IA agora. Os comandos da aba Instruções continuam funcionando.'
-NAO_ENTENDI = 'Não entendi. Tente um dos comandos da aba Instruções.'
+SEM_ACESSO = 'Para conversar com a IA, ative o acesso online em Configurações. Os comandos do canal Help funcionam sem isso.'
+IA_INDISPONIVEL = 'Não consegui falar com a IA agora. Os comandos do canal Help continuam funcionando.'
+NAO_ENTENDI = 'Não entendi. Tente um dos comandos do canal Help.'
 TEXTO_INVALIDO = 'Escreva uma mensagem de até 500 caracteres.'
 SEM_SALVAR = 'Não consegui salvar. Nenhuma alteração foi confirmada.'
 BOOSTED = 'Confirme no formulário que era o Archfoe boosted do dia e elegível; nenhum abate foi registrado.'

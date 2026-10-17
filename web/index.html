@@ -701,7 +701,6 @@
     <div class="nav-item" tabindex="0" data-pagina="taskitens" title="Task Itens Analyser"><span class="nav-icon" aria-hidden="true">📦</span><span class="txt"> Task Itens Analyser</span></div>
     <div class="nav-item" tabindex="0" data-pagina="criaturas" title="Planejar dano da hunt"><span class="nav-icon" aria-hidden="true">🐉</span><span class="txt"> Criaturas da hunt</span></div>
     <div class="nav-item" tabindex="0" data-pagina="hist" title="Histórico de hunts"><span class="nav-icon" aria-hidden="true">📜</span><span class="txt"> Histórico</span></div>
-    <div class="nav-item" tabindex="0" data-pagina="ferr" title="Ferramentas"><span class="nav-icon" aria-hidden="true">🧰</span><span class="txt"> Ferramentas</span></div>
     <div class="nav-item" tabindex="0" data-pagina="radio" title="Brasil Hits"><span class="nav-icon" aria-hidden="true">📻</span><span class="txt"> Rádio</span></div>
     <div class="nav-item" tabindex="0" data-pagina="mirror" title="Mirror — recortes do Tibia"><span class="nav-icon" aria-hidden="true">▣</span><span class="txt"> Mirror</span></div>
     <div class="nav-item" tabindex="0" data-pagina="audio" title="Timers de áudio"><span class="nav-icon" aria-hidden="true">🔔</span><span class="txt"> Timers</span></div>
@@ -911,35 +910,6 @@
       <div id="hi-lista" style="margin-top:16px"></div>
     </section>
 
-    <!-- ================= FERRAMENTAS ================= -->
-    <section class="page" id="page-ferr">
-      <h1 class="titulo">Ferramentas</h1>
-      <div class="grid-ferr">
-        <div class="card calmo">
-          <h2 class="sub">🤝 Shared XP</h2><p class="dica"><button class="btn btn-sm" type="button" onclick="irPara('voz');assistenteSelect('shared')">Abrir no Assistente Tibiano</button></p>
-          <label class="campo-label" for="f-levels">Levels da party (separados por vírgula)</label>
-          <input type="text" id="f-levels" placeholder="ex.: 483, 350, 420, 512">
-          <div id="f-shared-res" class="resultado-ferr">Digite um level para ver a faixa, ou os levels da party para saber se o shared funciona.</div>
-          <p class="dica" style="margin:10px 0 0">Regra do Tibia: o maior level pode ser no máximo 3/2 do menor. Além disso, todos precisam estar atacando ou curando e perto do líder.</p>
-        </div>
-
-        <div class="card calmo">
-          <h2 class="sub">📈 Quando eu upo?</h2>
-          <div class="campos">
-            <div><label class="campo-label" for="f-up-sel">Personagem</label><select id="f-up-sel"></select>
-              <input type="text" id="f-up-nome" placeholder="nome do personagem" style="display:none;margin-top:6px">
-              <div class="dica" id="f-up-info" style="margin-top:4px"></div></div>
-            <div><label class="campo-label" for="f-up-alvo">Level alvo</label><input type="text" class="num" id="f-up-alvo" placeholder="próximo"></div>
-            <div><label class="campo-label" for="f-up-xp">XP atual (janela Skills)</label><input type="text" class="num" id="f-up-xp" placeholder="opcional"></div>
-            <div><label class="campo-label" for="f-up-xph">XP/h</label><input type="text" class="num" id="f-up-xph" placeholder="média do histórico"></div>
-          </div>
-          <div class="acoes" style="margin-top:12px"><button class="btn btn-primary" id="f-up-calc">Calcular</button></div>
-          <div id="f-up-res" class="resultado-ferr" style="display:none"></div>
-          <p class="dica" style="margin:10px 0 0">A XP/h vem da média das suas hunts salvas desse personagem (com o Hunting Analyser colado). Sem a XP atual, o app usa o level de agora no tibia.com (início do level).</p>
-        </div>
-      </div>
-    </section>
-
     <!-- ================= PRINTS ================= -->
     <section class="page" id="page-prints">
       <h1 class="titulo">Organizar prints</h1>
@@ -994,15 +964,45 @@
         <button type="button" class="btn btn-sm" data-assistente-tab="overview">Chat</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="timers">Timers Gerais</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="shared">Shared XP</button>
+        <button type="button" class="btn btn-sm" data-assistente-tab="upo">Quando eu upo?</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="bosstiary">Bosstiary</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="bosses">Boss Cooldowns</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="stamina">Calculadora de Stamina</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="market">Market Tracker</button>
-        <button type="button" class="btn btn-sm" data-assistente-tab="instrucoes">Instruções</button>
       </nav>
       <p id="assistente-feedback" role="status" aria-live="polite"></p>
-      <div data-assistente-panel="overview"><p id="assistente-overview" class="dica"></p>
-      <div class="card calmo chat"><div class="chat-canais" role="tablist" aria-label="Canais do assistente"><button id="chat-canal-local" role="tab" type="button">Local Chat</button><button id="chat-canal-log" role="tab" type="button">Server Log</button><button id="chat-canal-ia" role="tab" type="button" aria-selected="true">Tudo IA</button></div><p id="chat-canal-ajuda" class="dica"></p><div id="chat-mensagens" role="log" aria-live="polite"></div><p id="chat-digitando" role="status" hidden>O assistente está digitando…</p><form id="chat-form" class="chat-form"><label for="chat-texto" class="sr-only">Mensagem</label><input id="chat-texto" maxlength="500" autocomplete="off" placeholder="Pergunte sobre Tibia ou dê um comando"><button class="btn btn-primary" type="submit">Enviar</button><button class="btn btn-sm" type="button" id="chat-limpar">Limpar</button></form></div>
+      <div data-assistente-panel="overview">
+      <div class="card calmo chat"><div class="chat-canais" role="tablist" aria-label="Canais do assistente"><button id="chat-canal-local" role="tab" type="button">Local Chat</button><button id="chat-canal-log" role="tab" type="button">Server Log</button><button id="chat-canal-help" role="tab" type="button">Help</button><button id="chat-canal-ia" role="tab" type="button" aria-selected="true">Tudo IA</button></div><p id="chat-canal-ajuda" class="dica"></p><div id="chat-mensagens" role="log" aria-live="polite"></div>
+      <section id="assistente-instrucoes" class="instrucoes" hidden>
+        <h2 class="sub">Instruções: o que digitar</h2>
+        <p class="dica">Digite no <b>Local Chat</b> ou no <b>Tudo IA</b>. Os comandos listados abaixo funcionam na hora e de graça. Outras perguntas sobre Tibia vão para a IA e precisam do acesso online, em Configurações. Ao perguntar à IA, as últimas mensagens do canal Tudo IA (inclusive comandos e respostas) são enviadas como contexto pelo servidor do Tibia Tudo para a OpenAI. A conversa não é gravada em arquivo no aplicativo; a retenção pelo provedor segue a política da OpenAI. Começar com “não” cancela: nada é executado. Nomes (boss, item, timer) e números podem mudar. Não precisa ser exato: vírgulas, “eu” ou “ok” no começo, “por favor” no fim e sinônimos (“acabei de matar”, “fiz o”, “bota um timer”, “acabei de logar”) também funcionam.</p>
+        <div class="instrucoes-grid">
+          <div class="card calmo"><h3>⏱️ Timers</h3><ul>
+            <li><q>timer de 5 minutos</q></li><li><q>alarme de 2 horas</q></li><li><q>inicia um timer chamado boost de 45 minutos</q></li><li><q>me avisa daqui a 10 minutos</q></li>
+            <li><q>quanto falta no timer do boost</q></li><li><q>adiciona 5 minutos ao timer do boost</q></li><li><q>quais timers estão rodando</q></li>
+            <li><q>cancela o último timer</q></li><li><q>cancela o timer de 2 minutos</q></li><li><q>repete o último timer</q></li></ul></div>
+          <div class="card calmo"><h3>👑 Bosses e Bosstiary</h3><ul>
+            <li><q>matei o Drume</q></li><li><q>matei o Drume há meia hora</q></li><li><q>matei o Oberon ontem às 22</q></li><li><q>acabei de fazer o Scarlett</q></li>
+            <li><q>atualiza meu Oberon para 87 kills</q></li><li><q>adiciona 3 kills no Drume</q></li><li><q>desfaz a última kill do Drume</q></li>
+            <li><q>corrige: matei o Drume ontem às 22</q></li><li><q>quantas kills tenho no Drume</q></li><li><q>quanto falta pro Drume</q></li>
+            <li><q>me avisa quando o Drume liberar</q></li><li><q>meus bosses</q></li><li><q>o cooldown do Black Knight é 2 horas</q></li></ul></div>
+          <div class="card calmo"><h3>⚡ Stamina</h3><ul>
+            <li><q>estou deslogando agora, minha stamina está em 38 horas</q></li><li><q>vou fazer logout, minha stamina está em 41 horas</q></li>
+            <li><q>desloguei há 20 minutos com 39 horas</q></li><li><q>estou logando agora</q></li><li><q>corrige minha stamina para 40 horas</q></li>
+            <li><q>qual é minha stamina</q></li><li><q>quando minha stamina estará cheia</q></li><li><q>quando a stamina fica verde</q></li><li><q>que horas minha stamina chega em 40</q></li>
+            <li><q>amanhã às 10, quanto terei de stamina</q></li><li><q>qual o último horário para deslogar e ficar com 42 horas amanhã às 18</q></li></ul></div>
+          <div class="card calmo"><h3>🤝 Shared XP</h3><ul>
+            <li><q>qual é meu shared</q></li><li><q>até que level divide experiência</q></li><li><q>shared do level 300</q></li><li><q>level 350 entra na minha shared</q></li></ul></div>
+          <div class="card calmo"><h3>💰 Market</h3><ul>
+            <li><q>TC tá 36.5k</q></li><li><q>registra Gold Token a 40k na compra</q></li><li><q>Gold Token a 40k tá caro</q></li><li><q>qual a mediana do TC nos últimos 7 dias</q></li>
+            <li><q>adiciona Silver Token na minha lista</q></li><li><q>corrige o último registro do TC para 38k</q></li><li><q>me avisa se o TC for registrado abaixo de 35k</q></li></ul></div>
+        </div>
+      </section>
+      <p id="chat-digitando" role="status" hidden>O assistente está digitando…</p><form id="chat-form" class="chat-form"><label for="chat-texto" class="sr-only">Mensagem</label><input id="chat-texto" maxlength="500" autocomplete="off" placeholder="Pergunte sobre Tibia ou dê um comando"><button class="btn btn-primary" type="submit">Enviar</button><button class="btn btn-sm" type="button" id="chat-limpar">Limpar</button></form></div>
+      </div>
+      <section data-assistente-panel="timers" hidden>
+        <h2 class="sub">Timers Gerais</h2><p class="dica">Globais por padrão. Ex.: “Inicia um timer chamado boost de 45 minutos”, “Adiciona 5 minutos ao timer do boost”.</p>
+        <p id="assistente-overview" class="dica"></p>
       <div class="card calmo">
         <form id="voz-form" class="voz-form">
           <label for="voz-valor">Duração<input id="voz-valor" type="number" value="30" min="1" max="180" step="1" required></label>
@@ -1015,6 +1015,7 @@
       <p class="dica" id="voz-vazio">Nenhum timer ativo. Crie um pelo chat ou pelo formulário.</p>
       <div id="voz-lista"></div>
       <p id="voz-avisos" role="status" aria-live="polite"></p>
+        <form class="card calmo" id="assistente-form-timers"></form><div id="assistente-result-timers" role="status"></div><div id="assistente-timers-list"></div>
       <div id="voz-pausado" hidden>
         <div class="card calmo">
           <div class="voz-intro"><p id="voz-status" role="status">Aguardando comando: Hey Tibia</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
@@ -1033,15 +1034,34 @@
           <p><b>Resposta:</b> <span id="voz-resposta">As respostas aparecerão aqui.</span></p>
         </details>
       </div>
-      </div>
-      <section data-assistente-panel="timers" hidden>
-        <h2 class="sub">Timers Gerais</h2><p class="dica">Globais por padrão. Ex.: “Inicia um timer chamado boost de 45 minutos”, “Adiciona 5 minutos ao timer do boost”.</p>
-        <form class="card calmo" id="assistente-form-timers"></form><div id="assistente-result-timers" role="status"></div><div id="assistente-timers-list"></div>
       </section>
       <section data-assistente-panel="shared" hidden>
-        <h2 class="sub">Shared XP</h2><p class="dica">Consultas hipotéticas não alteram o cadastro. Ex.: “Meu level é 438. Qual é a shared?”, “Level 350 entra na minha shared?”. Somente a condição de level é calculada.</p>
+        <h2 class="sub">Shared XP</h2>
+        <div class="card calmo">
+          <label class="campo-label" for="f-levels">Levels da party (separados por vírgula)</label>
+          <input type="text" id="f-levels" placeholder="ex.: 483, 350, 420, 512">
+          <div id="f-shared-res" class="resultado-ferr">Digite um level para ver a faixa, ou os levels da party para saber se o shared funciona.</div>
+          <p class="dica" style="margin:10px 0 0">Regra do Tibia: o maior level pode ser no máximo 3/2 do menor. Além disso, todos precisam estar atacando ou curando e perto do líder.</p>
+        </div>
+        <p class="dica">Consultas hipotéticas não alteram o cadastro. Ex.: “Meu level é 438. Qual é a shared?”, “Level 350 entra na minha shared?”. Somente a condição de level é calculada.</p>
         <form class="card calmo" id="assistente-form-shared"></form><div id="assistente-result-shared" role="status"></div>
         <form id="assistente-level-form" class="card calmo voz-form"><label for="assistente-level">Alterar level local<input id="assistente-level" type="number" min="1" max="100000" required></label><label for="assistente-level-confirm"><input id="assistente-level-confirm" type="checkbox"> Confirmo atualizar o cadastro do personagem mostrado acima</label><button class="btn btn-sm" type="submit">Confirmar level</button></form>
+      </section>
+      <section data-assistente-panel="upo" hidden>
+        <h2 class="sub">Quando eu upo?</h2>
+        <div class="card calmo">
+          <div class="campos">
+            <div><label class="campo-label" for="f-up-sel">Personagem</label><select id="f-up-sel"></select>
+              <input type="text" id="f-up-nome" placeholder="nome do personagem" style="display:none;margin-top:6px">
+              <div class="dica" id="f-up-info" style="margin-top:4px"></div></div>
+            <div><label class="campo-label" for="f-up-alvo">Level alvo</label><input type="text" class="num" id="f-up-alvo" placeholder="próximo"></div>
+            <div><label class="campo-label" for="f-up-xp">XP atual (janela Skills)</label><input type="text" class="num" id="f-up-xp" placeholder="opcional"></div>
+            <div><label class="campo-label" for="f-up-xph">XP/h</label><input type="text" class="num" id="f-up-xph" placeholder="média do histórico"></div>
+          </div>
+          <div class="acoes" style="margin-top:12px"><button class="btn btn-primary" id="f-up-calc">Calcular</button></div>
+          <div id="f-up-res" class="resultado-ferr" style="display:none"></div>
+          <p class="dica" style="margin:10px 0 0">A XP/h vem da média das suas hunts salvas desse personagem (com o Hunting Analyser colado). Sem a XP atual, o app usa o level de agora no tibia.com (início do level).</p>
+        </div>
       </section>
       <section data-assistente-panel="bosstiary" hidden>
         <h2 class="sub">Bosstiary</h2><p class="dica">Do personagem em uso. Cadastre uma vez o total que você já tem de cada boss; depois cada “Matei o Drume” (chat ou botão +1) soma aqui.</p>
@@ -1087,31 +1107,6 @@
       <section data-assistente-panel="market" hidden>
         <h2 class="sub">Market Tracker</h2><p class="dica">Preços informados por você, pelo formulário ou pelo chat; histórico privado por mundo, item e oferta. Sem atualização automática. Ex.: “TC tá 36.5k”, “Gold Token a 40k tá caro?” (somente consulta). GP, K e KK; separador de milhar ambíguo pede confirmação.</p>
         <label for="assistente-world">Mundo dos preços<input id="assistente-world" type="text" maxlength="120" placeholder="Mundo do personagem ativo"></label><form class="card calmo" id="assistente-form-market"></form><div id="assistente-result-market" role="status"></div>
-      </section>
-      <section data-assistente-panel="instrucoes" id="assistente-instrucoes" class="instrucoes" hidden>
-        <h2 class="sub">Instruções: o que digitar</h2>
-        <p class="dica">Digite no <b>Chat</b>. Os comandos listados abaixo funcionam na hora e de graça. Outras perguntas sobre Tibia vão para a IA e precisam do acesso online, em Configurações. Ao perguntar à IA, as últimas mensagens do canal Tudo IA (inclusive comandos e respostas) são enviadas como contexto pelo servidor do Tibia Tudo para a OpenAI. A conversa não é gravada em arquivo no aplicativo; a retenção pelo provedor segue a política da OpenAI. Começar com “não” cancela: nada é executado. Nomes (boss, item, timer) e números podem mudar. Não precisa ser exato: vírgulas, “eu” ou “ok” no começo, “por favor” no fim e sinônimos (“acabei de matar”, “fiz o”, “bota um timer”, “acabei de logar”) também funcionam.</p>
-        <div class="instrucoes-grid">
-          <div class="card calmo"><h3>⏱️ Timers</h3><ul>
-            <li><q>timer de 5 minutos</q></li><li><q>alarme de 2 horas</q></li><li><q>inicia um timer chamado boost de 45 minutos</q></li><li><q>me avisa daqui a 10 minutos</q></li>
-            <li><q>quanto falta no timer do boost</q></li><li><q>adiciona 5 minutos ao timer do boost</q></li><li><q>quais timers estão rodando</q></li>
-            <li><q>cancela o último timer</q></li><li><q>cancela o timer de 2 minutos</q></li><li><q>repete o último timer</q></li></ul></div>
-          <div class="card calmo"><h3>👑 Bosses e Bosstiary</h3><ul>
-            <li><q>matei o Drume</q></li><li><q>matei o Drume há meia hora</q></li><li><q>matei o Oberon ontem às 22</q></li><li><q>acabei de fazer o Scarlett</q></li>
-            <li><q>atualiza meu Oberon para 87 kills</q></li><li><q>adiciona 3 kills no Drume</q></li><li><q>desfaz a última kill do Drume</q></li>
-            <li><q>corrige: matei o Drume ontem às 22</q></li><li><q>quantas kills tenho no Drume</q></li><li><q>quanto falta pro Drume</q></li>
-            <li><q>me avisa quando o Drume liberar</q></li><li><q>meus bosses</q></li><li><q>o cooldown do Black Knight é 2 horas</q></li></ul></div>
-          <div class="card calmo"><h3>⚡ Stamina</h3><ul>
-            <li><q>estou deslogando agora, minha stamina está em 38 horas</q></li><li><q>vou fazer logout, minha stamina está em 41 horas</q></li>
-            <li><q>desloguei há 20 minutos com 39 horas</q></li><li><q>estou logando agora</q></li><li><q>corrige minha stamina para 40 horas</q></li>
-            <li><q>qual é minha stamina</q></li><li><q>quando minha stamina estará cheia</q></li><li><q>quando a stamina fica verde</q></li><li><q>que horas minha stamina chega em 40</q></li>
-            <li><q>amanhã às 10, quanto terei de stamina</q></li><li><q>qual o último horário para deslogar e ficar com 42 horas amanhã às 18</q></li></ul></div>
-          <div class="card calmo"><h3>🤝 Shared XP</h3><ul>
-            <li><q>qual é meu shared</q></li><li><q>até que level divide experiência</q></li><li><q>shared do level 300</q></li><li><q>level 350 entra na minha shared</q></li></ul></div>
-          <div class="card calmo"><h3>💰 Market</h3><ul>
-            <li><q>TC tá 36.5k</q></li><li><q>registra Gold Token a 40k na compra</q></li><li><q>Gold Token a 40k tá caro</q></li><li><q>qual a mediana do TC nos últimos 7 dias</q></li>
-            <li><q>adiciona Silver Token na minha lista</q></li><li><q>corrige o último registro do TC para 38k</q></li><li><q>me avisa se o TC for registrado abaixo de 35k</q></li></ul></div>
-        </div>
       </section>
     </section>
 
@@ -1181,7 +1176,7 @@
       <div class="grid-ferr">
         <details class="card calmo voz-diagnostico">
           <summary>Acesso online do chat</summary>
-          <p class="dica">Opcional. Configure o código individual recebido do responsável para o chat conversar com a IA. Os comandos da aba Instruções funcionam sem isso. O acesso salvo é preservado; não informe uma chave de API. Ao perguntar à IA, as últimas mensagens do canal Tudo IA (inclusive comandos e respostas) são enviadas como contexto pelo servidor do Tibia Tudo para a OpenAI. A conversa não é gravada em arquivo no aplicativo; a retenção pelo provedor segue a política da OpenAI.</p>
+          <p class="dica">Opcional. Configure o código individual recebido do responsável para o chat conversar com a IA. Os comandos do canal Help funcionam sem isso. O acesso salvo é preservado; não informe uma chave de API. Ao perguntar à IA, as últimas mensagens do canal Tudo IA (inclusive comandos e respostas) são enviadas como contexto pelo servidor do Tibia Tudo para a OpenAI. A conversa não é gravada em arquivo no aplicativo; a retenção pelo provedor segue a política da OpenAI.</p>
           <form id="voz-online-form" class="voz-form">
             <label for="voz-online-token">Código de acesso individual<input id="voz-online-token" type="password" maxlength="43" autocomplete="off" spellcheck="false" placeholder="Deixe vazio para manter o acesso salvo"></label>
             <label for="voz-online-enabled"><input id="voz-online-enabled" type="checkbox"> Ativar IA no chat</label>
@@ -1336,7 +1331,6 @@ function irPara(pagina) {
   if (pagina === 'guildstats') gsLoad();
   if (pagina === 'zandaobot') zbLoad();
   if (pagina === 'hist') carregarHistorico();
-  if (pagina === 'ferr') abrirFerramentas();
   if (pagina === 'config') abrirConfiguracoes();
 }
 document.querySelectorAll('.nav-item').forEach((n) => n.addEventListener('click', () => irPara(n.dataset.pagina)));
@@ -3286,7 +3280,7 @@ $('au-vol').addEventListener('input', () => {
 });
 $('au-parar').addEventListener('click', () => { pararTesteVivo(); api.audio_parar_todos(); toast('Contagens paradas.'); });
 
-// ================= hoje no Tibia (menu lateral + Ferramentas) =================
+// ================= hoje no Tibia (menu lateral) =================
 let DIA = null;
 const boostHtml = (rot, b) => b ? `<img src="${esc(b.imagem)}" alt=""><span class="txt"><small>${rot}</small><b>${esc(b.nome)}</b></span>` : '';
 function faltaTexto(ms) {
@@ -3328,9 +3322,8 @@ function contarSS() {
 setInterval(contarSS, 30000);
 $('dia-tibia').addEventListener('click', () => { tentativasDia = 0; carregarDia(true); toast('Atualizando boss e criatura do dia...'); });
 
-// ---------- ferramentas ----------
-async function abrirFerramentas() {
-  contarSS();
+// ---------- Assistente: "Quando eu upo?" e calculadora de Shared XP ----------
+async function abrirUpo() {
   const h = await api.hunt_historico('', '', '');
   const meus = MEUS.lista.map((p) => p.nome.toLowerCase());
   const doHist = h.personagens.filter((n) => !meus.includes(n.toLowerCase()));

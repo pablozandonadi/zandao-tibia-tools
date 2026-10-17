@@ -578,7 +578,7 @@ def parse(text, now=None):
     if m:return 'stamina.time_to',{'target_stamina_minutes':int(m[1])*60}
     if t=='quando recupero o bonus de stamina':return 'stamina.time_to',{'target_stamina_minutes':2340}
     if re.fullmatch(r'(?:qual e? ?(?:a )?minha e?stamina|quanto tenho de e?stamina|quanta e?stamina eu tenho)(?: agora)?',t):return 'stamina.get',{}
-    m=re.search(r'\bquando\b.*\be?stamina\b.*\b(cheia|completa|full|verde|bonus)\b',t)
+    m=re.search(r'\b(?:quando|que horas)\b.*\be?sta?mina\b.*\b(cheia|completa|full|verde|bonus)\b',t)
     if m:return 'stamina.time_to',{'target_stamina_minutes':2340 if m[1] in ('verde','bonus') else 2520}
     m=match(r'(amanha .+|hoje .+),? quanto terei de stamina')
     if m:return 'stamina.project',{'target_datetime':local_datetime(m[1],now)}
@@ -601,7 +601,8 @@ def parse(text, now=None):
     m=match(r'(?:registra |registrar )?(.+?) (?:ta |esta |a )(\d.*?)(?: (?:na |no )(compra|venda|negociado))?(?: no meu mundo)?')
     if m:
         if re.search(r'\d$',m[1].strip()) or re.match(r'(?:qual|quais|quanto|quantos|quantas|como|onde|quando|por que|por quanto|devo|compensa|vale|o preco)\b',m[1].strip(),re.I):return None  # pergunta: a IA online responde
-        item,price=m[1],m[2];offer={'compra':'buy','venda':'sell','negociado':'traded'}.get((m[3] or '').lower(),'sell')
+        # "a tc aqui ta 40k": artigo no começo e "aqui/agora/hoje/no meu mundo" no fim não fazem parte do item
+        item=re.sub(r'(?:\s+(?:aqui|agora|no meu mundo|hoje))+$','',re.sub(r'^(?:a|o|as|os|um|uma)\s+','',m[1].strip()),flags=re.I);price=m[2];offer={'compra':'buy','venda':'sell','negociado':'traded'}.get((m[3] or '').lower(),'sell')
         query=re.search(r'\s+(?:ta |esta )?(?:barato|caro).*$',price,re.I)
         if query:price=price[:query.start()].strip()
         if not re.fullmatch(r'\d[\d.,]*\s*(?:kk|k|gp|gold)?',price,re.I):return None  # "40 horas" não é preço: deixa a IA online tentar

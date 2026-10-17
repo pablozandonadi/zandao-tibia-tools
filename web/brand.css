@@ -34,9 +34,6 @@
 .nav-item[data-pagina="hist"]:is(:hover,:focus-visible) .nav-icon { animation:pergaminho 1s ease-in-out infinite; }
 @keyframes pergaminho {0%,100%{transform:scaleY(1) rotate(0)}50%{transform:scaleY(1.2) rotate(-6deg)}}
 
-.nav-item[data-pagina="ferr"]:is(:hover,:focus-visible) .nav-icon { animation:ferramentas 1s ease-in-out infinite; }
-@keyframes ferramentas {0%,100%{transform:rotate(0)}25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}
-
 .nav-item[data-pagina="audio"]:is(:hover,:focus-visible) .nav-icon { animation:sino 1s ease-in-out infinite; }
 @keyframes sino {0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-22deg)}40%,80%{transform:rotate(22deg)}}
 

@@ -419,6 +419,16 @@ class FinishUpdateTests(StoreCase):
         self.assertEqual(2340,a.parse('quando a stamina fica verde',NOW)[1]['target_stamina_minutes'])
         client,_=self.online('Quando minha estamina estará cheia?')
         client.interpret.assert_not_called()
+    def test_full_stamina_question_tolerates_typos(self):
+        for text in ('a que horas minha stmina vai star full?','que horas minha estamina fica cheia','quando minha stamina estiver completa','Quando minha stmina vai ficar full'):
+            with self.subTest(text=text):self.assertEqual(('stamina.time_to',{'target_stamina_minutes':2520}),a.parse(text,NOW))
+    def test_market_item_drops_article_and_trailing_fillers(self):
+        for text in ('a tc aqui ta 40k','o tc agora ta 40k','TC hoje tá 40k','a tc aqui no meu mundo ta 40k','registra a tc a 40k'):
+            with self.subTest(text=text):
+                intent,args=a.parse(text,NOW)
+                self.assertEqual(('market.price.add','tc','40k'),(intent,args['item'].lower(),args['price']))
+                self.assertEqual('Tibia Coin',self.call(intent,args)['observation']['item'])
+        self.assertEqual('Gold Token',a.parse('um Gold Token ta 40k',NOW)[1]['item'])
     def test_online_ai_unsure_without_local_match_asks(self):
         intent={'action':'unknown','parameters':{},'needs_clarification':True,'clarification':'Qual boss?'}
         _,service=self.online('marca aquele boss la',intent)

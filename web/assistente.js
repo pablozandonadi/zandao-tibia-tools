@@ -164,7 +164,7 @@ async function renderStamina(){
  el('stamina-barra').setAttribute('aria-label',minutes===null?'Stamina sem referência':`Stamina ${hhmm(minutes)} de 42:00`);
  el('stamina-detalhe').textContent=text;
 }
-function select(module){active=module;if(module==='bosstiary'||module==='bosses'){bosstiaryKey='';}for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));refresh();}
+function select(module){active=module;if(module==='bosstiary'||module==='bosses'){bosstiaryKey='';}if(module==='upo'&&window.abrirUpo)window.abrirUpo();for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));refresh();}
 function boot(){
  if(booted||!el('assistente-context')||!window.pywebview||!window.pywebview.api)return;booted=true;
  for(const b of document.querySelectorAll('[data-assistente-tab]'))b.addEventListener('click',()=>select(b.dataset.assistenteTab));
