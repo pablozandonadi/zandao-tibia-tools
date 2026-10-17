@@ -113,7 +113,7 @@ class RemoteClientTests(unittest.TestCase):
         rid='b92e3ae7-3591-4cd9-9188-1e5422fa1121'
         ok={'role':'user','text':'oi'}
         seven=[{'role':'user' if (7-i)%2 else 'assistant','text':'oi'} for i in range(7)]
-        cases=[None,'oi',{},[],seven,[{**ok,'text':''}],[{**ok,'text':'  '}],[{**ok,'text':'x'*501}],[{**ok,'text':7}],[{**ok,'role':'system'}],[{**ok,'role':'assistant'}],
+        cases=[None,'oi',{},[],seven,[{**ok,'text':''}],[{**ok,'text':'  '}],[{**ok,'text':'x'*501}],[{**ok,'text':'😀'*251}],[{**ok,'text':7}],[{**ok,'role':'system'}],[{**ok,'role':'assistant'}],
                [{**ok,'extra':1}],[{'role':'user'}],[None],['oi'],[ok,{'role':'assistant','text':'olá'}]]
         for messages in cases:
             with self.subTest(messages=messages):

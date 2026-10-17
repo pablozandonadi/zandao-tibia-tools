@@ -183,3 +183,10 @@ Resposta `{request_id,kind,text,intent}`:
 - `out_of_scope`: `text` e `intent` null.
 
 Saída do modelo fora desse contrato, ou `status:"incomplete"`, recebe 502. O pior caso da resposta pública (600 + intent) fica abaixo de 4 KiB, dentro dos 8 KiB lidos pelo cliente. O cliente (`RemoteAIClient.chat`) revalida o corpo e a resposta com o mesmo contrato. Esta rota ainda não foi implantada nem validada contra a OpenAI real.
+
+
+### Parte C: contexto e tamanho real
+
+O limite de mensagem é contado em unidades UTF-16 (500, inclusive emojis), igual ao Worker e ao maxlength do campo; respostas no histórico são truncadas sem dividir pares de surrogate. Só a última fala pode autorizar uma ação; o histórico é contexto e nunca autoriza repetir uma ação antiga. O guard temporal permanece conservador sobre todas as falas originais.
+
+No `/chat`, o JSON completo enviado ao provedor é medido depois de escapar o texto. Quando passa de 16000 bytes, o Worker remove as mensagens mais antigas do input até caber, preservando a última fala. Isso ocorre antes da reserva. Hash e replay continuam sobre a requisição original; quotas, modelo e reservas não foram alterados. Se nem a última fala couber, mantém a falha 503 sem reserva. A conversa não é gravada em arquivo pelo aplicativo e o pedido usa store:false; isso não substitui a política de retenção da OpenAI.

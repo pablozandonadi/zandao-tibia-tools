@@ -9,7 +9,7 @@ class Element {
   remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
   querySelector(tag) { return this.children.find(child => child.tagName === tag); }
 }
-const ids = ['page-voz', 'voz-status', 'voz-esfera', 'voz-ouvi', 'voz-entendi', 'voz-resposta', 'voz-microfone', 'voz-lista', 'voz-vazio', 'voz-quantidade', 'voz-feedback', 'voz-form', 'voz-valor', 'voz-unidade', 'voz-criar', 'voz-online-form', 'voz-online-token', 'voz-online-enabled', 'voz-online-status', 'voz-ajuda', 'voz-ajuda-texto', 'voz-ajuda-area'];
+const ids = ['page-voz', 'voz-status', 'voz-esfera', 'voz-ouvi', 'voz-entendi', 'voz-resposta', 'voz-avisos', 'voz-microfone', 'voz-lista', 'voz-vazio', 'voz-quantidade', 'voz-feedback', 'voz-form', 'voz-valor', 'voz-unidade', 'voz-criar', 'voz-online-form', 'voz-online-token', 'voz-online-enabled', 'voz-online-status', 'voz-ajuda', 'voz-ajuda-texto', 'voz-ajuda-area'];
 const elements = Object.fromEntries(ids.map(id => [id, new Element()]));
 global.document = {getElementById: id => elements[id], createElement: tag => new Element(tag)};
 const intervals = [];
@@ -37,6 +37,8 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
   assert.equal(snapshots, 1, 'O boot lê o estado uma única vez (sem iniciar a voz), para Configurações já nascer certa');
   assert.equal(elements['voz-online-enabled'].checked, true, 'Acesso online salvo e ligado aparece em Configurações sem abrir o Assistente');
   assert.equal(elements['voz-online-status'].textContent, 'IA do chat ativada.');
+  ui.render({...state(),avisos:[{id:'timer-alert',texto:'Timer terminou.'}]});
+  assert.equal(elements['voz-avisos'].textContent,'Timer terminou.');
   assert.equal(elements['voz-ouvi'].textContent, '<img src=x onerror=alert(1)>');
   assert.equal(elements['voz-entendi'].textContent, '—');
   ui.render({...state(), entendi:'Criar timer · 30 s'});

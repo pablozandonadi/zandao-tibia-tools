@@ -22,16 +22,18 @@ from voice.spike_assistente import (GREETING, UNKNOWN_REPLY, PiperSpeech, comman
 
 
 class Servico:
-    def __init__(self, pasta=None, store=None):
+    def __init__(self, pasta=None, store=None, silencioso=False):
         self.pasta = Path(pasta or data_dir())
         self._lock = threading.RLock()
         self.store = store
+        self._silencioso = silencioso
+        self._avisos = []
         self._command_context = None
         self._domain_request_id = None
         self._timers = []
         self._ids = {}
-        self._estado = 'preparando'
-        self._detalhe = 'Preparando o assistente local…'
+        self._estado = 'texto' if silencioso else 'preparando'
+        self._detalhe = 'Assistente de texto pronto.' if silencioso else 'Preparando o assistente local…'
         self._ouvi = ''
         self._resposta = ''
         self._entendi = ''
@@ -55,9 +57,10 @@ class Servico:
         self._online_enabled, token = load_settings(self.pasta)
         self._online_client = RemoteAIClient(token) if token else None
         self._watcher = threading.Thread(target=self._watch, daemon=True, name='voz-timers')
-        self._speaker = threading.Thread(target=self._say_loop, daemon=True, name='voz-falas')
+        self._speaker = None if silencioso else threading.Thread(target=self._say_loop, daemon=True, name='voz-falas')
         self._watcher.start()
-        self._speaker.start()
+        if self._speaker:
+            self._speaker.start()
 
     def _status(self, estado, detalhe):
         with self._lock:
@@ -82,6 +85,7 @@ class Servico:
                 context = self.store.context()
                 timers = [{'id': t['id'], 'label': t['label'], 'duracao': t['duration_seconds'], 'restante': t['remaining_seconds']} for t in self.store.execute('timer.list', {}, context)['timers'] if t['status']=='active' and t['remaining_seconds']>0]
             return {'estado': 'falando' if self._speaking.is_set() and self._estado != 'pausado' else self._estado, 'detalhe': self._detalhe,
+                    'avisos': list(self._avisos),
                     'ouvi': self._ouvi, 'entendi': self._entendi, 'resposta': self._resposta, 'timers': timers,
                     'direto': self._direct_mode,
                     'microfone': bool(self._mic and self._mic.is_alive() and not self._mic_stop.is_set()),
@@ -92,6 +96,11 @@ class Servico:
         with self._lock:
             self._resposta = text
         done = threading.Event()
+        if self._silencioso:
+            with self._lock:
+                self._avisos = [*self._avisos, {'id':uuid.uuid4().hex, 'texto':text}][-20:]
+            done.set()
+            return done
         self._falas.put((text, done))
         if wait:
             while not done.wait(.1):
@@ -192,6 +201,7 @@ class Servico:
         return 'Não entendi. Tente: timer de dois minutos.' if self._direct_mode and reply == UNKNOWN_REPLY else reply
 
     def _wake_ding(self):
+        if self._silencioso:return
         self._audio_reset.set()
         self._speaking.set()
         try:
@@ -406,6 +416,7 @@ class Servico:
                 self._audio_reset.set()
 
     def escutar(self):
+        if self._silencioso:return {'erro':'A voz está pausada nesta versão. Use o chat.'}
         with self._lock:
             if not self._ready.is_set() or self._mic_stop.is_set():
                 return {'erro': 'O microfone ainda está preparando. Aguarde e tente novamente.'}
@@ -451,6 +462,7 @@ class Servico:
         return self.estado()
 
     def iniciar(self):
+        if self._silencioso:return {'erro':'A voz está pausada nesta versão. Use o chat.'}
         with self._lock:
             if self._stop.is_set() or (self._mic and self._mic.is_alive()):
                 return self.estado()

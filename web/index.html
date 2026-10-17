@@ -705,7 +705,7 @@
     <div class="nav-item" tabindex="0" data-pagina="radio" title="Brasil Hits"><span class="nav-icon" aria-hidden="true">📻</span><span class="txt"> Rádio</span></div>
     <div class="nav-item" tabindex="0" data-pagina="mirror" title="Mirror — recortes do Tibia"><span class="nav-icon" aria-hidden="true">▣</span><span class="txt"> Mirror</span></div>
     <div class="nav-item" tabindex="0" data-pagina="audio" title="Timers de áudio"><span class="nav-icon" aria-hidden="true">🔔</span><span class="txt"> Timers</span></div>
-    <div class="nav-item" tabindex="0" data-pagina="voz" title="Assistente Tibiano"><span class="nav-icon" aria-hidden="true">🎙️</span><span class="txt"> Assistente Tibiano</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="voz" title="Assistente Tibiano"><span class="nav-icon" aria-hidden="true">💬</span><span class="txt"> Assistente Tibiano</span></div>
     <div class="nav-item" tabindex="0" data-pagina="prints" title="Prints"><span class="nav-icon" aria-hidden="true">📸</span><span class="txt"> Prints</span></div>
     <div class="nav-item" id="gs-menu" tabindex="0" data-pagina="guildstats" title="Guild Stats"><span class="nav-icon" aria-hidden="true">📈</span><span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
     <div class="nav-item" tabindex="0" data-pagina="rede" title="Networking — conexões e estabilidade"><span class="nav-icon" aria-hidden="true">📶</span><span class="txt"> Networking</span></div>
@@ -1002,7 +1002,7 @@
       </nav>
       <p id="assistente-feedback" role="status" aria-live="polite"></p>
       <div data-assistente-panel="overview"><p id="assistente-overview" class="dica"></p>
-      <div class="card calmo chat"><div id="chat-mensagens" role="log" aria-live="polite"></div><form id="chat-form" class="chat-form"><label for="chat-texto" class="sr-only">Mensagem</label><input id="chat-texto" maxlength="500" autocomplete="off" placeholder="Pergunte sobre Tibia ou dê um comando"><button class="btn btn-primary" type="submit">Enviar</button><button class="btn btn-sm" type="button" id="chat-limpar">Limpar</button></form></div>
+      <div class="card calmo chat"><div class="chat-canais" role="tablist" aria-label="Canais do assistente"><button id="chat-canal-local" role="tab" type="button">Local Chat</button><button id="chat-canal-log" role="tab" type="button">Server Log</button><button id="chat-canal-ia" role="tab" type="button" aria-selected="true">Tudo IA</button></div><p id="chat-canal-ajuda" class="dica"></p><div id="chat-mensagens" role="log" aria-live="polite"></div><p id="chat-digitando" role="status" hidden>O assistente está digitando…</p><form id="chat-form" class="chat-form"><label for="chat-texto" class="sr-only">Mensagem</label><input id="chat-texto" maxlength="500" autocomplete="off" placeholder="Pergunte sobre Tibia ou dê um comando"><button class="btn btn-primary" type="submit">Enviar</button><button class="btn btn-sm" type="button" id="chat-limpar">Limpar</button></form></div>
       <div class="card calmo">
         <form id="voz-form" class="voz-form">
           <label for="voz-valor">Duração<input id="voz-valor" type="number" value="30" min="1" max="180" step="1" required></label>
@@ -1014,6 +1014,7 @@
       <h2 class="sub" id="voz-quantidade">0 timers ativos</h2>
       <p class="dica" id="voz-vazio">Nenhum timer ativo. Crie um pelo chat ou pelo formulário.</p>
       <div id="voz-lista"></div>
+      <p id="voz-avisos" role="status" aria-live="polite"></p>
       <div id="voz-pausado" hidden>
         <div class="card calmo">
           <div class="voz-intro"><p id="voz-status" role="status">Aguardando comando: Hey Tibia</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
@@ -1043,7 +1044,7 @@
         <form id="assistente-level-form" class="card calmo voz-form"><label for="assistente-level">Alterar level local<input id="assistente-level" type="number" min="1" max="100000" required></label><label for="assistente-level-confirm"><input id="assistente-level-confirm" type="checkbox"> Confirmo atualizar o cadastro do personagem mostrado acima</label><button class="btn btn-sm" type="submit">Confirmar level</button></form>
       </section>
       <section data-assistente-panel="bosstiary" hidden>
-        <h2 class="sub">Bosstiary</h2><p class="dica">Do personagem em uso. Cadastre uma vez o total que você já tem de cada boss; depois cada “Matei o Drume” (voz ou botão +1) soma aqui.</p>
+        <h2 class="sub">Bosstiary</h2><p class="dica">Do personagem em uso. Cadastre uma vez o total que você já tem de cada boss; depois cada “Matei o Drume” (chat ou botão +1) soma aqui.</p>
         <form id="bosstiary-form" class="card calmo voz-form">
           <label for="bosstiary-boss">Boss<input id="bosstiary-boss" list="bosstiary-nomes" maxlength="120" autocomplete="off" placeholder="Digite o nome" required></label>
           <datalist id="bosstiary-nomes"></datalist>
@@ -1062,7 +1063,7 @@
         <div id="bosstiary-lista" class="bosstiary-grid"></div>
       </section>
       <section data-assistente-panel="bosses" hidden>
-        <h2 class="sub">Boss Cooldowns</h2><p class="dica">Todos os bosses. Em cooldown (vermelho) aparecem primeiro; depois os disponíveis e os sem cooldown informado. Cooldowns da TibiaWiki; quando faltar, informe aqui ou por voz: “o cooldown do Drume é 20 horas”.</p>
+        <h2 class="sub">Boss Cooldowns</h2><p class="dica">Todos os bosses. Em cooldown (vermelho) aparecem primeiro; depois os disponíveis e os sem cooldown informado. Cooldowns da TibiaWiki; quando faltar, informe aqui ou pelo chat: “o cooldown do Drume é 20 horas”.</p>
         <input id="cooldowns-busca" type="search" placeholder="Buscar boss" aria-label="Buscar boss nos cooldowns">
         <ul id="cooldowns-lista" class="cooldowns-lista" aria-live="polite"></ul>
         <details class="card calmo"><summary>Mais ações (corrigir horário, desfazer abate, alerta)</summary>
@@ -1084,12 +1085,12 @@
         <form id="assistente-form-stamina"></form></details><div id="assistente-result-stamina" role="status"></div>
       </section>
       <section data-assistente-panel="market" hidden>
-        <h2 class="sub">Market Tracker</h2><p class="dica">Preços informados por você, pelo formulário ou por voz; histórico privado por mundo, item e oferta. Sem atualização automática. Ex.: “TC tá 36.5k”, “Gold Token a 40k tá caro?” (somente consulta). GP, K e KK; separador de milhar ambíguo pede confirmação.</p>
+        <h2 class="sub">Market Tracker</h2><p class="dica">Preços informados por você, pelo formulário ou pelo chat; histórico privado por mundo, item e oferta. Sem atualização automática. Ex.: “TC tá 36.5k”, “Gold Token a 40k tá caro?” (somente consulta). GP, K e KK; separador de milhar ambíguo pede confirmação.</p>
         <label for="assistente-world">Mundo dos preços<input id="assistente-world" type="text" maxlength="120" placeholder="Mundo do personagem ativo"></label><form class="card calmo" id="assistente-form-market"></form><div id="assistente-result-market" role="status"></div>
       </section>
       <section data-assistente-panel="instrucoes" id="assistente-instrucoes" class="instrucoes" hidden>
         <h2 class="sub">Instruções: o que digitar</h2>
-        <p class="dica">Digite no <b>Chat</b>. Os comandos listados abaixo funcionam na hora e de graça. Outras perguntas sobre Tibia vão para a IA e precisam do acesso online, em Configurações. Começar com “não” cancela: nada é executado. Nomes (boss, item, timer) e números podem mudar. Não precisa ser exato: vírgulas, “eu” ou “ok” no começo, “por favor” no fim e sinônimos (“acabei de matar”, “fiz o”, “bota um timer”, “acabei de logar”) também funcionam.</p>
+        <p class="dica">Digite no <b>Chat</b>. Os comandos listados abaixo funcionam na hora e de graça. Outras perguntas sobre Tibia vão para a IA e precisam do acesso online, em Configurações. Ao perguntar à IA, as últimas mensagens do canal Tudo IA (inclusive comandos e respostas) são enviadas como contexto pelo servidor do Tibia Tudo para a OpenAI. A conversa não é gravada em arquivo no aplicativo; a retenção pelo provedor segue a política da OpenAI. Começar com “não” cancela: nada é executado. Nomes (boss, item, timer) e números podem mudar. Não precisa ser exato: vírgulas, “eu” ou “ok” no começo, “por favor” no fim e sinônimos (“acabei de matar”, “fiz o”, “bota um timer”, “acabei de logar”) também funcionam.</p>
         <div class="instrucoes-grid">
           <div class="card calmo"><h3>⏱️ Timers</h3><ul>
             <li><q>timer de 5 minutos</q></li><li><q>alarme de 2 horas</q></li><li><q>inicia um timer chamado boost de 45 minutos</q></li><li><q>me avisa daqui a 10 minutos</q></li>
@@ -1180,7 +1181,7 @@
       <div class="grid-ferr">
         <details class="card calmo voz-diagnostico">
           <summary>Acesso online do chat</summary>
-          <p class="dica">Opcional. Configure o código individual recebido do responsável para o chat conversar com a IA. Os comandos da aba Instruções funcionam sem isso. O acesso salvo é preservado; não informe uma chave de API.</p>
+          <p class="dica">Opcional. Configure o código individual recebido do responsável para o chat conversar com a IA. Os comandos da aba Instruções funcionam sem isso. O acesso salvo é preservado; não informe uma chave de API. Ao perguntar à IA, as últimas mensagens do canal Tudo IA (inclusive comandos e respostas) são enviadas como contexto pelo servidor do Tibia Tudo para a OpenAI. A conversa não é gravada em arquivo no aplicativo; a retenção pelo provedor segue a política da OpenAI.</p>
           <form id="voz-online-form" class="voz-form">
             <label for="voz-online-token">Código de acesso individual<input id="voz-online-token" type="password" maxlength="43" autocomplete="off" spellcheck="false" placeholder="Deixe vazio para manter o acesso salvo"></label>
             <label for="voz-online-enabled"><input id="voz-online-enabled" type="checkbox"> Ativar IA no chat</label>

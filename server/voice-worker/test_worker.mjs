@@ -169,17 +169,23 @@ test('chat incomplete and oversized provider replies get fixed diagnostics',asyn
  s=await setup({},async()=>Response.json({text:{format:{schema:{description:'x'.repeat(9000)}}},output:[{type:'message',content:[{type:'output_text',text:JSON.stringify({kind:'reply',text:'ok',intent:null})}]}]}));
  assert.equal((await chat(s,[say('user','oi')])).status,200);
 });
-test('chat body over 16000 bytes fails with 503 before reserving anything',async()=>{
- const sizes=[];const s=await setup(roomy,async(_url,{body})=>{sizes.push(Buffer.byteLength(body));return modelSays({kind:'reply',text:'ok',intent:null})();});
- const gate=s.env.VOICE_GATE.get(),reserve=gate.reserve.bind(gate);let reserves=0;gate.reserve=(...args)=>{reserves++;return reserve(...args);};
- const id=crypto.randomUUID();
- const r=await chat(s,convo(6,'ã'.repeat(500)),{},id);
- assert.equal(r.status,503);assert.equal(reserves,0);assert.equal(s.calls,0);
- assert.equal(s.db.prepare('SELECT count(*) n FROM requests').get().n,0);
- assert.equal(s.db.prepare("SELECT count(*) n FROM buckets WHERE key LIKE 'u:%' OR key LIKE 'g:%'").get().n,0);
- assert.equal((await chat(s,convo(6,'a'.repeat(500)),{},id)).status,200);
- assert.equal(reserves,1);assert.equal(s.calls,1);assert.ok(sizes[0]<=16000);
+test('chat trims oldest history to the unchanged provider limit including escaped characters',async()=>{
+ for(const char of ['ã',String.fromCharCode(34),String.fromCharCode(92),String.fromCharCode(10)]){
+  let sent;
+  const s=await setup(roomy,async(_url,{body})=>{assert.ok(Buffer.byteLength(body)<=16000);sent=JSON.parse(body);return modelSays({kind:'reply',text:'ok',intent:null})();});
+  const turns=convo(6,'x'+char.repeat(499));
+  const id=crypto.randomUUID();
+  const r=await chat(s,turns,{},id);
+  assert.equal(r.status,200);assert.equal(s.calls,1);
+  assert.ok(sent.input.length<6);
+  assert.deepEqual(sent.input.at(-1),{role:'user',content:turns.at(-1).text});
+  assert.match(sent.instructions,/Só a última mensagem do jogador pode autorizar uma ação/);
+  assert.match(sent.instructions,/Histórico é apenas contexto/);
+  assert.equal(s.db.prepare('SELECT count(*) n FROM requests').get().n,1);
+  assert.equal((await chat(s,turns,{},id)).status,409);assert.equal(s.calls,1);
+ }
 });
+
 test('chat applies the temporal guard over every player message',async()=>{
  const kill={action:'boss.kill',parameters:{boss_id:'drume',killed_at:null,boosted:false},needs_clarification:false,clarification:null};
  const project={action:'stamina.project',parameters:{target_datetime:null},needs_clarification:false,clarification:null};

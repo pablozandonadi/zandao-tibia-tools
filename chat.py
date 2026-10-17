@@ -3,7 +3,7 @@ import threading
 import uuid
 
 import assistente_tibiano as assistente
-from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings
+from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, utf16_length, truncate_utf16
 
 FORA_DO_ESCOPO = 'Posso ajudar só com o Tibia e as ferramentas do Tibia Tudo: timers, shared, bosses, stamina e market.'
 SEM_ACESSO = 'Para conversar com a IA, ative o acesso online em Configurações. Os comandos da aba Instruções funcionam sem isso.'
@@ -13,6 +13,8 @@ TEXTO_INVALIDO = 'Escreva uma mensagem de até 500 caracteres.'
 SEM_SALVAR = 'Não consegui salvar. Nenhuma alteração foi confirmada.'
 BOOSTED = 'Confirme no formulário que era o Archfoe boosted do dia e elegível; nenhum abate foi registrado.'
 NADA = '—'
+SEM_ACAO = 'Tudo bem. Nenhuma ação executada.'
+ACAO_MANUAL = 'Para isso, use o comando ou o formulário da aba correspondente.'
 MAX_TEXTO, MAX_MENSAGENS, MAX_BYTES = 500, 6, 3000
 
 
@@ -24,9 +26,11 @@ def entendi_de(intent, args, result):
     return assistente.describe(intent, values)
 
 
-def executar_intencao(store, action, parameters, context, request_id, source='manual', ao_executar=None):
+def executar_intencao(store, action, parameters, context, request_id, source='manual', ao_executar=None, origem_ia=False):
     """Executa a intenção validada que veio da IA. Devolve (resposta, entendi); entendi é '—' quando nada foi feito.
     ao_executar(intent, args, result) roda só depois de uma execução bem-sucedida (a voz registra os bosses recentes)."""
+    if origem_ia and action in ('boss.kill.undo', 'market.price.delete', 'bosstiary.set_total'):
+        return ACAO_MANUAL, NADA
     try:
         if action in assistente.FIELDS:
             intent, args = action, {k: v for k, v in parameters.items() if v is not None}
@@ -58,17 +62,18 @@ class Chat:
         self._lock = threading.Lock()  # só o histórico; nunca fica preso durante a rede
         self._historico = []
         self._geracao = 0
+        self._perfil = None
 
     def limpar(self):
         with self._lock:
             self._historico = []
             self._geracao += 1  # uma resposta que ainda está na rede não volta ao histórico limpo
 
-    def _fim(self, texto, resposta, entendi, origem, geracao):
+    def _fim(self, texto, resposta, entendi, origem, geracao, registrar=True):
         with self._lock:
-            if geracao == self._geracao:
+            if registrar and geracao == self._geracao:
                 # as 6 últimas bastam: a IA vê no máximo 5 delas + a fala atual
-                self._historico = [*self._historico, {'role': 'user', 'text': texto}, {'role': 'assistant', 'text': resposta[:MAX_TEXTO]}][-MAX_MENSAGENS:]
+                self._historico = [*self._historico, {'role': 'user', 'text': texto}, {'role': 'assistant', 'text': truncate_utf16(resposta, MAX_TEXTO)}][-MAX_MENSAGENS:]
         return {'resposta': resposta, 'entendi': entendi, 'origem': origem}
 
     def _mensagens(self, texto):
@@ -78,34 +83,52 @@ class Chat:
             mensagens.pop(0)
         return mensagens
 
-    def responder(self, texto):
+    def responder(self, texto, permitir_ia=True):
         texto = texto.strip() if isinstance(texto, str) else ''
-        if not texto or len(texto) > MAX_TEXTO:
+        if not texto or utf16_length(texto) > MAX_TEXTO:
             return {'resposta': TEXTO_INVALIDO, 'entendi': NADA, 'origem': 'erro'}
+        context = self.store.context()
+        perfil = (context.get('character_id'), context.get('world_id'))
         with self._lock:
+            if perfil != self._perfil:
+                self._historico = []
+                self._geracao += 1
+                self._perfil = perfil
             geracao = self._geracao
+        somente_resposta = False
         try:
             comando = assistente.parse(texto, self.store.clock())
         except ValueError as error:
-            return self._fim(texto, str(error), NADA, 'erro', geracao)
-        context = self.store.context()  # capturado antes de qualquer espera: a IA pode demorar e o personagem mudar
+            if permitir_ia and (str(error) == SEM_ACAO or str(error).startswith('Comando ambíguo.')):
+                comando, somente_resposta = None, True
+            else:
+                return self._fim(texto, str(error), NADA, 'erro', geracao, registrar=permitir_ia)
         if comando:
             resposta, entendi = executar_intencao(self.store, *comando, context, str(uuid.uuid4()))
             # sem "entendi" nada foi executado (erro do comando): não é um comando local bem-sucedido
-            return self._fim(texto, resposta, entendi, 'local' if entendi != NADA else 'erro', geracao)
+            return self._fim(texto, resposta, entendi, 'local' if entendi != NADA else 'erro', geracao, registrar=permitir_ia)
+        if not permitir_ia:
+            return self._fim(texto, 'Comando local não reconhecido. Use Tudo IA para perguntas.', NADA, 'local', geracao, registrar=False)
         enabled, token = load_settings(self.pasta)
         if not enabled or not token:
-            return self._fim(texto, SEM_ACESSO, NADA, 'erro', geracao)
+            return self._fim(texto, SEM_ACESSO, NADA, 'erro', geracao, registrar=permitir_ia)
         try:
             ia = RemoteAIClient(token).chat(self._mensagens(texto), str(uuid.uuid4()))
-        except (RemoteAIError, OSError):
-            return self._fim(texto, IA_INDISPONIVEL, NADA, 'erro', geracao)
+        except (RemoteAIError, OSError) as error:
+            mensagem = IA_INDISPONIVEL
+            if isinstance(error, RemoteAIError) and error.status == 401:
+                mensagem = 'Código de acesso recusado. Confira em Configurações.'
+            elif isinstance(error, RemoteAIError) and error.status == 429:
+                mensagem = str(error)
+            return self._fim(texto, mensagem, NADA, 'erro', geracao, registrar=permitir_ia)
         if ia['kind'] == 'reply':
-            return self._fim(texto, ia['text'], NADA, 'ia', geracao)
+            return self._fim(texto, ia['text'], NADA, 'ia', geracao, registrar=permitir_ia)
         if ia['kind'] == 'out_of_scope':
-            return self._fim(texto, FORA_DO_ESCOPO, NADA, 'fora', geracao)
+            return self._fim(texto, FORA_DO_ESCOPO, NADA, 'fora', geracao, registrar=permitir_ia)
+        if somente_resposta:
+            return self._fim(texto, SEM_ACAO, NADA, 'ia', geracao, registrar=permitir_ia)
         intent = ia['intent']
         if intent['needs_clarification']:
-            return self._fim(texto, intent['clarification'], NADA, 'ia', geracao)
-        resposta, entendi = executar_intencao(self.store, intent['action'], intent['parameters'], context, str(uuid.uuid4()))
-        return self._fim(texto, resposta, entendi, 'ia', geracao)
+            return self._fim(texto, intent['clarification'], NADA, 'ia', geracao, registrar=permitir_ia)
+        resposta, entendi = executar_intencao(self.store, intent['action'], intent['parameters'], context, str(uuid.uuid4()), origem_ia=True)
+        return self._fim(texto, resposta, entendi, 'ia', geracao, registrar=permitir_ia)

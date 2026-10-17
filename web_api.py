@@ -1346,7 +1346,7 @@ class API:
     def _voz_obter(self):
         with self._voz_lock:
             if self._voz is None:
-                self._voz = voz.Servico(BASE_DIR, store=assistente_tibiano.Store(BASE_DIR))
+                self._voz = voz.Servico(BASE_DIR, store=assistente_tibiano.Store(BASE_DIR), silencioso=True)
             return self._voz
 
     def assistente_estado(self):
@@ -1359,7 +1359,8 @@ class API:
                 # revision muda a cada gravação: a aba Bosstiary só recarrega quando algo mudou (ex.: "matei" por voz).
                 return {'context':context, 'timers':store.execute('timer.list',{},context)['timers'],
                         'catalog':store.execute('boss.catalog',{},context),
-                        'revision':history[-1]['id'] if history else None}
+                        'revision':history[-1]['id'] if history else None,
+                        'log':[{'id':event['id'],'texto':assistente_tibiano.describe(event['intent'],event.get('arguments',{}))} for event in history[-30:]]}
         except (ValueError,OSError) as error:
             return {'erro':str(error)}
 
@@ -1398,9 +1399,10 @@ class API:
             return self._chat
 
     # Sem PERSONAGEM_LOCK: o Chat mistura trecho local e rede, e a rede nunca roda sob lock; a Store tem o próprio lock.
-    def assistente_chat(self, texto):
+    def assistente_chat(self, texto, modo='ia'):
+        if modo not in ('ia','local'):return {'erro':'Canal de chat inválido.'}
         try:
-            return self._chat_obter().responder(texto)
+            return self._chat_obter().responder(texto, permitir_ia=modo=='ia')
         except Exception:
             return {'erro': 'Não consegui responder agora.'}
 

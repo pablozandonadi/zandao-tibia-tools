@@ -5,22 +5,25 @@ const path = require('node:path');
 class Element {
   constructor(tag = 'div') { this.tagName = tag; this.children = []; this.listeners = {}; this.className = ''; this.textContent = ''; this.value = ''; this.disabled = false; this.scrollTop = 0; this.scrollHeight = 500; this.focused = 0; }
   set innerHTML(value) { throw new Error('O chat nunca usa HTML'); }
+  setAttribute(name,value) { this[name]=value; }
   addEventListener(name, callback) { this.listeners[name] = callback; }
   append(...children) { this.children.push(...children); }
   replaceChildren(...children) { this.children = children; }
   querySelector(selector) { return selector === 'button[type=submit]' ? this.submit : undefined; }
   focus() { this.focused++; }
 }
-const elements = Object.fromEntries(['chat-mensagens', 'chat-form', 'chat-texto', 'chat-limpar'].map(id => [id, new Element()]));
+const elements = Object.fromEntries(['chat-mensagens', 'chat-form', 'chat-texto', 'chat-limpar', 'chat-digitando', 'chat-canal-local', 'chat-canal-log', 'chat-canal-ia', 'chat-canal-ajuda'].map(id => [id, new Element()]));
 elements['chat-form'].submit = new Element('button');
 global.document = {getElementById: id => elements[id], createElement: tag => new Element(tag)};
 global.window = {addEventListener() {}};
+global.PERS_OUVINTES = [];
+global.MEUS = {atual:'Teste',lista:[{nome:'Teste',mundo:'Antica'},{nome:'Outro',mundo:'Secura'}]};
 const ui = require('./web/chat.js');
 
 const calls = [];
 let answer;
 window.pywebview = {api: {
-  assistente_chat(texto) { calls.push(['chat', texto]); return new Promise((resolve, reject) => { answer = {resolve, reject}; }); },
+  assistente_chat(texto,modo) { calls.push(modo ? ['chat',texto,modo] : ['chat', texto]); return new Promise((resolve, reject) => { answer = {resolve, reject}; }); },
   async assistente_chat_limpar() { calls.push(['limpar']); return {ok: true}; }
 }};
 const flush = () => new Promise(resolve => setImmediate(resolve));
@@ -53,6 +56,7 @@ const submit = () => { let prevented = false; form.listeners.submit({preventDefa
   submit();
   assert.deepEqual(calls, [['chat', 'matei o Drume']]);
   assert.equal(enviar.disabled, true, 'Botão desabilitado enquanto espera');
+  assert.equal(elements['chat-digitando'].hidden,false);
   assert.equal(campo.value, '', 'Campo limpo após enviar');
   assert.deepEqual(caixa.children.map(child => child.className), ['chat-eu']);
   assert.equal(tag(caixa.children[0], 'p').textContent, 'matei o Drume');
@@ -65,6 +69,7 @@ const submit = () => { let prevented = false; form.listeners.submit({preventDefa
   assert.equal(tag(caixa.children[1], 'p').textContent, 'Drume: 1 abates reais.');
   assert.equal(tag(caixa.children[1], 'small').textContent, 'Entendi: Registrar abate · Drume');
   assert.equal(enviar.disabled, false);
+  assert.equal(elements['chat-digitando'].hidden,true);
   assert.equal(campo.value, 'outra pergunta', 'O que foi digitado durante a espera é mantido');
 
   // Erros: do app ({erro}) e da própria ponte (promessa rejeitada).
@@ -86,6 +91,41 @@ const submit = () => { let prevented = false; form.listeners.submit({preventDefa
   await elements['chat-limpar'].listeners.click();
   assert.deepEqual(calls.at(-1), ['limpar']);
   assert.equal(caixa.children.length, 0);
+
+  // Trocar perfil limpa imediatamente e ignora uma resposta atrasada do perfil antigo.
+  campo.value='pergunta pendente';submit();
+  MEUS.atual='Outro';PERS_OUVINTES[0]();
+  assert.equal(caixa.children.length,0);
+  const clears=calls.filter(call=>call[0]==='limpar').length;
+  PERS_OUVINTES[0]();
+  assert.equal(calls.filter(call=>call[0]==='limpar').length,clears,'Mesmo perfil não limpa duas vezes');
+  answer.resolve({resposta:'resposta antiga',entendi:'—'});await flush();
+  assert.equal(caixa.children.length,0);
+
+  elements['chat-canal-ia'].listeners.keydown({key:'Home',preventDefault(){}});
+  assert.equal(elements['chat-canal-local']['aria-selected'],'true');
+  assert.equal(elements['chat-canal-local'].focused,1);
+  elements['chat-canal-local'].listeners.keydown({key:'End',preventDefault(){}});
+  assert.equal(elements['chat-canal-ia']['tabindex'],'0');
+
+  // Canais independentes: Local Chat sinaliza modo local; log é somente leitura.
+  ui.selecionar('local');
+  campo.value='timer 30s';submit();
+  assert.deepEqual(calls.at(-1),['chat','timer 30s','local']);
+  answer.resolve({resposta:'Timer criado.',entendi:'Criar timer'});await flush();
+  ui.selecionar('ia');
+  assert.equal(caixa.children.length,0,'A conversa local não aparece no Tudo IA');
+  window.chatEstado({context:{character_id:'Outro',world_id:'Secura'},log:[{id:'real',texto:'Registrar abate · Drume'}]});
+  window.chatAvisos([{id:'alerta',texto:'Timer terminou.'}]);
+  ui.selecionar('log');
+  assert.equal(form.hidden,true);
+  assert.equal(tag(caixa.children[0],'p').textContent,'Registrar abate · Drume');
+  assert.equal(tag(caixa.children[1],'p').textContent,'Timer terminou.');
+  const previousCalls=calls.length;
+  await ui.enviar('não enviar');
+  assert.equal(calls.length,previousCalls,'Server Log nunca envia mensagens');
+  ui.selecionar('ia');
+  assert.equal(form.hidden,false);
 
   // Tela: aba Chat, formulário, voz escondida mas presente, chat.js depois do assistente.js.
   const index = fs.readFileSync(path.join(__dirname, 'web/index.html'), 'utf8');

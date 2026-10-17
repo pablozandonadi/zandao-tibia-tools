@@ -29,6 +29,8 @@
     el('voz-resposta').textContent = data.resposta || 'As respostas aparecerão aqui.';
     el('voz-microfone').textContent = data.microfone ? 'Pausar microfone' : (data.estado === 'erro' ? 'Tentar novamente' : 'Retomar microfone');
     el('voz-microfone').disabled = busy;
+    if (window.chatAvisos) window.chatAvisos(data.avisos || []);
+    el('voz-avisos').textContent = (data.avisos || []).map(aviso => aviso.texto).join(' · ');
     el('voz-online-enabled').checked = data.online_enabled === true;
     el('voz-online-status').textContent = data.online_enabled ? 'IA do chat ativada.' : (data.online_configured ? 'Acesso salvo; IA do chat desligada.' : 'Chat só com comandos locais. Nenhum acesso online salvo.');
     const ids = new Set((data.timers || []).map(timer => timer.id));

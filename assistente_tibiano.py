@@ -509,7 +509,16 @@ def parse(text, now=None):
         if n is None:raise ValueError('Número ambíguo. Confirme usando algarismos.')
         return n
     def duration(value):
-        d=duration_from(normalize(value))
+        if re.search(r'[-−]\s*\d',value):raise ValueError('Duração deve ser positiva.')
+        value=normalize(value)
+        compact=re.fullmatch(r'(\d+)\s*h\s*(\d+)?',value)
+        if compact:
+            minutes=int(compact[2] or 0)
+            if minutes>=60:raise ValueError('Os minutos após horas devem ser menores que 60.')
+            return int(compact[1])*3600+minutes*60
+        short=re.fullmatch(r'(\d+)\s*(min|m|seg|s)',value)
+        if short:return int(short[1])*(60 if short[2] in ('min','m') else 1)
+        d=duration_from(value)
         if d:return duration_seconds(d)
         m=re.fullmatch(r'(.+?) ?(?:horas?|h)(?: e (.+?) minutos?)?',normalize(value))
         if m:return number(m[1])*3600+(number(m[2])*60 if m[2] else 0)
@@ -590,6 +599,7 @@ def parse(text, now=None):
     if m:return 'stamina.logout',{'stamina_minutes':duration(m[1])//60,'logged_out_at':iso(now)}
     m=match(r'(?:registra |registrar )?(.+?) (?:ta |esta |a )(\d.*?)(?: (?:na |no )(compra|venda|negociado))?(?: no meu mundo)?')
     if m:
+        if re.search(r'\d$',m[1].strip()):return None
         item,price=m[1],m[2];offer={'compra':'buy','venda':'sell','negociado':'traded'}.get((m[3] or '').lower(),'sell')
         query=re.search(r'\s+(?:ta |esta )?(?:barato|caro).*$',price,re.I)
         if query:price=price[:query.start()].strip()

@@ -96,6 +96,93 @@ class ComandosLocais(ChatCase):
         self.classe.assert_not_called()
 
 
+class ParteC(ChatCase):
+    def test_canal_local_sem_api_e_sem_historico_enviado_depois(self):
+        self.assertEqual(self.chat.responder('timer 30s',permitir_ia=False)['origem'],'local')
+        reply=self.chat.responder('Qual hunt para EK?',permitir_ia=False)
+        self.assertIn('Tudo IA',reply['resposta'])
+        self.classe.assert_not_called()
+        self.chat.responder('Como funciona o prey?')
+        self.assertEqual(self.enviados()[-1],[{'role':'user','text':'Como funciona o prey?'}])
+
+    def test_perguntas_com_negacao_ambiguidade_e_faixa_so_respondem(self):
+        for text in ('qual hunt é boa do level 300 a 400','por que não consigo matar o oberon?',
+                     'melhor hunt pra EK 300 sem blessing?','vale mais prey ou imbuement?'):
+            with self.subTest(text=text):
+                self.ia.return_value=resposta_ia('Resposta sobre Tibia.')
+                self.assertEqual(self.chat.responder(text)['resposta'],'Resposta sobre Tibia.')
+        self.assertEqual(self.eventos(),[])
+        self.assertEqual(self.store.execute('market.stats',{'item':'TC'},CTX)['count'],0)
+        for text in ('não matei o Drume','vale mais prey ou imbuement?'):
+            self.ia.return_value=acao('boss.kill',DRUME)
+            self.assertEqual(self.chat.responder(text)['resposta'],chat.SEM_ACAO)
+        self.assertEqual(self.abates(),0)
+        self.assertEqual(self.eventos(),[])
+
+    def test_duracoes_abreviadas_e_invalidas_nao_vao_a_ia(self):
+        for phrase,seconds in [('timer de 5 min',300),('timer 30s',30),('alarme 45 min',2700),('timer 1h30',5400),('timer 5m',300),('timer 30seg',30)]:
+            with self.subTest(phrase=phrase):
+                response=self.chat.responder(phrase)
+                self.assertEqual(response['origem'],'local')
+                self.assertEqual(self.store.execute('timer.list',{},CTX)['timers'][-1]['duration_seconds'],seconds)
+        before=len(self.eventos())
+        for phrase in ('timer -5min','timer −5min','timer 0s','timer 1h60','timer 1000h'):
+            with self.subTest(phrase=phrase):self.assertEqual(self.chat.responder(phrase)['origem'],'erro')
+        self.assertEqual(len(self.eventos()),before)
+        self.classe.assert_not_called()
+
+    def test_ia_nao_desfaz_apaga_nem_substitui_total_mas_comando_local_pode(self):
+        self.chat.responder('matei drume')
+        for action,parameters in [('boss.kill.undo',{'boss_id':'drume','event_id':None}),
+                                  ('market.price.delete',{'item':'TC','offer_type':'sell','observation_id':None,'reason':'pedido'}),
+                                  ('bosstiary.set_total',{'boss_id':'drume','total_kills':99})]:
+            with self.subTest(action=action):
+                self.ia.return_value=acao(action,parameters)
+                self.assertEqual(self.chat.responder('como desfaço esse registro?')['resposta'],chat.ACAO_MANUAL)
+        self.assertEqual(self.abates(),1)
+        self.assertEqual(len(self.eventos()),1)
+        self.chat.responder('desfaz a ultima kill do Drume')
+        self.assertEqual(self.abates(),0)
+
+    def test_historico_isolado_por_personagem_e_mundo(self):
+        self.chat.responder('Como funciona o imbuement?')
+        self.personagens('Outro')
+        self.chat.responder('Qual hunt para meu level?')
+        self.assertEqual(self.enviados()[-1],[{'role':'user','text':'Qual hunt para meu level?'}])
+        data=json.loads((self.pasta/'meus_personagens.json').read_text())
+        data['lista'][1]['mundo']='Antica';(self.pasta/'meus_personagens.json').write_text(json.dumps(data))
+        self.chat.responder('Como funciona o prey?')
+        self.assertEqual(self.enviados()[-1],[{'role':'user','text':'Como funciona o prey?'}])
+
+    def test_contexto_novo_na_rede_descarta_historico_atrasado(self):
+        def trocar(*_):
+            self.personagens('Outro')
+            self.ia.side_effect=None
+            self.chat.responder('Como funciona o prey?')
+            return resposta_ia('Resposta do personagem antigo')
+        self.ia.side_effect=trocar
+        self.chat.responder('Como funciona o imbuement?')
+        self.chat.responder('e o charm?')
+        self.assertNotIn('Resposta do personagem antigo',[m['text'] for m in self.enviados()[-1]])
+
+    def test_erros_http_chat_especificos_e_sem_texto_raw(self):
+        from voice.remote_ai_client import http_error
+        for error,want in [(http_error(401),'Código de acesso recusado'),
+                           (http_error(429,{'limit_reason':'user_burst'}),'pouco tempo'),
+                           (http_error(429,{'limit_reason':'user_daily_requests'}),'Limite diário'),
+                           (http_error(429),'Limite temporário ou diário')]:
+            self.ia.side_effect=error
+            self.assertIn(want,self.chat.responder('Qual hunt para EK?')['resposta'])
+            self.assertEqual(error.status,401 if 'Código' in want else 429)
+
+    def test_utf16_emojis_validados_e_resposta_truncada_sem_metade_de_par(self):
+        self.assertEqual(self.chat.responder('😀'*251)['origem'],'erro')
+        self.ia.return_value=resposta_ia('😀'*300)
+        self.chat.responder('Como funciona o prey?')
+        self.chat.responder('e o imbuement?')
+        self.assertEqual(self.enviados()[-1][1]['text'],'😀'*250)
+
+
 class TextoInvalido(ChatCase):
     def test_vazio_e_longo_demais_nao_vao_a_rede_nem_ao_historico(self):
         erro = {'resposta': 'Escreva uma mensagem de até 500 caracteres.', 'entendi': '—', 'origem': 'erro'}
@@ -238,9 +325,9 @@ class Historico(ChatCase):
         for _ in range(2):
             self.ia.return_value = resposta_ia('ã' * 400)
             self.chat.responder('ç' * 400)
-        self.chat.responder('😀' * 500)
+        self.chat.responder('😀' * 250)
         ultima = self.enviados()[-1]
-        self.assertEqual([('assistant', 'ã' * 400), ('user', '😀' * 500)], [(m['role'], m['text']) for m in ultima])
+        self.assertEqual([('user', 'ç' * 400), ('assistant', 'ã' * 400), ('user', '😀' * 250)], [(m['role'], m['text']) for m in ultima])
         self.assertLessEqual(sum(len(m['text'].encode('utf-8')) for m in ultima), 3000)
 
     def test_resposta_longa_entra_truncada_em_500(self):
@@ -316,13 +403,42 @@ class Ponte(ChatCase):
         self.api.assistente_chat('e o prey?')
         self.assertEqual(1, len(self.enviados()[-1]))
 
+    def test_api_real_silenciosa_um_watcher_alertas_visuais_e_nenhuma_saida_audio(self):
+        import voz
+        from datetime import timedelta
+        from unittest.mock import Mock
+        api=object.__new__(self.web_api.API)
+        api._voz=None;api._voz_lock=threading.Lock()
+        api._chat=None;api._chat_lock=threading.Lock()
+        with patch('voz.threading.Thread') as threads,patch('voz.speak') as speech,patch('voz.play_wake_sound') as ding,patch.object(voz.Servico,'_models') as models:
+            service=api._voz_obter()
+            self.addCleanup(service.close)
+            service.store=self.store
+            self.assertIs(api._voz_obter(),service)
+            self.assertEqual(threads.call_count,1)
+            self.assertIsNone(service._speaker)
+            self.assertIn('erro',api.voz_iniciar())
+            self.assertIn('erro',api.voz_escutar())
+            self.assertEqual(api.assistente_chat('timer 30s','local')['origem'],'local')
+            self.assertEqual(api.assistente_estado()['log'][-1]['texto'],'Criar timer · 30 s')
+            api.voz_criar(1,'segundo')
+            self.store.clock=lambda:NOW+timedelta(seconds=31)
+            with patch.object(service._stop,'wait',side_effect=[False,False,True]):service._watch()
+            state=api.voz_estado()
+            self.assertTrue(any('terminou' in row['texto'] for row in state['avisos']))
+            self.assertTrue(service._falas.empty())
+            self.assertFalse(state['microfone'])
+            self.assertEqual(state['estado'],'texto')
+            speech.assert_not_called();ding.assert_not_called();models.assert_not_called()
+            self.assertIn('erro',api.assistente_chat('timer 30s','log'))
+
     def test_excecao_inesperada_vira_erro_amigavel(self):
         with patch.object(chat.Chat, 'responder', side_effect=RuntimeError('boom')):
             self.assertEqual({'erro': 'Não consegui responder agora.'}, self.api.assistente_chat('oi'))
 
     def test_parametro_nao_pode_se_chamar_arguments(self):
         # o wrapper JS do pywebview usa o nome do parâmetro e "arguments" apaga a chamada
-        self.assertEqual(['self', 'texto'], list(inspect.signature(self.web_api.API.assistente_chat).parameters))
+        self.assertEqual(['self', 'texto', 'modo'], list(inspect.signature(self.web_api.API.assistente_chat).parameters))
 
 
 if __name__ == '__main__':

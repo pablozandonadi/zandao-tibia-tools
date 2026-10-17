@@ -31,28 +31,30 @@ def _schema_valid(value, schema):
 TOKEN = re.compile(r'[A-Za-z0-9_-]{43}')
 
 class RemoteAIError(Exception):
-    pass
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status if type(status) is int and 400 <= status <= 599 else None
 
 def http_error(status, details=None):
     if status == 429:
         reasons = {
             'user_daily_requests':'Limite diário de comandos online atingido.',
-            'global_daily_requests':'Limite diário do serviço de voz atingido.',
+            'global_daily_requests':'Limite diário do serviço de IA atingido.',
             'user_daily_budget':'Limite diário de uso online atingido.',
-            'global_daily_budget':'Limite diário de uso do serviço de voz atingido.',
+            'global_daily_budget':'Limite diário de uso do serviço de IA atingido.',
             'user_burst':'Muitos comandos online em pouco tempo.',
             'ip_burst':'Muitos comandos online nesta conexão em pouco tempo.'}
         details = details if isinstance(details, dict) else {}
         reason = details.get('limit_reason')
-        message = reasons.get(reason, 'Limite temporário ou diário do reconhecimento online atingido.') if isinstance(reason, str) else 'Limite temporário ou diário do reconhecimento online atingido.'
+        message = reasons.get(reason, 'Limite temporário ou diário do serviço online atingido.') if isinstance(reason, str) else 'Limite temporário ou diário do serviço online atingido.'
         retry = details.get('retry_after_seconds')
         if isinstance(reason, str) and reason in reasons and type(retry) is int and 1 <= retry <= 86400:
             message += f' Tente novamente em {retry} segundos.'
-        return RemoteAIError(message + ' Comandos locais continuam disponíveis.')
-    if status == 401:return RemoteAIError('Acesso ao reconhecimento online não autorizado. Confira o acesso em Configurações.')
-    if status == 403:return RemoteAIError('Reconhecimento online bloqueado pelo servidor. Comandos locais continuam disponíveis.')
-    if 500 <= status <= 599:return RemoteAIError('Servidor de reconhecimento online indisponível. Comandos locais continuam disponíveis.')
-    return RemoteAIError('Reconhecimento online indisponível. Use um comando local.')
+        return RemoteAIError(message + ' Comandos locais continuam disponíveis.', status=status)
+    if status == 401:return RemoteAIError('Acesso ao serviço online não autorizado. Confira o acesso em Configurações.', status=status)
+    if status == 403:return RemoteAIError('Reconhecimento online bloqueado pelo servidor. Comandos locais continuam disponíveis.', status=status)
+    if 500 <= status <= 599:return RemoteAIError('Servidor de serviço online indisponível. Comandos locais continuam disponíveis.', status=status)
+    return RemoteAIError('Reconhecimento online indisponível. Use um comando local.', status=status)
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -95,8 +97,16 @@ def safe_temporal_intent(intent, text):
     return intent
 
 
+def utf16_length(text):
+    return len(text.encode('utf-16-le')) // 2
+
+
+def truncate_utf16(text, limit):
+    return text.encode('utf-16-le')[:limit * 2].decode('utf-16-le', errors='ignore')
+
+
 def _valid_messages(messages):
-    return isinstance(messages,list) and 1<=len(messages)<=6 and all(isinstance(m,dict) and set(m)=={'role','text'} and m['role'] in ('user','assistant') and isinstance(m['text'],str) and m['text'].strip() and len(m['text'])<=500 for m in messages) and messages[-1]['role']=='user'
+    return isinstance(messages,list) and 1<=len(messages)<=6 and all(isinstance(m,dict) and set(m)=={'role','text'} and m['role'] in ('user','assistant') and isinstance(m['text'],str) and m['text'].strip() and utf16_length(m['text'])<=500 for m in messages) and messages[-1]['role']=='user'
 
 
 def load_settings(folder):
@@ -214,7 +224,7 @@ class RemoteAIClient:
         result=self._post('/chat',json.dumps({'request_id':request_id,'messages':messages},ensure_ascii=False).encode('utf-8'),request_id,'application/json')
         kind,text,intent=result.get('kind'),result.get('text'),result.get('intent')
         if set(result)!={'request_id','kind','text','intent'} or not (
-                kind=='reply' and isinstance(text,str) and text.strip() and len(text)<=600 and intent is None
-                or kind=='action' and valid_intent(intent) and (text is None or isinstance(text,str) and len(text)<=600)
+                kind=='reply' and isinstance(text,str) and text.strip() and utf16_length(text)<=600 and intent is None
+                or kind=='action' and valid_intent(intent) and (text is None or isinstance(text,str) and utf16_length(text)<=600)
                 or kind=='out_of_scope' and text is None and intent is None): raise RemoteAIError('Resposta online inválida.')
         return {'kind':kind,'text':text,'intent':safe_temporal_intent(intent,'\n'.join(m['text'] for m in messages if m['role']=='user')) if kind=='action' else None}

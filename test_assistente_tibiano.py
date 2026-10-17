@@ -112,6 +112,13 @@ class ParserTests(StoreCase):
         self.assertEqual(a.describe('timer.create',{'duration_seconds':300}),'Criar timer · 5 min')
         self.assertIn('Registrar abate',a.describe('boss.kill',{'boss_id':'drume'}))
 
+    def test_chat_ranges_are_not_prices_and_short_durations_are_exact(self):
+        self.assertIsNone(a.parse('qual hunt é boa do level 300 a 400',NOW))
+        for phrase,seconds in [('timer de 5 min',300),('timer 30s',30),('timer 1h30',5400),('alarme 45 min',2700),('timer 5m',300),('timer 30seg',30)]:
+            self.assertEqual(a.parse(phrase,NOW),('timer.create',{'duration_seconds':seconds}))
+        for phrase in ('timer -5min','timer −5min','timer 1h60'):
+            with self.assertRaises(ValueError):a.parse(phrase,NOW)
+
     def test_unknown_actions_and_extra_fields_cannot_write(self):
         with self.assertRaises(ValueError):self.call('timer.create',{'duration_seconds':30,'arbitrary':True})
         self.assertFalse((self.path/'assistente-tibiano.json').exists())
