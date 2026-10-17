@@ -90,5 +90,70 @@ class RemoteClientTests(unittest.TestCase):
         client._opener.open.side_effect=None
         response=io.BytesIO(b'x'*8193);response.status=200;client._opener.open.return_value=response
         with self.assertRaises(RemoteAIError):client.transcribe(b'fake','b92e3ae7-3591-4cd9-9188-1e5422fa1121')
+    def _chat_client(self, payload):
+        from voice.remote_ai_client import RemoteAIClient
+        client=RemoteAIClient('a'*43);client._opener=Mock()
+        response=io.BytesIO(json.dumps(payload).encode());response.status=200;client._opener.open.return_value=response
+        return client
+
+    def test_chat_posts_the_exact_body_and_returns_reply(self):
+        rid='b92e3ae7-3591-4cd9-9188-1e5422fa1121'
+        messages=[{'role':'user','text':'oi'},{'role':'assistant','text':'Olá!'},{'role':'user','text':'qual a stamina cheia? ã'}]
+        client=self._chat_client({'request_id':rid,'kind':'reply','text':'42h','intent':None})
+        self.assertEqual(client.chat(messages,rid),{'kind':'reply','text':'42h','intent':None})
+        request=client._opener.open.call_args.args[0]
+        self.assertEqual(request.full_url,'https://tibia-tudo-voz.pablo-0af.workers.dev/chat')
+        self.assertEqual(request.get_header('Content-type'),'application/json')
+        self.assertEqual(request.get_header('X-request-id'),rid)
+        self.assertEqual(json.loads(request.data.decode('utf-8')),{'request_id':rid,'messages':messages})
+        self.assertIn('ã'.encode(),request.data)
+
+    def test_chat_rejects_invalid_messages_without_network(self):
+        from voice.remote_ai_client import RemoteAIClient, RemoteAIError
+        rid='b92e3ae7-3591-4cd9-9188-1e5422fa1121'
+        ok={'role':'user','text':'oi'}
+        seven=[{'role':'user' if (7-i)%2 else 'assistant','text':'oi'} for i in range(7)]
+        cases=[None,'oi',{},[],seven,[{**ok,'text':''}],[{**ok,'text':'  '}],[{**ok,'text':'x'*501}],[{**ok,'text':7}],[{**ok,'role':'system'}],[{**ok,'role':'assistant'}],
+               [{**ok,'extra':1}],[{'role':'user'}],[None],['oi'],[ok,{'role':'assistant','text':'olá'}]]
+        for messages in cases:
+            with self.subTest(messages=messages):
+                client=RemoteAIClient('a'*43);client._opener=Mock()
+                with self.assertRaises(RemoteAIError):client.chat(messages,rid)
+                client._opener.open.assert_not_called()
+        six=[{'role':'user' if (6-i)%2 else 'assistant','text':'x'*500} for i in range(6)]
+        self.assertEqual(self._chat_client({'request_id':rid,'kind':'out_of_scope','text':None,'intent':None}).chat(six,rid)['kind'],'out_of_scope')
+
+    def test_chat_accepts_action_and_out_of_scope_and_guards_dates(self):
+        rid='b92e3ae7-3591-4cd9-9188-1e5422fa1121'
+        timer={'action':'create_timer','parameters':{'seconds':30},'needs_clarification':False,'clarification':None}
+        kill={'action':'boss.kill','parameters':{'boss_id':'drume','killed_at':None,'boosted':False},'needs_clarification':False,'clarification':None}
+        unknown={'action':'unknown','parameters':{},'needs_clarification':True,'clarification':'Confirme a data pelo formulário. Datas do fallback online não são presumidas; use o comando local com horário explícito.'}
+        for text,reply,want in [('crie um timer de 30 segundos',{'kind':'action','text':None,'intent':timer},timer),
+                                ('crie um timer de 30 segundos',{'kind':'action','text':'Ok.','intent':timer},timer),
+                                ('matei o Drume ontem',{'kind':'action','text':'Anotado.','intent':kill},unknown),
+                                ('matei o Drume',{'kind':'action','text':None,'intent':kill},kill),
+                                ('quem ganhou o jogo?',{'kind':'out_of_scope','text':None,'intent':None},None)]:
+            with self.subTest(text=text,kind=reply['kind']):
+                client=self._chat_client({'request_id':rid,**reply})
+                result=client.chat([{'role':'user','text':'oi'},{'role':'assistant','text':'Olá!'},{'role':'user','text':text}],rid)
+                self.assertEqual(result,{'kind':reply['kind'],'text':reply['text'],'intent':want})
+        client=self._chat_client({'request_id':rid,'kind':'action','text':None,'intent':kill})
+        self.assertEqual(client.chat([{'role':'user','text':'ontem foi legal'},{'role':'assistant','text':'Que bom!'},{'role':'user','text':'matei o Drume'}],rid)['intent'],kill)
+
+    def test_chat_rejects_invalid_responses(self):
+        from voice.remote_ai_client import RemoteAIError
+        rid='b92e3ae7-3591-4cd9-9188-1e5422fa1121'
+        timer={'action':'create_timer','parameters':{'seconds':30},'needs_clarification':False,'clarification':None}
+        base={'request_id':rid,'kind':'reply','text':'ok','intent':None}
+        bad=[{**base,'extra':1},{k:v for k,v in base.items() if k!='text'},{k:v for k,v in base.items() if k!='kind'},{**base,'kind':'banana'},{**base,'kind':['reply']},{**base,'kind':None},
+             {**base,'text':None},{**base,'text':''},{**base,'text':'  '},{**base,'text':7},{**base,'text':'x'*601},{**base,'intent':timer},
+             {**base,'kind':'action','intent':None},{**base,'kind':'action','intent':{**timer,'action':'shell'}},{**base,'kind':'action','intent':{**timer,'parameters':{'seconds':-1}}},{**base,'kind':'action','text':7,'intent':timer},{**base,'kind':'action','text':'x'*601,'intent':timer},
+             {**base,'kind':'out_of_scope','text':'Não falo disso.'},{**base,'kind':'out_of_scope','text':None,'intent':timer}]
+        for payload in bad:
+            with self.subTest(payload=payload):
+                client=self._chat_client(payload)
+                with self.assertRaisesRegex(RemoteAIError,'Resposta online inválida'):client.chat([{'role':'user','text':'oi'}],rid)
+        client=self._chat_client({**base,'request_id':'11111111-1111-4111-8111-111111111111'})
+        with self.assertRaises(RemoteAIError):client.chat([{'role':'user','text':'oi'}],rid)
 
 if __name__=='__main__':unittest.main()

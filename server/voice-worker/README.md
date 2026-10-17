@@ -168,3 +168,18 @@ Timers Gerais,SharedXP,BossTracker/Bosstiary,Stamina eMarket local estão integr
 Com prompt, STT reserva **40000 microUSD (US$0,04)**: envelope existente de 16000 tokens de entrada + 8000 de margem para o vocabulário, × US$1,25/M, mais 2000 tokens de saída × US$5/M. Sem prompt, mantém os 30000 microUSD. O áudio continua limitado a 15 s; esta margem depende dos preços/modelo documentados acima, não é promessa de limite do provedor. `usage` válido liquida pela mesma fórmula existente; com prompt aceita até 24000 tokens de entrada. Ausência de usage, erro, timeout ou uso acima do envelope conservam a reserva inteira. **Os tetos diários continuam US$0,20 global e US$0,05 individual**; a reserva maior pode reduzir o número de chamadas disponíveis. Modelos, limites e flags não mudam.
 
 O cliente prioriza bosses usados recentemente (até uma hora), depois bosses com progresso no personagem capturado e os termos fixos. Essa memória permanece apenas no processo e é descartada ao trocar de personagem/mundo; não armazena áudio ou falas. A linha “Entendi” mostra a ação reconhecida em linguagem humana, sem executar a ação novamente.
+
+
+### Chat de texto (`/chat`)
+
+`POST /chat` (`Content-Type: application/json`, `X-Request-ID: UUIDv4`) usa a mesma autenticação, quotas, reserva/liquidação (`VOICE_NLU_RESERVE_MICRO_USD`), modelo, `reasoning minimal`, `store:false`, teto de saída e tratamento de erros do `/interpret`; cada UUID só chega à OpenAI uma vez (409 na repetição). Corpo exato `{request_id,messages}`, até 8192 bytes (maior recebe 413). `messages` tem de 1 a 6 itens `{role,text}`: `role` é `user` ou `assistant`, `text` é string não vazia (após trim) até 500 caracteres, e o último item é `user`. Qualquer outra forma recebe 400, sem reserva e sem chamar a OpenAI.
+
+As mensagens vão como `input` do Responses API (nunca dentro das instruções). As instruções são o texto do chat (só Tibia e as ferramentas do Tibia Tudo; outro assunto vira `out_of_scope`) seguido do glossário do `/interpret`; a saída é JSON estrito `{kind,text,intent}`. O corpo enviado à OpenAI não pode passar de **16000 bytes** (o `/interpret` continua com 12000). A checagem ocorre **antes da reserva**: um 503 por tamanho não consome orçamento nem o UUID. Estimativa conservadora: 17024 tokens de entrada × US$0,05/M + 2048 × US$0,40/M = US$0,0016704, abaixo da reserva de US$0,002. A resposta do provedor continua limitada a 32 KiB.
+
+Resposta `{request_id,kind,text,intent}`:
+
+- `reply`: `text` não vazio até 600 caracteres e `intent` null.
+- `action`: `intent` válido pelas mesmas regras do `/interpret`, inclusive o guard temporal aplicado ao texto da última mensagem do jogador; `text` null ou string até 600 caracteres.
+- `out_of_scope`: `text` e `intent` null.
+
+Saída do modelo fora desse contrato, ou `status:"incomplete"`, recebe 502. O pior caso da resposta pública (600 + intent) fica abaixo de 4 KiB, dentro dos 8 KiB lidos pelo cliente. O cliente (`RemoteAIClient.chat`) revalida o corpo e a resposta com o mesmo contrato. Esta rota ainda não foi implantada nem validada contra a OpenAI real.

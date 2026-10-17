@@ -95,6 +95,10 @@ def safe_temporal_intent(intent, text):
     return intent
 
 
+def _valid_messages(messages):
+    return isinstance(messages,list) and 1<=len(messages)<=6 and all(isinstance(m,dict) and set(m)=={'role','text'} and m['role'] in ('user','assistant') and isinstance(m['text'],str) and m['text'].strip() and len(m['text'])<=500 for m in messages) and messages[-1]['role']=='user'
+
+
 def load_settings(folder):
     path=Path(folder)
     try:
@@ -204,3 +208,13 @@ class RemoteAIClient:
         result=self._post('/interpret',json.dumps({'request_id':request_id,'text':text},ensure_ascii=False).encode('utf-8'),request_id,'application/json')
         if set(result)!={'request_id','intent'} or not valid_intent(result['intent']): raise RemoteAIError('Resposta online inválida.')
         return safe_temporal_intent(result['intent'],text)
+
+    def chat(self, messages, request_id):
+        if not _valid_messages(messages): raise RemoteAIError('Mensagens de chat inválidas.')
+        result=self._post('/chat',json.dumps({'request_id':request_id,'messages':messages},ensure_ascii=False).encode('utf-8'),request_id,'application/json')
+        kind,text,intent=result.get('kind'),result.get('text'),result.get('intent')
+        if set(result)!={'request_id','kind','text','intent'} or not (
+                kind=='reply' and isinstance(text,str) and text.strip() and len(text)<=600 and intent is None
+                or kind=='action' and valid_intent(intent) and (text is None or isinstance(text,str) and len(text)<=600)
+                or kind=='out_of_scope' and text is None and intent is None): raise RemoteAIError('Resposta online inválida.')
+        return {'kind':kind,'text':text,'intent':safe_temporal_intent(intent,messages[-1]['text']) if kind=='action' else None}
