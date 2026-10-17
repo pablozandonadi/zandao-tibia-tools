@@ -118,7 +118,8 @@
     help.addEventListener('blur', () => { helpFocused = false; if (!helpPinned) showHelp(false); });
     help.addEventListener('click', () => { helpPinned = !helpPinned; showHelp(helpPinned); });
     help.addEventListener('keydown', event => { if (event.key === 'Escape') { helpPinned = false; showHelp(false); } });
-    // Voz pausada (docs/voz-pausado.md): para religar, chame mutate('voz_iniciar') aqui e tire o hidden de #voz-pausado.
+    // Voz pausada (docs/voz-pausado.md): só lê o estado (Configurações mostra o acesso online salvo). Para religar, chame mutate('voz_iniciar') aqui e tire o hidden de #voz-pausado.
+    refresh();
     setInterval(() => {
       countdown();
       if (el('page-voz').classList.contains('shown')) refresh();

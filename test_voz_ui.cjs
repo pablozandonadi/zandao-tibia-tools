@@ -18,7 +18,7 @@ global.window = {addEventListener() {}};
 const ui = require('./web/voz.js');
 let timers = [], snapshots = 0, starts = 0, direct = false;
 const calls = [];
-const state = () => ({estado: 'ouvindo', detalhe: 'Ouvindo', microfone: true, ouvi: '<img src=x onerror=alert(1)>', resposta: 'Fala comigo, tibiano.', timers});
+const state = () => ({estado: 'ouvindo', detalhe: 'Ouvindo', microfone: true, ouvi: '<img src=x onerror=alert(1)>', resposta: 'Fala comigo, tibiano.', timers, online_enabled: true, online_configured: true});
 window.pywebview = {api: {
   async voz_configurar_online(...args) { calls.push(['online', ...args]); return {...state(), online_enabled: args[1], online_configured: true}; },
   async voz_escutar() { calls.push(['listen']); direct = !direct; return {...state(), direto: direct}; },
@@ -34,8 +34,9 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
   ui.boot();
   await flush();
   assert.equal(starts, 0, 'Voz pausada: o boot nunca liga microfone, Vosk ou Piper');
-  assert.equal(snapshots, 0, 'O boot não consulta a ponte; a página consulta ao abrir (vozLoad)');
-  await ui.refresh();
+  assert.equal(snapshots, 1, 'O boot lê o estado uma única vez (sem iniciar a voz), para Configurações já nascer certa');
+  assert.equal(elements['voz-online-enabled'].checked, true, 'Acesso online salvo e ligado aparece em Configurações sem abrir o Assistente');
+  assert.equal(elements['voz-online-status'].textContent, 'IA do chat ativada.');
   assert.equal(elements['voz-ouvi'].textContent, '<img src=x onerror=alert(1)>');
   assert.equal(elements['voz-entendi'].textContent, '—');
   ui.render({...state(), entendi:'Criar timer · 30 s'});
