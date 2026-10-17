@@ -3,6 +3,7 @@ import threading
 import uuid
 
 import assistente_tibiano as assistente
+import comandos_tibia
 from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, utf16_length, truncate_utf16
 
 FORA_DO_ESCOPO = 'Posso ajudar só com o Tibia e as ferramentas do Tibia Tudo: timers, shared, bosses, stamina e market.'
@@ -95,6 +96,9 @@ class Chat:
                 self._geracao += 1
                 self._perfil = perfil
             geracao = self._geracao
+        consulta = comandos_tibia.responder(texto, context.get('world_id') or '')
+        if consulta is not None:
+            return self._fim(texto, consulta, 'Consulta Tibia', 'local', geracao, registrar=permitir_ia)
         somente_resposta, erro_local = False, None
         try:
             comando = assistente.parse(texto, self.store.clock())
