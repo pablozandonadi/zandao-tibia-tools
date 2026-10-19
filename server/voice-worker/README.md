@@ -16,15 +16,74 @@ Este diretório contém apenas o gateway; o aplicativo continua exigindo ativaç
 
 2. O proprietário já cadastrou `OPENAI_API_KEY` como Worker Secret. Não leia nem copie esse valor. Se necessária a troca, use `wrangler secret put OPENAI_API_KEY` de forma interativa.
 
-3. Gere **um token diferente por pessoa**: `node -e "const c=require('node:crypto'); const t=c.randomBytes(32).toString('base64url'); console.log('TOKEN PRIVADO:',t);console.log('HASH:',c.createHash('sha256').update(t).digest('hex'))"`. Faça isso num terminal privado, sem gravação de sessão. Entregue somente o token àquela pessoa por canal privado. Nunca empacote tokens no aplicativo.
+3. **Os códigos novos nascem na aba Admin da Beta** (ver "Administração de códigos" abaixo): um código diferente por pessoa, gerado pelo próprio servidor, exibido uma única vez. Entregue somente o código àquela pessoa por canal privado. Nunca empacote códigos no aplicativo.
 
-4. Cadastre `VOICE_TOKENS_JSON` por `wrangler secret put VOICE_TOKENS_JSON`: objeto JSON `{ "hash-sha256-hex": "identificador-individual" }`. Hashes são 64 caracteres hex minúsculos; identificadores aceitam letras, números, `_` e `-`, até 80 caracteres. Para revogar, remova o hash e substitua o secret. Nunca reutilize um identificador entre pessoas; rotações podem manter o identificador para preservar quotas.
+4. `VOICE_TOKENS_JSON` fica **só para os códigos antigos**: objeto JSON `{ "hash-sha256-hex": "identificador-individual" }`, hashes de 64 caracteres hex minúsculos, identificadores com letras, números, `_` e `-` (até 80). Esses códigos continuam valendo, **sem amarração a PC**, com o limite diário de sempre. **Não substitua mais esse secret** (ele não é mais necessário para códigos novos e substituí-lo derrubaria os antigos). Para revogar um código antigo, remova o hash e só então reponha o secret, ciente do risco.
 
 5. Preencha `[vars]` no `wrangler.toml` com os valores aprovados abaixo, mantendo `VOICE_AI_ENABLED = "false"` enquanto testa. São todos strings de inteiros positivos, exceto o modelo. Ausência/valor inválido falha fechado com 503.
 
 6. Somente depois de confirmar modelo, preços, acesso e orçamento, altere `VOICE_AI_ENABLED` para `"true"` e implante. Uma requisição sem token deve responder 401; com gate OFF, 503. Nunca envie credenciais pelo browser/URL. Tokens individuais são enviados pelo cliente apenas em `Authorization: Bearer ...`, via HTTPS.
 
 
+
+## Administração de códigos
+
+Os códigos novos ficam no SQLite do Durable Object (tabelas `tokens` e `devices`, criadas sob demanda, sem nova migração). O servidor guarda só o hash; o código aparece uma única vez ao ser gerado.
+
+**Senha de admin.** Gere a senha e o hash com o mesmo `node -e` abaixo, num terminal privado e sem gravação de sessão. Guarde a senha num gerenciador de senhas e cadastre só o hash: `wrangler secret put ADMIN_TOKEN_HASH` (interativo). Sem esse secret, as rotas `/admin/*` respondem 503.
+
+```
+node -e "const c=require('node:crypto'); const t=c.randomBytes(32).toString('base64url'); console.log('SENHA PRIVADA:',t);console.log('HASH:',c.createHash('sha256').update(t).digest('hex'))"
+```
+
+**Variáveis** (strings de inteiro positivo; valor inválido falha com 503):
+
+| Variável | Padrão | Significado |
+| --- | --- | --- |
+| `ADMIN_TOKEN_HASH` (secret) | ausente = admin desligado | SHA-256 hex (64 caracteres) da senha de admin |
+| `VOICE_DEVICES_MAX` | `2` | PCs por código novo |
+| `VOICE_ADMIN_BURST_LIMIT` | `10` | tentativas por minuto, por IP, nas rotas de admin |
+
+**Rotas de admin.** Todas exigem HTTPS e `Authorization: Bearer <senha de admin>` (43 caracteres base64url); a comparação do hash é de tempo constante; qualquer requisição com cabeçalho `Origin` é recusada (uso só por app nativo). Nunca chamam a OpenAI. Corpos JSON até 4096 bytes.
+
+| Rota | Corpo | Sucesso |
+| --- | --- | --- |
+| `POST /admin/tokens` | `{"subject","mode","quota","expires"}` | `201 {subject,token,mode,quota,expires,devices_max,created}` |
+| `GET /admin/tokens` | sem corpo | `200 {tokens:[{subject,created,revoked,mode,quota,expires,used_total,devices,last_seen,today_requests}]}` |
+| `POST /admin/tokens/limit` | `{"subject","mode","quota","expires","reset_used"?}` | `200 {updated:N}` (muda o plano sem trocar o código; `reset_used:true` zera `used_total`) |
+| `POST /admin/tokens/revoke` | `{"subject"}` | `200 {revoked:N}` (vale na próxima requisição) |
+
+`subject` segue `^[a-zA-Z0-9_-]{1,80}$`. Erros de admin: 400 corpo/plano inválido (inclui `quota` em `unlimited` ou `expires` no passado), 401 senha inválida, 403 `Origin` presente ou HTTP sem TLS, 404 rota desconhecida, 409 já existe código ativo para o `subject` (revogue antes), 429 limite de tentativas, 503 admin desligado. O corpo de erro é sempre `{"error":"voice_unavailable"}`, sem detalhes.
+
+**Planos de uso** (`mode`; uso = uma requisição paga em `/transcribe`, `/interpret` ou `/chat`):
+
+| `mode` | `quota` | Significado |
+| --- | --- | --- |
+| `daily` | inteiro >= 1 | N usos por dia UTC; o teto de custo da pessoa acompanha o plano |
+| `total` | inteiro >= 1 | pacote de N usos no total (`used_total`); esgotado, para até o admin aumentar |
+| `unlimited` | proibido (`null`) | sem limite próprio; os tetos globais e as rajadas por pessoa/IP continuam valendo |
+
+`expires` (milissegundos, opcional) encerra o código em qualquer modo. `used_total` não volta se a OpenAI falhar depois da reserva; repetir o mesmo `X-Request-ID` (409) não conta duas vezes.
+
+**Amarração a PC.** Código novo exige o cabeçalho `X-Device-ID` (UUID v4); ausente ou inválido, 400. Cada código aceita até `VOICE_DEVICES_MAX` PCs; o seguinte recebe 403. Códigos antigos de `VOICE_TOKENS_JSON` não usam `X-Device-ID`.
+
+**Erros novos para o usuário** (só depois de o código ser reconhecido):
+
+- `403 {"error":"device_limit"}`: PC além do limite.
+- `403 {"error":"code_expired"}`: `expires` vencido.
+- `429 {"error":"quota_exhausted","limit_reason":"token_total"}`: pacote `total` esgotado. No plano `daily`, esgotar dá 429 com `limit_reason:"token_daily"` e `retry_after_seconds` até a virada do dia UTC.
+
+### Roteiro de deploy (exige o dono)
+
+1. Instalar o `wrangler` (Node 24) e fazer `wrangler login` na conta dona do Worker.
+2. Gerar a senha de admin localmente (comando acima), guardá-la num gerenciador de senhas e calcular o hash.
+3. `wrangler secret put ADMIN_TOKEN_HASH` (interativo).
+4. **Não substituir mais o `VOICE_TOKENS_JSON`**: os códigos novos não dependem dele e os antigos continuam nele.
+5. `wrangler deploy` (sem nova migração: mesma classe, tabelas criadas sob demanda).
+6. Teste de fumaça: sem token, 401; `GET /admin/tokens` com a senha, 200 e lista vazia; gerar um código de teste, usar no app Beta, ver 2 PCs aceitos e o 3º recusado (`device_limit`), revogar e ver 401.
+7. Reversão: `wrangler rollback` (ou redeploy do arquivo anterior) e remover o secret `ADMIN_TOKEN_HASH`. As tabelas ficam, inofensivas.
+
+O app só é publicado (Beta) depois de o servidor novo estar no ar: o app novo já envia `X-Device-ID`, que o servidor antigo ignora. A ordem inversa também é segura.
 
 ## Configuração obrigatória
 

@@ -52,3 +52,5 @@ Agora o último passo do job original, "Devolver a promoção para a develop", e
 O passo usa continue-on-error de propósito: a release já saiu e o app (publicacao_beta.estado) lê a conclusão geral da execução; uma falha de reconciliação aparece como aviso no log e não transforma uma publicação bem-sucedida em "falhou". Se o aviso aparecer, faça o merge da main na develop antes da próxima Beta, ou `preparar` bloqueará a promoção com a mensagem "Integre a main em develop". Um conflito real (alguém alterou versao.py ou as notas na develop) não é resolvido sozinho: o passo aborta o merge e não envia nada. Os testes ficam em `ReconciliacaoDevelopTests` (test_publicacao_beta.py), com repositórios git locais.
 
 Regra de uso: nunca reaproveite uma Beta bloqueada. Depois de reconciliar, a promoção vale para a primeira Beta nova (base já atualizada), não para a antiga; promover a antiga continua barrado de propósito.
+
+Administração de códigos da IA (aba Admin da Beta, rotas `/admin`, planos de uso, limite de PCs) e o roteiro de deploy do Worker: `server/voice-worker/README.md`, seção "Administração de códigos".
