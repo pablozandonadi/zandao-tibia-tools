@@ -100,8 +100,14 @@ function normalizePlan(body,now) {
  if(expires!==undefined&&expires!==null&&(!Number.isSafeInteger(expires)||expires<=now))fail(400);
  return {mode,quota:mode==='unlimited'?null:quota,expires:expires??null};
 }
+// Admin checks that need no database run before the Durable Object; burst + password comparison stay in adminFetch (spec 5.5).
+function adminPrecheck(request,env) {
+ if(request.headers.has('Origin'))fail(403);
+ if(!/^[0-9a-f]{64}$/.test(env.ADMIN_TOKEN_HASH||''))fail(503);
+ if(!/^Bearer [A-Za-z0-9_-]{43}$/.test(request.headers.get('Authorization')||''))fail(401);
+}
 export default {async fetch(request,env){
- try {const url=new URL(request.url);if(url.protocol!=='https:')fail(403);if(url.pathname.startsWith('/admin/'))return await env.VOICE_GATE.get(env.VOICE_GATE.idFromName('voice-budget')).fetch(request);const cfg=config(env);await identify(request,env,cfg);const id=env.VOICE_GATE.idFromName('voice-budget');return await env.VOICE_GATE.get(id).fetch(request);}catch(e){return reply(e.status||503,{error:'voice_unavailable'});}
+ try {const url=new URL(request.url);if(url.protocol!=='https:')fail(403);if(url.pathname.startsWith('/admin/')){adminPrecheck(request,env);return await env.VOICE_GATE.get(env.VOICE_GATE.idFromName('voice-budget')).fetch(request);}const cfg=config(env);await identify(request,env,cfg);const id=env.VOICE_GATE.idFromName('voice-budget');return await env.VOICE_GATE.get(id).fetch(request);}catch(e){return reply(e.status||503,{error:'voice_unavailable'});}
 }};
 export class VoiceGate {
  constructor(ctx,env){this.ctx=ctx;this.env=env;this.providerFetch=(...args)=>fetch(...args);const sql=ctx.storage.sql;
@@ -114,11 +120,12 @@ export class VoiceGate {
   const sql=this.ctx.storage.sql,now=Date.now(),day=Math.floor(now/86400000);
   this.ctx.storage.transactionSync(()=>{
    sql.exec('DELETE FROM requests WHERE rowid IN (SELECT rowid FROM requests WHERE created < ? LIMIT 100)',now-172800000);
-   sql.exec('DELETE FROM buckets WHERE key IN (SELECT key FROM buckets WHERE expires < ? LIMIT 100)',now);
+   this.cleanBuckets();
    if([...sql.exec('SELECT request_id FROM requests WHERE subject=? AND request_id=? AND route=?',subject,id,route)].length)fail(409);
+   // New codes are re-read here: the admin may have revoked or changed them, or other requests debited used_total, while this one awaited the body.
+   if(plan){plan=[...sql.exec('SELECT revoked,expires,mode,quota,used_total FROM tokens WHERE hash=?',hash)][0];if(!plan||plan.revoked!==null)fail(401);if(plan.expires!==null&&plan.expires<=now)fail(403,{error:'code_expired'});}
    const mode=plan?.mode;
-   // used_total is re-read here: other requests may have debited it while this one awaited the body.
-   if(mode==='total'){const t=[...sql.exec('SELECT quota,used_total FROM tokens WHERE hash=?',hash)][0];if(!t||t.used_total>=t.quota)fail(429,{error:'quota_exhausted',limit_reason:'token_total'});sql.exec('UPDATE tokens SET used_total=used_total+1 WHERE hash=?',hash);}
+   if(mode==='total'){if(plan.used_total>=plan.quota)fail(429,{error:'quota_exhausted',limit_reason:'token_total'});sql.exec('UPDATE tokens SET used_total=used_total+1 WHERE hash=?',hash);}
    const uLimit=mode==='daily'?plan.quota:mode?Infinity:cfg.USER_DAILY_LIMIT,uBudget=mode==='daily'?Math.max(cfg.USER_DAILY_MICRO_USD,plan.quota*cfg.NLU_RESERVE_MICRO_USD):mode?Infinity:cfg.USER_DAILY_MICRO_USD;
    const buckets=[[`u:${subject}:${day}`,uLimit,uBudget,(day+2)*86400000],[`g:${day}`,cfg.GLOBAL_DAILY_LIMIT,cfg.GLOBAL_DAILY_MICRO_USD,(day+2)*86400000]];
    for(const [key,limit,budget,expires]of buckets){const row=[...sql.exec('SELECT count,cost FROM buckets WHERE key=?',key)][0];const scope=key.startsWith('u:')?'user':'global';const retry_after_seconds=Math.ceil(((day+1)*86400000-now)/1000);if((row?.count||0)+1>limit)fail(429,mode==='daily'&&scope==='user'?{error:'quota_exhausted',limit_reason:'token_daily',retry_after_seconds}:{limit_reason:scope+'_daily_requests',retry_after_seconds});if((row?.cost||0)+cost>budget)fail(429,{limit_reason:scope+'_daily_budget',retry_after_seconds});sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,?,?) ON CONFLICT(key) DO UPDATE SET count=count+1,cost=cost+excluded.cost',key,cost,expires);}
@@ -140,7 +147,7 @@ export class VoiceGate {
  debitBurst(subject,ip,cfg,ipDone=false){
   const sql=this.ctx.storage.sql,minute=Math.floor(Date.now()/60000);
   this.ctx.storage.transactionSync(()=>{
-   sql.exec('DELETE FROM buckets WHERE key IN (SELECT key FROM buckets WHERE expires < ? LIMIT 100)',Date.now());
+   this.cleanBuckets();
    for(const [key,limit] of [[`burst-u:${subject}:${minute}`,cfg.USER_BURST_LIMIT],[`burst-ip:${ip}:${minute}`,cfg.IP_BURST_LIMIT]]){
     if(ipDone&&key.startsWith('burst-ip:'))continue; // já debitado por debitIpBurst
     const row=[...sql.exec('SELECT count FROM buckets WHERE key=?',key)][0];if((row?.count||0)>=limit)fail(429,{limit_reason:key.startsWith('burst-u:')?'user_burst':'ip_burst',retry_after_seconds:Math.max(1,Math.ceil(((minute+1)*60000-Date.now())/1000))});
@@ -148,9 +155,11 @@ export class VoiceGate {
    }
   });
  }
+ cleanBuckets(){this.ctx.storage.sql.exec('DELETE FROM buckets WHERE key IN (SELECT key FROM buckets WHERE expires < ? LIMIT 100)',Date.now());}
  debitIpBurst(ip,cfg){
   const sql=this.ctx.storage.sql,minute=Math.floor(Date.now()/60000),key=`burst-ip:${ip}:${minute}`;
   this.ctx.storage.transactionSync(()=>{
+   this.cleanBuckets();
    const row=[...sql.exec('SELECT count FROM buckets WHERE key=?',key)][0];if((row?.count||0)>=cfg.IP_BURST_LIMIT)fail(429,{limit_reason:'ip_burst',retry_after_seconds:Math.max(1,Math.ceil(((minute+1)*60000-Date.now())/1000))});
    sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,0,?) ON CONFLICT(key) DO UPDATE SET count=count+1',key,(minute+2)*60000);
   });
@@ -235,12 +244,13 @@ export class VoiceGate {
    const plan=normalizePlan(body,Date.now());
    if(route==='POST /admin/tokens')return reply(201,await this.createToken(body.subject,plan));
    if(body.reset_used!==undefined&&typeof body.reset_used!=='boolean')fail(400);
-   return reply(200,{updated:this.updateLimit(body.subject,plan,body.reset_used===true)});
+   return reply(200,{updated:this.updateLimit(body.subject,plan,body.reset_used===true,!Object.hasOwn(body,'expires'))});
   } catch(e){return reply(failures.has(e)?e.status:503,{error:'voice_unavailable'});}
  }
  debitAdminBurst(ip,limit) {
   const sql=this.ctx.storage.sql,minute=Math.floor(Date.now()/60000),key=`burst-admin:${ip}:${minute}`;
   this.ctx.storage.transactionSync(()=>{
+   this.cleanBuckets();
    const row=[...sql.exec('SELECT count FROM buckets WHERE key=?',key)][0];if((row?.count||0)>=limit)fail(429);
    sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,0,?) ON CONFLICT(key) DO UPDATE SET count=count+1',key,(minute+2)*60000);
   });
@@ -248,6 +258,9 @@ export class VoiceGate {
  async createToken(subject,plan) {
   const token=btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   const h=await hash(token),created=Date.now(),sql=this.ctx.storage.sql,dm=this.env.VOICE_DEVICES_MAX;
+  // A subject already used by a legacy code would merge two people's limits; absent/malformed legacy secret = none.
+  let legacy=null;try{legacy=JSON.parse(this.env.VOICE_TOKENS_JSON);}catch{}
+  if(legacy&&typeof legacy==='object'&&Object.values(legacy).includes(subject))fail(409);
   this.ctx.storage.transactionSync(()=>{
    if([...sql.exec('SELECT 1 FROM tokens WHERE subject=? AND revoked IS NULL',subject)].length)fail(409);
    sql.exec('INSERT INTO tokens(hash,subject,created,mode,quota,expires) VALUES(?,?,?,?,?,?)',h,subject,created,plan.mode,plan.quota,plan.expires);
@@ -270,11 +283,12 @@ export class VoiceGate {
    sql.exec('UPDATE tokens SET revoked=? WHERE subject=? AND revoked IS NULL',Date.now(),subject);return n;
   });
  }
- updateLimit(subject,plan,resetUsed) {
+ // keepExpires: the body omitted 'expires', so the current validity stays; an explicit null clears it.
+ updateLimit(subject,plan,resetUsed,keepExpires) {
   const sql=this.ctx.storage.sql;
   return this.ctx.storage.transactionSync(()=>{
    const n=[...sql.exec('SELECT 1 FROM tokens WHERE subject=? AND revoked IS NULL',subject)].length;if(!n)fail(404);
-   sql.exec('UPDATE tokens SET mode=?,quota=?,expires=?,used_total=CASE WHEN ? THEN 0 ELSE used_total END WHERE subject=? AND revoked IS NULL',plan.mode,plan.quota,plan.expires,resetUsed?1:0,subject);return n;
+   sql.exec('UPDATE tokens SET mode=?,quota=?,expires=CASE WHEN ? THEN expires ELSE ? END,used_total=CASE WHEN ? THEN 0 ELSE used_total END WHERE subject=? AND revoked IS NULL',plan.mode,plan.quota,keepExpires?1:0,plan.expires,resetUsed?1:0,subject);return n;
   });
  }
 }

@@ -325,10 +325,11 @@ const usa = (s, tk, {id = crypto.randomUUID(), route = '/transcribe'} = {}) => w
 const statuses = (s, tk, n, o) => Promise.all(Array.from({length: n}, () => usa(s, tk, o))).then(rs => rs.map(r => r.status));
 const big = {VOICE_USER_BURST_LIMIT: '100', VOICE_IP_BURST_LIMIT: '100', VOICE_USER_DAILY_LIMIT: '1000', VOICE_GLOBAL_DAILY_LIMIT: '1000', VOICE_USER_DAILY_MICRO_USD: '100000000', VOICE_GLOBAL_DAILY_MICRO_USD: '100000000'};
 const usado = (s, tk) => s.db.prepare('SELECT used_total u FROM tokens WHERE subject=?').get(tk).u;
-test('daily: a N-ésima passa e a N+1 recebe 429 token_daily', async () => {
-  const s = await adminSetup({...big, VOICE_USER_DAILY_LIMIT: '1'}); const tk = await novoCodigo(s, 'd1', {mode: 'daily', quota: 2});
+test('daily: a N-ésima passa e a N+1 recebe 429 token_daily; volta no dia seguinte', async t => {
+  const s = await adminSetup({...big, VOICE_USER_DAILY_LIMIT: '1'}); const tk = await novoCodigo(s, 'd1', {mode: 'daily', quota: 2}); const agora = Date.now();
   assert.equal((await usa(s, tk)).status, 200); assert.equal((await usa(s, tk)).status, 200);
-  const r = await usa(s, tk); assert.equal(r.status, 429); const b = await r.json(); assert.equal(b.error, 'quota_exhausted'); assert.equal(b.limit_reason, 'token_daily');
+  const r = await usa(s, tk); assert.equal(r.status, 429); const b = await r.json(); assert.equal(b.error, 'quota_exhausted'); assert.equal(b.limit_reason, 'token_daily'); assert.ok(b.retry_after_seconds > 0);
+  t.mock.method(Date, 'now', () => agora + 86400000); assert.equal((await usa(s, tk)).status, 200);
 });
 test('daily acima do teto de custo antigo não é cortado antes de N', async () => {
   const intent = {action: 'create_timer', parameters: {seconds: 90}, needs_clarification: false, clarification: null};
@@ -375,4 +376,58 @@ test('falha do provedor mantém a unidade usada', async () => {
 test('código antigo continua com os limites USER_*', async () => {
   const s = await setup({...big, VOICE_USER_DAILY_LIMIT: '1'});
   assert.equal((await s.req()).status, 200); const r = await s.req(); assert.equal(r.status, 429); assert.equal((await r.json()).limit_reason, 'user_daily_requests');
+});
+
+// Rodada final de correção
+test('A1: alterar a cota sem mandar expires mantém a validade; null limpa; inteiro substitui; passado é 400', async () => {
+  const s = await adminSetup(); const e1 = Date.now() + 86400000, e2 = Date.now() + 2 * 86400000;
+  await adm(s, '/admin/tokens', {body: {subject: 'x1', ...plan, expires: e1}});
+  const exp = () => s.db.prepare('SELECT expires FROM tokens').get().expires;
+  assert.equal((await adm(s, '/admin/tokens/limit', {body: {subject: 'x1', mode: 'daily', quota: 9}})).status, 200); assert.equal(exp(), e1);
+  assert.equal((await adm(s, '/admin/tokens/limit', {body: {subject: 'x1', ...plan, expires: e2}})).status, 200); assert.equal(exp(), e2);
+  assert.equal((await adm(s, '/admin/tokens/limit', {body: {subject: 'x1', ...plan, expires: Date.now() - 1000}})).status, 400); assert.equal(exp(), e2);
+  assert.equal((await adm(s, '/admin/tokens/limit', {body: {subject: 'x1', ...plan, expires: null}})).status, 200); assert.equal(exp(), null);
+});
+const expiredRows = (s, n) => { for (let i = 0; i < n; i++) s.db.prepare('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,0,?)').run('velho:' + i, Date.now() - 1000); };
+const expiredLeft = s => s.db.prepare("SELECT count(*) n FROM buckets WHERE key LIKE 'velho:%'").get().n;
+test('A3: código desconhecido e admin também apagam buckets vencidos (até 100)', async () => {
+  let s = await adminSetup(); expiredRows(s, 150);
+  assert.equal((await reqCom(s, 'e'.repeat(43), crypto.randomUUID())).status, 401); assert.equal(expiredLeft(s), 50);
+  s = await adminSetup(); expiredRows(s, 150);
+  assert.equal((await adm(s, '/admin/tokens', {method: 'GET'})).status, 200); assert.equal(expiredLeft(s), 50);
+});
+const emVoo = (s, sql) => { const gate = s.env.VOICE_GATE.get(), orig = gate.resolveToken.bind(gate); gate.resolveToken = (...a) => { const r = orig(...a); s.db.prepare(sql).run(); return r; }; };
+test('A4: revogar ou vencer entre resolveToken e reserve barra a requisição', async () => {
+  let s = await adminSetup(big); let tk = await novoCodigo(s, 'v1'); emVoo(s, 'UPDATE tokens SET revoked=1');
+  assert.equal((await usa(s, tk)).status, 401); assert.equal(s.calls, 0);
+  s = await adminSetup(big); tk = await novoCodigo(s, 'v2'); emVoo(s, `UPDATE tokens SET expires=${Date.now() - 1000}`);
+  const r = await usa(s, tk); assert.equal(r.status, 403); assert.equal((await r.json()).error, 'code_expired'); assert.equal(s.calls, 0);
+});
+test('A4: trocar total -> unlimited com requisição em voo não dá 429', async () => {
+  const s = await adminSetup(big); const tk = await novoCodigo(s, 'v3', {mode: 'total', quota: 1});
+  assert.equal((await usa(s, tk)).status, 200); emVoo(s, "UPDATE tokens SET mode='unlimited',quota=NULL");
+  assert.equal((await usa(s, tk)).status, 200);
+});
+test('A5: gerar recusa subject já usado por código antigo; segredo malformado não atrapalha', async () => {
+  let s = await adminSetup(); assert.equal((await adm(s, '/admin/tokens', {body: {subject: 'amigo-1', ...plan}})).status, 409);
+  assert.equal(s.db.prepare('SELECT count(*) n FROM tokens').get().n, 0);
+  s = await adminSetup({VOICE_TOKENS_JSON: '{malformado'}); assert.equal((await adm(s, '/admin/tokens', {body: {subject: 'amigo-1', ...plan}})).status, 201);
+  s = await adminSetup({VOICE_TOKENS_JSON: undefined}); assert.equal((await adm(s, '/admin/tokens', {body: {subject: 'amigo-1', ...plan}})).status, 201);
+});
+test('A6: teto global rejeita código total sem queimar unidade do pacote', async () => {
+  const s = await adminSetup({...big, VOICE_GLOBAL_DAILY_LIMIT: '1'}); const tk = await novoCodigo(s, 'g1', {mode: 'total', quota: 5});
+  const rs = [await usa(s, tk), await usa(s, tk)]; assert.deepEqual(rs.map(r => r.status), [200, 429]);
+  assert.equal((await rs[1].json()).limit_reason, 'global_daily_requests'); assert.equal(usado(s, 'g1'), 1);
+});
+test('A2: sem Authorization, Bearer malformado, Origin ou admin desligado não chegam ao DO', async () => {
+  const conta = s => { let n = 0; const g = s.env.VOICE_GATE.get; s.env.VOICE_GATE.get = (...a) => { n++; return g(...a); }; return () => n; };
+  let s = await adminSetup(); let chegou = conta(s);
+  const rs = [await worker.fetch(new Request('https://voice.example/admin/tokens'), s.env), await adm(s, '/admin/tokens', {method: 'GET', token: 'curto'}), await adm(s, '/admin/tokens', {method: 'GET', headers: {origin: 'https://evil.example'}})];
+  assert.deepEqual(rs.map(r => r.status), [401, 401, 403]); for (const r of rs) assert.deepEqual(await r.json(), {error: 'voice_unavailable'});
+  s = await setup(); const desligado = conta(s); assert.equal((await adm(s, '/admin/tokens', {method: 'GET'})).status, 503);
+  assert.equal(chegou() + desligado(), 0); assert.equal(s.db.prepare("SELECT count(*) n FROM buckets WHERE key LIKE 'burst-admin:%'").get().n, 0);
+  s = await adminSetup(); chegou = conta(s);
+  assert.equal((await adm(s, '/admin/tokens', {method: 'GET', token: 'd'.repeat(43)})).status, 401); assert.equal(chegou(), 1);
+  assert.equal(s.db.prepare("SELECT count FROM buckets WHERE key LIKE 'burst-admin:%'").get().count, 1);
+  assert.equal((await adm(s, '/admin/tokens', {method: 'GET'})).status, 200);
 });
