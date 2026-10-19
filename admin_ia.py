@@ -1,4 +1,5 @@
 """Cliente do painel de administração dos códigos da IA online (só stdlib)."""
+import contextlib
 import json
 from pathlib import Path
 import re
@@ -32,10 +33,14 @@ def salvar_senha(pasta, senha):
     try:
         temporario.write_bytes(voz_credenciais._proteger(senha))
         temporario.replace(destino)
-    except OSError:
-        raise AdminIAError('Não foi possível salvar a senha.') from None
+        falhou = False
+    except (OSError, ValueError, AttributeError):
+        falhou = True
     finally:
-        temporario.unlink(missing_ok=True)
+        with contextlib.suppress(OSError):
+            temporario.unlink(missing_ok=True)
+    if falhou:  # fora do except: __context__ não guarda o erro original
+        raise AdminIAError('Não foi possível salvar a senha.')
 
 
 def carregar_senha(pasta):
@@ -59,23 +64,29 @@ def _chamar(pasta, metodo, caminho, corpo=None):
     if not senha:
         raise AdminIAError('Informe a senha de administrador.')
     dados = json.dumps(corpo).encode('utf-8') if corpo is not None else None
-    cabecalhos = {'Authorization': 'Bearer ' + senha}
+    cabecalhos = {'User-Agent': 'TibiaTudo/1.0', 'Authorization': 'Bearer ' + senha}
     if dados is not None:
         cabecalhos['Content-Type'] = 'application/json'
     pedido = urllib.request.Request(ENDPOINT + caminho, data=dados, method=metodo, headers=cabecalhos)
+    generico = 'Não foi possível concluir. Tente novamente.'
+    erro = status = resultado = None
     try:
         with _OPENER.open(pedido, timeout=15) as resposta:
             bruto = resposta.read(65537)
-    except urllib.error.HTTPError as erro:
-        raise AdminIAError(_MENSAGENS.get(erro.code, 'Não foi possível concluir. Tente novamente.'), status=erro.code) from None
+    except urllib.error.HTTPError as e:
+        status = e.code
+        erro = _MENSAGENS.get(status, generico)
+        e.close()
     except (urllib.error.URLError, OSError):
-        raise AdminIAError('Sem conexão com o servidor.') from None
-    try:
-        resultado = json.loads(bruto) if len(bruto) <= 65536 else None
-    except ValueError:
-        resultado = None
+        erro = 'Sem conexão com o servidor.'
+    else:
+        with contextlib.suppress(ValueError):
+            resultado = json.loads(bruto) if len(bruto) <= 65536 else None
+    # os raises ficam fora dos except: __context__ não guarda o erro original
+    if erro:
+        raise AdminIAError(erro, status=status)
     if not isinstance(resultado, dict):
-        raise AdminIAError('Não foi possível concluir. Tente novamente.')
+        raise AdminIAError(generico)
     return resultado
 
 

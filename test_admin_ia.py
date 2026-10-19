@@ -43,16 +43,17 @@ class AdminIATests(unittest.TestCase):
     def test_gerar_monta_post(self):
         a.salvar_senha(self.pasta, SENHA)
         with mock.patch.object(a._OPENER, 'open', return_value=Resp(json.dumps({'token': CODIGO}).encode())) as op:
-            r = a.gerar(self.pasta, 'Ana', 'quota', quota=100, expires=5)
+            r = a.gerar(self.pasta, 'Ana', 'total', quota=100, expires=5)
         pedido = op.call_args.args[0]
         self.assertEqual(r, {'token': CODIGO})
         self.assertEqual((pedido.get_method(), pedido.full_url), ('POST', a.ENDPOINT + '/admin/tokens'))
         self.assertEqual(pedido.get_header('Authorization'), 'Bearer ' + SENHA)
-        self.assertEqual(json.loads(pedido.data), {'subject': 'Ana', 'mode': 'quota', 'quota': 100, 'expires': 5})
+        self.assertEqual(json.loads(pedido.data), {'subject': 'Ana', 'mode': 'total', 'quota': 100, 'expires': 5})
         self.assertEqual(op.call_args.kwargs['timeout'], 15)
+        self.assertEqual(pedido.get_header('User-agent'), 'TibiaTudo/1.0')
         with mock.patch.object(a._OPENER, 'open', side_effect=lambda *a, **k: Resp(b'{}')) as op:
             a.gerar(self.pasta, 'Ana', 'unlimited')
-            a.limite(self.pasta, 'Ana', 'quota', quota=3, reset_used=True)
+            a.limite(self.pasta, 'Ana', 'total', quota=3, reset_used=True)
         self.assertEqual(json.loads(op.call_args_list[0].args[0].data), {'subject': 'Ana', 'mode': 'unlimited'})
         self.assertEqual(json.loads(op.call_args_list[1].args[0].data)['reset_used'], True)
 
@@ -69,13 +70,24 @@ class AdminIATests(unittest.TestCase):
             with mock.patch.object(a._OPENER, 'open', side_effect=erro), self.assertRaises(a.AdminIAError) as c:
                 a.listar(self.pasta)
             self.assertEqual(str(c.exception), msg)
-            for s in (str(c.exception), repr(c.exception), repr(c.exception.__cause__), repr(c.exception.args)):
+            for s in (str(c.exception), repr(c.exception), repr(c.exception.args)):
                 self.assertNotIn(SENHA, s)
                 self.assertNotIn(CODIGO, s)
+            self.assertIsNone(c.exception.__context__)
+            self.assertIsNone(c.exception.__cause__)
         for corpo in (b'[1]', b'x' * 70000, json.dumps({'a': 'b' * 70000}).encode(), json.dumps({'token': CODIGO}).encode() + b'x'):
             with mock.patch.object(a._OPENER, 'open', return_value=Resp(corpo)), self.assertRaises(a.AdminIAError) as c:
                 a.gerar(self.pasta, 'Ana', 'unlimited')
             self.assertNotIn(CODIGO, repr(c.exception))
+            self.assertIsNone(c.exception.__context__)
+            self.assertIsNone(c.exception.__cause__)
+
+    def test_falha_do_dpapi_vira_admin_ia_error(self):
+        for erro in (ValueError('código'), OSError('x'), AttributeError('x')):
+            with mock.patch.object(a.voz_credenciais, '_proteger', side_effect=erro), self.assertRaises(a.AdminIAError) as c:
+                a.salvar_senha(self.pasta, SENHA)
+            self.assertIsNone(c.exception.__context__)
+            self.assertEqual(list(self.pasta.iterdir()), [])
 
     def test_sem_senha_levanta(self):
         with self.assertRaisesRegex(a.AdminIAError, 'Informe a senha de administrador.'):
