@@ -36,6 +36,10 @@ class RemoteAIError(Exception):
         self.status = status if type(status) is int and 400 <= status <= 599 else None
 
 def http_error(status, details=None):
+    code = details.get('error') if isinstance(details, dict) else None
+    if status == 403 and code == 'device_limit':return RemoteAIError('Este código já está em uso em outros computadores. Peça um novo ao administrador.', status=status)
+    if status == 403 and code == 'code_expired':return RemoteAIError('Este código expirou. Peça um novo ao administrador.', status=status)
+    if status == 429 and code == 'quota_exhausted':return RemoteAIError('O limite de uso deste código acabou. Peça mais ao administrador.', status=status)
     if status == 429:
         reasons = {
             'user_daily_requests':'Limite diário de comandos online atingido.',
@@ -174,15 +178,17 @@ def pcm_wav(pcm, samplerate):
 
 
 class RemoteAIClient:
-    def __init__(self, token):
+    def __init__(self, token, device_id=None):
         if not isinstance(token,str) or not TOKEN.fullmatch(token): raise ValueError('Código de acesso inválido.')
         self._token=token
+        self._device_id=device_id
         self._opener=urllib.request.build_opener(NoRedirect())
 
     def _post(self, route, body, request_id, content_type, extra_headers=None):
         try:
             if str(uuid.UUID(request_id,version=4))!=request_id.lower(): raise ValueError()
             request=urllib.request.Request(ENDPOINT+route,data=body,method='POST',headers={'User-Agent':'TibiaTudo/1.0','Authorization':'Bearer '+self._token,'X-Request-ID':request_id,'Content-Type':content_type})
+            if self._device_id: request.add_header('X-Device-ID', self._device_id)
             for key, value in (extra_headers or {}).items():
                 request.add_header(key, value)
             with self._opener.open(request,timeout=15) as response:
@@ -194,7 +200,7 @@ class RemoteAIClient:
             return value
         except urllib.error.HTTPError as error:
             details = None
-            if error.code == 429:
+            if error.code in (403, 429):
                 try:
                     raw = error.read(8193)
                     if len(raw) <= 8192: details = json.loads(raw.decode('utf-8'))

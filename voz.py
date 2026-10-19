@@ -14,7 +14,7 @@ import zipfile
 
 from app_paths import data_dir
 from voice.audio_capture import Capture, has_voice
-from voice import vocabulario
+from voice import device_id, vocabulario
 from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, pcm_wav, save_settings, valid_intent
 from voice.spike_assistente import (GREETING, UNKNOWN_REPLY, PiperSpeech, command_after_wake, play_wake_sound,
                                     cancel_selection, dispatch, duration_from, duration_seconds, negated, normalize,
@@ -56,7 +56,7 @@ class Servico:
         self._generation = 0
         self._remote_busy = False
         self._online_enabled, token = load_settings(self.pasta)
-        self._online_client = RemoteAIClient(token) if token else None
+        self._online_client = RemoteAIClient(token, device_id=device_id.carregar(self.pasta)) if token else None
         self._watcher = threading.Thread(target=self._watch, daemon=True, name='voz-timers')
         self._speaker = None if silencioso else threading.Thread(target=self._say_loop, daemon=True, name='voz-falas')
         self._watcher.start()
@@ -292,7 +292,7 @@ class Servico:
             if generation != self._generation:
                 return {'erro': 'Essa configuração foi substituída por outra interação. Tente salvar novamente.'}
             self._online_enabled = enabled
-            self._online_client = RemoteAIClient(stored) if stored else None
+            self._online_client = RemoteAIClient(stored, device_id=device_id.carregar(self.pasta)) if stored else None
         return self.estado()
 
     def _remote_current(self, generation):

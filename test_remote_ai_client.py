@@ -58,6 +58,27 @@ class RemoteClientTests(unittest.TestCase):
             client.transcribe(b'fake','b92e3ae7-3591-4cd9-9188-1e5422fa1121')
         client._opener.open.assert_called_once()
 
+    def test_device_id_header_on_every_call_and_new_error_texts(self):
+        from voice.remote_ai_client import RemoteAIClient, RemoteAIError
+        from urllib.error import HTTPError
+        rid='b92e3ae7-3591-4cd9-9188-1e5422fa1121';dev='0b0e5f0e-6a4c-4c53-9a43-3b1e2f5d7c10'
+        for call in (lambda c:c.transcribe(b'fake',rid),lambda c:c.interpret('timer',rid)):
+            client=RemoteAIClient('a'*43,device_id=dev);client._opener=Mock()
+            client._opener.open.side_effect=HTTPError('https://fixed',403,'x',{},io.BytesIO(b'{}'))
+            with self.assertRaises(RemoteAIError):call(client)
+            self.assertEqual(client._opener.open.call_args.args[0].get_header('X-device-id'),dev)
+        client=RemoteAIClient('a'*43);client._opener=Mock()
+        client._opener.open.side_effect=HTTPError('https://fixed',403,'x',{},io.BytesIO(b'{}'))
+        with self.assertRaises(RemoteAIError):client.interpret('timer',rid)
+        self.assertIsNone(client._opener.open.call_args.args[0].get_header('X-device-id'))
+        for status,body,message in ((403,{'error':'device_limit'},'em uso em outros computadores'),(403,{'error':'code_expired'},'expirou'),
+                                    (429,{'error':'quota_exhausted','limit_reason':'token_total'},'limite de uso deste código acabou'),(403,{'error':'outro'},'bloqueado')):
+            with self.subTest(status=status,body=body):
+                client=RemoteAIClient('a'*43,device_id=dev);client._opener=Mock()
+                client._opener.open.side_effect=HTTPError('https://fixed',status,'x',{},io.BytesIO(json.dumps(body).encode()))
+                with self.assertRaisesRegex(RemoteAIError,message) as error:client.interpret('timer',rid)
+                self.assertNotIn(dev,str(error.exception))
+
     def test_invalid_intents_are_rejected(self):
         from voice.remote_ai_client import valid_intent
         good={'action':'create_timer','parameters':{'seconds':30},'needs_clarification':False,'clarification':None}

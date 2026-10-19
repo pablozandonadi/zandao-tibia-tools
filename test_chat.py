@@ -228,7 +228,7 @@ class ComIA(ChatCase):
         self.ia.return_value = resposta_ia('Imbuement dá bônus.')
         r = self.chat.responder('Como funciona o imbuement?')
         self.assertEqual({'resposta': 'Imbuement dá bônus.', 'entendi': '—', 'origem': 'ia'}, r)
-        self.classe.assert_called_once_with(TOKEN)
+        self.classe.assert_called_once_with(TOKEN, device_id=(self.pasta / 'voice-device.id').read_text())
         mensagens, request_id = self.ia.call_args.args
         self.assertEqual([{'role': 'user', 'text': 'Como funciona o imbuement?'}], mensagens)
         self.assertEqual(36, len(request_id))
@@ -368,6 +368,12 @@ class Historico(ChatCase):
         self.chat.responder('e o prey?')
         self.assertEqual(['Como funciona o imbuement?', chat.IA_INDISPONIVEL, 'e o prey?'], [m['text'] for m in self.enviados()[-1]])
 
+    def test_codigo_em_outros_pcs_mostra_o_texto_do_servidor(self):
+        from voice.remote_ai_client import http_error
+        self.ia.side_effect = http_error(403, {'error': 'device_limit'})
+        r = self.chat.responder('Como funciona o imbuement?')
+        self.assertEqual('Este código já está em uso em outros computadores. Peça um novo ao administrador.', r['resposta'])
+
     def test_limpar_zera_o_historico(self):
         self.chat.responder('Como funciona o imbuement?')
         self.chat.limpar()
@@ -376,7 +382,7 @@ class Historico(ChatCase):
 
     def test_nada_e_gravado_em_disco(self):
         self.chat.responder('Como funciona o imbuement?')
-        self.assertEqual(['meus_personagens.json'], [p.name for p in self.pasta.iterdir()])
+        self.assertEqual(['meus_personagens.json', 'voice-device.id'], sorted(p.name for p in self.pasta.iterdir()))
 
 
 class Concorrencia(ChatCase):

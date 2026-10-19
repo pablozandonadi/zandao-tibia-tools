@@ -4,6 +4,7 @@ import uuid
 
 import assistente_tibiano as assistente
 import comandos_tibia
+from voice import device_id
 from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, utf16_length, truncate_utf16
 
 FORA_DO_ESCOPO = 'Posso ajudar só com o Tibia e as ferramentas do Tibia Tudo: timers, shared, bosses, stamina e market.'
@@ -117,14 +118,14 @@ class Chat:
         if not enabled or not token:
             return self._fim(texto, erro_local if somente_resposta else SEM_ACESSO, NADA, 'erro', geracao, registrar=permitir_ia)
         try:
-            ia = RemoteAIClient(token).chat(self._mensagens(texto), str(uuid.uuid4()))
+            ia = RemoteAIClient(token, device_id=device_id.carregar(self.pasta)).chat(self._mensagens(texto), str(uuid.uuid4()))
         except (RemoteAIError, OSError) as error:
             if somente_resposta:
                 return self._fim(texto, erro_local, NADA, 'erro', geracao, registrar=permitir_ia)
             mensagem = IA_INDISPONIVEL
             if isinstance(error, RemoteAIError) and error.status == 401:
                 mensagem = 'Código de acesso recusado. Confira em Configurações.'
-            elif isinstance(error, RemoteAIError) and error.status == 429:
+            elif isinstance(error, RemoteAIError) and error.status in (403, 429):
                 mensagem = str(error)
             return self._fim(texto, mensagem, NADA, 'erro', geracao, registrar=permitir_ia)
         if ia['kind'] == 'reply':
