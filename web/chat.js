@@ -150,7 +150,46 @@
       perfil = perfilAtual();
       PERS_OUVINTES.push(() => trocarPerfil(perfilAtual()));
     }
+    const grip = el('chat-grip');
+    if (grip) alturaDoChat(grip);
     selecionar('ia');
+  }
+  // Altura do chat: alça na borda de baixo do card, vale para o chat e para o Help. Limites: 120 px até a altura da janela menos o resto da tela.
+  function alturaDoChat(grip) {
+    const card = grip.closest('.chat'), MIN = 120, CHAVE = 'zt-chat-altura';
+    const area = () => canal === 'help' ? el('assistente-instrucoes') : el('chat-mensagens');
+    const maximo = () => Math.max(MIN, window.innerHeight - 200);
+    const aplicar = px => card.style.setProperty('--chat-h', Math.round(Math.min(maximo(), Math.max(MIN, px))) + 'px');
+    const guardar = () => { try { localStorage.setItem(CHAVE, String(Math.round(area().offsetHeight))); } catch (e) { /* sem armazenamento: a altura só vale nesta sessão */ } };
+    // com o zoom da interface (CSS zoom) o ponteiro e a altura do layout não estão na mesma escala
+    const escala = a => a.getBoundingClientRect().height / (a.offsetHeight || 1) || 1;
+    try { const salvo = Number(localStorage.getItem(CHAVE)); if (salvo >= MIN) aplicar(salvo); } catch (e) { /* ignora */ }
+    grip.addEventListener('pointerdown', event => {
+      event.preventDefault();
+      const a = area(), y0 = event.clientY, h0 = a.offsetHeight, k = escala(a);
+      grip.setPointerCapture(event.pointerId);
+      const mover = e => aplicar(h0 + (e.clientY - y0) / k);
+      const soltar = () => {
+        grip.removeEventListener('pointermove', mover);
+        grip.removeEventListener('pointerup', soltar);
+        grip.removeEventListener('pointercancel', soltar);
+        guardar();
+      };
+      grip.addEventListener('pointermove', mover);
+      grip.addEventListener('pointerup', soltar);
+      grip.addEventListener('pointercancel', soltar);
+    });
+    grip.addEventListener('keydown', event => {
+      const passo = {ArrowUp: -24, ArrowDown: 24}[event.key];
+      if (passo === undefined) return;
+      event.preventDefault();
+      aplicar(area().offsetHeight + passo);
+      guardar();
+    });
+    grip.addEventListener('dblclick', () => {
+      card.style.removeProperty('--chat-h');
+      try { localStorage.removeItem(CHAVE); } catch (e) { /* ignora */ }
+    });
   }
   window.chatEstado = data => {
     trocarPerfil(JSON.stringify([data.context.character_id || '', data.context.world_id || '']));
