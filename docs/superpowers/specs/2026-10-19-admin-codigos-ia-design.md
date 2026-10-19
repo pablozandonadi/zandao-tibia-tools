@@ -84,7 +84,7 @@ Cada código novo carrega o seu plano de uso, escolhido pelo admin ao gerar e al
 3. Senão, a consulta passa para o Durable Object: procura em `tokens` com `revoked IS NULL`. Não achou: 401.
 4. Código novo exige o cabeçalho `X-Device-ID` (UUID v4); sem ele ou inválido: 400.
 5. Amarração: se o `device_id` já está em `devices` para aquele hash, atualiza `last_seen`; se não está e `COUNT(devices) < VOICE_DEVICES_MAX`, registra; senão **403 `{"error":"device_limit"}`**.
-6. Plano de uso (ver 5.1.1): `expires` vencido dá **403 `{"error":"code_expired"}`**; em `total`, `used_total >= quota` dá **429 `{"error":"quota_exhausted","limit_reason":"token_total"}`**; em `daily`, o limite do dia e o teto de custo derivam de `quota`, e esgotar dá 429 com `limit_reason:"token_daily"` e `retry_after_seconds` até a virada do dia. `used_total` só aumenta quando a requisição é aceita (e volta se a OpenAI falhar antes de consumir, como a reserva atual).
+6. Plano de uso (ver 5.1.1): `expires` vencido dá **403 `{"error":"code_expired"}`**; em `total`, `used_total >= quota` dá **429 `{"error":"quota_exhausted","limit_reason":"token_total"}`**; em `daily`, o limite do dia e o teto de custo derivam de `quota`, e esgotar dá 429 com `limit_reason:"token_daily"` e `retry_after_seconds` até a virada do dia. `used_total` aumenta quando a requisição é aceita e reservada, e **não volta** se a OpenAI falhar depois: é a mesma regra da reserva atual (erro do provedor mantém a reserva e impede repetição do mesmo `X-Request-ID`). Repetir o mesmo `X-Request-ID` (409) não conta duas vezes.
 7. O restante (rajadas, idempotência, tetos globais, OpenAI) fica como está, usando `subject`.
 
 Os códigos de erro específicos (`device_limit`, `code_expired`, `quota_exhausted`) só são devolvidos **depois** de o código ser reconhecido, para não revelar a quem não tem código se ele existe.
@@ -102,7 +102,7 @@ Todas exigem HTTPS e `Authorization: Bearer <senha de admin>` (43 caracteres bas
 | `POST /admin/tokens/limit` | `{"subject":"...","mode":"...","quota":100,"expires":null}` | `200 {"updated":N}` | muda o plano de uso do código ativo **sem trocar o código**; zerar o pacote é `used_total=0` com `"reset_used":true` |
 | `POST /admin/tokens/revoke` | `{"subject":"..."}` | `200 {"revoked":N}` | marca `revoked` em todos os códigos ativos do `subject`; vale na próxima requisição |
 
-Erros: 400 corpo/`subject` inválido; 401 senha inválida; 409 já existe código ativo para o `subject` (revogue antes de gerar outro); 429 limite de tentativas; 503 admin desligado (`ADMIN_TOKEN_HASH` ausente) ou IA desligada onde aplicável. Nas rotas de admin o corpo de erro é sempre `{"error":"voice_unavailable"}`, como hoje, sem detalhes. 400 também cobre `mode`/`quota`/`expires` inconsistentes (por exemplo `quota` em `unlimited`, ou `expires` no passado).
+Erros: 400 corpo/`subject` inválido; 401 senha inválida; 403 cabeçalho `Origin` presente (ou HTTP sem TLS); 409 já existe código ativo para o `subject` (revogue antes de gerar outro); 429 limite de tentativas; 503 admin desligado (`ADMIN_TOKEN_HASH` ausente) ou IA desligada onde aplicável. Nas rotas de admin o corpo de erro é sempre `{"error":"voice_unavailable"}`, como hoje, sem detalhes. 400 também cobre `mode`/`quota`/`expires` inconsistentes (por exemplo `quota` em `unlimited`, ou `expires` no passado).
 
 ## 6. App
 
@@ -159,7 +159,7 @@ Servidor (`node --test server/voice-worker/test_worker.mjs`, adaptador SQLite ex
 - admin: senha errada 401, sem `ADMIN_TOKEN_HASH` 503, `Origin` presente recusado, limite de tentativas 429;
 - `VOICE_TOKENS_JSON` ausente não derruba o servidor;
 - limites: `daily` bloqueia no uso N+1 com `limit_reason:"token_daily"` e volta no dia seguinte; `total` bloqueia ao esgotar e volta ao aumentar o limite ou zerar; `unlimited` passa do limite padrão mas é barrado pelo teto global; `expires` vencido dá 403 `code_expired`; alterar o limite vale na requisição seguinte sem trocar o código; `quota` em `unlimited` e `mode` inválido dão 400; o teto de custo em `daily` acompanha `quota` (N maior que 25 não é cortado antes de N);
-- erro de OpenAI antes de consumir devolve a unidade (`used_total` não fica adiantado).
+- `used_total` conta cada requisição aceita uma vez só: repetição do mesmo `X-Request-ID` (409) não conta de novo, e falha do provedor não devolve a unidade; N requisições simultâneas no limite deixam passar exatamente as que cabem.
 
 App (Python):
 
