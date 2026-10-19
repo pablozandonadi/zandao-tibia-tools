@@ -12,14 +12,18 @@ function config(env) {
   const raw=env['VOICE_'+key]; if(!/^\d+$/.test(raw||'')||!Number.isSafeInteger(Number(raw))||Number(raw)<1)fail(503); values[key]=Number(raw);
  }
  if(!env.OPENAI_API_KEY || env.VOICE_NLU_MODEL !== 'gpt-5-nano' || values.NLU_MAX_OUTPUT_TOKENS>2048 || values.NLU_RESERVE_MICRO_USD<2000)fail(503);
+ const dm=env.VOICE_DEVICES_MAX; if(dm===undefined)values.DEVICES_MAX=2; else {if(!/^\d+$/.test(dm)||!Number.isSafeInteger(Number(dm))||Number(dm)<1)fail(503); values.DEVICES_MAX=Number(dm);}
+ if(env.VOICE_TOKENS_JSON===undefined)values.tokens={}; else {
  try { values.tokens=JSON.parse(env.VOICE_TOKENS_JSON); } catch { fail(503); }
  if(!values.tokens || Array.isArray(values.tokens) || !Object.entries(values.tokens).length || Object.entries(values.tokens).some(([k,v])=>! /^[0-9a-f]{64}$/.test(k)||typeof v!=='string'||! /^[a-zA-Z0-9_-]{1,80}$/.test(v)))fail(503);
+ }
  return values;
 }
-async function authenticate(request,env,cfg) {
+async function identify(request,env,cfg) {
  const bearer=request.headers.get('Authorization')||'';
  if(!/^Bearer [A-Za-z0-9_-]{43}$/.test(bearer))fail(401);
- const subject=cfg.tokens[await hash(bearer.slice(7))]; if(!subject)fail(401); return subject;
+ const h=await hash(bearer.slice(7));
+ return {hash:h,subject:Object.hasOwn(cfg.tokens,h)?cfg.tokens[h]:null};
 }
 async function limitedBody(request,max,status=413) {
  const reader=request.body?.getReader(); if(!reader)fail(400);
@@ -88,11 +92,13 @@ function validIntent(x){
 const validMessages=m=>Array.isArray(m)&&m.length>=1&&m.length<=6&&m.every(i=>i&&typeof i==='object'&&!Array.isArray(i)&&Object.keys(i).sort().join()==='role,text'&&['user','assistant'].includes(i.role)&&typeof i.text==='string'&&i.text.trim()&&i.text.length<=500)&&m.at(-1).role==='user';
 function safeTemporalIntent(intent,text){if(intent.needs_clarification)return intent;const properties=domainSchemas[intent.action]?.properties||{};const dates=Object.keys(properties).some(k=>k.endsWith('_at')||k==='target_datetime');const normalized=text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(dates&&(/\b(?:ontem|amanha|hoje|ha|as|faz|atras|antes|depois|daqui)\b|\bmais\s+cedo\b|\b\d{1,2}:\d{2}\b|\d{4}-\d{2}-\d{2}t/.test(normalized)||['boss.kill.correct_time','stamina.project','stamina.reverse'].includes(intent.action)))return {action:'unknown',parameters:{},needs_clarification:true,clarification:'Confirme a data no formulário; o fallback online não presume horários.'};return intent;}
 export default {async fetch(request,env){
- try {if(new URL(request.url).protocol!=='https:')fail(403);const cfg=config(env);await authenticate(request,env,cfg);const id=env.VOICE_GATE.idFromName('voice-budget');return await env.VOICE_GATE.get(id).fetch(request);}catch(e){return reply(e.status||503,{error:'voice_unavailable'});}
+ try {if(new URL(request.url).protocol!=='https:')fail(403);const cfg=config(env);await identify(request,env,cfg);const id=env.VOICE_GATE.idFromName('voice-budget');return await env.VOICE_GATE.get(id).fetch(request);}catch(e){return reply(e.status||503,{error:'voice_unavailable'});}
 }};
 export class VoiceGate {
  constructor(ctx,env){this.ctx=ctx;this.env=env;this.providerFetch=(...args)=>fetch(...args);const sql=ctx.storage.sql;
   sql.exec('CREATE TABLE IF NOT EXISTS requests (subject TEXT, request_id TEXT, route TEXT, payload_hash TEXT, status TEXT, created INTEGER, duration REAL, reserved INTEGER, PRIMARY KEY(subject,request_id,route))');
+  sql.exec('CREATE TABLE IF NOT EXISTS tokens (hash TEXT PRIMARY KEY, subject TEXT NOT NULL, created INTEGER NOT NULL, revoked INTEGER, mode TEXT NOT NULL, quota INTEGER, expires INTEGER, used_total INTEGER NOT NULL DEFAULT 0)');
+  sql.exec('CREATE TABLE IF NOT EXISTS devices (hash TEXT NOT NULL, device_id TEXT NOT NULL, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL, PRIMARY KEY(hash, device_id))');
   sql.exec('CREATE TABLE IF NOT EXISTS buckets (key TEXT PRIMARY KEY, count INTEGER NOT NULL, cost INTEGER NOT NULL, expires INTEGER NOT NULL)');
  }
  reserve(subject,id,route,payloadHash,duration,cost,ip,cfg){
@@ -131,7 +137,7 @@ export class VoiceGate {
  async fetch(request){
   let subject,id,route;
   try {
-   if(new URL(request.url).protocol!=='https:')fail(403);const cfg=config(this.env);subject=await authenticate(request,this.env,cfg);route=new URL(request.url).pathname;
+   if(new URL(request.url).protocol!=='https:')fail(403);const cfg=config(this.env);const who=await identify(request,this.env,cfg);subject=who.subject??fail(401);route=new URL(request.url).pathname;
    const ip=await hash(request.headers.get('CF-Connecting-IP')||'unknown');this.debitBurst(subject,ip,cfg);
    if(request.method!=='POST'||!['/transcribe','/interpret','/chat'].includes(route))fail(400);
    id=request.headers.get('X-Request-ID');if(!UUID.test(id||''))fail(400);id=id.toLowerCase();
