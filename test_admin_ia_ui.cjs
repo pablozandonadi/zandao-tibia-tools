@@ -109,5 +109,43 @@ const botao = (rotulo, base = raiz) => achar(base, n => n.tagName === 'button' &
   confirmou = true;
   await botao('Revogar', linha3).listeners.click();
   assert.deepEqual(chamadas.pop(), ['revogar', 'caio']);
+  // Falhas da ponte aparecem na tela; a senha digitada não é apagada se salvar falhou.
+  const msg = () => achar(raiz, n => n.id === 'admin-msg').textContent;
+  const api = window.pywebview.api, original = {...api};
+  api.admin_ia_revogar = async () => { throw new Error('boom'); };
+  await botao('Revogar', todos(raiz, n => n.tagName === 'tr')[3]).listeners.click();
+  assert.equal(msg(), 'Não foi possível concluir. Tente novamente.');
+  api.admin_ia_gerar = async () => { throw new Error('boom'); };
+  assert.equal((await ui.gerar('x', 'unlimited', null, null)).erro, 'Não foi possível concluir. Tente novamente.');
+  assert.equal(msg(), 'Não foi possível concluir. Tente novamente.');
+  estado = {beta: true, senha: false}; await ui.carregar();
+  const campo2 = achar(raiz, n => n.type === 'password');
+  campo2.value = 'senha-ficticia';
+  api.admin_ia_salvar_senha = async () => { throw new Error('boom'); };
+  await achar(raiz, n => n.tagName === 'form').listeners.submit({preventDefault() {}});
+  assert.equal(campo2.value, 'senha-ficticia', 'Falhou: o campo não é limpo');
+  assert.equal(msg(), 'Não foi possível concluir. Tente novamente.');
+  Object.assign(api, original);
+  estado = {beta: true, senha: true}; await ui.carregar();
+
+  // Cópia negada mostra "Copie à mão"; número vazio não chama a ponte.
+  global.navigator = {clipboard: {writeText: () => Promise.reject(new Error('negado'))}};
+  await ui.gerar('fim', 'unlimited', null, null);
+  botao('Copiar').listeners.click();
+  await flush();
+  assert.equal(msg(), 'Copie à mão.');
+  chamadas.length = 0;
+  const form2 = achar(raiz, n => n.tagName === 'form');
+  achar(form2, n => n.placeholder === 'Nome').value = 'zed';
+  const sel = achar(form2, n => n.tagName === 'select'); sel.value = 'daily'; sel.listeners.change();
+  await form2.listeners.submit({preventDefault() {}});
+  assert.equal(msg(), 'Informe o número de usos.');
+  assert.equal(chamadas.length, 0, 'Sem número, a ponte não é chamada');
+  botao('Alterar limite', todos(raiz, n => n.tagName === 'tr')[2]).listeners.click();
+  const painel2 = achar(raiz, n => n.id === 'admin-painel');
+  achar(painel2, n => n.type === 'number').value = '';
+  await botao('Salvar', painel2).listeners.click();
+  assert.equal(msg(), 'Informe o número de usos.');
+  assert.equal(chamadas.length, 0);
   console.log('admin_ia ui ok');
 })().catch(e => { console.error(e); process.exit(1); });

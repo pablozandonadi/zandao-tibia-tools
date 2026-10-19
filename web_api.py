@@ -1640,8 +1640,8 @@ class API:
             return {'erro': 'Indisponível neste canal.'}
         try:
             return chamada()
-        except admin_ia.AdminIAError as e:
-            return {'erro': str(e)}
+        except Exception as e:  # o texto de outras exceções pode ter caminhos ou segredos: nunca vai para a tela
+            return {'erro': str(e) if isinstance(e, admin_ia.AdminIAError) else 'Não foi possível concluir. Tente novamente.'}
 
     def admin_ia_estado(self):
         if versao.CANAL_APP != 'beta':

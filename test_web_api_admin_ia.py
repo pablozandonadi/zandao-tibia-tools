@@ -47,6 +47,16 @@ class AdminIAApiTests(unittest.TestCase):
             for nome, args in METODOS:
                 self.assertEqual(getattr(self.api, nome)(*args), {'erro': 'Falhou.'}, nome)
 
+    def test_excecao_inesperada_vira_erro_generico_sem_vazar_detalhes(self):
+        generico = {'erro': 'Não foi possível concluir. Tente novamente.'}
+        with mock.patch.object(web_api.versao, 'CANAL_APP', 'beta'):
+            for erro in (OSError('detalhe secreto'), TypeError('detalhe secreto')):
+                with mock.patch.object(admin_ia, 'salvar_senha', side_effect=erro),                      mock.patch.object(admin_ia, 'gerar', side_effect=erro):
+                    self.assertEqual(self.api.admin_ia_salvar_senha('segredo-ficticio'), generico)
+                    r = self.api.admin_ia_gerar('Ana', 'daily', object(), None)
+                    self.assertEqual(r, generico)
+                    self.assertNotIn('detalhe secreto', str(r))
+
     def test_estado_informa_se_ha_senha_sem_devolve_la(self):
         with mock.patch.object(web_api.versao, 'CANAL_APP', 'beta'):
             with mock.patch.object(admin_ia, 'carregar_senha', return_value='segredo-ficticio'):

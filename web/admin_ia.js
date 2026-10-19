@@ -6,7 +6,10 @@
   const AVISO_ILIMITADO = 'Ilimitado ainda respeita o teto global diário do servidor.';
   const MODOS = [['unlimited', 'Ilimitado'], ['daily', 'N por dia'], ['total', 'N no total']];
   const PLANO = Object.fromEntries(MODOS);
+  const GENERICO = 'Não foi possível concluir. Tente novamente.';
   let geracao = 0;
+  // Chamada à ponte sem exceção solta: qualquer falha vira {erro} e aparece na tela.
+  const chamar = async f => { try { return await f(bridge()); } catch (e) { return {erro: GENERICO}; } };
   // Todo texto entra por textContent (os nomes vêm do usuário).
   function h(tag, props, ...filhos) {
     const e = document.createElement(tag);
@@ -47,6 +50,12 @@
     };
   }
 
+  // Para daily/total o número de usos tem de ser um inteiro positivo.
+  function quotaInvalida(v) {
+    const ruim = v.mode !== 'unlimited' && !(Number.isInteger(v.quota) && v.quota > 0);
+    if (ruim) el('admin-msg').textContent = 'Informe o número de usos.';
+    return ruim;
+  }
   function mostrarErro(r) { el('admin-msg').textContent = r && r.erro ? r.erro : ''; return !!(r && r.erro); }
   const fecharPainel = () => el('admin-painel').replaceChildren();
 
@@ -55,12 +64,13 @@
       h('p', {texto: `Código de ${nome}`}),
       h('code', {id: 'admin-codigo', texto: token}),
       h('p', {className: 'dica', texto: 'Este código só aparece agora. Copie e envie; depois de fechar não dá para vê-lo de novo.'}),
-      h('button', {className: 'btn', texto: 'Copiar', onclick: () => { try { navigator.clipboard.writeText(token); } catch (e) { /* copia à mão */ } }}),
+      h('button', {className: 'btn', texto: 'Copiar', onclick: () => { const falhou = () => { el('admin-msg').textContent = 'Copie à mão.'; };
+        try { navigator.clipboard.writeText(token).catch(falhou); } catch (e) { falhou(); } }}),
       h('button', {className: 'btn', texto: 'Fechar', onclick: fecharPainel})));
   }
 
   async function gerar(subject, mode, quota, expires) {
-    const r = await bridge().admin_ia_gerar(subject, mode, quota, expires);
+    const r = await chamar(api => api.admin_ia_gerar(subject, mode, quota, expires));
     if (mostrarErro(r)) return r;
     await carregar(); // redesenha a lista; a caixa do código vem depois, para não ser apagada
     mostrarCodigo(subject, r.token);
@@ -80,6 +90,7 @@
     form.addEventListener('submit', event => {
       event.preventDefault();
       const v = limite.valores();
+      if (quotaInvalida(v)) return;
       return gerar(nome.value.trim(), v.mode, v.quota, fimDoDia(validade.value));
     });
     return form;
@@ -93,7 +104,8 @@
       h('label', {}, 'Validade (opcional) ', validade),
       h('button', {className: 'btn btn-primary', texto: 'Salvar', onclick: async () => {
         const v = limite.valores();
-        const r = await bridge().admin_ia_limite(t.subject, v.mode, v.quota, fimDoDia(validade.value), v.zerar);
+        if (quotaInvalida(v)) return;
+        const r = await chamar(api => api.admin_ia_limite(t.subject, v.mode, v.quota, fimDoDia(validade.value), v.zerar));
         if (!mostrarErro(r)) await carregar();
       }}),
       h('button', {className: 'btn', texto: 'Cancelar', onclick: fecharPainel})));
@@ -101,7 +113,7 @@
 
   async function revogar(t) {
     if (!confirm(`Revogar o código de ${t.subject}? Ele deixa de funcionar na hora.`)) return;
-    const r = await bridge().admin_ia_revogar(t.subject);
+    const r = await chamar(api => api.admin_ia_revogar(t.subject));
     if (!mostrarErro(r)) await carregar();
   }
 
@@ -112,9 +124,9 @@
       h('button', {className: 'btn btn-primary', type: 'submit', texto: 'Salvar'}));
     form.addEventListener('submit', async event => {
       event.preventDefault();
-      const senha = campo.value;
+      if (mostrarErro(await chamar(api => api.admin_ia_salvar_senha(campo.value)))) return; // falhou: o campo não é limpo
       campo.value = '';
-      if (!mostrarErro(await bridge().admin_ia_salvar_senha(senha))) await carregar();
+      await carregar();
     });
     return form;
   }
