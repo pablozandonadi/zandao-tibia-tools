@@ -72,12 +72,14 @@ class RemoteClientTests(unittest.TestCase):
         with self.assertRaises(RemoteAIError):client.interpret('timer',rid)
         self.assertIsNone(client._opener.open.call_args.args[0].get_header('X-device-id'))
         for status,body,message in ((403,{'error':'device_limit'},'em uso em outros computadores'),(403,{'error':'code_expired'},'expirou'),
-                                    (429,{'error':'quota_exhausted','limit_reason':'token_total'},'limite de uso deste código acabou'),(403,{'error':'outro'},'bloqueado')):
+                                    (429,{'error':'quota_exhausted','limit_reason':'token_total'},'limite de uso deste código acabou'),(403,{'error':'outro'},'bloqueado'),
+                                    (429,{'error':'quota_exhausted','limit_reason':'token_daily','retry_after_seconds':60},r'Limite diário de uso deste código atingido\. Tente novamente em 60 segundos\.')):
             with self.subTest(status=status,body=body):
                 client=RemoteAIClient('a'*43,device_id=dev);client._opener=Mock()
                 client._opener.open.side_effect=HTTPError('https://fixed',status,'x',{},io.BytesIO(json.dumps(body).encode()))
                 with self.assertRaisesRegex(RemoteAIError,message) as error:client.interpret('timer',rid)
                 self.assertNotIn(dev,str(error.exception))
+                if body.get('limit_reason')=='token_daily':self.assertNotIn('Peça mais ao administrador',str(error.exception))
 
     def test_invalid_intents_are_rejected(self):
         from voice.remote_ai_client import valid_intent

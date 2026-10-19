@@ -57,10 +57,24 @@ class AdminIATests(unittest.TestCase):
         self.assertEqual(json.loads(op.call_args_list[0].args[0].data), {'subject': 'Ana', 'mode': 'unlimited'})
         self.assertEqual(json.loads(op.call_args_list[1].args[0].data)['reset_used'], True)
 
+    def test_limite_sempre_manda_expires_e_gerar_omite(self):
+        # No limite, omitir expires manteria a validade no servidor; None aqui é "o admin limpou o campo".
+        a.salvar_senha(self.pasta, SENHA)
+        with mock.patch.object(a._OPENER, 'open', side_effect=lambda *a, **k: Resp(b'{}')) as op:
+            a.limite(self.pasta, 'Ana', 'daily', quota=3)
+            a.limite(self.pasta, 'Ana', 'daily', quota=3, expires=9)
+            a.gerar(self.pasta, 'Ana', 'daily', quota=3)
+        corpos = [json.loads(c.args[0].data) for c in op.call_args_list]
+        self.assertEqual(corpos[0], {'subject': 'Ana', 'mode': 'daily', 'quota': 3, 'expires': None})
+        self.assertEqual(corpos[1]['expires'], 9)
+        self.assertNotIn('expires', corpos[2])
+
     def test_erros_mapeados_e_sem_vazamento(self):
         a.salvar_senha(self.pasta, SENHA)
         casos = [(http(401), 'Senha de administrador recusada.'),
-            (http(409), 'Esta pessoa já tem um código ativo. Revogue antes de gerar outro.'),
+            (http(400), 'Dados inválidos. No nome use só letras sem acento, números, _ ou -; a validade não pode estar no passado.'),
+            (http(404), 'Esta pessoa não tem código ativo.'),
+            (http(409),'Esta pessoa já tem um código ativo. Revogue antes de gerar outro.'),
             (http(429), 'Muitas tentativas. Aguarde um minuto.'),
             (http(503), 'Administração indisponível no servidor.'),
             (http(500), 'Não foi possível concluir. Tente novamente.'),

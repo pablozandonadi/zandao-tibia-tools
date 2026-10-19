@@ -39,7 +39,7 @@ def http_error(status, details=None):
     code = details.get('error') if isinstance(details, dict) else None
     if status == 403 and code == 'device_limit':return RemoteAIError('Este código já está em uso em outros computadores. Peça um novo ao administrador.', status=status)
     if status == 403 and code == 'code_expired':return RemoteAIError('Este código expirou. Peça um novo ao administrador.', status=status)
-    if status == 429 and code == 'quota_exhausted':return RemoteAIError('O limite de uso deste código acabou. Peça mais ao administrador.', status=status)
+    if status == 429 and code == 'quota_exhausted' and isinstance(details, dict) and details.get('limit_reason') == 'token_total':return RemoteAIError('O limite de uso deste código acabou. Peça mais ao administrador.', status=status)
     if status == 429:
         reasons = {
             'user_daily_requests':'Limite diário de comandos online atingido.',
@@ -47,7 +47,8 @@ def http_error(status, details=None):
             'user_daily_budget':'Limite diário de uso online atingido.',
             'global_daily_budget':'Limite diário de uso do serviço de IA atingido.',
             'user_burst':'Muitos comandos online em pouco tempo.',
-            'ip_burst':'Muitos comandos online nesta conexão em pouco tempo.'}
+            'ip_burst':'Muitos comandos online nesta conexão em pouco tempo.',
+            'token_daily':'Limite diário de uso deste código atingido.'}
         details = details if isinstance(details, dict) else {}
         reason = details.get('limit_reason')
         message = reasons.get(reason, 'Limite temporário ou diário do serviço online atingido.') if isinstance(reason, str) else 'Limite temporário ou diário do serviço online atingido.'

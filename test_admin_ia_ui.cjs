@@ -100,6 +100,21 @@ const botao = (rotulo, base = raiz) => achar(base, n => n.tagName === 'button' &
   zerar = achar(painel, n => n.tagName === 'label' && texto(n).includes('Zerar'));
   assert.equal(zerar.hidden, true, 'Plano diário não tem Zerar pacote');
 
+  // Validade no editor: vem preenchida com a atual; salvar mantém; campo limpo manda null (limpa a validade).
+  tokens[2].expires = new Date(2030, 0, 15, 12).getTime();
+  await ui.carregar();
+  botao('Alterar limite', todos(raiz, n => n.tagName === 'tr')[3]).listeners.click();
+  painel = achar(raiz, n => n.id === 'admin-painel');
+  assert.equal(achar(painel, n => n.type === 'date').value, '2030-01-15');
+  await botao('Salvar', painel).listeners.click();
+  assert.deepEqual(chamadas.pop(), ['limite', 'caio', 'unlimited', null, new Date('2030-01-15T23:59:59').getTime(), false]);
+  botao('Alterar limite', todos(raiz, n => n.tagName === 'tr')[3]).listeners.click();
+  painel = achar(raiz, n => n.id === 'admin-painel');
+  achar(painel, n => n.type === 'date').value = '';
+  await botao('Salvar', painel).listeners.click();
+  assert.deepEqual(chamadas.pop(), ['limite', 'caio', 'unlimited', null, null, false]);
+  delete tokens[2].expires; await ui.carregar();
+
   // Revogar pede confirmação.
   chamadas.length = 0;
   const linha3 = todos(raiz, n => n.tagName === 'tr')[3];

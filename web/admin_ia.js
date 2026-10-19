@@ -22,6 +22,8 @@
   }
   const data = ms => ms ? new Date(ms).toLocaleDateString('pt-BR') : '—';
   const fimDoDia = v => v ? new Date(v + 'T23:59:59').getTime() : null;
+  // ms -> 'AAAA-MM-DD' na data local (o formato do campo date); sem validade = campo vazio.
+  const diaLocal = ms => { if (!ms) return ''; const d = new Date(ms), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
   function uso(t) {
     if (t.mode === 'daily') return `${t.today_requests} de ${t.quota} hoje`;
     if (t.mode === 'total') return `${t.used_total} de ${t.quota} no total`;
@@ -98,7 +100,7 @@
 
   function editarLimite(t) {
     const limite = controlesLimite(t);
-    const validade = h('input', {type: 'date'});
+    const validade = h('input', {type: 'date', value: diaLocal(t.expires)});
     el('admin-painel').replaceChildren(h('div', {className: 'card'},
       h('p', {texto: `Alterar limite de ${t.subject}`}), limite.el,
       h('label', {}, 'Validade (opcional) ', validade),

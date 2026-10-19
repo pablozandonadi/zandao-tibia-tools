@@ -74,6 +74,7 @@ mirrors.json.*
 # Acesso individual online protegido por usuário/canal
 voice-online.*
 admin-online.*
+voice-device.id*
 
 # Estado privado dos cinco módulos do assistente
 assistente-tibiano.json*

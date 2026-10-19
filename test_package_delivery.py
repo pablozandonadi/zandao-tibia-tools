@@ -43,7 +43,7 @@ class DeliveryTests(unittest.TestCase):
             self.assertTrue((storage/'atualizacao-pendente.json').exists())
 
     def test_online_credentials_rejected_at_any_package_depth(self):
-        for filename in ('voice-online.json','voice-online.dpapi','voice-online.tmp','voice-online.json.tmp','voice-online.dpapi.tmp','admin-online.dpapi','admin-online.dpapi.tmp'):
+        for filename in ('voice-online.json','voice-online.dpapi','voice-online.tmp','voice-online.json.tmp','voice-online.dpapi.tmp','admin-online.dpapi','admin-online.dpapi.tmp','voice-device.id','voice-device.id.tmp'):
             with self.subTest(filename=filename), tempfile.TemporaryDirectory() as directory:
                 source=self.source(directory);app=self.app(directory)
                 target=app/'_internal'/'nested'/filename

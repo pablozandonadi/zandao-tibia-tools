@@ -12,7 +12,8 @@ from voice.remote_ai_client import ENDPOINT, NoRedirect
 SENHA = re.compile(r'[A-Za-z0-9_-]{43}')
 _ARQUIVO = 'admin-online.dpapi'
 _OPENER = urllib.request.build_opener(NoRedirect())
-_MENSAGENS = {401: 'Senha de administrador recusada.',
+_MENSAGENS = {400: 'Dados inválidos. No nome use só letras sem acento, números, _ ou -; a validade não pode estar no passado.',
+    401: 'Senha de administrador recusada.', 404: 'Esta pessoa não tem código ativo.',
     409: 'Esta pessoa já tem um código ativo. Revogue antes de gerar outro.',
     429: 'Muitas tentativas. Aguarde um minuto.', 503: 'Administração indisponível no servidor.'}
 
@@ -109,7 +110,8 @@ def gerar(pasta, subject, mode, quota=None, expires=None):
 
 def limite(pasta, subject, mode, quota=None, expires=None, reset_used=False):
     extra = {'reset_used': True} if reset_used else {}
-    return _chamar(pasta, 'POST', '/admin/tokens/limit', _corpo(subject, mode, quota, expires, **extra))
+    # Sempre manda expires: omitido, o servidor manteria a validade; None = o admin limpou o campo.
+    return _chamar(pasta, 'POST', '/admin/tokens/limit', {**_corpo(subject, mode, quota, None, **extra), 'expires': expires})
 
 
 def revogar(pasta, subject):
