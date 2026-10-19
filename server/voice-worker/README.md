@@ -18,11 +18,11 @@ Este diretório contém apenas o gateway; o aplicativo continua exigindo ativaç
 
 3. **Os códigos novos nascem na aba Admin da Beta** (ver "Administração de códigos" abaixo): um código diferente por pessoa, gerado pelo próprio servidor, exibido uma única vez. Entregue somente o código àquela pessoa por canal privado. Nunca empacote códigos no aplicativo.
 
-4. `VOICE_TOKENS_JSON` fica **só para os códigos antigos**: objeto JSON `{ "hash-sha256-hex": "identificador-individual" }`, hashes de 64 caracteres hex minúsculos, identificadores com letras, números, `_` e `-` (até 80). Esses códigos continuam valendo, **sem amarração a PC**, com o limite diário de sempre. **Não substitua mais esse secret** (ele não é mais necessário para códigos novos e substituí-lo derrubaria os antigos). Para revogar um código antigo, remova o hash e só então reponha o secret, ciente do risco.
+4. `VOICE_TOKENS_JSON` fica **só para os códigos antigos**: objeto JSON `{ "hash-sha256-hex": "identificador-individual" }`, hashes de 64 caracteres hex minúsculos, identificadores com letras, números, `_` e `-` (até 80). Esses códigos continuam valendo, **sem amarração a PC**, com o limite diário de sempre. **Não substitua mais esse secret** (ele não é mais necessário para códigos novos e substituí-lo derrubaria os antigos). Enquanto restar algum código antigo em uso, não mexa nesse secret (os antigos continuam valendo). Quando não restar nenhum, **apague** o secret com `wrangler secret delete VOICE_TOKENS_JSON`; nunca grave `{}` nele (objeto vazio é recusado e todas as rotas de usuário passam a responder 503). O nome de um código antigo não pode ser usado num código novo (gerar responde 409).
 
 5. Preencha `[vars]` no `wrangler.toml` com os valores aprovados abaixo, mantendo `VOICE_AI_ENABLED = "false"` enquanto testa. São todos strings de inteiros positivos, exceto o modelo. Ausência/valor inválido falha fechado com 503.
 
-6. Somente depois de confirmar modelo, preços, acesso e orçamento, altere `VOICE_AI_ENABLED` para `"true"` e implante. Uma requisição sem token deve responder 401; com gate OFF, 503. Nunca envie credenciais pelo browser/URL. Tokens individuais são enviados pelo cliente apenas em `Authorization: Bearer ...`, via HTTPS.
+6. Somente depois de confirmar modelo, preços, acesso e orçamento, altere `VOICE_AI_ENABLED` para `"true"` e implante. Com o gate `"true"`, `POST /interpret` sem token deve responder 401; com gate OFF, as rotas de usuário respondem 503 antes de olhar o token. Nunca envie credenciais pelo browser/URL. Tokens individuais são enviados pelo cliente apenas em `Authorization: Bearer ...`, via HTTPS.
 
 
 
@@ -30,13 +30,13 @@ Este diretório contém apenas o gateway; o aplicativo continua exigindo ativaç
 
 Os códigos novos ficam no SQLite do Durable Object (tabelas `tokens` e `devices`, criadas sob demanda, sem nova migração). O servidor guarda só o hash; o código aparece uma única vez ao ser gerado.
 
-**Senha de admin.** Gere a senha e o hash com o mesmo `node -e` abaixo, num terminal privado e sem gravação de sessão. Guarde a senha num gerenciador de senhas e cadastre só o hash: `wrangler secret put ADMIN_TOKEN_HASH` (interativo). Sem esse secret, as rotas `/admin/*` respondem 503.
+**Senha de admin.** Gere a senha e o hash com o `node -e` abaixo, num terminal privado e sem gravação de sessão. Guarde a senha num gerenciador de senhas e cadastre só o hash: `wrangler secret put ADMIN_TOKEN_HASH` (interativo). Sem esse secret, as rotas `/admin/*` respondem 503.
 
 ```
 node -e "const c=require('node:crypto'); const t=c.randomBytes(32).toString('base64url'); console.log('SENHA PRIVADA:',t);console.log('HASH:',c.createHash('sha256').update(t).digest('hex'))"
 ```
 
-**Variáveis** (strings de inteiro positivo; valor inválido falha com 503):
+**Variáveis.** `VOICE_DEVICES_MAX` e `VOICE_ADMIN_BURST_LIMIT` ficam em `[vars]` no `wrangler.toml`, como strings de inteiro positivo. `VOICE_DEVICES_MAX` inválido dá 503 nas rotas de usuário (ao gerar, o admin mostra `devices_max: 2` sem avisar); `VOICE_ADMIN_BURST_LIMIT` inválido dá 503 nas rotas de admin.
 
 | Variável | Padrão | Significado |
 | --- | --- | --- |
@@ -44,16 +44,19 @@ node -e "const c=require('node:crypto'); const t=c.randomBytes(32).toString('bas
 | `VOICE_DEVICES_MAX` | `2` | PCs por código novo |
 | `VOICE_ADMIN_BURST_LIMIT` | `10` | tentativas por minuto, por IP, nas rotas de admin |
 
-**Rotas de admin.** Todas exigem HTTPS e `Authorization: Bearer <senha de admin>` (43 caracteres base64url); a comparação do hash é de tempo constante; qualquer requisição com cabeçalho `Origin` é recusada (uso só por app nativo). Nunca chamam a OpenAI. Corpos JSON até 4096 bytes.
+**Rotas de admin.** Todas exigem HTTPS e `Authorization: Bearer <senha de admin>` (43 caracteres base64url). Nunca chamam a OpenAI. Corpos JSON até 4096 bytes. A checagem acontece em duas etapas:
+
+1. **No próprio Worker, antes do Durable Object** (sem tocar no banco): HTTP sem TLS ou cabeçalho `Origin` presente (uso só por app nativo) dão 403; admin desligado (`ADMIN_TOKEN_HASH` ausente ou inválido) dá 503; `Authorization` ausente ou fora do formato `Bearer` + 43 caracteres dá 401.
+2. **No Durable Object**: primeiro o limite de tentativas por IP (`VOICE_ADMIN_BURST_LIMIT`, 429), depois a comparação do hash da senha em tempo constante (401 se errada). Uma senha errada bem formada conta para o limite de tentativas.
 
 | Rota | Corpo | Sucesso |
 | --- | --- | --- |
 | `POST /admin/tokens` | `{"subject","mode","quota","expires"}` | `201 {subject,token,mode,quota,expires,devices_max,created}` |
 | `GET /admin/tokens` | sem corpo | `200 {tokens:[{subject,created,revoked,mode,quota,expires,used_total,devices,last_seen,today_requests}]}` |
-| `POST /admin/tokens/limit` | `{"subject","mode","quota","expires","reset_used"?}` | `200 {updated:N}` (muda o plano sem trocar o código; `reset_used:true` zera `used_total`) |
+| `POST /admin/tokens/limit` | `{"subject","mode","quota","expires","reset_used"?}` | `200 {updated:N}` (muda o plano sem trocar o código; `mode` é obrigatório e `quota` segue as regras do modo; **omitir `expires` mantém a validade atual, `expires: null` a remove**, um inteiro a substitui; `reset_used:true` zera `used_total`) |
 | `POST /admin/tokens/revoke` | `{"subject"}` | `200 {revoked:N}` (vale na próxima requisição) |
 
-`subject` segue `^[a-zA-Z0-9_-]{1,80}$`. Erros de admin: 400 corpo/plano inválido (inclui `quota` em `unlimited` ou `expires` no passado), 401 senha inválida, 403 `Origin` presente ou HTTP sem TLS, 404 rota desconhecida, 409 já existe código ativo para o `subject` (revogue antes), 429 limite de tentativas, 503 admin desligado. O corpo de erro é sempre `{"error":"voice_unavailable"}`, sem detalhes.
+`subject` segue `^[a-zA-Z0-9_-]{1,80}$`. Erros de admin: 400 corpo/plano inválido (inclui `quota` em `unlimited` ou `expires` no passado), 401 senha ausente, malformada ou errada, 403 `Origin` presente ou HTTP sem TLS, 404 em `/admin/tokens/revoke` e `/admin/tokens/limit` quando o `subject` não tem código ativo, e também em rota desconhecida (só depois de a senha ser aceita), 409 já existe código ativo para o `subject` (revogue antes) ou o `subject` é de um código antigo, 413 corpo acima de 4096 bytes, 429 limite de tentativas, 503 admin desligado ou `VOICE_ADMIN_BURST_LIMIT` inválido. O corpo de erro é sempre `{"error":"voice_unavailable"}`, sem detalhes.
 
 **Planos de uso** (`mode`; uso = uma requisição paga em `/transcribe`, `/interpret` ou `/chat`):
 
@@ -63,7 +66,7 @@ node -e "const c=require('node:crypto'); const t=c.randomBytes(32).toString('bas
 | `total` | inteiro >= 1 | pacote de N usos no total (`used_total`); esgotado, para até o admin aumentar |
 | `unlimited` | proibido (`null`) | sem limite próprio; os tetos globais e as rajadas por pessoa/IP continuam valendo |
 
-`expires` (milissegundos, opcional) encerra o código em qualquer modo. `used_total` não volta se a OpenAI falhar depois da reserva; repetir o mesmo `X-Request-ID` (409) não conta duas vezes.
+`expires` (opcional) é um instante no futuro em milissegundos desde 1970 (epoch ms, como `Date.now()`), não uma duração; depois dele o código para em qualquer modo. `used_total` não volta se a OpenAI falhar depois da reserva; repetir o mesmo `X-Request-ID` (409) não conta duas vezes.
 
 **Amarração a PC.** Código novo exige o cabeçalho `X-Device-ID` (UUID v4); ausente ou inválido, 400. Cada código aceita até `VOICE_DEVICES_MAX` PCs; o seguinte recebe 403. Códigos antigos de `VOICE_TOKENS_JSON` não usam `X-Device-ID`.
 
@@ -76,12 +79,16 @@ node -e "const c=require('node:crypto'); const t=c.randomBytes(32).toString('bas
 ### Roteiro de deploy (exige o dono)
 
 1. Instalar o `wrangler` (Node 24) e fazer `wrangler login` na conta dona do Worker.
-2. Gerar a senha de admin localmente (comando acima), guardá-la num gerenciador de senhas e calcular o hash.
+2. Gerar a senha de admin localmente (comando acima), num terminal privado e sem gravação de sessão, guardá-la num gerenciador de senhas e calcular o hash.
 3. `wrangler secret put ADMIN_TOKEN_HASH` (interativo).
 4. **Não substituir mais o `VOICE_TOKENS_JSON`**: os códigos novos não dependem dele e os antigos continuam nele.
 5. `wrangler deploy` (sem nova migração: mesma classe, tabelas criadas sob demanda).
-6. Teste de fumaça: sem token, 401; `GET /admin/tokens` com a senha, 200 e lista vazia; gerar um código de teste, usar no app Beta, ver 2 PCs aceitos e o 3º recusado (`device_limit`), revogar e ver 401.
-7. Reversão: `wrangler rollback` (ou redeploy do arquivo anterior) e remover o secret `ADMIN_TOKEN_HASH`. As tabelas ficam, inofensivas.
+6. Teste de fumaça, com `curl` (o app Beta com a aba Admin só sai depois do servidor; ou instale a Beta localmente antes). As rotas `/admin/*` não dependem do gate, então os passos de admin funcionam com `VOICE_AI_ENABLED = "false"`:
+   - `GET /admin/tokens` sem `Authorization`: 401. Com `Authorization: Bearer <senha>`: 200 e lista vazia.
+   - `POST /admin/tokens` com a senha e corpo `{"subject":"teste-fumaca","mode":"total","quota":5}`: 201 com o `token` (só aparece agora).
+   - O teste de PCs usa uma rota de usuário, então exige o gate `"true"` e todas as `[vars]` preenchidas. Faça 3 chamadas `POST /interpret` com `Authorization: Bearer <token>`, `Content-Type: application/json`, `X-Request-ID` (UUID v4 novo a cada chamada), corpo `{"request_id":"<o mesmo UUID>","text":"timer de 1 minuto"}` e um `X-Device-ID` (UUID v4) diferente em cada uma. As duas primeiras dão 200 (cada uma é uma chamada paga, mínima); a 3ª dá 403 `device_limit` sem chamar a OpenAI. Com o gate ligado, `POST /interpret` sem token dá 401.
+   - `POST /admin/tokens/revoke` com `{"subject":"teste-fumaca"}`: 200; a próxima chamada com o token dá 401.
+7. Reversão: `wrangler rollback` (ou redeploy do arquivo anterior) e `wrangler secret delete ADMIN_TOKEN_HASH`. As tabelas ficam, inofensivas. Depois do rollback, os códigos novos recebem 401 do Worker antigo, que só conhece `VOICE_TOKENS_JSON`.
 
 O app só é publicado (Beta) depois de o servidor novo estar no ar: o app novo já envia `X-Device-ID`, que o servidor antigo ignora. A ordem inversa também é segura.
 

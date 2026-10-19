@@ -53,4 +53,6 @@ O passo usa continue-on-error de propósito: a release já saiu e o app (publica
 
 Regra de uso: nunca reaproveite uma Beta bloqueada. Depois de reconciliar, a promoção vale para a primeira Beta nova (base já atualizada), não para a antiga; promover a antiga continua barrado de propósito.
 
+## Códigos da IA (aba Admin)
+
 Administração de códigos da IA (aba Admin da Beta, rotas `/admin`, planos de uso, limite de PCs) e o roteiro de deploy do Worker: `server/voice-worker/README.md`, seção "Administração de códigos".
