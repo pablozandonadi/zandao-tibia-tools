@@ -13,6 +13,8 @@ import webview
 
 import atualizacoes
 import publicacao_beta
+import admin_ia
+import versao
 import radio_brasilhits
 import audio_timers
 import voz
@@ -1630,6 +1632,36 @@ class API:
 
     def beta_publicacao_estado(self):
         return publicacao_beta.estado()
+
+    # ---- Admin dos códigos da IA (só Beta): nunca levanta nem devolve a senha ----
+    @staticmethod
+    def _admin_ia(chamada):
+        if versao.CANAL_APP != 'beta':
+            return {'erro': 'Indisponível neste canal.'}
+        try:
+            return chamada()
+        except admin_ia.AdminIAError as e:
+            return {'erro': str(e)}
+
+    def admin_ia_estado(self):
+        if versao.CANAL_APP != 'beta':
+            return {'beta': False, 'senha': False}
+        return {'beta': True, 'senha': admin_ia.carregar_senha(BASE_DIR) is not None}
+
+    def admin_ia_salvar_senha(self, senha):
+        return self._admin_ia(lambda: (admin_ia.salvar_senha(BASE_DIR, senha), {'ok': True})[1])
+
+    def admin_ia_listar(self):
+        return self._admin_ia(lambda: admin_ia.listar(BASE_DIR))
+
+    def admin_ia_gerar(self, subject, mode, quota=None, expires=None):
+        return self._admin_ia(lambda: admin_ia.gerar(BASE_DIR, subject, mode, quota, expires))
+
+    def admin_ia_limite(self, subject, mode, quota=None, expires=None, reset_used=False):
+        return self._admin_ia(lambda: admin_ia.limite(BASE_DIR, subject, mode, quota, expires, reset_used))
+
+    def admin_ia_revogar(self, subject):
+        return self._admin_ia(lambda: admin_ia.revogar(BASE_DIR, subject))
 
     def verificar_atualizacao(self):
         """Silencioso: None se não tem versão nova, sem internet etc."""
