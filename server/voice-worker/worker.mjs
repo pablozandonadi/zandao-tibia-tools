@@ -91,8 +91,17 @@ function validIntent(x){
 }
 const validMessages=m=>Array.isArray(m)&&m.length>=1&&m.length<=6&&m.every(i=>i&&typeof i==='object'&&!Array.isArray(i)&&Object.keys(i).sort().join()==='role,text'&&['user','assistant'].includes(i.role)&&typeof i.text==='string'&&i.text.trim()&&i.text.length<=500)&&m.at(-1).role==='user';
 function safeTemporalIntent(intent,text){if(intent.needs_clarification)return intent;const properties=domainSchemas[intent.action]?.properties||{};const dates=Object.keys(properties).some(k=>k.endsWith('_at')||k==='target_datetime');const normalized=text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');if(dates&&(/\b(?:ontem|amanha|hoje|ha|as|faz|atras|antes|depois|daqui)\b|\bmais\s+cedo\b|\b\d{1,2}:\d{2}\b|\d{4}-\d{2}-\d{2}t/.test(normalized)||['boss.kill.correct_time','stamina.project','stamina.reverse'].includes(intent.action)))return {action:'unknown',parameters:{},needs_clarification:true,clarification:'Confirme a data no formulário; o fallback online não presume horários.'};return intent;}
+// Validates {mode,quota,expires} from an admin body; unlimited carries no quota.
+function normalizePlan(body,now) {
+ if(!body||typeof body!=='object'||Array.isArray(body))fail(400);
+ const {mode,quota,expires}=body;
+ if(!['unlimited','daily','total'].includes(mode))fail(400);
+ if(mode==='unlimited'?quota!==undefined&&quota!==null:!Number.isSafeInteger(quota)||quota<=0)fail(400);
+ if(expires!==undefined&&expires!==null&&(!Number.isSafeInteger(expires)||expires<=now))fail(400);
+ return {mode,quota:mode==='unlimited'?null:quota,expires:expires??null};
+}
 export default {async fetch(request,env){
- try {if(new URL(request.url).protocol!=='https:')fail(403);const cfg=config(env);await identify(request,env,cfg);const id=env.VOICE_GATE.idFromName('voice-budget');return await env.VOICE_GATE.get(id).fetch(request);}catch(e){return reply(e.status||503,{error:'voice_unavailable'});}
+ try {const url=new URL(request.url);if(url.protocol!=='https:')fail(403);if(url.pathname.startsWith('/admin/'))return await env.VOICE_GATE.get(env.VOICE_GATE.idFromName('voice-budget')).fetch(request);const cfg=config(env);await identify(request,env,cfg);const id=env.VOICE_GATE.idFromName('voice-budget');return await env.VOICE_GATE.get(id).fetch(request);}catch(e){return reply(e.status||503,{error:'voice_unavailable'});}
 }};
 export class VoiceGate {
  constructor(ctx,env){this.ctx=ctx;this.env=env;this.providerFetch=(...args)=>fetch(...args);const sql=ctx.storage.sql;
@@ -135,6 +144,7 @@ export class VoiceGate {
   });
  }
  async fetch(request){
+  if(new URL(request.url).pathname.startsWith('/admin/'))return this.adminFetch(request);
   let subject,id,route;
   try {
    if(new URL(request.url).protocol!=='https:')fail(403);const cfg=config(this.env);const who=await identify(request,this.env,cfg);subject=who.subject??fail(401);route=new URL(request.url).pathname;
@@ -178,5 +188,68 @@ export class VoiceGate {
     else{const intent=parsed.intent;if(Object.keys(parsed).length!==1||!validIntent(intent))fail(502);result={request_id:id,intent:safeTemporalIntent(intent,text)};}}
    this.settle(subject,id,route,route==='/transcribe'?data.usage:null);return reply(200,result);
   }catch(e){return reply(failures.has(e)?e.status:503,{error:'voice_request_failed',...(failures.has(e)?e.details:{})});}
+ }
+ // ---- Admin: gerar, listar, revogar e limitar códigos (nunca guarda nem loga o código, só o SHA-256) ----
+ async adminFetch(request) {
+  try {
+   const url=new URL(request.url);if(url.protocol!=='https:')fail(403);
+   if(request.headers.has('Origin'))fail(403);
+   const adminHash=this.env.ADMIN_TOKEN_HASH;if(!/^[0-9a-f]{64}$/.test(adminHash||''))fail(503);
+   const raw=this.env.VOICE_ADMIN_BURST_LIMIT;if(raw!==undefined&&!/^[1-9]\d*$/.test(raw))fail(503);
+   this.debitAdminBurst(await hash(request.headers.get('CF-Connecting-IP')||'unknown'),raw===undefined?10:Number(raw));
+   const bearer=request.headers.get('Authorization')||'';if(!/^Bearer [A-Za-z0-9_-]{43}$/.test(bearer))fail(401);
+   const given=await hash(bearer.slice(7));let diff=given.length^adminHash.length;
+   for(let i=0;i<given.length;i++)diff|=given.charCodeAt(i)^adminHash.charCodeAt(i%adminHash.length);
+   if(diff!==0)fail(401);
+   const route=request.method+' '+url.pathname;
+   if(route==='GET /admin/tokens')return reply(200,{tokens:this.listTokens()});
+   if(!['POST /admin/tokens','POST /admin/tokens/revoke','POST /admin/tokens/limit'].includes(route))fail(404);
+   let body;try{body=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(await limitedBody(request,4096)));}catch(e){if(failures.has(e))throw e;fail(400);}
+   if(!body||typeof body!=='object'||Array.isArray(body)||typeof body.subject!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(body.subject))fail(400);
+   if(route==='POST /admin/tokens/revoke')return reply(200,{revoked:this.revokeToken(body.subject)});
+   const plan=normalizePlan(body,Date.now());
+   if(route==='POST /admin/tokens')return reply(201,await this.createToken(body.subject,plan));
+   if(body.reset_used!==undefined&&typeof body.reset_used!=='boolean')fail(400);
+   return reply(200,{updated:this.updateLimit(body.subject,plan,body.reset_used===true)});
+  } catch(e){return reply(failures.has(e)?e.status:503,{error:'voice_unavailable'});}
+ }
+ debitAdminBurst(ip,limit) {
+  const sql=this.ctx.storage.sql,minute=Math.floor(Date.now()/60000),key=`burst-admin:${ip}:${minute}`;
+  this.ctx.storage.transactionSync(()=>{
+   const row=[...sql.exec('SELECT count FROM buckets WHERE key=?',key)][0];if((row?.count||0)>=limit)fail(429);
+   sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,0,?) ON CONFLICT(key) DO UPDATE SET count=count+1',key,(minute+2)*60000);
+  });
+ }
+ async createToken(subject,plan) {
+  const token=btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  const h=await hash(token),created=Date.now(),sql=this.ctx.storage.sql,dm=this.env.VOICE_DEVICES_MAX;
+  this.ctx.storage.transactionSync(()=>{
+   if([...sql.exec('SELECT 1 FROM tokens WHERE subject=? AND revoked IS NULL',subject)].length)fail(409);
+   sql.exec('INSERT INTO tokens(hash,subject,created,mode,quota,expires) VALUES(?,?,?,?,?,?)',h,subject,created,plan.mode,plan.quota,plan.expires);
+  });
+  return {token,subject,mode:plan.mode,quota:plan.quota,expires:plan.expires,devices_max:/^[1-9]\d*$/.test(dm||'')?Number(dm):2,created};
+ }
+ listTokens() {
+  const sql=this.ctx.storage.sql,day=Math.floor(Date.now()/86400000);
+  return [...sql.exec('SELECT hash,subject,created,revoked,mode,quota,expires,used_total FROM tokens ORDER BY created')].map(({hash:h,...t})=>{
+   const dev=[...sql.exec('SELECT count(*) n, max(last_seen) last FROM devices WHERE hash=?',h)][0];
+   const today=[...sql.exec('SELECT count FROM buckets WHERE key=?',`u:${t.subject}:${day}`)][0];
+   return {...t,devices:dev.n,last_seen:dev.last??null,today_requests:today?.count??0};
+  });
+ }
+ // Both mutations 404 when the subject has no active code; one transaction keeps the count and the update consistent.
+ revokeToken(subject) {
+  const sql=this.ctx.storage.sql;
+  return this.ctx.storage.transactionSync(()=>{
+   const n=[...sql.exec('SELECT 1 FROM tokens WHERE subject=? AND revoked IS NULL',subject)].length;if(!n)fail(404);
+   sql.exec('UPDATE tokens SET revoked=? WHERE subject=? AND revoked IS NULL',Date.now(),subject);return n;
+  });
+ }
+ updateLimit(subject,plan,resetUsed) {
+  const sql=this.ctx.storage.sql;
+  return this.ctx.storage.transactionSync(()=>{
+   const n=[...sql.exec('SELECT 1 FROM tokens WHERE subject=? AND revoked IS NULL',subject)].length;if(!n)fail(404);
+   sql.exec('UPDATE tokens SET mode=?,quota=?,expires=?,used_total=CASE WHEN ? THEN 0 ELSE used_total END WHERE subject=? AND revoked IS NULL',plan.mode,plan.quota,plan.expires,resetUsed?1:0,subject);return n;
+  });
  }
 }

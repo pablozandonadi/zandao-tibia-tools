@@ -213,3 +213,65 @@ test('interpret body over 12000 bytes fails with 503 before reserving anything',
  assert.equal((await s.req(JSON.stringify({request_id:id,text:'a'.repeat(500)}),id,'/interpret')).status,200);
  assert.equal(reserves,1);assert.equal(s.calls,1);
 });
+
+const adminToken = 'c'.repeat(43);
+const adminSetup = async (o = {}) => setup({ADMIN_TOKEN_HASH: await digest(adminToken), ...o});
+const adm = (s, path, {method = 'POST', body, token = adminToken, headers = {}} = {}) => worker.fetch(new Request('https://voice.example' + path, {method, headers: {authorization: 'Bearer ' + token, 'content-type': 'application/json', ...headers}, body: body && JSON.stringify(body)}), s.env);
+const plan = {mode: 'daily', quota: 5};
+test('admin sem ADMIN_TOKEN_HASH responde 503', async () => {
+  const s = await setup(); const r = await adm(s, '/admin/tokens', {method: 'GET'});
+  assert.equal(r.status, 503); assert.deepEqual(await r.json(), {error: 'voice_unavailable'});
+});
+test('senha errada, ausente e com Origin são recusadas', async () => {
+  const s = await adminSetup();
+  const rs = [await adm(s, '/admin/tokens', {method: 'GET', token: 'd'.repeat(43)}), await worker.fetch(new Request('https://voice.example/admin/tokens'), s.env), await adm(s, '/admin/tokens', {method: 'GET', headers: {origin: 'https://evil.example'}})];
+  assert.deepEqual(rs.map(r => r.status), [401, 401, 403]);
+  for (const r of rs) assert.deepEqual(await r.json(), {error: 'voice_unavailable'});
+});
+test('admin funciona com a IA desligada', async () => {
+  const s = await adminSetup({VOICE_AI_ENABLED: 'false'}); assert.equal((await adm(s, '/admin/tokens', {method: 'GET'})).status, 200);
+});
+test('gerar devolve código de 43 caracteres e grava só o hash', async () => {
+  const s = await adminSetup(); const r = await adm(s, '/admin/tokens', {body: {subject: 'amigo-2', ...plan}});
+  assert.equal(r.status, 201); const body = await r.json();
+  assert.match(body.token, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(s.db.prepare('SELECT hash FROM tokens').get().hash, await digest(body.token));
+  assert.ok(!JSON.stringify(s.db.prepare('SELECT * FROM tokens').all()).includes(body.token));
+  assert.deepEqual([body.subject, body.mode, body.quota, body.expires, body.devices_max], ['amigo-2', 'daily', 5, null, 2]);
+});
+test('duas gerações simultâneas para o mesmo subject: uma 201 e uma 409', async () => {
+  const s = await adminSetup(); const gen = () => adm(s, '/admin/tokens', {body: {subject: 'x', ...plan}});
+  assert.deepEqual((await Promise.all([gen(), gen()])).map(r => r.status).sort(), [201, 409]);
+  assert.equal((await adm(s, '/admin/tokens/revoke', {body: {subject: 'x'}})).status, 200);
+  assert.equal((await gen()).status, 201);
+  assert.equal((await adm(s, '/admin/tokens/revoke', {body: {subject: 'nunca-existiu'}})).status, 404);
+});
+test('listar não expõe código nem hash', async () => {
+  const s = await adminSetup(); const {token} = await (await adm(s, '/admin/tokens', {body: {subject: 'y', ...plan}})).json();
+  const r = await adm(s, '/admin/tokens', {method: 'GET'}); const text = JSON.stringify(await r.json());
+  assert.equal(r.status, 200); assert.ok(!text.includes(token) && !text.includes(await digest(token)));
+  const [row] = JSON.parse(text).tokens; assert.deepEqual([row.subject, row.revoked, row.used_total, row.devices, row.last_seen, row.today_requests], ['y', null, 0, 0, null, 0]);
+});
+test('planos inválidos dão 400', async () => {
+  const s = await adminSetup();
+  for (const p of [{mode: 'unlimited', quota: 5}, {mode: 'daily'}, {mode: 'daily', quota: 0}, {mode: 'x'}, {mode: 'daily', quota: 5, expires: 1}])
+    assert.equal((await adm(s, '/admin/tokens', {body: {subject: 'z', ...p}})).status, 400, JSON.stringify(p));
+  assert.equal(s.db.prepare('SELECT count(*) n FROM tokens').get().n, 0);
+});
+test('alterar limite muda o plano sem trocar o código', async () => {
+  const s = await adminSetup(); await adm(s, '/admin/tokens', {body: {subject: 'w', ...plan}});
+  const hashBefore = s.db.prepare('SELECT hash FROM tokens').get().hash;
+  assert.equal((await adm(s, '/admin/tokens/limit', {body: {subject: 'w', mode: 'unlimited'}})).status, 200);
+  const row = s.db.prepare('SELECT * FROM tokens').get(); assert.deepEqual([row.hash, row.mode, row.quota], [hashBefore, 'unlimited', null]);
+  assert.equal((await adm(s, '/admin/tokens/limit', {body: {subject: 'outro', ...plan}})).status, 404);
+});
+test('reset_used zera used_total', async () => {
+  const s = await adminSetup(); await adm(s, '/admin/tokens', {body: {subject: 'v', ...plan}});
+  s.db.prepare('UPDATE tokens SET used_total=7').run();
+  await adm(s, '/admin/tokens/limit', {body: {subject: 'v', ...plan}}); assert.equal(s.db.prepare('SELECT used_total FROM tokens').get().used_total, 7);
+  await adm(s, '/admin/tokens/limit', {body: {subject: 'v', ...plan, reset_used: true}}); assert.equal(s.db.prepare('SELECT used_total FROM tokens').get().used_total, 0);
+});
+test('tentativas erradas repetidas dão 429', async () => {
+  const s = await adminSetup({VOICE_ADMIN_BURST_LIMIT: '2'}); const bad = () => adm(s, '/admin/tokens', {method: 'GET', token: 'd'.repeat(43)});
+  assert.deepEqual([(await bad()).status, (await bad()).status, (await bad()).status], [401, 401, 429]);
+});
