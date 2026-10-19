@@ -73,6 +73,7 @@ mirrors.json.*
 
 # Acesso individual online protegido por usuário/canal
 voice-online.*
+admin-online.*
 
 # Estado privado dos cinco módulos do assistente
 assistente-tibiano.json*
