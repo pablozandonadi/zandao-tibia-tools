@@ -110,14 +110,18 @@ export class VoiceGate {
   sql.exec('CREATE TABLE IF NOT EXISTS devices (hash TEXT NOT NULL, device_id TEXT NOT NULL, first_seen INTEGER NOT NULL, last_seen INTEGER NOT NULL, PRIMARY KEY(hash, device_id))');
   sql.exec('CREATE TABLE IF NOT EXISTS buckets (key TEXT PRIMARY KEY, count INTEGER NOT NULL, cost INTEGER NOT NULL, expires INTEGER NOT NULL)');
  }
- reserve(subject,id,route,payloadHash,duration,cost,ip,cfg){
+ reserve(subject,id,route,payloadHash,duration,cost,ip,cfg,plan=null,hash=null){
   const sql=this.ctx.storage.sql,now=Date.now(),day=Math.floor(now/86400000);
   this.ctx.storage.transactionSync(()=>{
    sql.exec('DELETE FROM requests WHERE rowid IN (SELECT rowid FROM requests WHERE created < ? LIMIT 100)',now-172800000);
    sql.exec('DELETE FROM buckets WHERE key IN (SELECT key FROM buckets WHERE expires < ? LIMIT 100)',now);
    if([...sql.exec('SELECT request_id FROM requests WHERE subject=? AND request_id=? AND route=?',subject,id,route)].length)fail(409);
-   const buckets=[[`u:${subject}:${day}`,cfg.USER_DAILY_LIMIT,cfg.USER_DAILY_MICRO_USD,(day+2)*86400000],[`g:${day}`,cfg.GLOBAL_DAILY_LIMIT,cfg.GLOBAL_DAILY_MICRO_USD,(day+2)*86400000]];
-   for(const [key,limit,budget,expires]of buckets){const row=[...sql.exec('SELECT count,cost FROM buckets WHERE key=?',key)][0];const scope=key.startsWith('u:')?'user':'global';const retry_after_seconds=Math.ceil(((day+1)*86400000-now)/1000);if((row?.count||0)+1>limit)fail(429,{limit_reason:scope+'_daily_requests',retry_after_seconds});if((row?.cost||0)+cost>budget)fail(429,{limit_reason:scope+'_daily_budget',retry_after_seconds});sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,?,?) ON CONFLICT(key) DO UPDATE SET count=count+1,cost=cost+excluded.cost',key,cost,expires);}
+   const mode=plan?.mode;
+   // used_total is re-read here: other requests may have debited it while this one awaited the body.
+   if(mode==='total'){const t=[...sql.exec('SELECT quota,used_total FROM tokens WHERE hash=?',hash)][0];if(!t||t.used_total>=t.quota)fail(429,{error:'quota_exhausted',limit_reason:'token_total'});sql.exec('UPDATE tokens SET used_total=used_total+1 WHERE hash=?',hash);}
+   const uLimit=mode==='daily'?plan.quota:mode?Infinity:cfg.USER_DAILY_LIMIT,uBudget=mode==='daily'?Math.max(cfg.USER_DAILY_MICRO_USD,plan.quota*cfg.NLU_RESERVE_MICRO_USD):mode?Infinity:cfg.USER_DAILY_MICRO_USD;
+   const buckets=[[`u:${subject}:${day}`,uLimit,uBudget,(day+2)*86400000],[`g:${day}`,cfg.GLOBAL_DAILY_LIMIT,cfg.GLOBAL_DAILY_MICRO_USD,(day+2)*86400000]];
+   for(const [key,limit,budget,expires]of buckets){const row=[...sql.exec('SELECT count,cost FROM buckets WHERE key=?',key)][0];const scope=key.startsWith('u:')?'user':'global';const retry_after_seconds=Math.ceil(((day+1)*86400000-now)/1000);if((row?.count||0)+1>limit)fail(429,mode==='daily'&&scope==='user'?{error:'quota_exhausted',limit_reason:'token_daily',retry_after_seconds}:{limit_reason:scope+'_daily_requests',retry_after_seconds});if((row?.cost||0)+cost>budget)fail(429,{limit_reason:scope+'_daily_budget',retry_after_seconds});sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,?,?) ON CONFLICT(key) DO UPDATE SET count=count+1,cost=cost+excluded.cost',key,cost,expires);}
    sql.exec('INSERT INTO requests VALUES(?,?,?,?,?,?,?,?)',subject,id,route,payloadHash,'reserved',now,duration,cost);
   });
  }
@@ -164,11 +168,11 @@ export class VoiceGate {
  }
  async fetch(request){
   if(new URL(request.url).pathname.startsWith('/admin/'))return this.adminFetch(request);
-  let subject,id,route;
+  let subject,id,route,plan=null;
   try {
    if(new URL(request.url).protocol!=='https:')fail(403);const cfg=config(this.env);const who=await identify(request,this.env,cfg);route=new URL(request.url).pathname;
    const ip=await hash(request.headers.get('CF-Connecting-IP')||'unknown');
-   if(who.subject)subject=who.subject; else {this.debitIpBurst(ip,cfg);subject=this.resolveToken(who.hash,request.headers.get('X-Device-ID'),Date.now(),cfg).subject;}
+   if(who.subject)subject=who.subject; else {this.debitIpBurst(ip,cfg);plan=this.resolveToken(who.hash,request.headers.get('X-Device-ID'),Date.now(),cfg);subject=plan.subject;}
    this.debitBurst(subject,ip,cfg,!who.subject);
    if(request.method!=='POST'||!['/transcribe','/interpret','/chat'].includes(route))fail(400);
    id=request.headers.get('X-Request-ID');if(!UUID.test(id||''))fail(400);id=id.toLowerCase();
@@ -186,7 +190,7 @@ export class VoiceGate {
    }
    if(nlu&&encoder.encode(nlu).length>(route==='/chat'?16000:12000))fail(503);
    // Up to 40x40 Unicode characters plus separators: <8000 additional UTF-8 bytes/tokens.
-   this.reserve(subject,id,route,payloadHash,duration,route==='/transcribe'?(vocabulary?40000:30000):cfg.NLU_RESERVE_MICRO_USD,ip,cfg);
+   this.reserve(subject,id,route,payloadHash,duration,route==='/transcribe'?(vocabulary?40000:30000):cfg.NLU_RESERVE_MICRO_USD,ip,cfg,plan,who.hash);
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);let response,data;
    try {
     let body,url,headers={Authorization:`Bearer ${this.env.OPENAI_API_KEY}`};

@@ -215,7 +215,7 @@ test('interpret body over 12000 bytes fails with 503 before reserving anything',
 });
 
 const adminToken = 'c'.repeat(43);
-const adminSetup = async (o = {}) => setup({ADMIN_TOKEN_HASH: await digest(adminToken), ...o});
+const adminSetup = async (o = {}, provider) => setup({ADMIN_TOKEN_HASH: await digest(adminToken), ...o}, provider);
 const adm = (s, path, {method = 'POST', body, token = adminToken, headers = {}} = {}) => worker.fetch(new Request('https://voice.example' + path, {method, headers: {authorization: 'Bearer ' + token, 'content-type': 'application/json', ...headers}, body: body && JSON.stringify(body)}), s.env);
 const plan = {mode: 'daily', quota: 5};
 test('admin sem ADMIN_TOKEN_HASH responde 503', async () => {
@@ -317,4 +317,62 @@ test('token desconhecido consome rajada por IP e dá 401 sem corpo específico n
 test('código novo debita a rajada por IP uma vez só', async () => {
   const s = await adminSetup(); const tk = await novoCodigo(s, 'n7'); await reqCom(s, tk, crypto.randomUUID());
   assert.equal(s.db.prepare("SELECT count FROM buckets WHERE key LIKE 'burst-ip:%'").get().count, 1);
+});
+
+// Task 4: planos de uso
+const dev4 = crypto.randomUUID();
+const usa = (s, tk, {id = crypto.randomUUID(), route = '/transcribe'} = {}) => worker.fetch(new Request('https://voice.example' + route, {method: 'POST', headers: {authorization: 'Bearer ' + tk, 'X-Request-ID': id, 'X-Device-ID': dev4, 'Content-Type': route === '/transcribe' ? 'audio/wav' : 'application/json', 'CF-Connecting-IP': '127.0.0.1'}, body: route === '/transcribe' ? wav() : JSON.stringify({request_id: id, text: 'um minuto e meio'})}), s.env);
+const statuses = (s, tk, n, o) => Promise.all(Array.from({length: n}, () => usa(s, tk, o))).then(rs => rs.map(r => r.status));
+const big = {VOICE_USER_BURST_LIMIT: '100', VOICE_IP_BURST_LIMIT: '100', VOICE_USER_DAILY_LIMIT: '1000', VOICE_GLOBAL_DAILY_LIMIT: '1000', VOICE_USER_DAILY_MICRO_USD: '100000000', VOICE_GLOBAL_DAILY_MICRO_USD: '100000000'};
+const usado = (s, tk) => s.db.prepare('SELECT used_total u FROM tokens WHERE subject=?').get(tk).u;
+test('daily: a N-ésima passa e a N+1 recebe 429 token_daily', async () => {
+  const s = await adminSetup({...big, VOICE_USER_DAILY_LIMIT: '1'}); const tk = await novoCodigo(s, 'd1', {mode: 'daily', quota: 2});
+  assert.equal((await usa(s, tk)).status, 200); assert.equal((await usa(s, tk)).status, 200);
+  const r = await usa(s, tk); assert.equal(r.status, 429); const b = await r.json(); assert.equal(b.error, 'quota_exhausted'); assert.equal(b.limit_reason, 'token_daily');
+});
+test('daily acima do teto de custo antigo não é cortado antes de N', async () => {
+  const intent = {action: 'create_timer', parameters: {seconds: 90}, needs_clarification: false, clarification: null};
+  const s = await adminSetup({...big, VOICE_NLU_RESERVE_MICRO_USD: '2000', VOICE_USER_DAILY_MICRO_USD: '50000'}, async () => Response.json({output: [{type: 'message', content: [{type: 'output_text', text: JSON.stringify({intent})}]}]}));
+  const tk = await novoCodigo(s, 'd2', {mode: 'daily', quota: 30});
+  for (let i = 0; i < 30; i++) assert.equal((await usa(s, tk, {route: '/interpret'})).status, 200, 'uso ' + (i + 1));
+  const r = await usa(s, tk, {route: '/interpret'}); assert.equal(r.status, 429); assert.equal((await r.json()).limit_reason, 'token_daily');
+});
+test('total: esgota em N, não renova no dia seguinte, volta ao aumentar o limite', async t => {
+  const s = await adminSetup(big); const tk = await novoCodigo(s, 't1', {mode: 'total', quota: 2}); const agora = Date.now();
+  assert.deepEqual(await statuses(s, tk, 2), [200, 200]);
+  const r = await usa(s, tk); assert.equal(r.status, 429); assert.equal((await r.json()).limit_reason, 'token_total');
+  t.mock.method(Date, 'now', () => agora + 86400000);
+  assert.equal((await usa(s, tk)).status, 429);
+  assert.equal((await adm(s, '/admin/tokens/limit', {body: {subject: 't1', mode: 'total', quota: 5}})).status, 200);
+  assert.equal((await usa(s, tk)).status, 200);
+});
+test('total: reset_used zera e libera de novo', async () => {
+  const s = await adminSetup(big); const tk = await novoCodigo(s, 't2', {mode: 'total', quota: 1});
+  assert.equal((await usa(s, tk)).status, 200); assert.equal((await usa(s, tk)).status, 429);
+  assert.equal((await adm(s, '/admin/tokens/limit', {body: {subject: 't2', mode: 'total', quota: 1, reset_used: true}})).status, 200);
+  assert.equal((await usa(s, tk)).status, 200);
+});
+test('unlimited passa do limite padrão mas é barrado pelo teto global', async () => {
+  const s = await adminSetup({...big, VOICE_USER_DAILY_LIMIT: '1', VOICE_GLOBAL_DAILY_LIMIT: '3'}); const tk = await novoCodigo(s, 'u1', {mode: 'unlimited'});
+  const r = []; for (let i = 0; i < 4; i++) r.push(await usa(s, tk));
+  assert.deepEqual(r.map(x => x.status), [200, 200, 200, 429]); assert.equal((await r[3].json()).limit_reason, 'global_daily_requests');
+});
+test('N simultâneas no limite deixam passar exatamente N', async () => {
+  for (const mode of ['daily', 'total']) {
+    const s = await adminSetup(big); const tk = await novoCodigo(s, 'c' + mode, {mode, quota: 3});
+    assert.deepEqual((await statuses(s, tk, 5)).sort(), [200, 200, 200, 429, 429]);
+  }
+});
+test('repetir o mesmo X-Request-ID não conta duas vezes', async () => {
+  const s = await adminSetup(big); const tk = await novoCodigo(s, 'r1', {mode: 'total', quota: 2}); const id = crypto.randomUUID();
+  assert.equal((await usa(s, tk, {id})).status, 200); assert.equal((await usa(s, tk, {id})).status, 409);
+  assert.equal(usado(s, 'r1'), 1);
+});
+test('falha do provedor mantém a unidade usada', async () => {
+  const s = await adminSetup(big, async () => { throw new Error('boom'); }); const tk = await novoCodigo(s, 'f1', {mode: 'total', quota: 3});
+  assert.equal((await usa(s, tk)).status, 502); assert.equal(usado(s, 'f1'), 1);
+});
+test('código antigo continua com os limites USER_*', async () => {
+  const s = await setup({...big, VOICE_USER_DAILY_LIMIT: '1'});
+  assert.equal((await s.req()).status, 200); const r = await s.req(); assert.equal(r.status, 429); assert.equal((await r.json()).limit_reason, 'user_daily_requests');
 });
