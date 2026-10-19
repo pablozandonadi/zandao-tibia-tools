@@ -275,3 +275,46 @@ test('tentativas erradas repetidas dão 429', async () => {
   const s = await adminSetup({VOICE_ADMIN_BURST_LIMIT: '2'}); const bad = () => adm(s, '/admin/tokens', {method: 'GET', token: 'd'.repeat(43)});
   assert.deepEqual([(await bad()).status, (await bad()).status, (await bad()).status], [401, 401, 429]);
 });
+
+const novoCodigo = async (s, subject, p = {mode: 'unlimited'}) => (await (await adm(s, '/admin/tokens', {body: {subject, ...p}})).json()).token;
+const reqCom = (s, tk, device, ip = '127.0.0.1') => worker.fetch(new Request('https://voice.example/transcribe', {method: 'POST', headers: {authorization: 'Bearer ' + tk, 'X-Request-ID': crypto.randomUUID(), 'Content-Type': 'audio/wav', 'CF-Connecting-IP': ip, ...(device ? {'X-Device-ID': device} : {})}, body: wav()}), s.env);
+test('código novo autentica e grava o PC', async () => {
+  const s = await adminSetup(); const tk = await novoCodigo(s, 'n1'); const d = crypto.randomUUID();
+  assert.equal((await reqCom(s, tk, d)).status, 200);
+  const rows = s.db.prepare('SELECT device_id FROM devices').all(); assert.deepEqual(rows.map(r => r.device_id), [d]);
+});
+test('3º PC recebe 403 device_limit; PC já registrado continua (padrão DEVICES_MAX=2)', async () => {
+  const s = await adminSetup(); const tk = await novoCodigo(s, 'n2'); const [a, b, c] = [1, 2, 3].map(() => crypto.randomUUID());
+  assert.equal((await reqCom(s, tk, a)).status, 200); assert.equal((await reqCom(s, tk, b)).status, 200);
+  const r = await reqCom(s, tk, c); assert.equal(r.status, 403); assert.deepEqual(await r.json(), {error: 'device_limit'});
+  assert.equal((await reqCom(s, tk, a)).status, 200);
+});
+test('X-Device-ID em maiúsculas é o mesmo PC', async () => {
+  const s = await adminSetup(); const tk = await novoCodigo(s, 'n3'); const [a, b] = [1, 2].map(() => crypto.randomUUID());
+  for (const d of [a, b, a.toUpperCase()]) assert.equal((await reqCom(s, tk, d)).status, 200);
+  assert.equal(s.db.prepare('SELECT COUNT(*) n FROM devices').get().n, 2);
+});
+test('X-Device-ID ausente ou inválido dá 400 só para código novo', async () => {
+  const s = await adminSetup(); const tk = await novoCodigo(s, 'n4');
+  for (const d of [undefined, 'nao-e-uuid']) assert.equal((await reqCom(s, tk, d)).status, 400);
+  assert.equal((await s.req()).status, 200);
+});
+test('código revogado dá 401 na requisição seguinte', async () => {
+  const s = await adminSetup(); const tk = await novoCodigo(s, 'n5'); const d = crypto.randomUUID();
+  assert.equal((await reqCom(s, tk, d)).status, 200);
+  await adm(s, '/admin/tokens/revoke', {body: {subject: 'n5'}}); assert.equal((await reqCom(s, tk, d)).status, 401);
+});
+test('código vencido dá 403 code_expired', async () => {
+  const s = await adminSetup(); const tk = await novoCodigo(s, 'n6'); s.db.prepare('UPDATE tokens SET expires=?').run(Date.now() - 1000);
+  const r = await reqCom(s, tk, crypto.randomUUID()); assert.equal(r.status, 403); assert.deepEqual(await r.json(), {error: 'code_expired'});
+});
+test('token desconhecido consome rajada por IP e dá 401 sem corpo específico nem débito por usuário', async () => {
+  const s = await adminSetup({VOICE_IP_BURST_LIMIT: '2'}); const d = crypto.randomUUID(), u = 'e'.repeat(43);
+  const rs = [await reqCom(s, u, d), await reqCom(s, u, d), await reqCom(s, u, d)];
+  assert.deepEqual(rs.map(r => r.status), [401, 401, 429]);
+  assert.equal(s.db.prepare("SELECT COUNT(*) n FROM buckets WHERE key LIKE 'burst-u:%'").get().n, 0);
+});
+test('código novo debita a rajada por IP uma vez só', async () => {
+  const s = await adminSetup(); const tk = await novoCodigo(s, 'n7'); await reqCom(s, tk, crypto.randomUUID());
+  assert.equal(s.db.prepare("SELECT count FROM buckets WHERE key LIKE 'burst-ip:%'").get().count, 1);
+});

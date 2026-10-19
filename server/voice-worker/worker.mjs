@@ -133,22 +133,43 @@ export class VoiceGate {
    sql.exec('UPDATE requests SET status=?,reserved=? WHERE subject=? AND request_id=? AND route=?','complete',used===null?row.reserved:Math.min(row.reserved,used),subject,id,route);
   });
  }
- debitBurst(subject,ip,cfg){
+ debitBurst(subject,ip,cfg,ipDone=false){
   const sql=this.ctx.storage.sql,minute=Math.floor(Date.now()/60000);
   this.ctx.storage.transactionSync(()=>{
    sql.exec('DELETE FROM buckets WHERE key IN (SELECT key FROM buckets WHERE expires < ? LIMIT 100)',Date.now());
    for(const [key,limit] of [[`burst-u:${subject}:${minute}`,cfg.USER_BURST_LIMIT],[`burst-ip:${ip}:${minute}`,cfg.IP_BURST_LIMIT]]){
+    if(ipDone&&key.startsWith('burst-ip:'))continue; // já debitado por debitIpBurst
     const row=[...sql.exec('SELECT count FROM buckets WHERE key=?',key)][0];if((row?.count||0)>=limit)fail(429,{limit_reason:key.startsWith('burst-u:')?'user_burst':'ip_burst',retry_after_seconds:Math.max(1,Math.ceil(((minute+1)*60000-Date.now())/1000))});
     sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,0,?) ON CONFLICT(key) DO UPDATE SET count=count+1',key,(minute+2)*60000);
    }
   });
  }
+ debitIpBurst(ip,cfg){
+  const sql=this.ctx.storage.sql,minute=Math.floor(Date.now()/60000),key=`burst-ip:${ip}:${minute}`;
+  this.ctx.storage.transactionSync(()=>{
+   const row=[...sql.exec('SELECT count FROM buckets WHERE key=?',key)][0];if((row?.count||0)>=cfg.IP_BURST_LIMIT)fail(429,{limit_reason:'ip_burst',retry_after_seconds:Math.max(1,Math.ceil(((minute+1)*60000-Date.now())/1000))});
+   sql.exec('INSERT INTO buckets(key,count,cost,expires) VALUES(?,1,0,?) ON CONFLICT(key) DO UPDATE SET count=count+1',key,(minute+2)*60000);
+  });
+ }
+ resolveToken(h,deviceId,now,cfg){
+  const sql=this.ctx.storage.sql,t=[...sql.exec('SELECT subject,mode,quota,expires,used_total,revoked FROM tokens WHERE hash=?',h)][0];
+  if(!t||t.revoked!==null)fail(401);
+  if(t.expires!==null&&t.expires<=now)fail(403,{error:'code_expired'});
+  if(!UUID.test(deviceId||''))fail(400);const dev=deviceId.toLowerCase();
+  this.ctx.storage.transactionSync(()=>{
+   if([...sql.exec('SELECT 1 FROM devices WHERE hash=? AND device_id=?',h,dev)].length)sql.exec('UPDATE devices SET last_seen=? WHERE hash=? AND device_id=?',now,h,dev);
+   else {if([...sql.exec('SELECT 1 FROM devices WHERE hash=?',h)].length>=cfg.DEVICES_MAX)fail(403,{error:'device_limit'});sql.exec('INSERT INTO devices(hash,device_id,first_seen,last_seen) VALUES(?,?,?,?)',h,dev,now,now);}
+  });
+  return {subject:t.subject,mode:t.mode,quota:t.quota,used_total:t.used_total};
+ }
  async fetch(request){
   if(new URL(request.url).pathname.startsWith('/admin/'))return this.adminFetch(request);
   let subject,id,route;
   try {
-   if(new URL(request.url).protocol!=='https:')fail(403);const cfg=config(this.env);const who=await identify(request,this.env,cfg);subject=who.subject??fail(401);route=new URL(request.url).pathname;
-   const ip=await hash(request.headers.get('CF-Connecting-IP')||'unknown');this.debitBurst(subject,ip,cfg);
+   if(new URL(request.url).protocol!=='https:')fail(403);const cfg=config(this.env);const who=await identify(request,this.env,cfg);route=new URL(request.url).pathname;
+   const ip=await hash(request.headers.get('CF-Connecting-IP')||'unknown');
+   if(who.subject)subject=who.subject; else {this.debitIpBurst(ip,cfg);subject=this.resolveToken(who.hash,request.headers.get('X-Device-ID'),Date.now(),cfg).subject;}
+   this.debitBurst(subject,ip,cfg,!who.subject);
    if(request.method!=='POST'||!['/transcribe','/interpret','/chat'].includes(route))fail(400);
    id=request.headers.get('X-Request-ID');if(!UUID.test(id||''))fail(400);id=id.toLowerCase();
    const type=(request.headers.get('Content-Type')||'').split(';')[0].trim().toLowerCase();if(type!==(route==='/transcribe'?'audio/wav':'application/json'))fail(400);
