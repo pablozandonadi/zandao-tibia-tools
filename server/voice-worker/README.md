@@ -204,7 +204,7 @@ O proprietário adicionou créditos. A coordenação confirmou STT real com Pipe
 
 
 
-O corpo JSON do provedor NLU é limitado a 32 KiB: comporta o eco do schema/instruções (pedido até 12000 bytes), saída até 2048 tokens e metadados. Somente a intenção validada retorna ao cliente; limite de resposta do cliente e do provedor STT continua 8 KiB. Excesso NLU recebe diagnóstico fixo `provider_response_too_large`, sem conteúdo.
+O corpo JSON do provedor NLU é limitado a 256 KiB (era 32 KiB; a resposta real do `gpt-5-nano` passou de 32 KiB e o chat falhava com `provider_response_too_large`, o que os testes com respostas simuladas pequenas não mostraram): comporta o eco do schema/instruções (pedido até 12000 bytes), o raciocínio, saída até 2048 tokens e metadados. Somente a intenção validada retorna ao cliente; limite de resposta do cliente e do provedor STT continua 8 KiB. Excesso NLU recebe diagnóstico fixo `provider_response_too_large`, sem conteúdo.
 
 
 ### Cinco módulos e contrato de interpretação — 16/10/2026
