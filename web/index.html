@@ -959,8 +959,7 @@
     </section>
 
     <section class="page" id="page-voz">
-      <h1 class="titulo">Assistente Tibiano</h1>
-      <p id="assistente-context" role="status">Carregando personagem e mundo…</p>
+      <div class="assistente-cabecalho"><div><h1 class="titulo">Assistente Tibiano</h1><p id="assistente-context" role="status">Carregando personagem e mundo…</p></div><button type="button" class="btn btn-sm" id="assistente-monitor-abrir">Monitoramento</button></div>
       <nav class="assistente-nav" aria-label="Módulos do Assistente Tibiano">
         <button type="button" class="btn btn-sm" data-assistente-tab="overview">Chat</button>
         <button type="button" class="btn btn-sm" data-assistente-tab="timers">Timers Gerais</button>
@@ -3572,6 +3571,7 @@ else window.addEventListener('pywebviewready', iniciar);
 <script src="voz.js"></script>
 <script src="assistente.js"></script>
 <script src="chat.js"></script>
+<script src="assistente_canais.js"></script>
 <script src="admin_ia.js"></script>
 <script>PERS_OUVINTES.push(() => mirrorLoad()); window.addEventListener("pywebviewready", () => mirrorLoad());</script>
 <dialog id="apoio-dialog" class="apoio-dialog" aria-labelledby="apoio-titulo"><h2 id="apoio-titulo">Apoie o Tibia Tudo ☕</h2><p>Gostou das ferramentas? Sua contribuição ajuda a manter e melhorar o projeto. Qualquer valor é bem-vindo.</p><img class="apoio-qr" src="assets/brand/pix.png" alt="QR Code Pix para apoiar o Tibia Tudo"><p>Recebedor: <b>Pablo Zandonadi</b></p><label for="apoio-pix">Pix copia e cola</label><textarea id="apoio-pix" readonly spellcheck="false">00020126580014BR.GOV.BCB.PIX0136361fa425-8509-45c1-bf3f-b7ffe03417e25204000053039865802BR5915Pablo Zandonadi6009SAO PAULO62140510zsHJv5VizV630498CD</textarea><p id="apoio-status" role="status"></p><button class="btn btn-primary" id="apoio-copiar">Copiar Pix</button> <button class="btn" id="apoio-fechar">Fechar</button><p class="dica">Contribuição voluntária. Confira o recebedor no seu banco antes de confirmar.</p><p class="dica">Sprites: Lupus Aurelius (Dice) e Makadamia (Coffee), via Tibia Fanart.</p></dialog>

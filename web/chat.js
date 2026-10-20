@@ -37,6 +37,7 @@
     if (!Object.hasOwn(linhas, proximo)) return;
     canal = proximo;
     for (const nome of canais) {
+      if (!el('chat-canal-' + nome)) continue;
       el('chat-canal-' + nome).setAttribute('aria-selected', String(nome === canal));
       el('chat-canal-' + nome).setAttribute('tabindex', nome === canal ? '0' : '-1');
       el('chat-canal-' + nome).setAttribute('aria-controls', nome === 'help' ? 'assistente-instrucoes' : 'chat-mensagens');
@@ -49,6 +50,7 @@
     el('chat-form').hidden = somenteLeitura();
     el('chat-canal-ajuda').textContent = AJUDA[canal];
     if (canal === 'local') mundoSeVelho();
+    if (window.assistenteCanais) window.assistenteCanais.restaurar();
   }
   function textoMundo(r) {
     const b = r.boostados || {}, dc = r.dream_court || {}, y = r.yasir || {}, s = r.servidor || {};
@@ -103,7 +105,7 @@
       render('chat-bot', dados.resposta, dados.entendi, destino);
       if (window.assistenteLoad) window.assistenteLoad();
     } catch (error) { if (atual === geracao) render('chat-bot chat-erro', error.message || 'Não consegui responder agora.', undefined, destino); }
-    finally { busy = false; botao.disabled = false; el('chat-limpar').disabled = false; el('chat-digitando').hidden = true; el('chat-texto').focus(); }
+    finally { busy = false; botao.disabled = false; el('chat-limpar').disabled = false; el('chat-digitando').hidden = true; if(!window.assistenteCanais||['local','ia'].includes(window.assistenteCanais.atual()))el('chat-texto').focus(); }
   }
   async function limpar(todos = false) {
     if (busy && !todos || somenteLeitura() && !todos) return;
@@ -132,8 +134,9 @@
     el('chat-limpar').addEventListener('click', () => limpar());
     for (const nome of canais) {
       const tab = el('chat-canal-' + nome);
-      tab.addEventListener('click', () => selecionar(nome));
+      tab.addEventListener('click', () => window.assistenteCanais ? window.assistenteCanais.selecionar(nome) : selecionar(nome));
       tab.addEventListener('keydown', event => {
+        if (window.assistenteCanais) return;
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
         const index = event.key === 'Home' ? 0 : event.key === 'End' ? canais.length - 1 : (canais.indexOf(nome) + (event.key === 'ArrowRight' ? 1 : canais.length - 1)) % canais.length;
@@ -157,7 +160,7 @@
   // Altura do chat: alça na borda de baixo do card, vale para o chat e para o Help. Limites: 120 px até a altura da janela menos o resto da tela.
   function alturaDoChat(grip) {
     const card = grip.closest('.chat'), MIN = 120, CHAVE = 'zt-chat-altura';
-    const area = () => canal === 'help' ? el('assistente-instrucoes') : el('chat-mensagens');
+    const area = () => window.assistenteCanais ? window.assistenteCanais.area() : canal === 'help' ? el('assistente-instrucoes') : el('chat-mensagens');
     const maximo = () => Math.max(MIN, window.innerHeight - 200);
     const aplicar = px => card.style.setProperty('--chat-h', Math.round(Math.min(maximo(), Math.max(MIN, px))) + 'px');
     const guardar = () => { try { localStorage.setItem(CHAVE, String(Math.round(area().offsetHeight))); } catch (e) { /* sem armazenamento: a altura só vale nesta sessão */ } };
@@ -198,6 +201,7 @@
     if (canal === 'local') mundoSeVelho();
   };
   window.chatAvisos = data => { avisos = data || []; atualizarLog(); };
+  window.chatSelecionar = selecionar;
   if (typeof module !== 'undefined' && module.exports) module.exports = {render, enviar, limpar, boot, selecionar, carregarMundo};
   boot();
 })();

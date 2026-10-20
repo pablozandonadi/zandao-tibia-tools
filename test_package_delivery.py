@@ -25,6 +25,12 @@ class DeliveryTests(unittest.TestCase):
             source=self.source(directory);app=self.app(directory)
             (app/'_internal/web/historico_hunts.json').write_text('{}')
             with self.assertRaises(ValueError):p.validate_layout(app,source)
+    def test_monitor_private_files_rejected_even_nested(self):
+        for name in ('monitor-personagens.json', 'monitor-personagens.json.tmp'):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                source=self.source(directory);app=self.app(directory)
+                (app/'_internal'/name).write_text('{}')
+                with self.assertRaises(ValueError):p.validate_layout(app,source)
     def test_unknown_resource_and_root_files_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             source=self.source(directory);app=self.app(directory)

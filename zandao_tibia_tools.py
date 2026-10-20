@@ -101,6 +101,7 @@ def main():
         if getattr(api, "_voz", None) is not None:
             api._voz.close()
         api._personagem_auto_parar()
+        api._monitor_personagens_parar()
         api._rede.close()
         if getattr(api, "_mirror", None) is not None:
             api._mirror.close()

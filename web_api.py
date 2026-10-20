@@ -324,6 +324,8 @@ class API:
         self._voz_lock = threading.Lock()
         self._chat = None
         self._chat_lock = threading.Lock()
+        self._personagens_monitor = None
+        self._personagens_monitor_lock = threading.Lock()
         self._mirror = None
         self._mirror_api_lock = threading.Lock()
         self._capturas = {}     # tipo ('party'/'solo'/'dano') -> {"texto", "t"}: últimos textos do Tibia copiados
@@ -1398,6 +1400,27 @@ class API:
                         'log':[{'id':event['id'],'texto':event['arguments'].get('message') if event['intent']=='alert.fired' else assistente_tibiano.describe(event['intent'],event.get('arguments',{}))} for event in history[-30:]]}
         except (ValueError,OSError) as error:
             return {'erro':str(error)}
+
+    def _monitor_personagens_obter(self):
+        with self._personagens_monitor_lock:
+            if self._personagens_monitor is None:
+                import monitor_personagens
+                self._personagens_monitor = monitor_personagens.Monitor(BASE_DIR)
+                self._personagens_monitor.start()
+            return self._personagens_monitor
+
+    def assistente_monitor_estado(self):
+        return self._monitor_personagens_obter().estado()
+
+    def assistente_monitor_configurar(self, nome, up=True, death=True, remover=False):
+        try:
+            return self._monitor_personagens_obter().configurar(nome, up, death, remover)
+        except (ValueError, OSError) as error:
+            return {'erro': str(error) if isinstance(error, ValueError) else 'Não foi possível salvar o monitoramento.'}
+
+    def _monitor_personagens_parar(self):
+        if self._personagens_monitor is not None:
+            self._personagens_monitor.close()
 
     # "argumentos", não "arguments": o wrapper JS do pywebview usa o nome do parâmetro e "arguments" apaga a chamada.
     def assistente_executar(self, intent, argumentos=None, context=None, request_id=None):

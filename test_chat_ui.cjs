@@ -196,7 +196,9 @@ const submit = () => { let prevented = false; form.listeners.submit({preventDefa
   const index = fs.readFileSync(path.join(__dirname, 'web/index.html'), 'utf8');
   const at = text => { const i = index.indexOf(text); assert.ok(i >= 0, text); return i; };
   assert.equal((index.match(/id="chat-form"/g) || []).length, 1);
-  assert.ok(index.includes('data-assistente-tab="overview">Chat</button>'));
+  assert.ok(index.includes('id="assistente-monitor-abrir"'));
+  assert.ok(index.includes('src="assistente_canais.js"'));
+  assert.ok(index.includes('class="assistente-nav"'));
   assert.ok(at('id="chat-mensagens" role="log" aria-live="polite"') < at('id="chat-form"'));
   assert.ok(at('src="assistente.js"') < at('src="chat.js"'));
   const painel = nome => { const i = at(`data-assistente-panel="${nome}"`), proximo = index.indexOf('data-assistente-panel="', i + 10); return index.slice(i, proximo); };
@@ -214,9 +216,9 @@ const submit = () => { let prevented = false; form.listeners.submit({preventDefa
   for (const id of ['voz-status', 'voz-microfone', 'voz-esfera', 'voz-ajuda', 'voz-ajuda-texto', 'voz-ajuda-area', 'voz-ouvi', 'voz-entendi', 'voz-resposta']) assert.ok(at(`id="${id}"`) > pausado, `${id} fica escondido no #voz-pausado`);
   // Ferramentas foi embora: Shared XP numa aba só (calculadora ao vivo + formulários) e "Quando eu upo?" ganhou aba.
   assert.ok(!index.includes('data-pagina="ferr"') && !index.includes('id="page-ferr"') && !/irPara\('ferr'\)|abrirFerramentas|Abrir no Assistente Tibiano/.test(index));
-  assert.equal((index.match(/data-assistente-tab="shared"/g) || []).length, 1);
+  assert.equal((index.match(/data-assistente-panel="shared"/g) || []).length, 1);
   assert.ok(at('id="f-levels"') < at('id="assistente-form-shared"') && shared.includes('id="f-levels"') && shared.includes('id="f-shared-res"') && shared.includes('id="assistente-level-form"'));
-  assert.ok(index.includes('data-assistente-tab="upo">Quando eu upo?</button>'));
+  assert.ok(index.includes('data-assistente-panel="upo"'));
   for (const id of ['f-up-sel', 'f-up-nome', 'f-up-info', 'f-up-alvo', 'f-up-xp', 'f-up-xph', 'f-up-calc', 'f-up-res']) assert.ok(upo.includes(`id="${id}"`), `${id} fica na aba Quando eu upo?`);
   for (const id of new Set([...index.matchAll(/\$\('(f-[a-z-]+)'\)/g)].map(m => m[1]))) assert.equal((index.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, `${id} existe uma vez`);
   console.log('chat UI: safe bubbles, single send, errors, clear, Help channel, Local Chat world info and page wiring passed');

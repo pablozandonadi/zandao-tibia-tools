@@ -137,9 +137,11 @@ async function run(module,intent,args){
  try{const data=await execute(window.pywebview.api,intent,args,context,id);if(data.erro)throw new Error(data.erro);showResult(module,data);if(module==='stamina')await staminaDetails(context);status.textContent=data.message||'Concluído.';await refresh();}
  catch(e){status.textContent=e.message||'Não foi possível concluir.';}finally{busy=false;}
 }
+let refreshVersion=0;
 async function refresh(){
  if(!window.pywebview||!window.pywebview.api)return;
- try{const data=await window.pywebview.api.assistente_estado();if(data.erro)throw new Error(data.erro);state=data;
+ const version=++refreshVersion;
+ try{const data=await window.pywebview.api.assistente_estado();if(version!==refreshVersion)return;if(data.erro)throw new Error(data.erro);state=data;
  if(window.chatEstado)window.chatEstado(data);
  for(const input of document.querySelectorAll('select[name=timer_id],select[name=boss_id]')){const previous=input.value;const rows=input.name==='timer_id'?data.timers.map(t=>[t.id,`${t.label} (${t.status})`]):data.catalog.bosses.map(b=>[b.boss_id,b.name]);const sig=rows.join('\n');if(input.dataset.sig===sig)continue;input.dataset.sig=sig;input.replaceChildren();for(const [value,title] of rows){const option=node('option',title);option.value=value;input.append(option);}if(rows.some(r=>r[0]===previous))input.value=previous;}
  if(!el('assistente-world').value)el('assistente-world').value=data.context.world_id||'';
@@ -147,15 +149,17 @@ async function refresh(){
  const names=el('bosstiary-nomes');if(names&&names.children.length!==data.catalog.bosses.length)names.replaceChildren(...data.catalog.bosses.map(b=>{const o=node('option');o.value=b.name;return o;}));
  const key=`${data.context.character_id}|${data.revision}`;if(['bosstiary','bosses'].includes(active)&&key!==bosstiaryKey){bosstiaryKey=key;await loadBosstiary();}
  if(active==='stamina')await renderStamina();if(active==='market'){await refreshPrices();refreshQuote();}}
- catch(e){el('assistente-feedback').textContent=e.message;}
+ catch(e){if(version===refreshVersion)el('assistente-feedback').textContent=e.message;}
 }
 // Bosstiary: lista do personagem em uso, no estilo da Cyclopedia do Tibia.
-const STAR_NAMES=['Prowess','Expertise','Mastery'];let bosstiaryRows=[],bosstiaryKey='';
+const STAR_NAMES=['Prowess','Expertise','Mastery'];let bosstiaryRows=[],bosstiaryKey='',bossLoadVersion=0;
 const bossImage=name=>`assets/creatures/${name.split(' (')[0].toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')}.gif`;
 async function loadBosstiary(){
+ const version=++bossLoadVersion,context={...state.context};
  const out=el('bosstiary-lista');
  if(!state.context.character_id){bosstiaryRows=[];renderCooldowns();out.replaceChildren(node('p','Selecione um personagem em Meus personagens.','dica'));return;}
- const data=await window.pywebview.api.assistente_executar('boss.cooldown.list',{},{...state.context});
+ const data=await window.pywebview.api.assistente_executar('boss.cooldown.list',{},context);
+ if(version!==bossLoadVersion||JSON.stringify(context)!==JSON.stringify(state.context))return;
  if(data.erro){out.replaceChildren(node('p',data.erro,'dica'));return;}
  bosstiaryRows=data.bosses;renderBosstiary();renderCooldowns();
 }
@@ -211,8 +215,11 @@ async function quickRun(intent,args,after=loadBosstiary){
 }
 // Stamina agora: barra até 42h com as cores do Tibia (verde >= 39h, laranja >= 14h, vermelho abaixo).
 const hhmm=m=>`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
+let staminaVersion=0;
 async function renderStamina(){
- const r=await window.pywebview.api.assistente_executar('stamina.get',{},{...state.context});
+ const version=++staminaVersion,context={...state.context};
+ const r=await window.pywebview.api.assistente_executar('stamina.get',{},context);
+ if(version!==staminaVersion||JSON.stringify(context)!==JSON.stringify(state.context))return;
  let minutes=null,text=r.erro&&!r.erro.startsWith('Registre')?r.erro:'Ao deslogar, digite a stamina abaixo (ou fale “estou deslogando, minha stamina está em 38 horas”).';
  if(!r.erro){
   const short=v=>new Date(v).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -225,7 +232,8 @@ async function renderStamina(){
  el('stamina-barra').setAttribute('aria-label',minutes===null?'Stamina sem referência':`Stamina ${hhmm(minutes)} de 42:00`);
  el('stamina-detalhe').textContent=text;
 }
-function select(module){active=module;if(module==='bosstiary'||module==='bosses'){bosstiaryKey='';}if(module==='upo'&&window.abrirUpo)window.abrirUpo();for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));refresh();}
+function select(module){ferramenta(module);for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));if(module==='overview'&&window.assistenteCanais)window.assistenteCanais.visivel();}
+function ferramenta(module){active=module;if(module==='bosstiary'||module==='bosses'){bosstiaryKey='';}if(module==='upo'&&window.abrirUpo)window.abrirUpo();refresh();}
 function boot(){
  if(booted||!el('assistente-context')||!window.pywebview||!window.pywebview.api)return;booted=true;
  for(const b of document.querySelectorAll('[data-assistente-tab]'))b.addEventListener('click',()=>select(b.dataset.assistenteTab));
@@ -241,10 +249,11 @@ function boot(){
   if(!Number.isInteger(minutes)||Number(m)>59||minutes>2520){el('assistente-feedback').textContent='Digite como no jogo, por exemplo 41:21 (máximo 42:00).';return;}
   quickRun('stamina.logout',{stamina_minutes:minutes},renderStamina);});
  el('stamina-logar').addEventListener('click',()=>quickRun('stamina.login',{},renderStamina));
+ if(typeof PERS_OUVINTES!=='undefined')PERS_OUVINTES.push(()=>{++refreshVersion;++bossLoadVersion;++staminaVersion;bosstiaryKey='';if(el('page-voz').classList.contains('shown'))refresh();});
  setInterval(()=>{if(active==='bosses'&&el('page-voz').classList.contains('shown'))tickCooldowns();},20000);
  select('overview');setInterval(()=>{if(el('page-voz').classList.contains('shown')&&!busy)refresh();},2000);
 }
-window.assistenteLoad=refresh;window.assistenteSelect=select;
+window.assistenteLoad=refresh;window.assistenteSelect=select;window.assistenteFerramenta=ferramenta;
 if(typeof module!=='undefined'&&module.exports)module.exports={payload,execute,boot,bootConversion,refreshPrices,refreshQuote,manualQuote,decimalBR};
 window.addEventListener('pywebviewready',boot);boot();
 })();
