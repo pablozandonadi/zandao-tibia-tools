@@ -1,13 +1,15 @@
 """Chat de texto do Assistente: comando local primeiro; só o que as regras não entendem vai à IA. Histórico só em memória."""
 import threading
 import uuid
+from decimal import Decimal, InvalidOperation
 
 import assistente_tibiano as assistente
+import calculadora_gold
 import comandos_tibia
 from voice import device_id
 from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, utf16_length, truncate_utf16
 
-FORA_DO_ESCOPO = 'Posso ajudar só com o Tibia e as ferramentas do Tibia Tudo: timers, shared, bosses, stamina e market.'
+FORA_DO_ESCOPO = 'Posso ajudar só com o Tibia e contas do jogo (gold, TC, stamina, shared), além das ferramentas do Tibia Tudo.'
 SEM_ACESSO = 'Para conversar com a IA, ative o acesso online em Configurações. Os comandos do canal Help funcionam sem isso.'
 IA_INDISPONIVEL = 'Não consegui falar com a IA agora. Os comandos do canal Help continuam funcionando.'
 NAO_ENTENDI = 'Não entendi. Tente um dos comandos do canal Help.'
@@ -78,6 +80,16 @@ class Chat:
                 self._historico = [*self._historico, {'role': 'user', 'text': texto}, {'role': 'assistant', 'text': truncate_utf16(resposta, MAX_TEXTO)}][-MAX_MENSAGENS:]
         return {'resposta': resposta, 'entendi': entendi, 'origem': origem}
 
+    def _preco_tc(self, context):
+        """Mediana de venda do TC no Market local; sem dado ou com erro, o preço padrão."""
+        try:
+            stats = self.store.execute('market.stats', {'item': 'TC', 'offer_type': 'sell', 'days': 30}, context, None, source='manual')
+            if stats.get('count') and stats.get('median'):
+                return Decimal(str(stats['median'])), 'Market local'
+        except (ValueError, OSError, InvalidOperation):
+            pass
+        return Decimal(48000), 'padrão'
+
     def _mensagens(self, texto):
         with self._lock:
             mensagens = [*self._historico[-(MAX_MENSAGENS - 1):], {'role': 'user', 'text': texto}]
@@ -98,6 +110,8 @@ class Chat:
                 self._perfil = perfil
             geracao = self._geracao
         consulta = comandos_tibia.responder(texto, context.get('world_id') or '', personagem=context.get('character_id') or '')
+        if consulta is None:
+            consulta = calculadora_gold.responder(texto, self.pasta, lambda: self._preco_tc(context))
         if consulta is not None:
             return self._fim(texto, consulta, 'Consulta Tibia', 'local', geracao, registrar=permitir_ia)
         somente_resposta, erro_local = False, None

@@ -256,3 +256,7 @@ Saída do modelo fora desse contrato, ou `status:"incomplete"`, recebe 502. O pi
 O limite de mensagem é contado em unidades UTF-16 (500, inclusive emojis), igual ao Worker e ao maxlength do campo; respostas no histórico são truncadas sem dividir pares de surrogate. Só a última fala pode autorizar uma ação; o histórico é contexto e nunca autoriza repetir uma ação antiga. O guard temporal permanece conservador sobre todas as falas originais.
 
 No `/chat`, o JSON completo enviado ao provedor é medido depois de escapar o texto. Quando passa de 16000 bytes, o Worker remove as mensagens mais antigas do input até caber, preservando a última fala. Isso ocorre antes da reserva. Hash e replay continuam sobre a requisição original; quotas, modelo e reservas não foram alterados. Se nem a última fala couber, mantém a falha 503 sem reserva. A conversa não é gravada em arquivo pelo aplicativo e o pedido usa store:false; isso não substitui a política de retenção da OpenAI.
+
+## Escopo e proteção do chat
+
+O `/chat` só trata de Tibia e contas do jogo; outros assuntos voltam como `out_of_scope`. Cada pedido leva um segredo interno aleatório: se a resposta o contiver, vira `out_of_scope`. Links (`http(s)://`, `www.`) são removidos da resposta. Conversão gold→reais é local no app (`calculadora_gold.py`, variáveis em `conversao-tc.json`).
