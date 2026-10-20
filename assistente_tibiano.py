@@ -191,6 +191,14 @@ class Store:
         if len(timers)!=1: raise ValueError('Qual timer? Selecione o ID na lista.' if timers else 'Nenhum timer correspondente.')
         return timers[0]
 
+    def market_prices(self, world):
+        """Histórico privado por instalação e mundo, compartilhado pelos personagens."""
+        world = label(world)
+        with LOCK:
+            rows = [row for row in reversed(self._read()['prices']) if row['world_id'] == world and not row.get('deleted')]
+            rows.sort(key=lambda row: instant(row['at']), reverse=True)
+            return {'world_id': world, 'total': len(rows), 'observations': deepcopy(rows[:100])}
+
     def execute(self,intent,args=None,context=None,request_id=None,source="manual"):
         if not isinstance(intent,str) or not isinstance(args or {},dict): raise ValueError('Comando inválido.')
         args=args or {}

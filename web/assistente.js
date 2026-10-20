@@ -33,6 +33,38 @@ let state={context:{},timers:[],catalog:{bosses:[]},history:[]},booted=false,bus
 function node(tag,text,cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;}
 function button(text,fn){const n=node('button',text,'btn btn-sm');n.type='button';n.addEventListener('click',fn);return n;}
 function stamp(v){return v?new Date(v).toLocaleString('pt-BR'):'Não informado';}
+function decimalBR(value){const [whole,fraction]=String(value).split('.');return whole.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(fraction?','+fraction:'');}
+const conversionKeys=['gold_por_tc','tc_pacote','reais_pacote'];
+function conversionValues(){return Object.fromEntries(conversionKeys.map(key=>[key,el('conversao-'+key).value.trim()]));}
+let conversionRevision=0,conversionTimer;
+function conversionInput(){
+ const revision=++conversionRevision,out=el('conversao-resultado');clearTimeout(conversionTimer);out.textContent='Informe o gold obtido.';
+ if(!el('conversao-gold').value.trim())return;
+ const values=conversionValues(),gold=el('conversao-gold').value.trim();
+ if([gold,...Object.values(values)].some(value=>!value||value.length>48||!/^\d[\d.,]*(?:\s*(?:k|kk|gp|gold))?$/i.test(value))){out.textContent='Confira os valores informados.';return;}
+ out.textContent='Calculando…';conversionTimer=setTimeout(async()=>{
+  try{const result=await window.pywebview.api.conversao_tc_calcular(gold,values);if(revision!==conversionRevision)return;out.textContent=result.erro||`≈ ${decimalBR(result.tc)} TC · ≈ R$ ${decimalBR(result.reais)}`;}
+  catch(e){if(revision===conversionRevision)out.textContent='Não foi possível calcular agora.';}
+ },180);
+}
+async function bootConversion(){
+ for(const key of ['gold',...conversionKeys])el('conversao-'+key).addEventListener('input',conversionInput);
+ const save=el('conversao-salvar'),feedback=el('conversao-feedback');
+ save.addEventListener('click',async()=>{save.disabled=true;feedback.textContent='Salvando…';try{const result=await window.pywebview.api.conversao_tc_salvar(conversionValues());feedback.textContent=result.erro||result.message;}catch(e){feedback.textContent='Não foi possível salvar agora.';}finally{save.disabled=false;}});
+ try{const data=await window.pywebview.api.conversao_tc_carregar();for(const key of conversionKeys)el('conversao-'+key).value=String(data.valores[key]).replace('.',',');feedback.textContent=data.aviso||'';}
+ catch(e){feedback.textContent='Não foi possível carregar a conversão salva. Valores padrão em uso.';}
+ finally{for(const key of conversionKeys)el('conversao-'+key).disabled=false;save.disabled=false;conversionInput();}
+}
+let pricesRevision=0,pricesKey='',pricesTimer;
+async function refreshPrices(force=false){
+ const world=el('assistente-world').value.trim(),key=JSON.stringify([world,state.revision]);
+ if(!force&&pricesKey===key)return;pricesKey=key;const revision=++pricesRevision,out=el('assistente-precos');out.replaceChildren(node('p',world?'Carregando preços…':'Informe o mundo para consultar seus preços.'));
+ if(!world)return;
+ try{const data=await window.pywebview.api.assistente_precos(world);if(revision!==pricesRevision||el('assistente-world').value.trim()!==world)return;if(data.erro)throw new Error(data.erro);
+  out.replaceChildren(node('p',data.total?`${data.total} registros em ${world}${data.total>100?' · mostrando os últimos 100':''}.`:'Nenhum preço registrado neste mundo.'));
+  if(data.observations.length)out.append(table(data.observations.map(row=>({...row,price:decimalBR(row.price_gp)+' GP',offer:({sell:'Venda',buy:'Compra',traded:'Negociado'})[row.offer_type]||row.offer_type,date:stamp(row.at)})),[['item','Item'],['price','Preço'],['offer','Oferta'],['date','Data'],['world_id','Mundo']]));
+ }catch(e){if(revision===pricesRevision){pricesKey='';out.replaceChildren(node('p',e.message||'Não foi possível carregar seus preços.'));}}
+}
 function table(rows,columns){const t=node('table',undefined,'assistente-table');const head=node('tr');for(const [,title] of columns)head.append(node('th',title));t.append(head);for(const row of rows){const tr=node('tr');for(const [key] of columns)tr.append(node('td',row[key]===null||row[key]===undefined?'—':String(row[key])));t.append(tr);}return t;}
 function showResult(module,data){
  const out=el('assistente-result-'+module);out.replaceChildren();out.append(node('p',data.message||data.note||'Consulta concluída.'));
@@ -85,7 +117,7 @@ async function refresh(){
  el('assistente-context').textContent=`Personagem: ${data.context.character_id||'Selecione em Meus personagens'} · Level: ${data.context.level||'—'} · Mundo: ${data.context.world_id||'Não informado'}`;el('assistente-overview').textContent=`${data.timers.filter(t=>t.status==='active').length} timers ativos · Bosses e stamina por personagem · Market privado por mundo. Alertas funcionam enquanto o aplicativo está aberto e são reconciliados uma vez ao reabrir.`;renderTimers(data.timers);
  const names=el('bosstiary-nomes');if(names&&names.children.length!==data.catalog.bosses.length)names.replaceChildren(...data.catalog.bosses.map(b=>{const o=node('option');o.value=b.name;return o;}));
  const key=`${data.context.character_id}|${data.revision}`;if(['bosstiary','bosses'].includes(active)&&key!==bosstiaryKey){bosstiaryKey=key;await loadBosstiary();}
- if(active==='stamina')await renderStamina();}
+ if(active==='stamina')await renderStamina();if(active==='market')await refreshPrices();}
  catch(e){el('assistente-feedback').textContent=e.message;}
 }
 // Bosstiary: lista do personagem em uso, no estilo da Cyclopedia do Tibia.
@@ -174,6 +206,8 @@ function boot(){
  for(const input of document.querySelectorAll('[data-bosstiary-cat],#bosstiary-com-kills'))input.addEventListener('change',renderBosstiary);
  el('bosstiary-busca').addEventListener('input',renderBosstiary);
  el('cooldowns-busca').addEventListener('input',renderCooldowns);
+ bootConversion();
+ el('assistente-world').addEventListener('input',()=>{pricesKey='';++pricesRevision;clearTimeout(pricesTimer);el('assistente-precos').replaceChildren(node('p','Aguardando o mundo…'));pricesTimer=setTimeout(()=>refreshPrices(true),200);});
  el('stamina-rapido').addEventListener('submit',e=>{e.preventDefault();const [h,m='0']=el('stamina-hhmm').value.trim().split(':');const minutes=Number(h)*60+Number(m);
   if(!Number.isInteger(minutes)||Number(m)>59||minutes>2520){el('assistente-feedback').textContent='Digite como no jogo, por exemplo 41:21 (máximo 42:00).';return;}
   quickRun('stamina.logout',{stamina_minutes:minutes},renderStamina);});
@@ -182,6 +216,6 @@ function boot(){
  select('overview');setInterval(()=>{if(el('page-voz').classList.contains('shown')&&!busy)refresh();},2000);
 }
 window.assistenteLoad=refresh;window.assistenteSelect=select;
-if(typeof module!=='undefined'&&module.exports)module.exports={payload,execute,boot};
+if(typeof module!=='undefined'&&module.exports)module.exports={payload,execute,boot,bootConversion,refreshPrices,decimalBR};
 window.addEventListener('pywebviewready',boot);boot();
 })();

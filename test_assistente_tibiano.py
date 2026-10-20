@@ -20,6 +20,29 @@ class StoreCase(unittest.TestCase):
         return self.store.execute(intent, arguments or {}, context or CTX, request_id)
 
 class StoreTests(StoreCase):
+    def test_market_list_is_local_read_only_world_scoped_and_includes_other_characters(self):
+        first = self.call('market.price.add', {'item':'TC','price':'46k'})['observation']
+        self.call('market.price.add', {'item':'TC','price':'47k'}, context={'character_id':'Outro','world_id':'Secura'})
+        second = self.call('market.price.add', {'item':'Gold Token','price':'40k'})['observation']
+        before = (self.path/'assistente-tibiano.json').read_bytes()
+        rows = self.store.market_prices('Antica')
+        self.assertEqual([second['id'], first['id']], [row['id'] for row in rows['observations']])
+        self.assertEqual(before, (self.path/'assistente-tibiano.json').read_bytes())
+        self.assertEqual('Secura', self.store.market_prices('Secura')['observations'][0]['world_id'])
+        self.assertEqual(0, self.store.market_prices('Premia')['total'])
+        self.call('market.price.correct', {'observation_id':first['id'],'price':'48k','reason':'Correção'})
+        self.assertEqual(48000, self.store.market_prices('Antica')['observations'][1]['price_gp'])
+        self.call('market.price.delete', {'observation_id':second['id'],'reason':'Duplicado'})
+        self.assertEqual(1, self.store.market_prices('Antica')['total'])
+
+    def test_market_list_reports_limit_and_sorts_observation_time(self):
+        for index in range(102):
+            self.call('market.price.add', {'item':f'Item {index}','price':100,'observed_at':(NOW-timedelta(minutes=102-index)).isoformat()})
+        result = self.store.market_prices('Antica')
+        self.assertEqual((102, 100), (result['total'], len(result['observations'])))
+        self.assertEqual('Item 101', result['observations'][0]['item'])
+        self.assertEqual('Item 2', result['observations'][-1]['item'])
+
     def test_timer_restart_idempotence_and_one_alert(self):
         x = self.call('timer.create', {'duration_seconds':30,'label':'boost'}, 'r1')
         self.assertEqual(x, self.call('timer.create', {'duration_seconds':30,'label':'boost'}, 'r1'))

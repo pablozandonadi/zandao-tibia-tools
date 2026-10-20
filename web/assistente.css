@@ -6,3 +6,5 @@
 .chat-grip::before{content:"";width:48px;height:3px;border-radius:2px;background:#5d6872}
 .chat-grip:hover::before,.chat-grip:focus-visible::before{background:#f6d47e}
 .chat-grip:focus-visible{outline:1px solid #f6d47e;outline-offset:-2px}
+#assistente-precos{overflow-x:auto}#conversao-resultado{font-weight:700;font-size:18px}#conversao-feedback{margin-left:8px}
+#conversao-tc{margin-bottom:16px}#conversao-tc .assistente-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}@media(max-width:500px){#conversao-tc .assistente-fields{grid-template-columns:1fr}}

@@ -21,6 +21,7 @@ import voz
 import chat
 import comandos_tibia
 import assistente_tibiano
+import market_conversao
 import mirror_core
 from mirror_service import MirrorService
 import backup
@@ -1355,6 +1356,29 @@ class API:
             if self._voz is None:
                 self._voz = voz.Servico(BASE_DIR, store=assistente_tibiano.Store(BASE_DIR), silencioso=True, notificador=lambda texto: getattr(self, '_notificar_aviso', None) and self._notificar_aviso(texto))
             return self._voz
+
+    def conversao_tc_carregar(self):
+        return market_conversao.carregar(BASE_DIR)
+
+    def conversao_tc_calcular(self, gold, valores):
+        try:
+            return market_conversao.calcular(gold, valores)
+        except (ValueError, TypeError):
+            return {'erro': 'Confira os valores: gold em GP, K ou KK e taxas maiores que zero.'}
+
+    def conversao_tc_salvar(self, valores):
+        try:
+            return market_conversao.salvar(BASE_DIR, valores)
+        except (ValueError, TypeError):
+            return {'erro': 'Confira os três valores de conversão antes de salvar.'}
+        except OSError:
+            return {'erro': 'Não foi possível salvar os valores neste computador.'}
+
+    def assistente_precos(self, mundo):
+        try:
+            return self._voz_obter().store.market_prices(mundo)
+        except (ValueError, OSError):
+            return {'erro': 'Não foi possível consultar os preços deste mundo.'}
 
     def assistente_estado(self):
         try:

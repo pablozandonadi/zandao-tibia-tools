@@ -61,7 +61,7 @@ class AssistantDeliveryTests(unittest.TestCase):
             manifest=source/'packaging-resources.json';data=json.loads(manifest.read_text());data['files'].append('voice/domain_actions.json');manifest.write_text(json.dumps(data))
             p.validate_resources(source)
     def test_all_assistant_private_variants_are_rejected_at_any_depth(self):
-        for name in ('assistente-tibiano.json','assistente-tibiano.json.tmp','assistente-tibiano.json.bak','assistente-tibiano.json.antes-do-backup'):
+        for name in ('assistente-tibiano.json','assistente-tibiano.json.tmp','assistente-tibiano.json.bak','assistente-tibiano.json.antes-do-backup','market-conversao-tc.json','market-conversao-tc.tmp'):
             with self.subTest(name=name),tempfile.TemporaryDirectory() as directory:
                 source=self.source(directory);app=self.app(directory);target=app/'_internal'/'nested'/name;target.parent.mkdir(parents=True);target.write_text('{}')
                 with self.assertRaisesRegex(ValueError,'Dados privados'):p.validate_layout(app,source)

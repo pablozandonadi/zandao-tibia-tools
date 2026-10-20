@@ -1116,8 +1116,22 @@
         <form id="assistente-form-stamina"></form></details><div id="assistente-result-stamina" role="status"></div>
       </section>
       <section data-assistente-panel="market" hidden>
+        <article class="card calmo" id="conversao-tc">
+          <h3>Gold em reais</h3>
+          <div class="voz-form assistente-fields">
+            <label for="conversao-gold">Gold obtido<input id="conversao-gold" type="text" inputmode="decimal" maxlength="48" placeholder="Ex.: 1kk ou 11.650.000 GP"></label>
+            <label for="conversao-gold_por_tc">Gold por TC<input id="conversao-gold_por_tc" type="text" inputmode="decimal" maxlength="48" value="46,6k" disabled></label>
+            <label for="conversao-tc_pacote">TC no pacote<input id="conversao-tc_pacote" type="text" inputmode="decimal" maxlength="48" value="250" disabled></label>
+            <label for="conversao-reais_pacote">Preço do pacote (R$)<input id="conversao-reais_pacote" type="text" inputmode="decimal" maxlength="48" value="50" disabled></label>
+          </div>
+          <p id="conversao-resultado" role="status" aria-live="polite">Informe o gold obtido.</p>
+          <button type="button" class="btn btn-sm" id="conversao-salvar" disabled>Salvar valores</button>
+          <span id="conversao-feedback" role="status"></span>
+          <p class="dica">Estimativa sem taxas. Salvar guarda apenas a conversão neste computador; o gold obtido não é salvo.</p>
+        </article>
         <h2 class="sub">Market Tracker</h2><p class="dica">Preços informados por você, pelo formulário ou pelo chat; histórico privado por mundo, item e oferta. Sem atualização automática. Ex.: “TC tá 36.5k”, “Gold Token a 40k tá caro?” (somente consulta). GP, K e KK; separador de milhar ambíguo pede confirmação.</p>
         <label for="assistente-world">Mundo dos preços<input id="assistente-world" type="text" maxlength="120" placeholder="Mundo do personagem ativo"></label><form class="card calmo" id="assistente-form-market"></form><div id="assistente-result-market" role="status"></div>
+        <article class="card calmo"><h3>Meus preços registrados</h3><p class="dica">Registros privados deste computador, no mundo selecionado, compartilhados pelos seus personagens.</p><div id="assistente-precos" role="status" aria-live="polite"></div></article>
       </section>
     </section>
 
