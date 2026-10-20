@@ -35,19 +35,29 @@ class ConversionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
             (path/'conversao-tc.json').write_text('chat settings')
-            self.assertEqual({'valores': c.DEFAULTS}, c.carregar(directory))
+            self.assertEqual({'valores': c.DEFAULTS, 'automatico': True}, c.carregar(directory))
             c.calcular('1kk', c.DEFAULTS)
             self.assertEqual(['conversao-tc.json'], [p.name for p in path.iterdir()])
             c.salvar(directory, c.DEFAULTS)
             self.assertEqual(c.DEFAULTS, c.carregar(directory)['valores'])
-            self.assertEqual(set(c.DEFAULTS), set(json.loads((path/'market-conversao-tc.json').read_text())))
+            self.assertEqual(set(c.DEFAULTS)|{'automatico'}, set(json.loads((path/'market-conversao-tc.json').read_text())))
             self.assertEqual('chat settings', (path/'conversao-tc.json').read_text())
             with self.assertRaises(ValueError): c.salvar(directory, {**c.DEFAULTS, 'gold': '100'})
+
+    def test_legacy_rates_enable_auto_and_manual_preference_is_saved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'market-conversao-tc.json'
+            path.write_text(json.dumps(c.DEFAULTS))
+            self.assertTrue(c.carregar(directory)['automatico'])
+            c.salvar(directory, c.DEFAULTS, False)
+            self.assertFalse(c.carregar(directory)['automatico'])
+            self.assertEqual(c.DEFAULTS, c.carregar(directory)['valores'])
+            with self.assertRaises(ValueError): c.salvar(directory, c.DEFAULTS, 'false')
 
     def test_invalid_saved_settings_are_preserved_and_defaults_are_reported(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'market-conversao-tc.json'
-            for invalid in ['{bad', '{}', json.dumps({**c.DEFAULTS, 'tc_pacote': 0})]:
+            for invalid in ['{bad', '{}', json.dumps({**c.DEFAULTS, 'tc_pacote': 0}), json.dumps({**c.DEFAULTS, 'automatico': 'false'})]:
                 path.write_text(invalid)
                 result = c.carregar(directory)
                 self.assertEqual(c.DEFAULTS, result['valores'])
@@ -62,6 +72,12 @@ class ConversionTests(unittest.TestCase):
             self.assertIn('erro', api.conversao_tc_salvar({}))
             api.conversao_tc_salvar(c.DEFAULTS)
             self.assertEqual(c.DEFAULTS, api.conversao_tc_carregar()['valores'])
+
+    def test_quote_api_preserves_world_and_force_flag(self):
+        api = web_api.API()
+        with patch.object(web_api.tibiatrade_cotacao, 'consultar', return_value={'estado':'ausente'}) as quote:
+            self.assertEqual({'estado':'ausente'}, api.conversao_tc_cotacao('Secura', True))
+            quote.assert_called_once_with('Secura', True)
 
     def test_price_api_reads_only_the_requested_world(self):
         from types import SimpleNamespace

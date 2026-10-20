@@ -54,22 +54,30 @@ def carregar(directory):
     path = Path(directory) / 'market-conversao-tc.json'
     with LOCK:
         if not path.exists():
-            return {'valores': dict(DEFAULTS)}
+            return {'valores': dict(DEFAULTS), 'automatico': True}
         try:
             if path.stat().st_size > 4096:
                 raise ValueError()
-            return {'valores': validar(json.loads(path.read_text(encoding='utf-8')))}
+            data = json.loads(path.read_text(encoding='utf-8'))
+            if not isinstance(data, dict):
+                raise ValueError()
+            automatico = data.pop('automatico', True)
+            if type(automatico) is not bool:
+                raise ValueError()
+            return {'valores': validar(data), 'automatico': automatico}
         except (ValueError, OSError):
-            return {'valores': dict(DEFAULTS), 'aviso': 'Não foi possível ler os valores salvos. Padrões carregados; o arquivo foi preservado.'}
+            return {'valores': dict(DEFAULTS), 'automatico': True, 'aviso': 'Não foi possível ler os valores salvos. Padrões carregados; o arquivo foi preservado.'}
 
 
-def salvar(directory, valores):
+def salvar(directory, valores, automatico=True):
     valores = validar(valores)
+    if type(automatico) is not bool:
+        raise ValueError('Escolha se deseja usar a cotação automática.')
     path = Path(directory) / 'market-conversao-tc.json'
     with LOCK:
         temp = path.with_suffix('.tmp')
         try:
-            temp.write_text(json.dumps(valores), encoding='utf-8')
+            temp.write_text(json.dumps({**valores, 'automatico': automatico}), encoding='utf-8')
             os.replace(temp, path)
         finally:
             temp.unlink(missing_ok=True)

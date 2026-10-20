@@ -22,6 +22,7 @@ import chat
 import comandos_tibia
 import assistente_tibiano
 import market_conversao
+import tibiatrade_cotacao
 import mirror_core
 from mirror_service import MirrorService
 import backup
@@ -1366,9 +1367,12 @@ class API:
         except (ValueError, TypeError):
             return {'erro': 'Confira os valores: gold em GP, K ou KK e taxas maiores que zero.'}
 
-    def conversao_tc_salvar(self, valores):
+    def conversao_tc_cotacao(self, mundo, atualizar=False):
+        return tibiatrade_cotacao.consultar(mundo, atualizar)
+
+    def conversao_tc_salvar(self, valores, automatico=True):
         try:
-            return market_conversao.salvar(BASE_DIR, valores)
+            return market_conversao.salvar(BASE_DIR, valores, automatico)
         except (ValueError, TypeError):
             return {'erro': 'Confira os três valores de conversão antes de salvar.'}
         except OSError:

@@ -36,11 +36,38 @@ function stamp(v){return v?new Date(v).toLocaleString('pt-BR'):'Não informado';
 function decimalBR(value){const [whole,fraction]=String(value).split('.');return whole.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(fraction?','+fraction:'');}
 const conversionKeys=['gold_por_tc','tc_pacote','reais_pacote'];
 function conversionValues(){return Object.fromEntries(conversionKeys.map(key=>[key,el('conversao-'+key).value.trim()]));}
-let conversionRevision=0,conversionTimer;
+let conversionRevision=0,conversionTimer,quoteRevision=0,quoteWorld='',quoteAt=0,quoteValue=null,quoteExpires=0,quoteInterval=3600000,quotePending=0,conversionReady=false;
+function manualQuote(text='Valor manual em uso.'){
+ ++quoteRevision;quoteValue=null;quoteWorld='';quoteAt=0;el('conversao-cotacao').textContent=text;conversionInput();
+}
+async function refreshQuote(force=false){
+ if(!conversionReady)return;
+ const world=el('assistente-world').value.trim(),automatic=el('conversao-automatico').checked;
+ if(!automatic)return;
+ if(!world){manualQuote('Selecione o mundo dos preços abaixo. Valor manual em uso.');return;}
+ if(world===quoteWorld&&quotePending===quoteRevision)return;
+ if(!force&&world===quoteWorld&&Date.now()-quoteAt<quoteInterval&&(quoteValue===null||Date.now()<=quoteExpires))return;
+ const revision=++quoteRevision;quotePending=revision;quoteWorld=world;quoteAt=Date.now();quoteValue=null;quoteInterval=3600000;
+ el('conversao-cotacao').textContent=`Consultando ${world}… Valor manual em uso.`;conversionInput();
+ try{
+  const data=await window.pywebview.api.conversao_tc_cotacao(world,force);
+  if(revision!==quoteRevision||!el('conversao-automatico').checked||world!==el('assistente-world').value.trim())return;
+  if(data.estado==='indisponivel')quoteInterval=60000;
+  const age=Date.now()-new Date(data.data_base).getTime();
+  if(data.estado==='ok'&&data.mundo.toLowerCase()===world.toLowerCase()&&Number.isSafeInteger(data.gold_por_tc)&&data.gold_por_tc>0&&data.gold_por_tc<=1e12&&age>=-300000&&age<=36*3600000){quoteValue=data.gold_por_tc;quoteExpires=new Date(data.data_base).getTime()+36*3600000;}
+  const info=`${world} · ${quoteValue?decimalBR(quoteValue)+' GP/TC · média diária de venda':data.motivo||'Cotação inválida. Valor manual em uso.'}`;
+  el('conversao-cotacao').textContent=info+(data.data_base?` · Base: ${stamp(data.data_base)}`:'')+(data.consulta?` · Consulta: ${stamp(data.consulta)}`:'');
+  if(!quoteValue&&!el('conversao-cotacao').textContent.includes('manual'))el('conversao-cotacao').textContent+=' · Valor manual em uso.';
+ }catch(e){if(revision!==quoteRevision)return;quoteInterval=60000;el('conversao-cotacao').textContent='Cotação indisponível. Valor manual em uso.';}
+ if(quotePending===revision)quotePending=0;
+ conversionInput();
+}
 function conversionInput(){
  const revision=++conversionRevision,out=el('conversao-resultado');clearTimeout(conversionTimer);out.textContent='Informe o gold obtido.';
  if(!el('conversao-gold').value.trim())return;
  const values=conversionValues(),gold=el('conversao-gold').value.trim();
+ if(quoteValue!==null&&Date.now()>quoteExpires){++quoteRevision;quoteValue=null;quoteWorld='';el('conversao-cotacao').textContent='Cotação com mais de 36 horas. Valor manual em uso.';}
+ if(el('conversao-automatico').checked&&quoteWorld===el('assistente-world').value.trim()&&quoteValue!==null)values.gold_por_tc=String(quoteValue);
  if([gold,...Object.values(values)].some(value=>!value||value.length>48||!/^\d[\d.,]*(?:\s*(?:k|kk|gp|gold))?$/i.test(value))){out.textContent='Confira os valores informados.';return;}
  out.textContent='Calculando…';conversionTimer=setTimeout(async()=>{
   try{const result=await window.pywebview.api.conversao_tc_calcular(gold,values);if(revision!==conversionRevision)return;out.textContent=result.erro||`≈ ${decimalBR(result.tc)} TC · ≈ R$ ${decimalBR(result.reais)}`;}
@@ -48,12 +75,14 @@ function conversionInput(){
  },180);
 }
 async function bootConversion(){
- for(const key of ['gold',...conversionKeys])el('conversao-'+key).addEventListener('input',conversionInput);
+ for(const key of ['gold',...conversionKeys])el('conversao-'+key).addEventListener('input',()=>{if(key==='gold_por_tc'){el('conversao-automatico').checked=false;manualQuote();}else conversionInput();});
+ el('conversao-automatico').addEventListener('change',()=>{manualQuote();refreshQuote();});
+ el('conversao-atualizar').addEventListener('click',()=>refreshQuote(true));
  const save=el('conversao-salvar'),feedback=el('conversao-feedback');
- save.addEventListener('click',async()=>{save.disabled=true;feedback.textContent='Salvando…';try{const result=await window.pywebview.api.conversao_tc_salvar(conversionValues());feedback.textContent=result.erro||result.message;}catch(e){feedback.textContent='Não foi possível salvar agora.';}finally{save.disabled=false;}});
- try{const data=await window.pywebview.api.conversao_tc_carregar();for(const key of conversionKeys)el('conversao-'+key).value=String(data.valores[key]).replace('.',',');feedback.textContent=data.aviso||'';}
+ save.addEventListener('click',async()=>{save.disabled=true;feedback.textContent='Salvando…';try{const result=await window.pywebview.api.conversao_tc_salvar(conversionValues(),el('conversao-automatico').checked);feedback.textContent=result.erro||result.message;}catch(e){feedback.textContent='Não foi possível salvar agora.';}finally{save.disabled=false;}});
+ try{const data=await window.pywebview.api.conversao_tc_carregar();for(const key of conversionKeys)el('conversao-'+key).value=String(data.valores[key]).replace('.',',');el('conversao-automatico').checked=data.automatico!==false;feedback.textContent=data.aviso||'';}
  catch(e){feedback.textContent='Não foi possível carregar a conversão salva. Valores padrão em uso.';}
- finally{for(const key of conversionKeys)el('conversao-'+key).disabled=false;save.disabled=false;conversionInput();}
+ finally{for(const key of conversionKeys)el('conversao-'+key).disabled=false;el('conversao-automatico').disabled=false;el('conversao-atualizar').disabled=false;save.disabled=false;conversionReady=true;conversionInput();if(active==='market')refreshQuote();}
 }
 let pricesRevision=0,pricesKey='',pricesTimer;
 async function refreshPrices(force=false){
@@ -117,7 +146,7 @@ async function refresh(){
  el('assistente-context').textContent=`Personagem: ${data.context.character_id||'Selecione em Meus personagens'} · Level: ${data.context.level||'—'} · Mundo: ${data.context.world_id||'Não informado'}`;el('assistente-overview').textContent=`${data.timers.filter(t=>t.status==='active').length} timers ativos · Bosses e stamina por personagem · Market privado por mundo. Alertas funcionam enquanto o aplicativo está aberto e são reconciliados uma vez ao reabrir.`;renderTimers(data.timers);
  const names=el('bosstiary-nomes');if(names&&names.children.length!==data.catalog.bosses.length)names.replaceChildren(...data.catalog.bosses.map(b=>{const o=node('option');o.value=b.name;return o;}));
  const key=`${data.context.character_id}|${data.revision}`;if(['bosstiary','bosses'].includes(active)&&key!==bosstiaryKey){bosstiaryKey=key;await loadBosstiary();}
- if(active==='stamina')await renderStamina();if(active==='market')await refreshPrices();}
+ if(active==='stamina')await renderStamina();if(active==='market'){await refreshPrices();refreshQuote();}}
  catch(e){el('assistente-feedback').textContent=e.message;}
 }
 // Bosstiary: lista do personagem em uso, no estilo da Cyclopedia do Tibia.
@@ -207,7 +236,7 @@ function boot(){
  el('bosstiary-busca').addEventListener('input',renderBosstiary);
  el('cooldowns-busca').addEventListener('input',renderCooldowns);
  bootConversion();
- el('assistente-world').addEventListener('input',()=>{pricesKey='';++pricesRevision;clearTimeout(pricesTimer);el('assistente-precos').replaceChildren(node('p','Aguardando o mundo…'));pricesTimer=setTimeout(()=>refreshPrices(true),200);});
+ el('assistente-world').addEventListener('input',()=>{pricesKey='';++pricesRevision;manualQuote('Mundo alterado. Valor manual em uso.');clearTimeout(pricesTimer);el('assistente-precos').replaceChildren(node('p','Aguardando o mundo…'));pricesTimer=setTimeout(()=>{refreshPrices(true);refreshQuote();},200);});
  el('stamina-rapido').addEventListener('submit',e=>{e.preventDefault();const [h,m='0']=el('stamina-hhmm').value.trim().split(':');const minutes=Number(h)*60+Number(m);
   if(!Number.isInteger(minutes)||Number(m)>59||minutes>2520){el('assistente-feedback').textContent='Digite como no jogo, por exemplo 41:21 (máximo 42:00).';return;}
   quickRun('stamina.logout',{stamina_minutes:minutes},renderStamina);});
@@ -216,6 +245,6 @@ function boot(){
  select('overview');setInterval(()=>{if(el('page-voz').classList.contains('shown')&&!busy)refresh();},2000);
 }
 window.assistenteLoad=refresh;window.assistenteSelect=select;
-if(typeof module!=='undefined'&&module.exports)module.exports={payload,execute,boot,bootConversion,refreshPrices,decimalBR};
+if(typeof module!=='undefined'&&module.exports)module.exports={payload,execute,boot,bootConversion,refreshPrices,refreshQuote,manualQuote,decimalBR};
 window.addEventListener('pywebviewready',boot);boot();
 })();

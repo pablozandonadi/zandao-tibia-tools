@@ -8,3 +8,6 @@
 .chat-grip:focus-visible{outline:1px solid #f6d47e;outline-offset:-2px}
 #assistente-precos{overflow-x:auto}#conversao-resultado{font-weight:700;font-size:18px}#conversao-feedback{margin-left:8px}
 #conversao-tc{margin-bottom:16px}#conversao-tc .assistente-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}@media(max-width:500px){#conversao-tc .assistente-fields{grid-template-columns:1fr}}
+.conversao-cotacao-opcoes{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.conversao-cotacao-opcoes label{display:flex;align-items:center;gap:6px}
+
+#conversao-tc a{color:var(--accent,#ff6b3d)}
