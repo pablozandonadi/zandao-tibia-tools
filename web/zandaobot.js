@@ -31,15 +31,13 @@ function zbNewsItem(x) {
 }
 function zbAnnouncements(r, news=false) {
   const articles=(news?r.noticias:r.anuncios)||[], tickers=r.news_ticker||[];
-  const day=x=>/^\d{4}-\d{2}-\d{2}$/.test(x.data||'')?x.data:'';
-  const days=[...new Set([...articles,...tickers].map(day))].sort().reverse();
-  const items=news?days.map(date=>{
-    const notices=tickers.filter(x=>day(x)===date).map(x=>`<li>${esc(x.texto)} ${Number.isSafeInteger(x.id)&&x.id>0?`<a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler no site oficial ↗</a>`:''}</li>`).join('');
-    const key='news-ticker-'+(date||'unknown'), count=tickers.filter(x=>day(x)===date).length;
-    return `<div class="zb-news-day"><h3>${date?esc(zbDate(date)):'Data não informada'}</h3>${articles.filter(x=>day(x)===date).map(zbNewsItem).join('')}${notices?`<details class="zb-news-ticker" data-zb-key="${key}" ${zbOpen(key,false)}><summary>News Ticker (${count})</summary><ul>${notices}</ul></details>`:''}</div>`;
-  }).join(''):articles.map(zbNewsItem).join('');
+  const notices=tickers.map((x,i)=>{
+    const valid=Number.isSafeInteger(x.id)&&x.id>0,key='news-ticker-'+(valid?x.id:'unknown-'+i);
+    return `<details class="zb-news-ticker" data-zb-key="${key}" ${zbOpen(key,false)}><summary><span class="zb-ticker-date">${esc(zbDate(x.data))}</span><span class="zb-ticker-preview">${esc(x.texto)}</span><span class="zb-ticker-chevron" aria-hidden="true">›</span></summary><div class="zb-ticker-content"><p>${esc(x.texto)}</p>${valid?`<a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler no site oficial ↗</a>`:''}</div></details>`;
+  });
+  const items=news?`<div class="zb-ticker-section"><div class="zb-section-heading"><h3>News Ticker</h3><small>${tickers.length} avisos</small></div><div class="zb-ticker-list">${notices.slice(0,5).join('')||'<p class="zb-empty">Nenhum aviso disponível.</p>'}${notices.length>5?`<details class="zb-ticker-more" data-zb-key="news-ticker-more" ${zbOpen('news-ticker-more',false)}><summary>Mais avisos (${notices.length-5})</summary>${notices.slice(5).join('')}</details>`:''}</div></div>${articles.length?`<div class="zb-news-featured">${zbNewsItem(articles[0])}</div>`:'<p class="zb-empty">Nenhuma notícia disponível.</p>'}${articles.length>1?`<details class="zb-news-archive" data-zb-key="news-archive" ${zbOpen('news-archive',false)}><summary>Notícias anteriores (${articles.length-1})</summary><div class="zb-news-list">${articles.slice(1).map(zbNewsItem).join('')}</div></details>`:''}`:`<div class="zb-news-list">${articles.map(zbNewsItem).join('')||'<p class="zb-empty">Nenhum anúncio disponível.</p>'}</div>`;
   const tickerInfo=news?`<p class="zb-muted zb-news-stamp">News Ticker: ${esc(zbStamp(r.news_ticker_consulta))}${r.news_ticker_velho?' · dados anteriores':''}${!tickers.length?' · nenhum aviso disponível':''}</p>`:'';
-  return `<section class="zb-panel zb-news-panel${news?' zb-news-wide':''}"><div class="zb-section-heading"><h2>${news?'News':'Eventos do Tibia'}</h2>${(news?r.noticias_velhas:r.anuncios_velhos)?'<span class="zb-badge zb-warning">Dados anteriores</span>':''}</div><div class="zb-news-list">${items||`<p class="zb-empty">${news?'Nenhuma notícia disponível.':'Nenhum anúncio disponível.'}</p>`}</div><p class="zb-muted zb-news-stamp">Consulta: ${esc(zbStamp(news?r.noticias_consulta:r.anuncios_consulta))}</p>${tickerInfo}</section>`;
+  return `<section class="zb-panel zb-news-panel${news?' zb-news-wide':''}"><div class="zb-section-heading"><h2>${news?'News':'Eventos do Tibia'}</h2>${(news?r.noticias_velhas:r.anuncios_velhos)?'<span class="zb-badge zb-warning">Dados anteriores</span>':''}</div>${items}<p class="zb-muted zb-news-stamp">Consulta: ${esc(zbStamp(news?r.noticias_consulta:r.anuncios_consulta))}</p>${tickerInfo}</section>`;
 }
 function zbSprite(src, label, icon) {
   const safe=zbImageSrc(src);
@@ -68,6 +66,7 @@ function zbKillStatistics(k={}) {
 }
 
 function zbRender(r) {
+  $('zb-result').querySelectorAll('details[data-zb-key]').forEach(d=>{ZB.open[d.dataset.zbKey]=d.open;});
   if(r.erro) { $('zb-result').innerHTML=`<div class="zb-panel zb-warning-text">${esc(r.erro)}</div>`; return; }
   const b=r.boostados||{}, server=r.servidor||{}, dream=r.dream_court||{}, yasir=r.yasir||{}, world=r.mundo||'selecione um mundo';
   const boosted=(title,value,kind,icon)=>zbCard(title,value?.nome||'Indisponível',{kind,icon,sprite:value?.imagem,
