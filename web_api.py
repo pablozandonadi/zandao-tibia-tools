@@ -19,6 +19,7 @@ import radio_brasilhits
 import audio_timers
 import voz
 import chat
+import comandos_tibia
 import assistente_tibiano
 import mirror_core
 from mirror_service import MirrorService
@@ -1279,11 +1280,15 @@ class API:
         except OSError:
             return {"erro": "Não foi possível remover o registro do perfil."}
 
-    def zandaobot_mensagem(self, mundo="", campos=None):
+    def zandaobot_mensagem(self, mundo="", campos=None, extras=None, mini=True):
         resumo = self.zandaobot_buscar(mundo)
         if resumo.get("erro"):
             return resumo
-        return {"mensagem": zandaobot_report.gerar(resumo, campos)}
+        pedidos = [x for x in (extras if isinstance(extras, list) else [])[:12] if isinstance(x, dict)]
+        consulta = lambda x: comandos_tibia.extra(str(x.get("chave", "")), x.get("arg", ""), resumo.get("mundo") or "", resumo.get("personagem") or "")
+        with ThreadPoolExecutor(4) as ex:
+            blocos = [b for b in ex.map(consulta, pedidos) if b]
+        return {"mensagem": zandaobot_report.gerar(resumo, campos, blocos, bool(mini))}
 
     def zandaobot_mundos(self):
         return zandaobot.mundos()

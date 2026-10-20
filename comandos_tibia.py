@@ -31,6 +31,8 @@ SEM_PERSONAGEM = 'Cadastre e escolha um personagem em Configurações, ou use: '
 VOCACOES = ('Knight', 'Paladin', 'Sorcerer', 'Druid', 'Monk')
 BRT = timezone(timedelta(hours=-3))
 RANKING = 'https://guildstats.eu/top-experience?world={}&time=0'  # time=0 é "Yesterday"; só traz o top 500 do mundo
+TRANSFERS = 'https://guildstats.eu/world-transfer?{}={}&time=30'  # o site só oferece 7 ou 30 dias; o corte em 10 é feito aqui
+DIAS_TRANSFER = 10
 
 
 def _get(chave, endpoint):
@@ -286,6 +288,77 @@ def _guild_info(nome, hoje):
 def _guild(rest, mundo, personagem=None, hoje=None):
     nome = rest or _guild_do_personagem(personagem)[0]
     return _guild_info(nome, hoje) if nome else 'Informe a guild, ex.: guild {guild} (ou use um personagem que tenha guild).'
+
+
+def _transferidos(mundo, lado):
+    """[(nome, level, voc, mundo antigo, mundo atual, dia)] dos últimos 30 dias no GuildStats, ou None.
+
+    lado 'worldActual' = quem entrou no mundo; 'worldFormer' = quem saiu."""
+    def buscar():
+        p = guild_stats.Tables()
+        p.feed(sources.get_text(TRANSFERS.format(lado, quote(mundo)), 6_000_000))
+        tabelas = [t for t in p.tables if 'Change date' in t['headers']]
+        if not tabelas:
+            raise ValueError('Página de transferências mudou')
+        return [(r[1], int(r[2].replace(',', '')), r[3], r[4], r[5], r[6]) for t in tabelas for r in t['rows']
+                if len(r) >= 7 and r[2].replace(',', '').isdigit() and re.fullmatch(r'\d{4}-\d{2}-\d{2}', r[6])]
+    return sources.cached(f'gs-transfer:{lado}:{mundo.lower()}', buscar, ttl=1800)['dados']
+
+
+def _transfer(rest, mundo, personagem=None, hoje=None):
+    m = rest or mundo
+    if not m:
+        return SEM_PERSONAGEM + 'informe o mundo.'
+    if not MUNDO.fullmatch(m):
+        return 'Nome de mundo inválido. Use só letras, ex.: Antica.'
+    corte = ((hoje or date.today()) - timedelta(days=DIAS_TRANSFER)).isoformat()
+    linhas = [f'🔁 Entraram e saíram — 🌍 {m.capitalize()} (últimos {DIAS_TRANSFER} dias, GuildStats)']
+    for lado, titulo, rumo in (('worldActual', '➡️ Entraram', 'de'), ('worldFormer', '⬅️ Saíram', 'para')):
+        lista = _transferidos(m, lado)
+        if lista is None:
+            linhas.append(f'{titulo}: indisponível agora.')
+            continue
+        recentes = sorted((x for x in lista if x[5] >= corte), key=lambda x: -x[1])
+        # shortcut: a página lista no máximo 500 por período; acima disso o total é um mínimo
+        total = f'{len(recentes)}+' if len(lista) >= 500 else str(len(recentes))
+        linhas.append(f'{titulo}: {total}')
+        linhas += [f'• {n} (Lv {lv}, {voc}) {rumo} {antigo if rumo == "de" else atual} — {dia[8:]}/{dia[5:7]}'
+                   for n, lv, voc, antigo, atual, dia in recentes[:10]]
+        if len(recentes) > 10:
+            linhas.append(f'… e mais {len(recentes) - 10}')
+    return '\n'.join(linhas)
+
+
+def _guild_ou_padrao(rest, personagem):
+    return rest or _guild_do_personagem(personagem)[0]
+
+
+SEM_GUILD = 'Informe a guild (o personagem em uso não tem guild).'
+# Consultas que a Mensagem do dia pode incluir. Campo vazio = padrão do personagem em uso (mundo, guild ou nome).
+EXTRAS = {
+    'kill': ('⚔️ Criaturas mortas ontem', lambda a, m, p, h: _kill(a, m)),
+    'exp_mundo': ('🏆 Top XP do servidor', lambda a, m, p, h: _xp_mundo(a or m)),
+    'exp_guild': ('🏆 Top XP da guild', lambda a, m, p, h: _xp_guild(g) if (g := _guild_ou_padrao(a, p)) else SEM_GUILD),
+    'guild': ('🏰 Guild', _guild),
+    'online_guild': ('🟢 Online da guild', lambda a, m, p, h: _online_guild(g) if (g := _guild_ou_padrao(a, p)) else SEM_GUILD),
+    'char': ('📜 Personagem', _char),
+    'transfer': ('🔁 Entraram e saíram', _transfer),
+}
+
+
+def extra(chave, arg='', mundo='', personagem='', hoje=None):
+    """Bloco de uma consulta da Mensagem do dia; falha vira aviso curto, sem derrubar a mensagem. None = chave desconhecida."""
+    if chave not in EXTRAS:
+        return None
+    rotulo, fn = EXTRAS[chave]
+    arg = ' '.join(str(arg or '').split())
+    if arg and not NOME.fullmatch(arg):
+        return f'{rotulo}: nome inválido ({arg[:40]}).'
+    try:
+        texto = fn(arg, mundo, personagem, hoje or date.today())
+    except Exception:
+        texto = FALHA
+    return _ou(texto, rotulo)
 
 
 HANDLERS = {'bomdia': _bomdia, 'kill': _kill, 'boss': _boss, 'online': _online, 'char': _char, 'death': _death, 'guild': _guild, 'exp': _exp}

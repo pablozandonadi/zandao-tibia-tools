@@ -33,4 +33,10 @@ class BoardTests(unittest.TestCase):
  def test_report_manual_presence(self):
   r={'dia':'2026-10-12','world_board':{'valido':True,'completo':True,'consulta':1,'eventos':[{'id':'warpath','nome':'Warpath'}]}}
   s=report.gerar(r);self.assertIn("*Bibby's Bloodbath:* 🟢 Ativo",s);self.assertIn('*Fury Gate:* 🔴 Inativo',s)
+ def test_report_ticks(self):
+  r={'dia':'2026-10-12','yasir':{'estado':'presente','mudancas':['Nomads','Oriental Trader']}}
+  s=report.gerar(r);self.assertIn('• Nomads',s);self.assertIn('_Consulta online',s);self.assertNotIn('• Oriental',s)
+  s=report.gerar(r,extras=['KILL','XP'],mini=False)
+  self.assertNotIn('world changes',s);self.assertNotIn('\n\n\n',s)
+  self.assertLess(s.index('KILL'),s.index('XP'));self.assertLess(s.index('XP'),s.index('Próximo SS'))
 if __name__=='__main__':unittest.main()

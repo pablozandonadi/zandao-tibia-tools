@@ -274,5 +274,50 @@ class PadroesDoPersonagem(unittest.TestCase):
         self.assertIn('Configurações', self.run_('exp', mundo='', personagem=''))
 
 
+def transfer_html(*linhas):
+    return '<table><thead><tr><th>#</th><th>Name</th><th>Changed at lvl</th><th>Voc</th><th>Former world</th><th>Current world</th><th>Change date</th></tr></thead><tbody>' + ''.join(
+        f'<tr><td>{i}</td><td>{n}</td><td>{lv}</td><td>EK</td><td>{de}</td><td>{para}</td><td>{dia}</td></tr>' for i, (n, lv, de, para, dia) in enumerate(linhas, 1)) + '</tbody></table>'
+
+
+ENTRARAM = transfer_html(('Antigo', '1,200', 'Secura', 'Antica', '2026-10-01'), ('Grande', '900', 'Premia', 'Antica', '2026-10-14'), ('Medio', '500', 'Lobera', 'Antica', '2026-10-08'))
+SAIRAM = transfer_html(('Fujao', '700', 'Antica', 'Wintera', '2026-10-10'))
+
+
+class MensagemDoDiaExtras(unittest.TestCase):
+    def setUp(self):
+        zandaobot._cache.clear()
+        c.sources._cache.clear()
+
+    def extra(self, chave, arg='', html=None, mapa=None, personagem='Elite Nestos'):
+        paginas = html or (lambda url, limit=0: ENTRARAM if 'worldActual' in url else SAIRAM)
+        mapa = {'/character/Elite%20Nestos': CHAR, '/guild/Quixada': GUILD, **(mapa or {})}
+        with patch.object(tibia_info, '_get_json', side_effect=fonte(mapa)), patch.object(c.sources, 'get_text', side_effect=paginas):
+            return c.extra(chave, arg, 'Antica', personagem, date(2026, 10, 17))
+
+    def test_transfer_corta_em_10_dias_e_ordena_por_level(self):
+        r = self.extra('transfer')
+        self.assertIn('➡️ Entraram: 2', r)
+        self.assertNotIn('Antigo', r)
+        self.assertLess(r.index('Grande'), r.index('Medio'))
+        self.assertIn('Grande (Lv 900, EK) de Premia — 14/10', r)
+        self.assertIn('⬅️ Saíram: 1', r)
+        self.assertIn('Fujao (Lv 700, EK) para Wintera', r)
+
+    def test_transfer_pagina_mudada_ou_fora_do_ar_avisa(self):
+        r = self.extra('transfer', html=lambda url, limit=0: '<table><tr><th>Outra</th></tr></table>')
+        self.assertIn('Entraram: indisponível agora.', r)
+        self.assertIn('Saíram: indisponível agora.', r)
+
+    def test_campo_preenchido_troca_o_padrao(self):
+        self.assertIn('Demon', self.extra('kill', 'Secura', mapa={'/killstatistics/Secura': ks(('Demon', 3))}))
+        self.assertIn('🏰 Quixada', self.extra('guild'))
+
+    def test_falhas_viram_aviso_curto(self):
+        self.assertEqual(self.extra('kill'), '⚔️ Criaturas mortas ontem: indisponível agora.')
+        self.assertIn('nome inválido', self.extra('kill', 'Antica; drop'))
+        self.assertIn('não tem guild', self.extra('exp_guild', personagem=''))
+        self.assertIsNone(self.extra('apagar_tudo'))
+
+
 if __name__ == '__main__':
     unittest.main()
