@@ -211,7 +211,7 @@ export class VoiceGate {
      try{const error=JSON.parse(new TextDecoder().decode(await limitedBody(response,8192,502)))?.error;const allowed=['invalid_api_key','insufficient_quota','model_not_found','rate_limit_exceeded','invalid_json_schema','invalid_request_error'];const code=[error?.code,error?.type].find(value=>allowed.includes(value));if(code)details.provider_code=code;}catch{}
      fail(502,details);
     }
-    try{data=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(await limitedBody(response,route==='/transcribe'?8192:32768,502)));}catch(e){if(e.status){if(route!=='/transcribe')fail(502,{provider_code:'provider_response_too_large'});throw e;}fail(502);}
+    try{data=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(await limitedBody(response,route==='/transcribe'?8192:262144,502)));}catch(e){if(e.status){if(route!=='/transcribe')fail(502,{provider_code:'provider_response_too_large'});throw e;}fail(502);}
    }catch(e){if(controller.signal.aborted)fail(504);if(failures.has(e))throw e;fail(502,{provider_code:'provider_transport'});}finally{clearTimeout(timer);}
    if(!data||typeof data!=='object'||Array.isArray(data))fail(502);
    if(route!=='/transcribe'&&data.status==='incomplete')fail(502,{provider_code:'output_incomplete'});

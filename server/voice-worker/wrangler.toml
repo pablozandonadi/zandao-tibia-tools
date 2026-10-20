@@ -8,17 +8,18 @@ preview_urls = false
 enabled = false
 
 [vars]
-VOICE_AI_ENABLED = "false"
+VOICE_AI_ENABLED = "true"
 VOICE_NLU_MODEL = "gpt-5-nano"
 VOICE_NLU_MAX_OUTPUT_TOKENS = "2048"
 VOICE_NLU_RESERVE_MICRO_USD = "2000"
-VOICE_USER_DAILY_LIMIT = "100"
+VOICE_USER_DAILY_LIMIT = "50"
 VOICE_GLOBAL_DAILY_LIMIT = "1000"
 VOICE_USER_BURST_LIMIT = "10"
 VOICE_IP_BURST_LIMIT = "60"
-VOICE_USER_DAILY_MICRO_USD = "50000"
-VOICE_GLOBAL_DAILY_MICRO_USD = "200000"
-# Gate permanece OFF até validação de acesso e operação pelo proprietário.
+VOICE_USER_DAILY_MICRO_USD = "100000"
+VOICE_GLOBAL_DAILY_MICRO_USD = "2000000"
+# Contas só para o chat de texto (sem voz): 2000 µUSD reservados por conversa. Padrão dos códigos antigos: 50 por pessoa
+# por dia (100000 µUSD). Teto global: 1000 conversas por dia (2000000 µUSD = US$ 2). Códigos novos têm plano próprio.
 
 [[durable_objects.bindings]]
 name = "VOICE_GATE"
