@@ -1406,16 +1406,22 @@ class API:
         with self._personagens_monitor_lock:
             if self._personagens_monitor is None:
                 import monitor_personagens
-                self._personagens_monitor = monitor_personagens.Monitor(BASE_DIR)
+                self._personagens_monitor = monitor_personagens.Monitor(BASE_DIR,
+                    notify_windows=lambda text:getattr(self,'_notificar_aviso',lambda _:None)(text),notify_sound=self._monitor_som)
                 self._personagens_monitor.start()
             return self._personagens_monitor
+
+    def _monitor_som(self, texto):
+        if os.name=='nt':
+            import winsound
+            winsound.MessageBeep(winsound.MB_OK)
 
     def assistente_monitor_estado(self):
         return self._monitor_personagens_obter().estado()
 
-    def assistente_monitor_configurar(self, nome, up=True, death=True, remover=False):
+    def assistente_monitor_configurar(self, nome, up=True, death=True, remover=False, notify_windows=None, notify_sound=None):
         try:
-            return self._monitor_personagens_obter().configurar(nome, up, death, remover)
+            return self._monitor_personagens_obter().configurar(nome, up, death, remover, notify_windows, notify_sound)
         except (ValueError, OSError) as error:
             return {'erro': str(error) if isinstance(error, ValueError) else 'Não foi possível salvar o monitoramento.'}
 

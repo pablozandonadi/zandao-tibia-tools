@@ -196,14 +196,15 @@ const submit = () => { let prevented = false; form.listeners.submit({preventDefa
   const index = fs.readFileSync(path.join(__dirname, 'web/index.html'), 'utf8');
   const at = text => { const i = index.indexOf(text); assert.ok(i >= 0, text); return i; };
   assert.equal((index.match(/id="chat-form"/g) || []).length, 1);
-  assert.ok(index.includes('id="assistente-monitor-abrir"'));
+  assert.equal(index.includes('id="assistente-monitor-abrir"'),false);
+  assert.ok(index.includes('data-assistente-tab="character-track"'));
   assert.ok(index.includes('src="assistente_canais.js"'));
   assert.ok(index.includes('class="assistente-nav"'));
   assert.ok(at('id="chat-mensagens" role="log" aria-live="polite"') < at('id="chat-form"'));
   assert.ok(at('src="assistente.js"') < at('src="chat.js"'));
   const painel = nome => { const i = at(`data-assistente-panel="${nome}"`), proximo = index.indexOf('data-assistente-panel="', i + 10); return index.slice(i, proximo); };
   const chat = painel('overview'), timers = painel('timers'), shared = painel('shared'), upo = painel('upo');
-  const paraTimers = ['voz-form', 'voz-valor', 'voz-unidade', 'voz-criar', 'voz-feedback', 'voz-quantidade', 'voz-vazio', 'voz-lista', 'voz-avisos', 'assistente-overview', 'voz-pausado'];
+  const paraTimers = ['timer-editor', 'timer-label', 'timer-duration', 'timer-unit', 'timer-save', 'timer-history', 'assistente-timers-list', 'voz-feedback', 'voz-avisos', 'assistente-overview', 'voz-pausado'];
   for (const id of paraTimers) { assert.ok(timers.includes(`id="${id}"`), `${id} agora fica em Timers Gerais`); assert.ok(!chat.includes(`id="${id}"`), `${id} saiu da aba Chat`); }
   for (const id of ['chat-canal-local', 'chat-canal-log', 'chat-canal-help', 'chat-canal-ia', 'chat-mensagens', 'chat-digitando', 'chat-form', 'chat-texto', 'chat-limpar', 'assistente-instrucoes']) assert.ok(chat.includes(`id="${id}"`), `${id} fica na aba Chat`);
   assert.ok(at('id="chat-canal-local"') < at('id="chat-canal-log"') && at('id="chat-canal-log"') < at('id="chat-canal-help"') && at('id="chat-canal-help"') < at('id="chat-canal-ia"'), 'Local Chat | Server Log | Help | Tudo IA');
@@ -217,9 +218,10 @@ const submit = () => { let prevented = false; form.listeners.submit({preventDefa
   // Ferramentas foi embora: Shared XP numa aba só (calculadora ao vivo + formulários) e "Quando eu upo?" ganhou aba.
   assert.ok(!index.includes('data-pagina="ferr"') && !index.includes('id="page-ferr"') && !/irPara\('ferr'\)|abrirFerramentas|Abrir no Assistente Tibiano/.test(index));
   assert.equal((index.match(/data-assistente-panel="shared"/g) || []).length, 1);
-  assert.ok(at('id="f-levels"') < at('id="assistente-form-shared"') && shared.includes('id="f-levels"') && shared.includes('id="f-shared-res"') && shared.includes('id="assistente-level-form"'));
+  for(const id of ['shared-lookup','shared-party','shared-mode-reference','shared-mode-party','assistente-level-form'])assert.ok(shared.includes(`id="${id}"`));
+  for(const id of ['voz-form','voz-lista','f-levels','f-shared-res'])assert.equal(index.includes(`id="${id}"`),false);
   assert.ok(index.includes('data-assistente-panel="upo"'));
   for (const id of ['f-up-sel', 'f-up-nome', 'f-up-info', 'f-up-alvo', 'f-up-xp', 'f-up-xph', 'f-up-calc', 'f-up-res']) assert.ok(upo.includes(`id="${id}"`), `${id} fica na aba Quando eu upo?`);
-  for (const id of new Set([...index.matchAll(/\$\('(f-[a-z-]+)'\)/g)].map(m => m[1]))) assert.equal((index.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, `${id} existe uma vez`);
+  for (const id of new Set([...index.matchAll(/\$\('(f-[a-z-]+)'\)/g)].map(m => m[1]).filter(id=>!['f-levels','f-shared-res'].includes(id)))) assert.equal((index.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1, `${id} existe uma vez`);
   console.log('chat UI: safe bubbles, single send, errors, clear, Help channel, Local Chat world info and page wiring passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -48,6 +48,45 @@ class MonitorTest(unittest.TestCase):
         self.monitor.scan()
         return self.monitor.estado()
 
+    def test_up_notification_preferences_persist_and_bulk_preserves(self):
+        row=self.monitor.estado()['personagens'][0];self.assertFalse(row['notify_windows']);self.assertFalse(row['notify_sound'])
+        self.monitor.configurar('Test Knight',notify_windows=True,notify_sound=True)
+        self.monitor.configurar('Test Knight',up=False,death=True)
+        self.monitor.importar([{'nome':'Test Knight','world':'Antica'},{'nome':'Other Player','world':'Antica'}])
+        restored=Monitor(self.temp.name)
+        rows=restored.estado()['personagens'];self.assertTrue(rows[0]['notify_windows']);self.assertTrue(rows[0]['notify_sound']);self.assertFalse(rows[1]['notify_sound']);self.assertFalse(rows[1]['notify_windows'])
+        data=copy.deepcopy(restored.data)
+        for row in data['personagens']:row.pop('notify_windows');row.pop('notify_sound')
+        Path(restored.path).write_text(json.dumps(data),encoding='utf8')
+        self.assertFalse(Monitor(self.temp.name).estado()['personagens'][0]['notify_windows'])
+
+    def test_up_notifies_after_save_once_no_baseline_or_restart_replay(self):
+        windows=[];sounds=[]
+        def notify(text):
+            self.assertEqual(text,self.monitor.data['up'][-1]['texto'])
+            self.assertEqual(text,json.loads(Path(self.monitor.path).read_text(encoding='utf8'))['up'][-1]['texto'])
+            self.assertTrue(self.monitor.lock.acquire(blocking=False));self.monitor.lock.release()
+            windows.append(text)
+        self.monitor.notify_windows=notify;self.monitor.notify_sound=sounds.append
+        self.monitor.configurar('Test Knight',notify_windows=True,notify_sound=True)
+        self.scan();self.assertEqual([],windows);self.assertEqual([],sounds)
+        self.payload=dados(101);self.scan();self.assertEqual(1,len(windows));self.assertEqual(windows,sounds)
+        self.scan();self.assertEqual(1,len(windows))
+        restored=Monitor(self.temp.name,fetch=self.fetch,clock=lambda:self.now,fetch_world=self.fetch_world,wait=lambda _:False,notify_windows=windows.append,notify_sound=sounds.append)
+        restored.scan();self.assertEqual(1,len(windows))
+        self.monitor.configurar('Test Knight',up=False,notify_windows=True,notify_sound=True)
+        self.payload=dados(103,[{**DEATH,'time':'2026-10-20T12:00:00Z'}]);self.scan();self.assertEqual(1,len(windows))
+
+    def test_up_save_failure_never_notifies_and_callback_failure_does_not_retry(self):
+        windows=[];sounds=[]
+        self.monitor.configurar('Test Knight',notify_windows=True,notify_sound=True)
+        self.monitor.notify_windows=windows.append;self.monitor.notify_sound=sounds.append;self.scan();self.payload=dados(101)
+        with patch.object(self.monitor,'_save',side_effect=OSError('disk')):self.scan()
+        self.assertEqual([],windows);self.assertEqual([],sounds)
+        def fail(text):windows.append(text);raise RuntimeError('OS unavailable')
+        self.monitor.notify_windows=fail;self.scan();self.assertEqual(1,len(windows));self.assertEqual(1,len(sounds))
+        self.scan();self.assertEqual(1,len(windows));self.assertEqual(1,len(sounds))
+
     def test_baseline_sem_eventos_e_level_salvo_sem_alterar_cadastro(self):
         first = self.scan()
         self.assertFalse(first['up'])

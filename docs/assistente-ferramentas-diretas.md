@@ -13,8 +13,11 @@ Validação: testes de Store/parser/Chat, canais existentes, conversão, notific
 
 ## Character Track
 
-A aba ao lado de Market Tracker centraliza os personagens de UP Level e Death, com cadastro individual, seleção de Meus personagens e filtro. O botão Monitoramento do cabeçalho abre essa mesma aba, sem uma segunda lista ou janela de cadastro.
+A aba ao lado de Market Tracker centraliza os personagens de UP Level e Death, com cadastro individual, seleção de Meus personagens e filtro. O acesso fica somente nessa aba, sem botão de Monitoramento no cabeçalho ou uma segunda janela de cadastro.
 
 A busca manual de uma guild mostra uma prévia do roster público (cache de 5 minutos e fallback de dados anteriores), sem cadastrar ninguém ou consultar fichas individuais. “Adicionar membros” importa aquele snapshot, com as opções UP/Death escolhidas somente para os novos nomes. Nomes já monitorados preservam preferências e baselines; entradas inválidas ou limite excedido não gravam metade. O limite é 1000 personagens e a gravação do lote é única e atômica. Não há sincronização automática de membros que entram ou saem.
 
 O mundo informado pelo roster permite a leitura compartilhada da lista online já no primeiro ciclo, cuja baseline é silenciosa. UP continua com uma consulta por mundo a cada 60 segundos (mais cache da fonte). Death continua consultando fichas sequencialmente, respeitando intervalo mínimo de 60 segundos por personagem e início global de até uma chamada por segundo. Para N fichas, só os inícios requerem aproximadamente N segundos; respostas, outros mundos e backoff ampliam o ciclo. A ficha pode ainda ter cache de até 5 minutos. A interface mostra essa estimativa, sem prometer tempo real. A prévia de guild compartilha o mesmo limite e backoff do monitor.
+
+
+Cada personagem pode ativar **Notificação de UP** (aviso do Windows) e/ou **Som de UP** (sinal adicional do aplicativo). As opções começam desligadas, inclusive para novos membros importados, e são preservadas ao alterar UP/Death. Só novos eventos de UP gravados no canal disparam os avisos; baseline, mortes, reinício e histórico não são reenviados. Os callbacks rodam após a gravação, fora do lock, e uma falha do Windows/áudio não interrompe o monitor nem causa repetição. O sinal usa o recurso padrão do Windows sem ativar o motor de voz; a notificação do próprio Windows pode emitir seu som conforme as configurações do sistema. Requer aplicativo aberto e UP Level ativado; funciona minimizado.

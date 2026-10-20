@@ -88,7 +88,8 @@ def guild_preview(nome, consultar):
 
 
 class Monitor:
-    def __init__(self, base_dir, fetch=None, clock=None, fetch_world=None, wait=None):
+    def __init__(self, base_dir, fetch=None, clock=None, fetch_world=None, wait=None, notify_windows=None, notify_sound=None):
+        self.notify_windows,self.notify_sound=notify_windows,notify_sound
         self.path = os.path.join(base_dir, 'monitor-personagens.json')
         self.fetch, self.clock = fetch or _fetch, clock or time.time
         self.lock = threading.RLock()
@@ -118,6 +119,9 @@ class Monitor:
                     raise ValueError()
                 for row in loaded['personagens']:
                     _nome(row['nome'])
+                    for key in ('notify_windows','notify_sound'):
+                        row.setdefault(key,False)
+                        if type(row[key]) is not bool:raise ValueError()
                     if any(type(row.get(k)) is not bool for k in ('up', 'death')) or not isinstance(row.get('versao'), str):
                         raise ValueError()
                     if row.get('level') is not None and type(row['level']) is not int:
@@ -160,10 +164,12 @@ class Monitor:
                                 'death': {'intervalo_segundos': 60, 'cache_segundos': 300, 'fonte': 'TibiaData /character'}}
             return result
 
-    def configurar(self, nome, up=True, death=True, remover=False):
+    def configurar(self, nome, up=True, death=True, remover=False, notify_windows=None, notify_sound=None):
         nome = _nome(nome)
         if any(type(x) is not bool for x in (up, death, remover)):
             raise ValueError('Opções de monitoramento inválidas.')
+        if any(value is not None and type(value) is not bool for value in (notify_windows,notify_sound)):
+            raise ValueError('Opções de aviso inválidas.')
         with self.lock:
             data = copy.deepcopy(self.data)
             row = next((r for r in data['personagens'] if r['nome'].casefold() == nome.casefold()), None)
@@ -174,7 +180,7 @@ class Monitor:
                 if row is None:
                     if len(data['personagens']) >= MAX_TRACKED:
                         raise ValueError(f'Limite de {MAX_TRACKED} personagens monitorados.')
-                    row = {'nome': nome, 'up': up, 'death': death, 'level': None, 'mortes': None}
+                    row = {'nome': nome, 'up': up, 'death': death, 'level': None, 'mortes': None,'notify_windows':False,'notify_sound':False}
                     data['personagens'].append(row)
                 if row['up'] != up:
                     row['level'] = None
@@ -182,6 +188,8 @@ class Monitor:
                     row['up_timestamp'] = None
                 if row['death'] != death:
                     row['mortes'] = None
+                if notify_windows is not None:row['notify_windows']=notify_windows
+                if notify_sound is not None:row['notify_sound']=notify_sound
                 row.update(up=up, death=death, versao=uuid.uuid4().hex)
             self._save(data)
             # Não remove o prazo: toggles não podem causar consultas remotas mais frequentes.
@@ -222,7 +230,7 @@ class Monitor:
             novos=[row for key,row in normalized.items() if key not in existing]
             if len(data['personagens'])+len(novos)>MAX_TRACKED:raise ValueError(f'Limite de {MAX_TRACKED} personagens monitorados. Nenhum membro foi adicionado.')
             for member in novos:
-                data['personagens'].append({**member,'up':up,'death':death,'level':None,'mortes':None,'world_baseline':False,'up_timestamp':None,'versao':uuid.uuid4().hex})
+                data['personagens'].append({**member,'up':up,'death':death,'level':None,'mortes':None,'world_baseline':False,'up_timestamp':None,'notify_windows':False,'notify_sound':False,'versao':uuid.uuid4().hex})
             if novos:self._save(data)
             result=self.estado()
             result['importacao']={'adicionados':len(novos),'existentes':len(normalized)-len(novos),'total':len(data['personagens'])}
@@ -358,6 +366,7 @@ class Monitor:
                         if key in online:
                             raise ValueError('Personagem duplicado na lista online.')
                         online[key] = player
+                    notifications=[]
                     with self.lock:
                         data = copy.deepcopy(self.data)
                         for previous in selected:
@@ -375,11 +384,18 @@ class Monitor:
                                 continue
                             nome = _nome_voc(player['name'], player.get('vocation') or row.get('vocation'))
                             if row.get('world_baseline') and row.get('level') is not None and player['level'] > row['level']:
-                                self._event(data, 'up', player['name'], datetime.fromtimestamp(now, timezone.utc).isoformat(),
-                                            f"{nome} subiu do level {row['level']} para {player['level']} · horário da detecção (lista online do mundo).")
+                                text=f"{nome} subiu do level {row['level']} para {player['level']} · horário da detecção (lista online do mundo)."
+                                self._event(data, 'up', player['name'], datetime.fromtimestamp(now, timezone.utc).isoformat(),text)
+                                notifications.append((row.get('notify_windows',False),row.get('notify_sound',False),text))
                             row.update(level=player['level'], world_baseline=True, up_timestamp=source_time)
                             self.up_status[key] = 'Online: referência atualizada (cache da fonte: até 60 s)'
                         self._save(data)
+                    # Only persisted new UP events notify; callbacks run outside the state lock.
+                    for windows,sound,text in notifications:
+                        for enabled,callback in ((windows,self.notify_windows),(sound,self.notify_sound)):
+                            if enabled and callback:
+                                try:callback(text)
+                                except Exception:pass  # The feed event is saved; never retry delivery.
                 except Exception as error:
                     delay, message = self._failure(error)
                     self.next_world[world_key] = max(self.next_world[world_key], self.clock() + delay)
