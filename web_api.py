@@ -1419,6 +1419,18 @@ class API:
         except (ValueError, OSError) as error:
             return {'erro': str(error) if isinstance(error, ValueError) else 'Não foi possível salvar o monitoramento.'}
 
+    def assistente_monitor_guild(self, nome):
+        try:
+            return self._monitor_personagens_obter().guild(nome)
+        except (ValueError,OSError) as error:
+            return {'erro':str(error) if isinstance(error,ValueError) else 'Não foi possível consultar a guild.'}
+
+    def assistente_monitor_importar(self, membros, up=True, death=True):
+        try:
+            return self._monitor_personagens_obter().importar(membros,up,death)
+        except (ValueError,OSError) as error:
+            return {'erro':str(error) if isinstance(error,ValueError) else 'Não foi possível salvar a importação.'}
+
     def _monitor_personagens_parar(self):
         if self._personagens_monitor is not None:
             self._personagens_monitor.close()

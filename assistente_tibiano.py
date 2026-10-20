@@ -233,9 +233,10 @@ class Store:
             result,write=self._run(data,intent,deepcopy(args),ctx,now)
             if write:
                 event_id=uuid.uuid4().hex
-                if intent=='market.price.add':
-                    result['observation']['source']=source
-                    result['observation']['event_id']=event_id
+                if intent in ('market.price.add','market.price.add_pair'):
+                    for observation in result.get('observations',[result.get('observation')]):
+                        observation['source']=source
+                        observation['event_id']=event_id
                 data['events'].append({'id':event_id,'entity_id':result.get('observation',{}).get('id'),'intent':intent,'at':iso(now),'character_id':ctx.get('character_id'),'world_id':ctx.get('world_id'),'arguments':args,'source':source,**result.pop('_audit',{})})
                 if request_id: data['requests'][request_id]={'hash':digest,'result':result}
                 self._save(data)
@@ -412,15 +413,19 @@ class Store:
                 watched=d['watchlist'].setdefault(world,['Tibia Coin','Silver Token','Gold Token'])
                 if item not in watched: watched.append(item)
                 return {'items':watched},True
-            if action=='market.price.add':
+            if action in ('market.price.add','market.price.add_pair'):
                 at=instant(p.get('observed_at',now))
                 if at>now:raise ValueError('Preço observado não pode estar no futuro.')
-                obs={'id':uuid.uuid4().hex,'world_id':world,'item':item,'offer_type':offer,'price_gp':price_gp(p.get('price')),'at':iso(at),'deleted':False}
-                d['prices'].append(obs)
-                for alert in d['alerts']:
-                    if alert['kind']=='market' and alert['world_id']==world and alert['item']==item and alert['offer_type']==offer and not alert['fired']:
-                        if (obs['price_gp']<alert['threshold'] if alert['direction']=='below' else obs['price_gp']>alert['threshold']):alert['matched_at']=iso(now)
-                return {'observation':obs},True
+                # Validate the entire pair before mutating prices or matching alerts.
+                values=[('buy',price_gp(p.get('buy_price'))),('sell',price_gp(p.get('sell_price')))] if action.endswith('add_pair') else [(offer,price_gp(p.get('price')))]
+                observations=[{'id':uuid.uuid4().hex,'world_id':world,'item':item,'offer_type':kind,'price_gp':price,'at':iso(at),'deleted':False} for kind,price in values]
+                d['prices'].extend(observations)
+                for obs in observations:
+                    for alert in d['alerts']:
+                        if alert['kind']=='market' and alert['world_id']==world and alert['item']==item and alert['offer_type']==obs['offer_type'] and not alert['fired']:
+                            if (obs['price_gp']<alert['threshold'] if alert['direction']=='below' else obs['price_gp']>alert['threshold']):alert['matched_at']=iso(now)
+                if action.endswith('add_pair'):return {'observations':observations,'price_pair':True,'_audit':{'observation_ids':[v['id'] for v in observations]}},True
+                return {'observation':observations[0]},True
             if action=='market.alert.create':
                 if p.get('direction') not in ('below','above'):raise ValueError('Escolha abaixo ou acima.')
                 alert={'id':uuid.uuid4().hex,'kind':'market','character_id':None,'world_id':world,'item':item,'offer_type':offer,'threshold':price_gp(p.get('price')),'direction':p['direction'],'fired':False,'matched_at':None}
@@ -463,6 +468,7 @@ FIELDS = {
  'bosstiary.get':{'boss_id'},'bosstiary.set_total':{'boss_id','total_kills'},'bosstiary.increment':{'boss_id','delta_kills'},'boss.kill.undo':{'boss_id','event_id'},'boss.kill.correct_time':{'boss_id','event_id','corrected_at'},'boss.alert':{'boss_id'},'boss.cooldown.set':{'boss_id','cooldown_minutes'},
  'stamina.logout':{'stamina_minutes','logged_out_at'},'stamina.correct':{'stamina_minutes','reference_at'},'stamina.login':{'logged_in_at'},'stamina.get':set(),
  'stamina.project':{'target_datetime','starting_stamina_minutes','logged_out_at'},'stamina.time_to':{'target_stamina_minutes'},'stamina.reverse':{'desired_stamina_minutes','desired_at','starting_stamina_minutes'},'stamina.alert':{'target_stamina_minutes'},
+ 'market.price.add_pair':{'item','buy_price','sell_price','observed_at'},
  'market.price.add':{'item','price','offer_type','observed_at'},'market.stats':{'item','price','offer_type','days'},'market.price.correct':{'observation_id','item','price','offer_type','reason'},'market.price.delete':{'observation_id','item','offer_type','reason'},'market.item.watch':{'item'},'market.watch.list':set(),'market.alert.create':{'item','offer_type','direction','price'},'market.alert.list':set()
 }
 
@@ -477,6 +483,7 @@ LABELS = {
  'boss.kill.undo':'Desfazer abate', 'boss.kill.correct_time':'Corrigir horário do abate', 'boss.alert':'Avisar quando o boss liberar',
  'stamina.logout':'Registrar logout', 'stamina.correct':'Corrigir stamina', 'stamina.login':'Registrar login', 'stamina.get':'Consultar stamina',
  'stamina.project':'Projetar stamina', 'stamina.time_to':'Quando a stamina chega a', 'stamina.reverse':'Calcular quando deslogar', 'stamina.alert':'Avisar quando a stamina chegar a',
+ 'market.price.add_pair':'Registrar compra e venda',
  'market.price.add':'Registrar preço', 'market.stats':'Consultar preços', 'market.price.correct':'Corrigir preço', 'market.price.delete':'Apagar preço',
  'market.item.watch':'Acompanhar item', 'market.watch.list':'Listar itens acompanhados', 'market.alert.create':'Criar alerta de preço', 'market.alert.list':'Listar alertas de preço'
 }
@@ -659,6 +666,7 @@ def span(seconds):
     return f'{days}d {hours}h' if days else f'{hours}h {rest}min' if hours else f'{rest}min'
 
 def reply(result):
+    if result.get('price_pair'):return 'Preços de compra e venda registrados. Histórico local atualizado.'
     if result.get('message'):return result['message']
     if result.get('already_reached'):return 'A stamina já alcançou a meta estimada. Nenhum alarme foi criado.'
     if 'alert' in result and result['alert'].get('kind')=='stamina':

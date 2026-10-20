@@ -70,6 +70,40 @@ class StoreTests(StoreCase):
         self.assertEqual([],self.call('timer.list')['stamina_alerts'])
         self.assertEqual('alert.cancel',self.call('history')['events'][-1]['intent'])
 
+    def test_market_pair_validates_both_prices_before_any_mutation(self):
+        self.call('market.price.add',{'item':'TC','price':'46k'})
+        original=(self.path/'assistente-tibiano.json').read_bytes()
+        for invalid in ('0','inválido','-10'):
+            with self.assertRaises(ValueError):self.call('market.price.add_pair',{'item':'TC','buy_price':'45k','sell_price':invalid})
+            self.assertEqual(original,(self.path/'assistente-tibiano.json').read_bytes())
+        with self.assertRaises(ValueError):self.call('market.price.add_pair',{'item':'TC','buy_price':'45k','sell_price':'46k','observed_at':(NOW+timedelta(minutes=1)).isoformat()})
+        self.assertEqual(original,(self.path/'assistente-tibiano.json').read_bytes())
+
+    def test_market_pair_atomic_replay_audit_and_world_isolation(self):
+        args={'item':'TC','buy_price':'47k','sell_price':'46k'}
+        result=self.call('market.price.add_pair',args,'pair-one')
+        self.assertEqual(result,self.call('market.price.add_pair',args,'pair-one'))
+        self.assertEqual(['buy','sell'],[r['offer_type'] for r in result['observations']])
+        self.assertEqual([47000,46000],[r['price_gp'] for r in result['observations']])
+        self.assertEqual(1,len({r['at'] for r in result['observations']}))
+        self.assertEqual(2,self.store.market_prices('Antica')['total'])
+        self.assertEqual(0,self.store.market_prices('Secura')['total'])
+        event=self.call('history')['events'][-1]
+        self.assertEqual([r['id'] for r in result['observations']],event['observation_ids'])
+        self.assertTrue(all(r['event_id']==event['id'] and r['source']=='manual' for r in result['observations']))
+        with self.assertRaises(ValueError):self.call('market.price.add_pair',{**args,'sell_price':'48k'},'pair-one')
+        self.call('market.price.correct',{'observation_id':result['observations'][0]['id'],'price':'48k','reason':'Digitado errado'})
+        self.assertEqual(48000,next(r for r in self.store.market_prices('Antica')['observations'] if r['offer_type']=='buy')['price_gp'])
+
+    def test_market_pair_matches_alerts_for_both_sides(self):
+        self.call('market.alert.create',{'item':'TC','offer_type':'buy','direction':'below','price':'46k'})
+        self.call('market.alert.create',{'item':'TC','offer_type':'sell','direction':'above','price':'46k'})
+        self.call('market.alert.create',{'item':'TC','offer_type':'buy','direction':'below','price':'46k'},context={'character_id':'Outro','world_id':'Secura'})
+        self.call('market.price.add_pair',{'item':'TC','buy_price':'45k','sell_price':'47k'})
+        self.assertEqual(2,len(self.store.poll()));self.assertEqual([],self.store.poll())
+        alerts=self.call('market.alert.list',context={'character_id':'Outro','world_id':'Secura'})['alerts']
+        self.assertIsNone(alerts[0]['matched_at'])
+
     def test_market_list_is_local_read_only_world_scoped_and_includes_other_characters(self):
         first = self.call('market.price.add', {'item':'TC','price':'46k'})['observation']
         self.call('market.price.add', {'item':'TC','price':'47k'}, context={'character_id':'Outro','world_id':'Secura'})

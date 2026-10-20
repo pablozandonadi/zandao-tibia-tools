@@ -16,6 +16,7 @@ import tibia_info
 from comandos_tibia import _nome_voc
 
 NOME = re.compile(r"[A-Za-z][A-Za-z '\-.]{1,39}")
+MAX_TRACKED = 1000
 MUNDO = re.compile(r'[A-Za-z]{2,40}')
 
 
@@ -63,6 +64,29 @@ def _morte(item):
     return fingerprint, normalized['time'], item['level'], cause[:500]
 
 
+def guild_preview(nome, consultar):
+    """Uma consulta ao roster público; prévia não cadastra nem consulta fichas."""
+    if not isinstance(nome,str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9 '\-.]{1,99}",nome.strip()):
+        raise ValueError('Informe um nome de guild válido (até 100 caracteres).')
+    nome=' '.join(nome.split())
+    result=consultar('guild:'+nome.casefold(),'/guild/'+quote(nome),ttl=300)
+    payload=result.get('dados') if isinstance(result,dict) else None
+    guild=payload.get('guild') if isinstance(payload,dict) else None
+    if not isinstance(guild,dict) or not isinstance(guild.get('members'),list) or not guild.get('name'):
+        raise ValueError('Guild indisponível ou não encontrada. Tente novamente depois.')
+    world=guild.get('world')
+    if not isinstance(world,str) or not MUNDO.fullmatch(world):raise ValueError('Mundo da guild indisponível.')
+    members=[];seen=set()
+    for member in guild['members']:
+        if not isinstance(member,dict):raise ValueError('Lista de membros inválida; nenhum personagem foi importado.')
+        name=_nome(member.get('name'));key=name.casefold()
+        if key not in seen:
+            seen.add(key)
+            members.append({'nome':name,'world':world,'vocation':member.get('vocation') if isinstance(member.get('vocation'),str) else None})
+    return {'guild':str(guild['name'])[:100],'world':world,'members':members,'total':len(members),
+            'consulta':result.get('consulta'),'velho':bool(result.get('velho')),'fonte':'TibiaData /guild (cache de 5 min)'}
+
+
 class Monitor:
     def __init__(self, base_dir, fetch=None, clock=None, fetch_world=None, wait=None):
         self.path = os.path.join(base_dir, 'monitor-personagens.json')
@@ -71,6 +95,8 @@ class Monitor:
         self.scan_lock = threading.Lock()
         self.world_scan_lock = threading.Lock()
         self.network_lock = threading.Lock()
+        self.guild_lock = threading.Lock()
+        self.guild_cache = {}
         self.stop_event = threading.Event()
         self.fetch_world = fetch_world or _fetch_world
         self.wait = wait or self.stop_event.wait
@@ -88,7 +114,7 @@ class Monitor:
             try:
                 with open(self.path, encoding='utf-8') as file:
                     loaded = json.load(file)
-                if not isinstance(loaded, dict) or loaded.get('schema') != 1 or not isinstance(loaded.get('personagens'), list) or len(loaded['personagens']) > 20:
+                if not isinstance(loaded, dict) or loaded.get('schema') != 1 or not isinstance(loaded.get('personagens'), list) or len(loaded['personagens']) > MAX_TRACKED:
                     raise ValueError()
                 for row in loaded['personagens']:
                     _nome(row['nome'])
@@ -146,8 +172,8 @@ class Monitor:
                     data['personagens'].remove(row)
             else:
                 if row is None:
-                    if len(data['personagens']) >= 20:
-                        raise ValueError('Limite de 20 personagens monitorados.')
+                    if len(data['personagens']) >= MAX_TRACKED:
+                        raise ValueError(f'Limite de {MAX_TRACKED} personagens monitorados.')
                     row = {'nome': nome, 'up': up, 'death': death, 'level': None, 'mortes': None}
                     data['personagens'].append(row)
                 if row['up'] != up:
@@ -162,6 +188,45 @@ class Monitor:
             self.status.pop(nome.casefold(), None)
             self.up_status.pop(nome.casefold(), None)
         return self.estado()
+
+    def guild(self,nome):
+        # Prévia manual compartilha o gate/backoff das fontes, com cache de 5 min.
+        def consultar(key,endpoint,ttl=300):
+            with self.guild_lock:
+                previous=self.guild_cache.get(key)
+                if previous and self.clock()-previous['consulta']<ttl:return copy.deepcopy(previous)
+                try:
+                    payload=self._request(lambda path:tibia_info._get_json(tibia_info.TIBIADATA+path),endpoint)
+                    result={'dados':payload,'consulta':self.clock(),'velho':False}
+                    self.guild_cache[key]=copy.deepcopy(result)
+                    return result
+                except Exception as error:
+                    self._failure(error,base=300)
+                    if previous:return {**copy.deepcopy(previous),'velho':True}
+                    return {'dados':{},'consulta':None,'velho':True}
+        return guild_preview(nome,consultar)
+
+    def importar(self,membros,up=True,death=True):
+        if type(up) is not bool or type(death) is not bool:raise ValueError('Opções de monitoramento inválidas.')
+        if not isinstance(membros,list) or not membros or len(membros)>MAX_TRACKED:raise ValueError(f'Informe de 1 a {MAX_TRACKED} membros.')
+        normalized={}
+        for member in membros:
+            if not isinstance(member,dict):raise ValueError('Lista de membros inválida.')
+            nome=_nome(member.get('nome'));world=member.get('world')
+            if not isinstance(world,str) or not MUNDO.fullmatch(world):raise ValueError('Mundo dos membros inválido.')
+            key=nome.casefold()
+            if key in normalized and normalized[key]['world'].casefold()!=world.casefold():raise ValueError('Mundos conflitantes no cadastro.')
+            normalized[key]={'nome':nome,'world':world,'vocation':member.get('vocation') if isinstance(member.get('vocation'),str) and len(member['vocation'])<=100 else None}
+        with self.lock:
+            data=copy.deepcopy(self.data);existing={r['nome'].casefold() for r in data['personagens']}
+            novos=[row for key,row in normalized.items() if key not in existing]
+            if len(data['personagens'])+len(novos)>MAX_TRACKED:raise ValueError(f'Limite de {MAX_TRACKED} personagens monitorados. Nenhum membro foi adicionado.')
+            for member in novos:
+                data['personagens'].append({**member,'up':up,'death':death,'level':None,'mortes':None,'world_baseline':False,'up_timestamp':None,'versao':uuid.uuid4().hex})
+            if novos:self._save(data)
+            result=self.estado()
+            result['importacao']={'adicionados':len(novos),'existentes':len(normalized)-len(novos),'total':len(data['personagens'])}
+            return result
 
     def _request(self, fetch, arg):
         # Só o início da chamada é espaçado; uma ficha lenta não segura a consulta do mundo.

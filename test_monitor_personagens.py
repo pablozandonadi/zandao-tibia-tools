@@ -1,6 +1,7 @@
 import copy
 import json
 import os
+from pathlib import Path
 import tempfile
 import threading
 import unittest
@@ -9,7 +10,8 @@ from datetime import datetime, timezone
 from urllib.error import HTTPError
 
 from app_paths import PRIVATE_FILES
-from monitor_personagens import Monitor
+from monitor_personagens import Monitor, MAX_TRACKED, guild_preview
+from unittest.mock import patch
 
 
 def dados(level=100, mortes=None):
@@ -150,12 +152,74 @@ class MonitorTest(unittest.TestCase):
         self.monitor.close()
         self.assertFalse(thread.is_alive())
 
+    def test_bulk_preserves_existing_flags_baselines_and_deduplicates(self):
+        self.scan();before=copy.deepcopy(self.monitor.data['personagens'][0])
+        members=[{'nome':'test knight','world':'Secura'},{'nome':'New Paladin','world':'Antica','vocation':'Royal Paladin'},{'nome':'NEW PALADIN','world':'Antica'}]
+        with patch.object(self.monitor,'_save',wraps=self.monitor._save) as save:
+            result=self.monitor.importar(members,up=False,death=True)
+        save.assert_called_once();self.assertEqual(before,self.monitor.data['personagens'][0])
+        self.assertEqual({'adicionados':1,'existentes':1,'total':2},result['importacao'])
+        new=self.monitor.data['personagens'][1];self.assertFalse(new['up']);self.assertTrue(new['death']);self.assertIsNone(new['mortes'])
+        restarted=Monitor(self.temp.name,fetch=self.fetch,clock=lambda:self.now,fetch_world=self.fetch_world,wait=lambda _:False)
+        self.assertEqual(self.monitor.data,restarted.data)
+
+    def test_bulk_rejects_any_invalid_member_or_limit_without_partial_save(self):
+        before=Path(self.monitor.path).read_text(encoding='utf8')
+        for members in ([{'nome':'Valid Knight','world':'Antica'},{'nome':'../invalid','world':'Antica'}],[{'nome':'Valid Knight','world':'Antica'},{'nome':'Other Knight','world':'../bad'}]):
+            with self.assertRaises(ValueError):self.monitor.importar(members)
+            self.assertEqual(before,Path(self.monitor.path).read_text(encoding='utf8'))
+        with patch('monitor_personagens.MAX_TRACKED',2):
+            with self.assertRaises(ValueError):self.monitor.importar([{'nome':'New Knight','world':'Antica'},{'nome':'New Druid','world':'Antica'}])
+        self.assertEqual(before,Path(self.monitor.path).read_text(encoding='utf8'))
+        self.assertEqual(1000,MAX_TRACKED)
+
+    def test_bulk_concurrent_merges_use_latest_configuration_and_limit(self):
+        barrier=threading.Barrier(2)
+        def add(name):
+            barrier.wait()
+            try:return self.monitor.importar([{'nome':name,'world':'Antica'}])
+            except ValueError:return None
+        with patch('monitor_personagens.MAX_TRACKED',2),ThreadPoolExecutor(max_workers=2) as pool:
+            results=list(pool.map(add,['Concurrent Knight','Concurrent Druid']))
+        self.assertEqual(1,sum(result is not None for result in results))
+        self.assertEqual(2,len(self.monitor.data['personagens']))
+
+    def test_guild_over_twenty_uses_world_hint_and_initial_world_read_is_silent(self):
+        members=[{'nome':'Guild Member '+chr(65+i),'world':'Antica'} for i in range(25)]
+        self.monitor.importar(members,up=True,death=False)
+        self.assertEqual(26,len(self.monitor.data['personagens']))
+        restarted=Monitor(self.temp.name,fetch=self.fetch,clock=lambda:self.now,fetch_world=lambda world:{'world':{'name':world,'online_players':[{'name':m['nome'],'level':100,'vocation':'Knight'} for m in members]},'information':{'timestamp':datetime.fromtimestamp(self.now,timezone.utc).isoformat()}},wait=lambda _:False)
+        restarted._scan_world();self.assertEqual([],restarted.estado()['up']);self.assertEqual(0,self.calls)
+        self.assertTrue(all(r.get('world_baseline') for r in restarted.data['personagens'][1:]))
+
+    def test_guild_preview_shares_request_gate_cache_and_backoff(self):
+        payload={'guild':{'name':'Example Guild','world':'Antica','members':[{'name':'Test Knight'}]}}
+        with patch('monitor_personagens.tibia_info._get_json',return_value=payload) as fetch,patch.object(self.monitor,'_request',wraps=self.monitor._request) as gate:
+            first=self.monitor.guild('Example Guild');second=self.monitor.guild('Example Guild')
+            self.assertEqual(first,second);self.assertEqual(1,fetch.call_count);self.assertEqual(1,gate.call_count)
+        self.now+=301
+        with patch('monitor_personagens.tibia_info._get_json',side_effect=HTTPError('https://api.tibiadata.com/v4/guild/Example',429,'limit',{'Retry-After':'600'},None)):
+            stale=self.monitor.guild('Example Guild')
+        self.assertTrue(stale['velho']);self.assertEqual(self.now+600,self.monitor.network_until)
+        with patch('monitor_personagens.tibia_info._get_json') as fetch:
+            self.assertTrue(self.monitor.guild('Example Guild')['velho']);fetch.assert_not_called()
+
+    def test_guild_preview_one_query_no_configuration_and_cache_metadata(self):
+        before=copy.deepcopy(self.monitor.data);consult=patch('monitor_personagens._fetch').start();self.addCleanup(patch.stopall)
+        result={'dados':{'guild':{'name':'Example Guild','world':'Antica','members':[{'name':'Test Knight','vocation':'Elite Knight'},{'name':'test knight'},{'name':'Other Paladin'}]}},'consulta':123,'velho':True}
+        with patch('zandaobot._consultar',return_value=result) as query:
+            preview=guild_preview('Example Guild',query)
+        query.assert_called_once_with('guild:example guild','/guild/Example%20Guild',ttl=300)
+        self.assertEqual(2,preview['total']);self.assertTrue(preview['velho']);self.assertEqual('Antica',preview['world'])
+        self.assertEqual(before,self.monitor.data);consult.assert_not_called()
+
     def test_limite_validacao_singleflight_e_privacidade(self):
         self.assertIn('monitor-personagens.json', PRIVATE_FILES)
-        for i in range(19):
-            self.monitor.configurar('Player ' + chr(65 + i))
-        with self.assertRaises(ValueError):
-            self.monitor.configurar('Player Twentyone')
+        with patch('monitor_personagens.MAX_TRACKED',20):
+            for i in range(19):
+                self.monitor.configurar('Player ' + chr(65 + i))
+            with self.assertRaises(ValueError):
+                self.monitor.configurar('Player Twentyone')
         with self.assertRaises(ValueError):
             self.monitor.configurar('../Test')
         with self.assertRaises(ValueError):
