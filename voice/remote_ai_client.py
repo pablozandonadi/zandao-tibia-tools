@@ -231,7 +231,7 @@ class RemoteAIClient:
         result=self._post('/chat',json.dumps({'request_id':request_id,'messages':messages},ensure_ascii=False).encode('utf-8'),request_id,'application/json')
         kind,text,intent=result.get('kind'),result.get('text'),result.get('intent')
         if set(result)!={'request_id','kind','text','intent'} or not (
-                kind=='reply' and isinstance(text,str) and text.strip() and utf16_length(text)<=600 and intent is None
+                kind=='reply' and isinstance(text,str) and text.strip() and utf16_length(text)<=1800 and intent is None
                 or kind=='action' and valid_intent(intent) and (text is None or isinstance(text,str) and utf16_length(text)<=600)
                 or kind=='out_of_scope' and text is None and intent is None): raise RemoteAIError('Resposta online inválida.')
         return {'kind':kind,'text':text,'intent':safe_temporal_intent(intent,'\n'.join(m['text'] for m in messages if m['role']=='user')) if kind=='action' else None}

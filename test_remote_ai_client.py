@@ -116,7 +116,7 @@ class RemoteClientTests(unittest.TestCase):
     def _chat_client(self, payload):
         from voice.remote_ai_client import RemoteAIClient
         client=RemoteAIClient('a'*43);client._opener=Mock()
-        response=io.BytesIO(json.dumps(payload).encode());response.status=200;client._opener.open.return_value=response
+        response=io.BytesIO(json.dumps(payload,ensure_ascii=False).encode());response.status=200;client._opener.open.return_value=response
         return client
 
     def test_chat_posts_the_exact_body_and_returns_reply(self):
@@ -167,13 +167,31 @@ class RemoteClientTests(unittest.TestCase):
                 client=self._chat_client({'request_id':rid,'kind':'action','text':None,'intent':kill})
                 self.assertEqual(client.chat(turns,rid)['intent'],want)
 
+    def test_chat_reply_limit_counts_utf16_and_keeps_action_short(self):
+        from voice.remote_ai_client import RemoteAIError
+        rid='b92e3ae7-3591-4cd9-9188-1e5422fa1121'
+        messages=[{'role':'user','text':'Explique os requisitos e primeiros passos dessa quest.'}]
+        for text in ['x'*1800, '😀'*900]:
+            with self.subTest(length=len(text)):
+                client=self._chat_client({'request_id':rid,'kind':'reply','text':text,'intent':None})
+                self.assertEqual(client.chat(messages,rid)['text'],text)
+        for text in ['x'*1801, '😀'*900+'x']:
+            client=self._chat_client({'request_id':rid,'kind':'reply','text':text,'intent':None})
+            with self.assertRaises(RemoteAIError):client.chat(messages,rid)
+        timer={'action':'create_timer','parameters':{'seconds':30},'needs_clarification':False,'clarification':None}
+        for text,valid in [('x'*600,True),('😀'*300,True),('😀'*300+'x',False)]:
+            client=self._chat_client({'request_id':rid,'kind':'action','text':text,'intent':timer})
+            if valid:self.assertEqual(client.chat(messages,rid)['text'],text)
+            else:
+                with self.assertRaises(RemoteAIError):client.chat(messages,rid)
+
     def test_chat_rejects_invalid_responses(self):
         from voice.remote_ai_client import RemoteAIError
         rid='b92e3ae7-3591-4cd9-9188-1e5422fa1121'
         timer={'action':'create_timer','parameters':{'seconds':30},'needs_clarification':False,'clarification':None}
         base={'request_id':rid,'kind':'reply','text':'ok','intent':None}
         bad=[{**base,'extra':1},{k:v for k,v in base.items() if k!='text'},{k:v for k,v in base.items() if k!='kind'},{**base,'kind':'banana'},{**base,'kind':['reply']},{**base,'kind':None},
-             {**base,'text':None},{**base,'text':''},{**base,'text':'  '},{**base,'text':7},{**base,'text':'x'*601},{**base,'intent':timer},
+             {**base,'text':None},{**base,'text':''},{**base,'text':'  '},{**base,'text':7},{**base,'text':'x'*1801},{**base,'intent':timer},
              {**base,'kind':'action','intent':None},{**base,'kind':'action','intent':{**timer,'action':'shell'}},{**base,'kind':'action','intent':{**timer,'parameters':{'seconds':-1}}},{**base,'kind':'action','text':7,'intent':timer},{**base,'kind':'action','text':'x'*601,'intent':timer},
              {**base,'kind':'out_of_scope','text':'Não falo disso.'},{**base,'kind':'out_of_scope','text':None,'intent':timer}]
         for payload in bad:

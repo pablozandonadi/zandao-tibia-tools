@@ -240,15 +240,15 @@ O cliente prioriza bosses usados recentemente (até uma hora), depois bosses com
 
 `POST /chat` (`Content-Type: application/json`, `X-Request-ID: UUIDv4`) usa a mesma autenticação, quotas, reserva/liquidação (`VOICE_NLU_RESERVE_MICRO_USD`), modelo, `reasoning minimal`, `store:false`, teto de saída e tratamento de erros do `/interpret`; cada UUID só chega à OpenAI uma vez (409 na repetição). Corpo exato `{request_id,messages}`, até 8192 bytes (maior recebe 413). `messages` tem de 1 a 6 itens `{role,text}`: `role` é `user` ou `assistant`, `text` é string não vazia (após trim) até 500 caracteres, e o último item é `user`. Qualquer outra forma recebe 400, sem reserva e sem chamar a OpenAI.
 
-As mensagens vão como `input` do Responses API (nunca dentro das instruções). As instruções são o texto do chat (só Tibia e as ferramentas do Tibia Tudo; outro assunto vira `out_of_scope`) seguido do glossário do `/interpret`; a saída é JSON estrito `{kind,text,intent}`. O corpo enviado à OpenAI não pode passar de **16000 bytes** (o `/interpret` continua com 12000). A checagem ocorre **antes da reserva**: um 503 por tamanho não consome orçamento nem o UUID. Estimativa conservadora: 17024 tokens de entrada × US$0,05/M + 2048 × US$0,40/M = US$0,0016704, abaixo da reserva de US$0,002. A resposta do provedor continua limitada a 32 KiB.
+As mensagens vão como `input` do Responses API (nunca dentro das instruções). As instruções são o texto do chat (só Tibia e as ferramentas do Tibia Tudo; outro assunto vira `out_of_scope`) seguido do glossário do `/interpret`; a saída é JSON estrito `{kind,text,intent}`. O corpo enviado à OpenAI não pode passar de **16000 bytes** (o `/interpret` continua com 12000). A checagem ocorre **antes da reserva**: um 503 por tamanho não consome orçamento nem o UUID. Estimativa conservadora: 17024 tokens de entrada × US$0,05/M + 2048 × US$0,40/M = US$0,0016704, abaixo da reserva de US$0,002. A resposta do provedor continua limitada a 256 KiB.
 
 Resposta `{request_id,kind,text,intent}`:
 
-- `reply`: `text` não vazio até 600 caracteres e `intent` null.
-- `action`: `intent` válido pelas mesmas regras do `/interpret`, inclusive o guard temporal, aplicado ao texto de todas as mensagens do jogador (uma data dita num turno anterior vale para o `sim` seguinte); `text` null ou string até 600 caracteres.
+- `reply`: `text` não vazio até 1800 unidades UTF-16 e `intent` null.
+- `action`: `intent` válido pelas mesmas regras do `/interpret`, inclusive o guard temporal, aplicado ao texto de todas as mensagens do jogador (uma data dita num turno anterior vale para o `sim` seguinte); `text` null ou string até 600 unidades UTF-16.
 - `out_of_scope`: `text` e `intent` null.
 
-Saída do modelo fora desse contrato, ou `status:"incomplete"`, recebe 502. O pior caso da resposta pública (600 + intent) fica abaixo de 4 KiB, dentro dos 8 KiB lidos pelo cliente. O cliente (`RemoteAIClient.chat`) revalida o corpo e a resposta com o mesmo contrato. Esta rota ainda não foi implantada nem validada contra a OpenAI real.
+Saída do modelo fora desse contrato, ou `status:"incomplete"`, recebe 502. O limite de reply permite tutoriais organizados; perguntas simples continuam breves. A resposta pública UTF-8 permanece dentro dos 8 KiB lidos pelo cliente. O cliente (`RemoteAIClient.chat`) revalida o corpo e a resposta com o mesmo contrato. Esta rota ainda não foi implantada nem validada contra a OpenAI real.
 
 
 ### Parte C: contexto e tamanho real
@@ -260,3 +260,9 @@ No `/chat`, o JSON completo enviado ao provedor é medido depois de escapar o te
 ## Escopo e proteção do chat
 
 O `/chat` só trata de Tibia e contas do jogo; outros assuntos voltam como `out_of_scope`. Cada pedido leva um segredo interno aleatório: se a resposta o contiver, vira `out_of_scope`. Links (`http(s)://`, `www.`) são removidos da resposta. Conversão gold→reais é local no app (`calculadora_gold.py`, variáveis em `conversao-tc.json`).
+
+### Conversa direta sobre quests
+
+O chat assume Tibia oficial, usa o assunto já esclarecido no histórico e só pergunta por um dado essencial. Quando houver informação confiável, responde com requisitos, itens, primeiro local/NPC, palavras a dizer e próximos passos. Informação incerta deve ser identificada; a rota não possui navegação e não pode prometer pesquisas. O modelo, o teto de 2048 tokens, as cotas, a reserva e os limites do histórico permanecem iguais.
+
+Os testes usam respostas e transporte simulados: verificam instruções, contexto e limites, sem comprovar a qualidade factual de uma resposta real da IA nem consumir créditos.

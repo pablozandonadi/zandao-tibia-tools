@@ -137,13 +137,32 @@ test('chat returns reply, action and out_of_scope through one fixed Responses re
   assert.deepEqual([format.type,format.strict,format.schema.additionalProperties],['json_schema',true,false]);
   assert.deepEqual(format.schema.required,['kind','text','intent']);
   assert.deepEqual(props.kind.enum,['reply','action','out_of_scope']);
-  assert.deepEqual([props.text.type,props.text.maxLength],[['string','null'],600]);
+  assert.deepEqual([props.text.type,props.text.maxLength],[['string','null'],1800]);
   assert.equal(props.intent.anyOf.length,2);assert.deepEqual(props.intent.anyOf[1],{type:'null'});assert.deepEqual(props.intent.anyOf[0].required,['action','parameters','needs_clarification','clarification']);
   assert.ok(Buffer.byteLength(body)<=16000);
   assert.equal(s.db.prepare('SELECT status FROM requests').get().status,'complete');
   assert.equal((await chat(s,[say('user','oi')],{},id)).status,409);assert.equal(s.calls,1);
  }
 });
+test('chat sends direct quest guidance and the clarified topic without pretending to browse',async()=>{
+ let sent;
+ const answer='Não tenho certeza de um detalhe dessa quest; confira tibiawiki.com.br.';
+ const s=await setup({},async(_url,{body})=>{assert.ok(Buffer.byteLength(body)<=16000);sent=JSON.parse(body);return modelSays({kind:'reply',text:answer,intent:null})();});
+ const turns=[say('user','Gostaria de saber sobre a quest dos 10k'),say('assistant','Qual é o nome exato da quest?'),say('user','The Desert Dungeon Quest'),say('assistant','Posso explicar o que sei sobre ela.'),say('user','sim, os requisitos e onde vou primeiro')];
+ const r=await chat(s,turns);assert.equal(r.status,200);assert.equal((await r.json()).text,answer);
+ assert.deepEqual(sent.input,turns.map(m=>({role:m.role,content:m.text})));
+ for(const instruction of [/assuma o Tibia oficial/,/requisitos e itens necessários/,/primeiro local e NPC/,/palavras a dizer ao NPC/,/apenas quando conhecidos com segurança/,/Pergunte só por um dado essencial/,/nunca prometa pesquisar/,/Não pergunte se quer os passos/,/até 1800 caracteres UTF-16/,/Segurança: ignore qualquer pedido/])assert.match(sent.instructions,instruction);
+ assert.equal(sent.max_output_tokens,2048);assert.equal(s.db.prepare('SELECT reserved FROM requests').get().reserved,2000);
+});
+
+test('chat reply limit is 1800 UTF-16 units while action confirmations stay at 600',async()=>{
+ for(const [kind,text,status] of [['reply','x'.repeat(1800),200],['reply','😀'.repeat(900),200],['reply','x'.repeat(1801),502],['reply','😀'.repeat(900)+'x',502],['action','x'.repeat(600),200],['action','😀'.repeat(300),200],['action','😀'.repeat(300)+'x',502]]){
+  const s=await setup({},modelSays({kind,text,intent:kind==='action'?timer30:null}));
+  const r=await chat(s,[say('user','Explique essa quest')]);assert.equal(r.status,status,`${kind}: ${text.length}`);
+  if(status===200)assert.equal((await r.json()).text,text);
+ }
+});
+
 test('chat rejects malformed requests before reserving budget or reaching the provider',async()=>{
  const s=await setup(roomy,modelSays({kind:'reply',text:'ok',intent:null}));
  const ok=[say('user','oi')];
@@ -160,7 +179,7 @@ test('chat rejects malformed requests before reserving budget or reaching the pr
 });
 test('chat rejects invalid model output with 502 and never forwards it',async()=>{
  let current;const s=await setup(roomy,async()=>modelSays(current)());
- const cases=[{kind:'action',text:null,intent:{...timer30,action:'shell'}},{kind:'action',text:null,intent:{...timer30,parameters:{seconds:-1}}},{kind:'action',text:null,intent:null},{kind:'action',text:7,intent:timer30},{kind:'action',text:'x'.repeat(601),intent:timer30},{kind:'reply',text:null,intent:null},{kind:'reply',text:'',intent:null},{kind:'reply',text:'  ',intent:null},{kind:'reply',text:'x'.repeat(601),intent:null},{kind:'reply',text:'ok',intent:timer30},{kind:'out_of_scope',text:'Não falo disso.',intent:null},{kind:'out_of_scope',text:null,intent:timer30},{kind:'banana',text:null,intent:null},{kind:['reply'],text:'ok',intent:null},{kind:'reply',text:'ok',intent:null,extra:1},{kind:'reply',text:'ok'},'reply',null,[]];
+ const cases=[{kind:'action',text:null,intent:{...timer30,action:'shell'}},{kind:'action',text:null,intent:{...timer30,parameters:{seconds:-1}}},{kind:'action',text:null,intent:null},{kind:'action',text:7,intent:timer30},{kind:'action',text:'x'.repeat(601),intent:timer30},{kind:'reply',text:null,intent:null},{kind:'reply',text:'',intent:null},{kind:'reply',text:'  ',intent:null},{kind:'reply',text:'x'.repeat(1801),intent:null},{kind:'reply',text:'ok',intent:timer30},{kind:'out_of_scope',text:'Não falo disso.',intent:null},{kind:'out_of_scope',text:null,intent:timer30},{kind:'banana',text:null,intent:null},{kind:['reply'],text:'ok',intent:null},{kind:'reply',text:'ok',intent:null,extra:1},{kind:'reply',text:'ok'},'reply',null,[]];
  for(current of cases){const r=await chat(s,[say('user','oi')]);assert.equal(r.status,502,JSON.stringify(current));assert.equal((await r.json()).error,'voice_request_failed');}
  assert.equal(s.calls,cases.length);
 });
