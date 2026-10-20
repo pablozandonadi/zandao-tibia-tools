@@ -87,11 +87,10 @@ async function bootConversion(){
 let pricesRevision=0,pricesKey='',pricesTimer;
 async function refreshPrices(force=false){
  const world=el('assistente-world').value.trim(),key=JSON.stringify([world,state.revision]);
- if(!force&&pricesKey===key)return;pricesKey=key;const revision=++pricesRevision,out=el('assistente-precos');out.replaceChildren(node('p',world?'Carregando preços…':'Informe o mundo para consultar seus preços.'));
+ if(!force&&pricesKey===key)return;pricesKey=key;const revision=++pricesRevision,out=el('assistente-precos');if(!out.children.length)out.append(node('p',world?'Carregando preços…':'Informe o mundo para consultar seus preços.'));
  if(!world)return;
  try{const data=await window.pywebview.api.assistente_precos(world);if(revision!==pricesRevision||el('assistente-world').value.trim()!==world)return;if(data.erro)throw new Error(data.erro);
-  out.replaceChildren(node('p',data.total?`${data.total} registros em ${world}${data.total>100?' · mostrando os últimos 100':''}.`:'Nenhum preço registrado neste mundo.'));
-  if(data.observations.length)out.append(table(data.observations.map(row=>({...row,price:decimalBR(row.price_gp)+' GP',offer:({sell:'Venda',buy:'Compra',traded:'Negociado'})[row.offer_type]||row.offer_type,date:stamp(row.at)})),[['item','Item'],['price','Preço'],['offer','Oferta'],['date','Data'],['world_id','Mundo']]));
+  if(window.assistenteFerramentas)await window.assistenteFerramentas.prices(data);
  }catch(e){if(revision===pricesRevision){pricesKey='';out.replaceChildren(node('p',e.message||'Não foi possível carregar seus preços.'));}}
 }
 function table(rows,columns){const t=node('table',undefined,'assistente-table');const head=node('tr');for(const [,title] of columns)head.append(node('th',title));t.append(head);for(const row of rows){const tr=node('tr');for(const [key] of columns)tr.append(node('td',row[key]===null||row[key]===undefined?'—':String(row[key])));t.append(tr);}return t;}
@@ -99,7 +98,7 @@ function showResult(module,data){
  const out=el('assistente-result-'+module);out.replaceChildren();out.append(node('p',data.message||data.note||'Consulta concluída.'));
  if(data.range)out.append(node('strong',`Faixa: ${data.range[0]} a ${data.range[1]}${data.compatible===undefined?'':data.compatible?' · Compatível por level':' · Incompatível por level'}`));
  if(data.source)out.append(node('p',data.source,'dica'));
- if(data.timers)renderTimers(data.timers,out);
+
  if(data.boss||data.bosses){const rows=(data.bosses||[data.boss]).map(b=>({...b,last:stamp(b.last_killed_at),ready:b.available_at?stamp(b.available_at):'Cooldown não verificado',goal:b.complete?'Completo':b.next_goal?`${b.progress} / ${b.next_goal} · faltam ${b.missing}`:'Meta não verificada'}));out.append(table(rows,[['name','Boss'],['real_kills','Abates reais'],['goal','Bosstiary'],['last','Último abate'],['ready','Disponibilidade']]));}
  if(data.stamina)out.append(node('p',`${data.stamina.stamina_minutes} min · ${data.stamina.offline?'Offline declarado':'Online declarado'} · Referência: ${stamp(data.stamina.reference_at)}`));
  if(data.at)out.append(node('strong',stamp(data.at)));
@@ -110,32 +109,17 @@ function showResult(module,data){
  if(data.alerts)out.append(table(data.alerts,[['item','Item'],['threshold','Limite GP'],['direction','Direção'],['fired','Já avisado']]));
 }
 function chart(out,rows,title='Evolução dos preços informados no período selecionado'){if(rows.length<2)return;const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 600 150');svg.setAttribute('role','img');svg.setAttribute('aria-label',title);const values=rows.map(r=>r.price_gp),low=Math.min(...values),high=Math.max(...values);const line=document.createElementNS(ns,'polyline');line.setAttribute('points',values.map((v,i)=>`${10+i*580/(values.length-1)},${140-(v-low)*130/(high-low||1)}`).join(' '));line.setAttribute('fill','none');line.setAttribute('stroke','currentColor');line.setAttribute('stroke-width','3');svg.append(line);out.append(svg);}
-function renderTimers(timers,target){
- const list=target||el('assistente-timers-list');list.replaceChildren();
- for(const t of timers){const card=node('article',undefined,'card calmo');const remain=Math.max(0,Math.ceil((new Date(t.ends_at)-Date.now())/1000));card.append(node('strong',t.label),node('p',`${t.status==='active'?remain+' segundos':t.status==='completed'?'Concluído':'Cancelado'} · ${stamp(t.ends_at)} · ${t.character_id||'Global'}`));if(t.status==='active'){card.append(button('+1 min',()=>run('timers','timer.extend',{timer_id:t.id,delta_seconds:60})),button('Cancelar',()=>run('timers','timer.cancel',{timer_id:t.id})),button('Editar',()=>{el('assistente-op-timers').value='timer.edit';renderFields('timers',{timer_id:t.id,label:t.label,duration_seconds:t.duration_seconds});}));}card.append(button('Repetir',()=>run('timers','timer.repeat',{timer_id:t.id})));list.append(card);}
- if(!timers.length)list.append(node('p','Nenhum timer. Crie um pelo formulário ou pelo Chat.','dica'));
-}
 function renderFields(module,initial={}){
  const intent=el('assistente-op-'+module).value;const keys=operations[module].find(op=>op[0]===intent)[2],container=el('assistente-fields-'+module);container.replaceChildren();
  for(const key of keys){const [caption,type]=fields[key],wrap=node('label',caption);let input;if(['boss','timer','offer','direction'].includes(type)){input=node('select');let options=type==='boss'?state.catalog.bosses.map(b=>[b.boss_id,b.name]):type==='timer'?state.timers.map(t=>[t.id,`${t.label} (${t.status})`]):type==='offer'?[['sell','Venda'],['buy','Compra'],['traded','Negociado']]:[['below','Abaixo de'],['above','Acima de']];for(const [v,title] of options){const option=node('option',title);option.value=v;input.append(option);}}else{input=node(type==='textarea'?'textarea':'input');if(type!=='textarea')input.type=type;}
  input.id=`assistente-${module}-${key}`;input.name=key;input.maxLength=key==='bosses'?30000:120;if(type==='number'){input.step='1';input.min='0';}if(type==='checkbox')input.checked=initial[key]===true;else if(initial[key]!==undefined)input.value=initial[key];else if(key==='days')input.value='30';else if(key==='item')input.value='Tibia Coin';else if(key==='duration_seconds')input.value='30';else if(key==='target_stamina_minutes'||key==='desired_stamina_minutes')input.value='2520';else if(key==='stamina_minutes'||key==='starting_stamina_minutes')input.value='2280';wrap.htmlFor=input.id;wrap.append(input);container.append(wrap);}
 }
-async function staminaDetails(context){
- const api=window.pywebview.api,ref=await api.assistente_executar('stamina.get',{},context);
- if(ref.erro||!ref.stamina.offline)return;
- const out=el('assistente-result-stamina'),cards=node('div',undefined,'voz-form'),rows=[];
- for(const target of [2340,2520]){const r=await api.assistente_executar('stamina.time_to',{target_stamina_minutes:target},context);if(!r.erro){const card=node('div',undefined,'card calmo');card.append(node('strong',`${target/60}h de stamina`),node('p',stamp(r.at)));cards.append(card);rows.push({price_gp:target,date:r.at});}}
- out.append(cards);const finish=rows.at(-1);if(!finish)return;
- const start=new Date(ref.stamina.reference_at),end=new Date(finish.date),timeline=[];
- for(let step=0;step<=4;step++){const at=new Date(start.getTime()+(end-start)*step/4).toISOString();const r=await api.assistente_executar('stamina.project',{target_datetime:at},context);if(!r.erro)timeline.push({price_gp:r.stamina_minutes,date:stamp(at),stamina:`${Math.floor(r.stamina_minutes/60)}h${String(r.stamina_minutes%60).padStart(2,'0')}`});}
- out.append(table(timeline,[['date','Horário estimado'],['stamina','Stamina se permanecer offline']]));chart(out,timeline,'Projeção de recuperação de stamina se permanecer offline');
-}
 async function run(module,intent,args){
  if(busy)return;busy=true;const status=el('assistente-feedback');status.textContent='Processando…';
  const context={...state.context},id=crypto.randomUUID();
  if(module==='market'&&el('assistente-world').value.trim())context.world_id=el('assistente-world').value.trim();
- try{const data=await execute(window.pywebview.api,intent,args,context,id);if(data.erro)throw new Error(data.erro);showResult(module,data);if(module==='stamina')await staminaDetails(context);status.textContent=data.message||'Concluído.';await refresh();}
- catch(e){status.textContent=e.message||'Não foi possível concluir.';}finally{busy=false;}
+ try{const data=await execute(window.pywebview.api,intent,args,context,id);if(data.erro)throw new Error(data.erro);if(JSON.stringify(context)!==JSON.stringify({...state.context,...(module==='market'?{world_id:el('assistente-world').value.trim()}: {})}))return false;showResult(module,data);status.textContent=data.message||'Concluído.';await refresh();return true;}
+ catch(e){status.textContent=e.message||'Não foi possível concluir.';return false;}finally{busy=false;}
 }
 let refreshVersion=0;
 async function refresh(){
@@ -145,7 +129,7 @@ async function refresh(){
  if(window.chatEstado)window.chatEstado(data);
  for(const input of document.querySelectorAll('select[name=timer_id],select[name=boss_id]')){const previous=input.value;const rows=input.name==='timer_id'?data.timers.map(t=>[t.id,`${t.label} (${t.status})`]):data.catalog.bosses.map(b=>[b.boss_id,b.name]);const sig=rows.join('\n');if(input.dataset.sig===sig)continue;input.dataset.sig=sig;input.replaceChildren();for(const [value,title] of rows){const option=node('option',title);option.value=value;input.append(option);}if(rows.some(r=>r[0]===previous))input.value=previous;}
  if(!el('assistente-world').value)el('assistente-world').value=data.context.world_id||'';
- el('assistente-context').textContent=`Personagem: ${data.context.character_id||'Selecione em Meus personagens'} · Level: ${data.context.level||'—'} · Mundo: ${data.context.world_id||'Não informado'}`;el('assistente-overview').textContent=`${data.timers.filter(t=>t.status==='active').length} timers ativos · Bosses e stamina por personagem · Market privado por mundo. Alertas funcionam enquanto o aplicativo está aberto e são reconciliados uma vez ao reabrir.`;renderTimers(data.timers);
+ el('assistente-context').textContent=`Personagem: ${data.context.character_id||'Selecione em Meus personagens'} · Level: ${data.context.level||'—'} · Mundo: ${data.context.world_id||'Não informado'}`;el('assistente-overview').textContent=`${data.timers.filter(t=>t.status==='active').length} timers ativos · Bosses e stamina por personagem · Market privado por mundo. Alertas funcionam enquanto o aplicativo está aberto e são reconciliados uma vez ao reabrir.`;if(window.assistenteFerramentas)window.assistenteFerramentas.update(data);
  const names=el('bosstiary-nomes');if(names&&names.children.length!==data.catalog.bosses.length)names.replaceChildren(...data.catalog.bosses.map(b=>{const o=node('option');o.value=b.name;return o;}));
  const key=`${data.context.character_id}|${data.revision}`;if(['bosstiary','bosses'].includes(active)&&key!==bosstiaryKey){bosstiaryKey=key;await loadBosstiary();}
  if(active==='stamina')await renderStamina();if(active==='market'){await refreshPrices();refreshQuote();}}
@@ -224,31 +208,28 @@ async function renderStamina(){
  if(!r.erro){
   const short=v=>new Date(v).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const ref=r.stamina,since=`desde ${short(ref.reference_at)} (há ${span(Date.now()-new Date(ref.reference_at))})`,when=v=>new Date(v)<=Date.now()?'já':short(v);
-  if(ref.offline){minutes=r.estimate_minutes;text=`Offline ${since} · Verde (39h): ${when(r.green_at)} · Cheia (42h): ${when(r.full_at)}`;}
-  else{minutes=Math.max(0,ref.stamina_minutes-r.online_minutes);text=`Online ${since} · No login: ${hhmm(ref.stamina_minutes)} · A barra mostra quanto sobra se você caçou o tempo todo`;}
+  if(ref.offline){minutes=r.estimate_minutes;text=`Offline ${since} · Verde (39h): ${when(r.green_at)} · Cheia (42h): ${when(r.full_at)}${new Date(r.full_at)>Date.now()?' · faltam '+span(new Date(r.full_at)-Date.now()):' · meta já atingida'}`;}
+  else{minutes=ref.stamina_minutes;text=`Online ${since} · No login: ${hhmm(ref.stamina_minutes)} · Consumo real desconhecido; registre a stamina ao deslogar`;}
  }
  el('stamina-valor').textContent=minutes===null?'--:--':hhmm(minutes);
  const fill=el('stamina-fill');fill.style.width=`${(minutes||0)*100/2520}%`;fill.dataset.nivel=minutes>=2340?'verde':minutes>=840?'laranja':'vermelho';
  el('stamina-barra').setAttribute('aria-label',minutes===null?'Stamina sem referência':`Stamina ${hhmm(minutes)} de 42:00`);
- el('stamina-detalhe').textContent=text;
+ el('stamina-detalhe').textContent=(!r.erro?`Referência salva: ${hhmm(r.stamina.stamina_minutes)} · ${stamp(r.stamina.reference_at)}. `:'')+text+` · Atualização local: ${new Date().toLocaleTimeString('pt-BR')}`;
 }
 function select(module){ferramenta(module);for(const panel of document.querySelectorAll('[data-assistente-panel]'))panel.hidden=panel.dataset.assistentePanel!==module;for(const b of document.querySelectorAll('[data-assistente-tab]'))b.setAttribute('aria-pressed',String(b.dataset.assistenteTab===module));if(module==='overview'&&window.assistenteCanais)window.assistenteCanais.visivel();}
 function ferramenta(module){active=module;if(module==='bosstiary'||module==='bosses'){bosstiaryKey='';}if(module==='upo'&&window.abrirUpo)window.abrirUpo();refresh();}
 function boot(){
  if(booted||!el('assistente-context')||!window.pywebview||!window.pywebview.api)return;booted=true;
  for(const b of document.querySelectorAll('[data-assistente-tab]'))b.addEventListener('click',()=>select(b.dataset.assistenteTab));
- for(const [module,ops] of Object.entries(operations)){const root=el('assistente-form-'+module);const wrap=node('label','Operação');const choice=node('select');choice.id='assistente-op-'+module;for(const [intent,title] of ops){const option=node('option',title);option.value=intent;choice.append(option);}choice.addEventListener('change',()=>renderFields(module));wrap.append(choice);const inputs=node('div',undefined,'voz-form assistente-fields');inputs.id='assistente-fields-'+module;const submit=node('button','Executar','btn btn-primary');submit.type='submit';root.append(wrap,inputs,submit);renderFields(module);root.addEventListener('submit',e=>{e.preventDefault();try{const values={};for(const key of ops.find(op=>op[0]===choice.value)[2]){const input=el(`assistente-${module}-${key}`);values[key]=input.type==='checkbox'?input.checked:input.value;}run(module,choice.value,payload(choice.value,values));}catch(error){el('assistente-feedback').textContent=error.message;}});}
+ for(const [module,ops] of Object.entries(operations).filter(([module])=>module==='bosses')){const root=el('assistente-form-'+module);const wrap=node('label','Operação');const choice=node('select');choice.id='assistente-op-'+module;for(const [intent,title] of ops){const option=node('option',title);option.value=intent;choice.append(option);}choice.addEventListener('change',()=>renderFields(module));wrap.append(choice);const inputs=node('div',undefined,'voz-form assistente-fields');inputs.id='assistente-fields-'+module;const submit=node('button','Executar','btn btn-primary');submit.type='submit';root.append(wrap,inputs,submit);renderFields(module);root.addEventListener('submit',e=>{e.preventDefault();try{const values={};for(const key of ops.find(op=>op[0]===choice.value)[2]){const input=el(`assistente-${module}-${key}`);values[key]=input.type==='checkbox'?input.checked:input.value;}run(module,choice.value,payload(choice.value,values));}catch(error){el('assistente-feedback').textContent=error.message;}});}
  el('assistente-level-form').addEventListener('submit',async e=>{e.preventDefault();try{const context={...state.context};if(!el('assistente-level-confirm').checked)throw new Error('Marque a confirmação para alterar o cadastro.');const result=await window.pywebview.api.assistente_level(context.character_id,Number(el('assistente-level').value),true);if(result.erro)throw new Error(result.erro);el('assistente-feedback').textContent=result.message;el('assistente-level-confirm').checked=false;await refresh();}catch(error){el('assistente-feedback').textContent=error.message;}});
  el('bosstiary-form').addEventListener('submit',e=>{e.preventDefault();quickRun('bosstiary.set_total',{boss_id:el('bosstiary-boss').value.trim(),total_kills:Number(el('bosstiary-total').value)});});
  for(const input of document.querySelectorAll('[data-bosstiary-cat],#bosstiary-com-kills'))input.addEventListener('change',renderBosstiary);
  el('bosstiary-busca').addEventListener('input',renderBosstiary);
  el('cooldowns-busca').addEventListener('input',renderCooldowns);
+ if(window.assistenteFerramentas)window.assistenteFerramentas.boot({run});
  bootConversion();
  el('assistente-world').addEventListener('input',()=>{pricesKey='';++pricesRevision;manualQuote('Mundo alterado. Valor manual em uso.');clearTimeout(pricesTimer);el('assistente-precos').replaceChildren(node('p','Aguardando o mundo…'));pricesTimer=setTimeout(()=>{refreshPrices(true);refreshQuote();},200);});
- el('stamina-rapido').addEventListener('submit',e=>{e.preventDefault();const [h,m='0']=el('stamina-hhmm').value.trim().split(':');const minutes=Number(h)*60+Number(m);
-  if(!Number.isInteger(minutes)||Number(m)>59||minutes>2520){el('assistente-feedback').textContent='Digite como no jogo, por exemplo 41:21 (máximo 42:00).';return;}
-  quickRun('stamina.logout',{stamina_minutes:minutes},renderStamina);});
- el('stamina-logar').addEventListener('click',()=>quickRun('stamina.login',{},renderStamina));
  if(typeof PERS_OUVINTES!=='undefined')PERS_OUVINTES.push(()=>{++refreshVersion;++bossLoadVersion;++staminaVersion;bosstiaryKey='';if(el('page-voz').classList.contains('shown'))refresh();});
  setInterval(()=>{if(active==='bosses'&&el('page-voz').classList.contains('shown'))tickCooldowns();},20000);
  select('overview');setInterval(()=>{if(el('page-voz').classList.contains('shown')&&!busy)refresh();},2000);

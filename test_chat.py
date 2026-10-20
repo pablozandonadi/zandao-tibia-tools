@@ -59,6 +59,16 @@ class ChatCase(unittest.TestCase):
 
 
 class ComandosLocais(ChatCase):
+    def test_stamina_full_alarm_uses_saved_reference_locally(self):
+        self.store.execute('stamina.logout',{'stamina_minutes':2290},CTX)
+        r=self.chat.responder('criar alarme quando minha stamina estiver cheia')
+        self.assertEqual('local',r['origem']);self.assertIn('38h10',r['resposta'])
+        pending=self.store.execute('timer.list',{},CTX)
+        self.assertEqual([],pending['timers']);self.assertEqual(1,len(pending['stamina_alerts']))
+        self.assertEqual(self.store.execute('stamina.time_to',{'target_stamina_minutes':2520},CTX)['at'],pending['stamina_alerts'][0]['at'])
+        self.classe.assert_not_called()
+        self.assertEqual('stamina.alert',self.eventos()[-1]['intent'])
+
     def test_comando_executa_e_entendi_traz_o_nome_do_boss(self):
         r = self.chat.responder('matei drumi')
         self.assertEqual('local', r['origem'])

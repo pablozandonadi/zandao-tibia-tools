@@ -38,7 +38,7 @@
     for (const [id, card] of cards) {
       if (!ids.has(id)) { card.remove(); cards.delete(id); }
     }
-    for (const timer of data.timers || []) {
+    for (const timer of el('voz-lista') ? (data.timers || []) : []) {
       let card = cards.get(timer.id);
       if (!card) {
         card = document.createElement('article');
@@ -58,8 +58,8 @@
       card.querySelector('strong').textContent = `Timer de ${timer.label}`;
       card.querySelector('button').disabled = busy;
     }
-    el('voz-vazio').hidden = ids.size > 0;
-    el('voz-quantidade').textContent = `${ids.size} ${ids.size === 1 ? 'timer ativo' : 'timers ativos'}`;
+    if (el('voz-vazio')) el('voz-vazio').hidden = ids.size > 0;
+    if (el('voz-quantidade')) el('voz-quantidade').textContent = `${ids.size} ${ids.size === 1 ? 'timer ativo' : 'timers ativos'}`;
     countdown();
   }
   // Avisos (timer, boss, stamina, mercado) valem em qualquer aba: toast + som, uma vez por id; no 1º estado só marca como vistos.
@@ -102,7 +102,7 @@
     if (!bridge() || busy) return;
     busy = true;
     el('voz-feedback').textContent = '';
-    el('voz-criar').disabled = true;
+    if (el('voz-criar')) el('voz-criar').disabled = true;
     try {
       const data = await bridge()[method](...args);
       if (data.erro) throw new Error(data.erro);
@@ -110,7 +110,7 @@
     } catch (error) { el('voz-feedback').textContent = error.message || 'Não consegui concluir o comando.'; }
     finally {
       busy = false;
-      el('voz-criar').disabled = false;
+      if (el('voz-criar')) el('voz-criar').disabled = false;
       el('voz-microfone').disabled = false;
       el('voz-esfera').disabled = !snapshot.microfone || snapshot.estado === 'preparando';
       for (const card of cards.values()) card.querySelector('button').disabled = false;
@@ -119,7 +119,7 @@
   function boot() {
     if (started || !bridge()) return;
     started = true;
-    el('voz-form').addEventListener('submit', event => {
+    el('voz-form')?.addEventListener('submit', event => {
       event.preventDefault();
       mutate('voz_criar', Number(el('voz-valor').value), el('voz-unidade').value);
     });

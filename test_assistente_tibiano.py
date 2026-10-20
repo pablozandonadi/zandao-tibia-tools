@@ -20,6 +20,56 @@ class StoreCase(unittest.TestCase):
         return self.store.execute(intent, arguments or {}, context or CTX, request_id)
 
 class StoreTests(StoreCase):
+    def test_stamina_alarm_phrases_are_local_and_queries_stay_read_only(self):
+        for text in ('criar alarme quando minha stamina estiver cheia','crie um timer quando minha stamina estiver full','me avisa quando minha stamina chegar a 42 horas','avise quando a stamina estiver cheia'):
+            self.assertEqual(('stamina.alert',{'target_stamina_minutes':2520}),a.parse(text,NOW))
+        with self.assertRaises(ValueError):a.parse('criar alarme quando minha stamina estiver cheia ou calcula 39h',NOW)
+        self.assertEqual(('alert.cancel',{}),a.parse('cancelar alarme da stamina',NOW))
+        self.assertEqual('stamina.time_to',a.parse('quando minha stamina estará cheia',NOW)[0])
+
+    def test_stamina_alarm_derived_deduplicated_scoped_and_persisted(self):
+        with self.assertRaisesRegex(ValueError,'Registre stamina'):self.call('stamina.alert',{'target_stamina_minutes':2520})
+        self.call('stamina.logout',{'stamina_minutes':2290})
+        result=self.call(*a.parse('criar alarme quando minha stamina estiver cheia',NOW))
+        alert=result['alert'];self.assertEqual(2290,alert['reference']['stamina_minutes'])
+        self.assertIn('38h10',a.reply(result));self.assertIn('faltam',a.reply(result))
+        self.assertEqual(alert['id'],self.call('stamina.alert',{'target_stamina_minutes':2520})['alert']['id'])
+        self.assertEqual(1,len(self.call('timer.list')['stamina_alerts']))
+        with self.assertRaises(ValueError):self.call('alert.cancel',{'alert_id':alert['id']},context={'character_id':'Outro','world_id':'Secura'})
+        future=a.Store(self.path,clock=lambda:a.instant(alert['at'])+timedelta(seconds=1))
+        self.assertEqual(1,len(future.poll()));self.assertEqual([],a.Store(self.path,clock=future.clock).poll())
+        self.assertEqual([],future.execute('timer.list',{},CTX)['stamina_alerts'])
+
+    def test_reopened_silent_service_reconciles_due_stamina_and_timer_once(self):
+        from voz import Servico
+        self.call('stamina.logout',{'stamina_minutes':2290})
+        alert=self.call('stamina.alert',{'target_stamina_minutes':2520})['alert']
+        self.call('timer.create',{'duration_seconds':30})
+        restored=a.Store(self.path,clock=lambda:a.instant(alert['at'])+timedelta(seconds=1))
+        notifications=[]
+        with patch('voz.threading.Thread'):
+            service=Servico(self.path,store=restored,silencioso=True,notificador=notifications.append)
+        with patch.object(service._stop,'wait',side_effect=[False,False,False,False,True]):service._watch()
+        self.assertEqual(2,len(notifications));self.assertEqual([],restored.poll())
+        self.assertIsNone(service._mic)
+        service.close()
+
+    def test_stamina_reference_changes_cancel_and_full_does_not_schedule(self):
+        for action in ('stamina.correct','stamina.logout','stamina.login'):
+            self.call('stamina.logout',{'stamina_minutes':2290})
+            self.call('stamina.alert',{'target_stamina_minutes':2520})
+            self.call(action,{} if action=='stamina.login' else {'stamina_minutes':2280})
+            self.assertEqual([],self.call('timer.list')['stamina_alerts'])
+        with self.assertRaisesRegex(ValueError,'online'):self.call('stamina.alert',{'target_stamina_minutes':2520})
+        self.call('stamina.logout',{'stamina_minutes':2520})
+        self.assertTrue(self.call('stamina.alert',{'target_stamina_minutes':2520})['already_reached'])
+        self.assertEqual([],self.store.poll())
+        self.call('stamina.correct',{'stamina_minutes':2290})
+        alert=self.call('stamina.alert',{'target_stamina_minutes':2520})['alert']
+        self.call('alert.cancel',{'alert_id':alert['id']})
+        self.assertEqual([],self.call('timer.list')['stamina_alerts'])
+        self.assertEqual('alert.cancel',self.call('history')['events'][-1]['intent'])
+
     def test_market_list_is_local_read_only_world_scoped_and_includes_other_characters(self):
         first = self.call('market.price.add', {'item':'TC','price':'46k'})['observation']
         self.call('market.price.add', {'item':'TC','price':'47k'}, context={'character_id':'Outro','world_id':'Secura'})
@@ -34,6 +84,17 @@ class StoreTests(StoreCase):
         self.assertEqual(48000, self.store.market_prices('Antica')['observations'][1]['price_gp'])
         self.call('market.price.delete', {'observation_id':second['id'],'reason':'Duplicado'})
         self.assertEqual(1, self.store.market_prices('Antica')['total'])
+
+    def test_market_cards_include_watched_and_saved_items_full_scoped_history(self):
+        self.call('market.price.add',{'item':'Rope Belt','price':'10k','offer_type':'buy'})
+        self.call('market.price.add',{'item':'Rope Belt','price':'11k','offer_type':'sell'})
+        self.call('market.item.watch',{'item':'Dragon Ham'})
+        result=self.store.market_prices('Antica')
+        items={row['item']:row for row in result['items']}
+        self.assertIn('Dragon Ham',items);self.assertEqual(0,items['Dragon Ham']['total'])
+        self.assertEqual(10000,items['Rope Belt']['latest']['buy']['price_gp'])
+        self.assertEqual(11000,items['Rope Belt']['latest']['sell']['price_gp'])
+        self.assertNotIn('Rope Belt',[row['item'] for row in self.store.market_prices('Secura')['items']])
 
     def test_market_list_reports_limit_and_sorts_observation_time(self):
         for index in range(102):

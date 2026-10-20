@@ -20,7 +20,7 @@ const fs=require('fs'),assert=require('assert/strict');
     assistente_monitor_configurar:async(nome,up,death,remove)=>{window.fixture.personagens=remove?[]:[{nome,up,death,estado:'Aguardando consulta'}];return window.fixture;}
    }};window.testStore=${JSON.stringify(saved)};Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:key=>window.testStore,setItem:(key,value)=>{window.testStore=value;},removeItem:()=>{window.testStore=null;}}});${blocked?"Object.defineProperty(window,'localStorage',{configurable:true,get(){throw new Error('blocked')}});":''}`});
    await page.addScriptTag({content:`window.intervalLengths=[];window.originalInterval=window.setInterval;window.setInterval=(fn,ms)=>{window.intervalLengths.push(ms);return window.originalInterval(fn,ms);};`});
-   for(const script of ['assistente.js','chat.js','assistente_canais.js'])await page.addScriptTag({content:fs.readFileSync('web/'+script,'utf8')});
+   for(const script of ['assistente_ferramentas.js','assistente.js','chat.js','assistente_canais.js'])await page.addScriptTag({content:fs.readFileSync('web/'+script,'utf8')});
    await page.waitForTimeout(30);
   }
   await load();
@@ -30,11 +30,11 @@ const fs=require('fs'),assert=require('assert/strict');
   assert.ok(await page.evaluate(()=>window.intervalLengths.includes(1000)),'Estado do monitor é lido localmente a cada segundo');
   assert.equal(await page.locator('.assistente-nav').count(),1);
   async function open(id){if(await page.locator(`[data-assistente-tab=${id}]`).count()){await page.click(`[data-assistente-tab=${id}]`);return;}await page.click('[data-assistente-tab=overview]');await page.click('#assistente-canal-abrir');await page.selectOption('#assistente-canal-lista',id);await page.locator('#assistente-canal-dialog button').first().click();}
-  await open('shared');await page.fill('#f-levels','200,300');await open('market');
+  await open('shared');await page.click('#shared-mode-party');await page.fill('#shared-levels','200,300');await open('market');
   assert.deepEqual(await ids(),['local','log','up','death','help','ia']);
   assert.equal(await page.locator('[data-assistente-panel=market]').isVisible(),true);
   await open('shared');
-  assert.equal(await page.inputValue('#f-levels'),'200,300');
+  assert.equal(await page.inputValue('#shared-levels'),'200,300');
   await open('shared');assert.equal((await ids()).includes('shared'),false);
   for(const id of ['timers','upo','bosstiary','bosses','stamina','market']){await open(id);assert.equal(await page.locator(`[data-assistente-panel=${id}]`).isVisible(),true);assert.equal(await page.locator(`[data-assistente-panel=${id}]`).evaluate(e=>e.closest('.chat')===null),true);}
   assert.equal((await ids()).at(-1),'ia');
@@ -54,7 +54,7 @@ const fs=require('fs'),assert=require('assert/strict');
   assert.match(await page.locator('#chat-canal-up').innerText(),/\(1\)/);await page.click('[data-assistente-tab=overview]');await page.waitForTimeout(20);assert.equal(await page.locator('#chat-canal-up').innerText(),'UP Level');
   await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});window.fixture.up.push({id:'four',at:'2026-10-20T13:00:00Z',texto:'Test Knight subiu do level 103 para 104 · horário da detecção.'});return assistenteCanais.refreshMonitor();});
   assert.match(await page.locator('#chat-canal-up').innerText(),/\(1\)/);await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:false});document.dispatchEvent(new Event('visibilitychange'));});assert.equal(await page.locator('#chat-canal-up').innerText(),'UP Level');
-  await open('shared');await page.evaluate(()=>chatEstado({context:{character_id:'Other Player',world_id:'Secura'},log:[]}));await page.waitForTimeout(20);assert.equal(await page.locator('[data-assistente-panel=shared]').isVisible(),true);assert.equal(await page.locator('#chat-mensagens').isVisible(),false);assert.equal(await page.inputValue('#f-levels'),'200,300');
+  await open('shared');await page.evaluate(()=>chatEstado({context:{character_id:'Other Player',world_id:'Secura'},log:[]}));await page.waitForTimeout(20);assert.equal(await page.locator('[data-assistente-panel=shared]').isVisible(),true);assert.equal(await page.locator('#chat-mensagens').isVisible(),false);assert.equal(await page.inputValue('#shared-levels'),'200,300');
   await page.click('[data-assistente-tab=overview]');await page.locator('#chat-canal-up').focus();await page.keyboard.press('End');assert.equal(await page.locator('#chat-canal-ia').getAttribute('aria-selected'),'true');
   const context=await page.evaluate(async()=>{
    const api=window.pywebview.api,original=api.assistente_estado,pending=[];api.assistente_estado=()=>new Promise(resolve=>pending.push(resolve));

@@ -1394,7 +1394,8 @@ class API:
                 context=store.context()
                 history=store.execute('history',{},context)['events']
                 # revision muda a cada gravação: a aba Bosstiary só recarrega quando algo mudou (ex.: "matei" por voz).
-                return {'context':context, 'timers':store.execute('timer.list',{},context)['timers'],
+                timers=store.execute('timer.list',{},context)
+                return {'context':context, 'timers':timers['timers'], 'stamina_alerts':timers['stamina_alerts'],
                         'catalog':store.execute('boss.catalog',{},context),
                         'revision':history[-1]['id'] if history else None,
                         'log':[{'id':event['id'],'texto':event['arguments'].get('message') if event['intent']=='alert.fired' else assistente_tibiano.describe(event['intent'],event.get('arguments',{}))} for event in history[-30:]]}

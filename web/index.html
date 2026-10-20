@@ -1011,21 +1011,18 @@
       <p id="chat-digitando" role="status" hidden>O assistente está digitando…</p><form id="chat-form" class="chat-form"><label for="chat-texto" class="sr-only">Mensagem</label><input id="chat-texto" maxlength="500" autocomplete="off" placeholder="Pergunte sobre Tibia ou dê um comando"><button class="btn btn-primary" type="submit">Enviar</button><button class="btn btn-sm" type="button" id="chat-limpar">Limpar</button></form><div id="chat-grip" class="chat-grip" role="separator" aria-orientation="horizontal" aria-label="Ajustar a altura do chat: arraste, use as setas ou dê duplo clique para voltar ao padrão" title="Arraste para ajustar a altura (duplo clique volta ao padrão)" tabindex="0"></div></div>
       </div>
       <section data-assistente-panel="timers" hidden>
-        <h2 class="sub">Timers Gerais</h2><p class="dica">Globais por padrão. Ex.: “Inicia um timer chamado boost de 45 minutos”, “Adiciona 5 minutos ao timer do boost”.</p>
-        <p id="assistente-overview" class="dica"></p>
-      <div class="card calmo">
-        <form id="voz-form" class="voz-form">
-          <label for="voz-valor">Duração<input id="voz-valor" type="number" value="30" min="1" max="180" step="1" required></label>
-          <label for="voz-unidade">Unidade<select id="voz-unidade"><option value="segundo">Segundos</option><option value="minuto">Minutos</option></select></label>
-          <button class="btn btn-primary" id="voz-criar" type="submit">+ Criar timer</button>
+        <h2 class="sub">Timers</h2><p id="assistente-overview" class="dica"></p>
+        <div id="timer-presets" class="assistente-tiles"></div>
+        <form id="timer-editor" class="card calmo voz-form">
+          <label>Nome (opcional)<input id="timer-label" maxlength="120" placeholder="Ex.: boost"></label>
+          <label id="timer-duration-label">Duração<input id="timer-duration" type="number" min="1" value="5" required></label>
+          <label>Unidade<select id="timer-unit"><option value="60">Minutos</option><option value="1">Segundos</option><option value="3600">Horas</option></select></label>
+          <label><input id="timer-personal" type="checkbox"> Deste personagem</label>
+          <button id="timer-save" class="btn btn-primary">Criar timer</button><button id="timer-reset" type="button" class="btn btn-sm" hidden>Cancelar edição</button>
         </form>
-        <p id="voz-feedback" role="alert"></p>
-      </div>
-      <h2 class="sub" id="voz-quantidade">0 timers ativos</h2>
-      <p class="dica" id="voz-vazio">Nenhum timer ativo. Crie um pelo chat ou pelo formulário.</p>
-      <div id="voz-lista"></div>
-      <p id="voz-avisos" role="status" aria-live="polite"></p>
-        <form class="card calmo" id="assistente-form-timers"></form><div id="assistente-result-timers" role="status"></div><div id="assistente-timers-list"></div>
+        <div id="assistente-result-timers" role="status"></div><h3>Ativos</h3><div id="assistente-timers-list" class="assistente-cards"></div>
+        <details class="card calmo"><summary>Histórico de timers</summary><div id="timer-history"></div></details>
+        <p id="voz-feedback" role="status" hidden></p><p id="voz-avisos" role="status" aria-live="polite"></p>
       <div id="voz-pausado" hidden>
         <div class="card calmo">
           <div class="voz-intro"><p id="voz-status" role="status">Aguardando comando: Hey Tibia</p><button class="btn btn-sm" id="voz-microfone" type="button">Pausar microfone</button></div>
@@ -1047,15 +1044,12 @@
       </section>
       <section data-assistente-panel="shared" hidden>
         <h2 class="sub">Shared XP</h2>
-        <div class="card calmo">
-          <label class="campo-label" for="f-levels">Levels da party (separados por vírgula)</label>
-          <input type="text" id="f-levels" placeholder="ex.: 483, 350, 420, 512">
-          <div id="f-shared-res" class="resultado-ferr">Digite um level para ver a faixa, ou os levels da party para saber se o shared funciona.</div>
-          <p class="dica" style="margin:10px 0 0">Regra do Tibia: o maior level pode ser no máximo 3/2 do menor. Além disso, todos precisam estar atacando ou curando e perto do líder.</p>
-        </div>
-        <p class="dica">Consultas hipotéticas não alteram o cadastro. Ex.: “Meu level é 438. Qual é a shared?”, “Level 350 entra na minha shared?”. Somente a condição de level é calculada.</p>
-        <form class="card calmo" id="assistente-form-shared"></form><div id="assistente-result-shared" role="status"></div>
-        <form id="assistente-level-form" class="card calmo voz-form"><label for="assistente-level">Alterar level local<input id="assistente-level" type="number" min="1" max="100000" required></label><label for="assistente-level-confirm"><input id="assistente-level-confirm" type="checkbox"> Confirmo atualizar o cadastro do personagem mostrado acima</label><button class="btn btn-sm" type="submit">Confirmar level</button></form>
+        <div class="card calmo"><h3>Calculadora de Shared XP</h3><div class="assistente-tiles"><button id="shared-mode-reference" class="btn btn-sm" type="button" aria-pressed="true">Meu level / hipotético</button><button id="shared-mode-party" class="btn btn-sm" type="button" aria-pressed="false">Party</button></div>
+        <form id="shared-lookup" class="voz-form"><label>Level para consultar (hipotético)<input id="shared-reference" type="number" min="1" required></label><button class="btn btn-primary">Ver faixa</button></form>
+        <form id="shared-party" class="voz-form" hidden><label>Levels da party<input id="shared-levels" placeholder="200, 250, 300" required></label><label><input id="shared-include" type="checkbox"> Incluir meu level cadastrado</label><button class="btn btn-primary">Verificar party e faixa de entrada</button></form>
+        <p class="dica">Somente compatibilidade por level. Distância, combate e cura não são verificados. Consultar não altera seu cadastro.</p><div id="assistente-result-shared" role="status"></div></div>
+        <details class="card calmo"><summary>Alterar meu level cadastrado</summary>
+        <form id="assistente-level-form" class="card calmo voz-form"><label for="assistente-level">Alterar level local<input id="assistente-level" type="number" min="1" max="100000" required></label><label for="assistente-level-confirm"><input id="assistente-level-confirm" type="checkbox"> Confirmo atualizar o cadastro do personagem mostrado acima</label><button class="btn btn-sm" type="submit">Confirmar level</button></form></details>
       </section>
       <section data-assistente-panel="upo" hidden>
         <h2 class="sub">Quando eu upo?</h2>
@@ -1100,21 +1094,23 @@
         <form id="assistente-form-bosses"></form><div id="assistente-result-bosses" role="status"></div></details>
       </section>
       <section data-assistente-panel="stamina" hidden>
-        <h2 class="sub">Calculadora de Stamina</h2><p class="dica">Referências declaradas, sem leitura do jogo. Projeção pressupõe offline contínuo: 10 min iniciais, 3 min por minuto até 39h e 6 min até 42h. Ex.: “Estou deslogando agora, minha stamina está em 38 horas”. Horários manuais usam seu fuso local.</p>
+        <h2 class="sub">Stamina <span title="Estimativa declarada, sem leitura do jogo. Offline contínuo: 10 minutos iniciais; 3 minutos por minuto até 39h e 6 minutos até 42h." tabindex="0" aria-label="Informações sobre stamina">ⓘ</span></h2>
         <div class="card calmo stamina-agora">
-          <div class="stamina-topo"><span>Stamina agora</span><strong id="stamina-valor">--:--</strong></div>
+          <div class="stamina-topo"><span>Estimativa agora</span><strong id="stamina-valor">--:--</strong></div>
           <div class="stamina-barra" role="img" id="stamina-barra" aria-label="Stamina sem referência"><div id="stamina-fill"></div><span class="stamina-marca" title="39h: bônus verde"></span></div>
           <p id="stamina-detalhe" class="dica" role="status"></p>
-          <form id="stamina-rapido" class="voz-form">
-            <label for="stamina-hhmm">Stamina ao deslogar (como no jogo)<input id="stamina-hhmm" placeholder="41:21" pattern="\d{1,2}(:\d{2})?" maxlength="5" required></label>
-            <button class="btn btn-primary" type="submit">Deslogar agora</button>
-            <button class="btn btn-sm" type="button" id="stamina-logar">Logar agora</button>
-          </form>
-        </div>
-        <details class="card calmo"><summary>Mais cálculos (projeção, último horário para deslogar, alertas)</summary>
-        <form id="assistente-form-stamina"></form></details><div id="assistente-result-stamina" role="status"></div>
+          <form id="stamina-rapido" class="voz-form"><label>Stamina de referência (hh:mm)<input id="stamina-hhmm" placeholder="38:10" maxlength="5" required></label><label>Registrada em (vazio = agora)<input id="stamina-reference" type="datetime-local"></label><button class="btn btn-primary">Salvar logout / corrigir</button></form>
+          <div class="assistente-tiles"><button class="btn" id="stamina-logar" type="button">Registrar login agora</button><button class="btn" id="stamina-alert" type="button">Avisar quando cheia (42h)</button></div>
+        </div><div id="stamina-alerts" class="assistente-cards"></div>
+        <details class="card calmo"><summary>Mais cálculos</summary>
+          <form id="stamina-calcs" class="voz-form"><label>Meta (hh:mm)<input id="stamina-target" value="42:00" maxlength="5" required></label><label>Data e hora para projeção / meta<input id="stamina-date" type="datetime-local"></label><button class="btn btn-sm" name="action" value="stamina.time_to">Quando alcanço a meta?</button><button class="btn btn-sm" name="action" value="stamina.project">Projetar nesta data</button><button class="btn btn-sm" name="action" value="stamina.reverse">Quando deveria deslogar?</button></form><p class="dica">Usa a referência salva acima; projeções pressupõem offline contínuo.</p>
+        </details><div id="assistente-result-stamina" role="status"></div>
       </section>
       <section data-assistente-panel="market" hidden>
+        <h2 class="sub">Market Tracker</h2><p class="dica">Preços informados por você, pelo formulário ou pelo chat; histórico privado por mundo, item e oferta. Sem atualização automática. Ex.: “TC tá 36.5k”, “Gold Token a 40k tá caro?” (somente consulta). GP, K e KK; separador de milhar ambíguo pede confirmação.</p>
+        <label for="assistente-world">Mundo dos preços<input id="assistente-world" type="text" maxlength="120" placeholder="Mundo do personagem ativo"></label><form id="market-editor" class="card calmo voz-form"><label>Item<input id="market-item" maxlength="120" value="Tibia Coin" required></label><label>Preço (GP, k ou kk)<input id="market-price" placeholder="46,6k" required></label><label>Oferta<select id="market-offer"><option value="sell">Venda</option><option value="buy">Compra</option><option value="traded">Negociado</option></select></label><label>Observado em (vazio = agora)<input id="market-at" type="datetime-local"></label><label id="market-reason-wrap" hidden>Motivo<input id="market-reason" maxlength="120"></label><button class="btn btn-primary" id="market-save">Registrar preço</button><button class="btn btn-sm" id="market-watch" type="button">Marcar item</button><button class="btn btn-sm" id="market-reset" type="button" hidden>Cancelar edição</button></form><div id="assistente-result-market" role="status"></div>
+        <article class="card calmo"><h3>Meus itens e preços</h3><p class="dica">Registros privados deste computador, no mundo selecionado, compartilhados pelos seus personagens.</p><div id="assistente-precos" role="status" aria-live="polite"></div></article>
+        <details class="card calmo" id="market-conversion"><summary>Converter gold em reais</summary>
         <article class="card calmo" id="conversao-tc">
           <h3>Gold em reais</h3>
           <div class="voz-form assistente-fields">
@@ -1131,9 +1127,7 @@
           <span id="conversao-feedback" role="status"></span>
           <p class="dica">Estimativa sem taxas. Salvar guarda apenas a conversão neste computador; o gold obtido não é salvo.</p>
         </article>
-        <h2 class="sub">Market Tracker</h2><p class="dica">Preços informados por você, pelo formulário ou pelo chat; histórico privado por mundo, item e oferta. Sem atualização automática. Ex.: “TC tá 36.5k”, “Gold Token a 40k tá caro?” (somente consulta). GP, K e KK; separador de milhar ambíguo pede confirmação.</p>
-        <label for="assistente-world">Mundo dos preços<input id="assistente-world" type="text" maxlength="120" placeholder="Mundo do personagem ativo"></label><form class="card calmo" id="assistente-form-market"></form><div id="assistente-result-market" role="status"></div>
-        <article class="card calmo"><h3>Meus preços registrados</h3><p class="dica">Registros privados deste computador, no mundo selecionado, compartilhados pelos seus personagens.</p><div id="assistente-precos" role="status" aria-live="polite"></div></article>
+        </details>
       </section>
     </section>
 
@@ -3382,7 +3376,7 @@ function escolherPersonagemUp() {
 }
 $('f-up-sel').addEventListener('change', escolherPersonagemUp);
 let tShared = null;
-$('f-levels').addEventListener('input', () => {
+$('f-levels')?.addEventListener('input', () => {
   clearTimeout(tShared);
   tShared = setTimeout(async () => {
     const levels = $('f-levels').value.split(/[^0-9]+/).filter(Boolean);
@@ -3569,6 +3563,7 @@ else window.addEventListener('pywebviewready', iniciar);
 <script src="radio.js"></script>
 <script src="mirror.js"></script>
 <script src="voz.js"></script>
+<script src="assistente_ferramentas.js"></script>
 <script src="assistente.js"></script>
 <script src="chat.js"></script>
 <script src="assistente_canais.js"></script>

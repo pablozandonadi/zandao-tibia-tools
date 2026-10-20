@@ -1626,6 +1626,7 @@
     "web/timers.js",
     "web/assistente.css",
     "web/assistente.js",
+    "web/assistente_ferramentas.js",
     "web/assistente_canais.js",
     "web/admin_ia.js",
     "web/chat.js",

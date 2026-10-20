@@ -191,13 +191,25 @@ class Store:
         if len(timers)!=1: raise ValueError('Qual timer? Selecione o ID na lista.' if timers else 'Nenhum timer correspondente.')
         return timers[0]
 
+    def _stamina_alerts(self,d,ctx,now):
+        return [{**v,'remaining_seconds':max(0,(instant(v['at'])-now).total_seconds())}
+                for v in d['alerts'] if v['kind']=='stamina' and v['character_id']==ctx.get('character_id')
+                and not v['fired'] and not v.get('cancelled')]
+
     def market_prices(self, world):
         """Histórico privado por instalação e mundo, compartilhado pelos personagens."""
         world = label(world)
         with LOCK:
-            rows = [row for row in reversed(self._read()['prices']) if row['world_id'] == world and not row.get('deleted')]
+            data=self._read()
+            rows = [row for row in reversed(data['prices']) if row['world_id'] == world and not row.get('deleted')]
             rows.sort(key=lambda row: instant(row['at']), reverse=True)
-            return {'world_id': world, 'total': len(rows), 'observations': deepcopy(rows[:100])}
+            names=list(dict.fromkeys([*data['watchlist'].get(world,['Tibia Coin','Silver Token','Gold Token']),*(row['item'] for row in rows)]))
+            items=[]
+            for name in names:
+                history=[row for row in rows if row['item']==name]
+                latest={offer:next((row for row in history if row['offer_type']==offer),None) for offer in ('buy','sell','traded')}
+                items.append({'item':name,'latest':latest,'total':len(history),'observations':history[:100]})
+            return deepcopy({'world_id': world, 'total': len(rows), 'observations': rows[:100], 'items':items})
 
     def execute(self,intent,args=None,context=None,request_id=None,source="manual"):
         if not isinstance(intent,str) or not isinstance(args or {},dict): raise ValueError('Comando inválido.')
@@ -232,6 +244,13 @@ class Store:
     def _run(self,d,action,p,ctx,now):
         if action=='history':
             return {'events':[e for e in d['events'] if e['character_id'] in (None,'',ctx.get('character_id'))][-200:]},False
+        if action=='alert.cancel':
+            char=self._profile(ctx)
+            matches=[v for v in d['alerts'] if v['kind']=='stamina' and v['character_id']==char
+                     and not v['fired'] and not v.get('cancelled') and (not p.get('alert_id') or v['id']==p['alert_id'])]
+            if len(matches)!=1:raise ValueError('Selecione o alarme de stamina na lista.' if matches else 'Nenhum alarme de stamina pendente deste personagem.')
+            matches[0]['cancelled']=True
+            return {'alert':matches[0],'message':'Alarme de stamina cancelado.'},True
         if action.startswith('shared.'):
             levels=p.get('party_levels')
             reference=integer(p.get('reference_level',ctx.get('level'))) if action=='shared.range' or p.get('include_active') else None
@@ -245,7 +264,7 @@ class Store:
         if action.startswith('timer.'):
             if action=='timer.list':
                 timers=[{**t,'remaining_seconds':max(0,(instant(t['ends_at'])-now).total_seconds())} for t in d['timers'] if not t['character_id'] or t['character_id']==ctx.get('character_id')]
-                return {'timers':timers},False
+                return {'timers':timers,'stamina_alerts':self._stamina_alerts(d,ctx,now)},False
             if action in ('timer.create','timer.repeat'):
                 if action=='timer.repeat':
                     old=self._timer(d,p,ctx,now,True);p={'duration_seconds':old['duration_seconds'],'label':old['label'],'personal':bool(old['character_id'])}
@@ -365,8 +384,16 @@ class Store:
                 return {'stamina_minutes':stamina_at(ref['stamina_minutes'],elapsed),'at':iso(at),'note':'Estimativa se permanecer offline; não considera resting areas ou itens.'},False
             if action in ('stamina.time_to','stamina.alert'):
                 target=integer(p.get('target_stamina_minutes'),0,2520);at=instant(ref['reference_at'])+timedelta(minutes=recovery_minutes(ref['stamina_minutes'],target))
-                if action=='stamina.alert':d['alerts'].append({'id':uuid.uuid4().hex,'kind':'stamina','character_id':char,'world_id':None,'at':iso(at),'message':f'Stamina estimada em {target//60}h{target%60:02d}, se permaneceu offline.','fired':False})
-                return {'at':iso(at),'target_stamina_minutes':target},action=='stamina.alert'
+                result={'at':iso(at),'target_stamina_minutes':target,'reference':deepcopy(ref),'remaining_seconds':max(0,(at-now).total_seconds())}
+                if action=='stamina.time_to':return result,False
+                if at<=now:return {**result,'already_reached':True},False
+                previous=next((v for v in self._stamina_alerts(d,ctx,now) if v['at']==iso(at) and v.get('target_stamina_minutes',target)==target),None)
+                if previous:return {**result,'alert':previous,'existing':True},False
+                alert={'id':uuid.uuid4().hex,'kind':'stamina','character_id':char,'world_id':None,'at':iso(at),
+                       'target_stamina_minutes':target,'reference':deepcopy(ref),'created_at':iso(now),
+                       'message':f'Stamina estimada em {target//60}h{target%60:02d}, se permaneceu offline.','fired':False}
+                d['alerts'].append(alert)
+                return {**result,'alert':alert},True
             raise ValueError('Ação de stamina desconhecida.')
         if action.startswith('market.'):
             if ctx.get('character_id'):self._profile(ctx)
@@ -428,6 +455,7 @@ class Store:
 # Only these typed fields may reach a domain operation, from UI or NLU.
 FIELDS = {
  'history':set(),'shared.range':{'reference_level'},'shared.check':{'party_levels','reference_level','include_active'},'shared.party_range':{'party_levels','reference_level','include_active'},
+ 'alert.cancel':{'alert_id'},
  'timer.create':{'duration_seconds','label','personal'},'timer.list':set(),
  'timer.get':{'timer_id','label','duration_seconds','last'},'timer.cancel':{'timer_id','label','duration_seconds','last'},
  'timer.extend':{'timer_id','label','duration_seconds','last','delta_seconds'},'timer.repeat':{'timer_id','label','duration_seconds','last'},'timer.edit':{'timer_id','label','duration_seconds'},
@@ -440,6 +468,7 @@ FIELDS = {
 
 LABELS = {
  'history':'Consultar histórico', 'shared.range':'Consultar shared', 'shared.check':'Verificar levels da party', 'shared.party_range':'Consultar shared da party',
+ 'alert.cancel':'Cancelar alarme de stamina',
  'timer.create':'Criar timer', 'timer.list':'Listar timers', 'timer.get':'Consultar timer', 'timer.cancel':'Cancelar timer',
  'timer.extend':'Adicionar tempo ao timer', 'timer.repeat':'Repetir timer', 'timer.edit':'Editar timer',
  'boss.catalog':'Consultar catálogo de bosses', 'boss.catalog.import':'Importar catálogo de bosses', 'boss.kill':'Registrar abate',
@@ -534,6 +563,10 @@ def parse(text, now=None):
         raise ValueError('Informe duração clara em horas, minutos ou segundos.')
     if 'unk' in t.split():return None
     if re.search(r'\b(?:talvez|ou|quinze cinquenta)\b',t):raise ValueError('Comando ambíguo. Confirme os valores e a operação.')
+    # Stamina alarms are derived from its saved reference, never arbitrary timers.
+    if re.fullmatch(r'(?:cancela|cancelar|cancele) (?:o )?(?:alarme|timer|temporizador) (?:da |de |de minha |da minha )?e?stamina',t):return 'alert.cancel',{}
+    if re.fullmatch(r'(?:(?:cria|criar|crie|inicia|iniciar|programa|programe|coloca|coloque) (?:um |uma )?(?:alarme|timer|temporizador)|(?:me )?(?:avisa|avise|avisar)) (?:para |pra )?quando (?:a |minha |a minha )?e?stamina (?:estiver|ficar|chegar a|chegar em|chegar|atingir|for) (?:cheia|completa|full|42(?:h| horas?)?)',t):
+        return 'stamina.alert',{'target_stamina_minutes':2520}
     if t in ('quais timers estao rodando','listar timers','meus timers','mostra timers'):return 'timer.list',{}
     m=match(r'(?:adiciona|adicione) (.+?) (?:ao|no) timer (?:do |chamado )?(.+)')
     if m:return 'timer.extend',{'label':m[2],'delta_seconds':duration(m[1])}
@@ -626,12 +659,19 @@ def span(seconds):
     return f'{days}d {hours}h' if days else f'{hours}h {rest}min' if hours else f'{rest}min'
 
 def reply(result):
+    if result.get('message'):return result['message']
+    if result.get('already_reached'):return 'A stamina já alcançou a meta estimada. Nenhum alarme foi criado.'
+    if 'alert' in result and result['alert'].get('kind')=='stamina':
+        ref=result['reference'];m=ref['stamina_minutes']
+        registered=instant(ref['reference_at']).astimezone(LOCAL).strftime('%d/%m às %H:%M')
+        end=instant(result['at']).astimezone(LOCAL).strftime('%d/%m às %H:%M')
+        return f"Alarme de stamina {'já agendado' if result.get('existing') else 'criado'}: referência {m//60}h{m%60:02d}, registrada em {registered}. Meta em {end} (faltam {span(result['remaining_seconds'])}), se permanecer offline continuamente."
     if 'timer' in result:
         t=result['timer'];remaining=result['timer'].get('remaining_seconds')
         if remaining is not None:return f"Faltam {max(0,int(remaining+0.999))} segundos no timer {t['label']}."
         verb='cancelado' if t['status']=='cancelled' else 'estendido' if result.get('operation')=='timer.extend' else 'alterado' if result.get('operation')=='timer.edit' else 'iniciado'
         return f"Timer de {t['label']} {verb}."
-    if 'timers' in result:return f"{sum(t['status']=='active' and t['remaining_seconds']>0 for t in result['timers'])} timers ativos. Consulte a lista na tela."
+    if 'timers' in result:return f"{sum(t['status']=='active' and t['remaining_seconds']>0 for t in result['timers'])} timers ativos e {len(result.get('stamina_alerts',[]))} alarmes de stamina. Consulte a lista na tela."
     if 'compatible' in result:return ('Compatível' if result['compatible'] else 'Incompatível')+' por level. '+result['note']
     if 'range' in result:return f"Seu shared vai do level {result['range'][0]} até {result['range'][1]}."
     if 'boss' in result:
