@@ -27,3 +27,9 @@ if getattr(sys, "frozen", False):
             VERSAO_APP = _build["versao"]
 NOME_APP = "Tibia Tudo" + (" Beta" if CANAL_APP == "beta" else "")
 NOME_INSTALADOR = "ZandaoTibiaToolsBetaSetup.exe" if CANAL_APP == "beta" else "ZandaoTibiaToolsSetup.exe"
+
+
+def porta_http(canal):
+    """Porta do servidor local da janela. O pywebview usa 42001 para todo mundo; com a estável e a Beta abertas ao
+    mesmo tempo, a segunda janela carregava os arquivos web da primeira. Cada canal tem a sua porta."""
+    return 42002 if canal == "beta" else 42001
