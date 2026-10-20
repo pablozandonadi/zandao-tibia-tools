@@ -1,4 +1,4 @@
-"""Monitor privado de levels/mortes. Uma consulta por personagem a cada 60 s, sem IA."""
+"""Monitor privado: UP pela lista online do mundo e mortes pela ficha pública, sem IA."""
 import copy
 import hashlib
 import json
@@ -8,12 +8,15 @@ import threading
 import time
 import uuid
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from urllib.error import HTTPError
 from urllib.parse import quote
 
 import tibia_info
 from comandos_tibia import _nome_voc
 
 NOME = re.compile(r"[A-Za-z][A-Za-z '\-.]{1,39}")
+MUNDO = re.compile(r'[A-Za-z]{2,40}')
 
 
 def _nome(value):
@@ -27,6 +30,17 @@ def _nome(value):
 
 def _fetch(nome):
     return tibia_info._get_json(tibia_info.TIBIADATA + '/character/' + quote(nome))
+
+
+def _fetch_world(mundo):
+    return tibia_info._get_json(tibia_info.TIBIADATA + '/world/' + quote(mundo))
+
+
+def _timestamp(value):
+    at = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    if at.tzinfo is None:
+        raise ValueError('Horário da fonte inválido.')
+    return at.timestamp()
 
 
 def _morte(item):
@@ -50,14 +64,24 @@ def _morte(item):
 
 
 class Monitor:
-    def __init__(self, base_dir, fetch=None, clock=None):
+    def __init__(self, base_dir, fetch=None, clock=None, fetch_world=None, wait=None):
         self.path = os.path.join(base_dir, 'monitor-personagens.json')
         self.fetch, self.clock = fetch or _fetch, clock or time.time
         self.lock = threading.RLock()
         self.scan_lock = threading.Lock()
+        self.world_scan_lock = threading.Lock()
+        self.network_lock = threading.Lock()
         self.stop_event = threading.Event()
+        self.fetch_world = fetch_world or _fetch_world
+        self.wait = wait or self.stop_event.wait
+        self.network_clock = clock or time.monotonic
+        self.last_request = None
+        self.network_until = 0
+        self.network_warning = ''
         self.thread = None
+        self.char_thread = None
         self.next_poll, self.status = {}, {}
+        self.next_world, self.up_status, self.checks = {}, {}, {}
         self.data = {'schema': 1, 'personagens': [], 'up': [], 'death': []}
         self.warning = ''
         if os.path.exists(self.path):
@@ -96,10 +120,18 @@ class Monitor:
         with self.lock:
             result = copy.deepcopy(self.data)
             for row in result['personagens']:
-                row['estado'] = self.status.get(row['nome'].casefold(), 'Aguardando consulta')
+                key = row['nome'].casefold()
+                row['estado_up'] = self.up_status.get(key, 'Aguardando leitura online do mundo') if row['up'] else 'Desligado'
+                row['estado_death'] = self.status.get(key, 'Aguardando ficha pública') if row['death'] else 'Desligado'
+                row['estado'] = f"UP: {row['estado_up']} · Death: {row['estado_death']}"
+                row['ultima_verificacao_up'] = self.checks.get((key, 'up'))
+                row['ultima_verificacao_death'] = self.checks.get((key, 'death'))
                 row.pop('mortes', None)
                 row.pop('versao', None)
             result['aviso'] = self.warning
+            result['aviso_rede'] = self.network_warning if self.clock() < self.network_until else ''
+            result['fontes'] = {'up': {'intervalo_segundos': 60, 'cache_segundos': 60, 'fonte': 'TibiaData /world'},
+                                'death': {'intervalo_segundos': 60, 'cache_segundos': 300, 'fonte': 'TibiaData /character'}}
             return result
 
     def configurar(self, nome, up=True, death=True, remover=False):
@@ -120,80 +152,200 @@ class Monitor:
                     data['personagens'].append(row)
                 if row['up'] != up:
                     row['level'] = None
+                    row['world_baseline'] = False
+                    row['up_timestamp'] = None
                 if row['death'] != death:
                     row['mortes'] = None
                 row.update(up=up, death=death, versao=uuid.uuid4().hex)
             self._save(data)
             # Não remove o prazo: toggles não podem causar consultas remotas mais frequentes.
             self.status.pop(nome.casefold(), None)
+            self.up_status.pop(nome.casefold(), None)
         return self.estado()
 
-    def scan(self):
+    def _request(self, fetch, arg):
+        # Só o início da chamada é espaçado; uma ficha lenta não segura a consulta do mundo.
+        with self.network_lock:
+            if self.clock() < self.network_until:
+                raise RuntimeError('Consultas pausadas após limite da fonte.')
+            delay = max(0, 1 - (self.network_clock() - self.last_request)) if self.last_request is not None else 0
+            if self.stop_event.is_set() or delay and self.wait(delay):
+                raise InterruptedError()
+            if self.clock() < self.network_until:
+                raise RuntimeError('Consultas pausadas após limite da fonte.')
+            self.last_request = self.network_clock()
+        return fetch(arg)
+
+    def _failure(self, error, base=60):
+        if isinstance(error, HTTPError) and error.code in (403, 429, 503):
+            raw = error.headers.get('Retry-After', '') if error.headers else ''
+            try:
+                delay = float(raw)
+            except ValueError:
+                try:
+                    delay = parsedate_to_datetime(raw).timestamp() - self.clock()
+                except (ValueError, TypeError, OverflowError):
+                    delay = 300
+            delay = min(3600, max(300, delay))
+            with self.network_lock:
+                self.network_until = max(self.network_until, self.clock() + delay)
+                self.network_warning = f'Fonte HTTP {error.code}: consultas em pausa até ' + datetime.fromtimestamp(self.network_until, timezone.utc).isoformat()
+                warning = self.network_warning
+            return delay, warning
+        return base, 'Fonte indisponível; última referência preservada'
+
+    @staticmethod
+    def _event(data, channel, nome, at, text):
+        data[channel].append({'id': uuid.uuid4().hex, 'at': at, 'nome': nome, 'texto': text})
+        data[channel] = data[channel][-200:]
+
+    def _scan_char(self):
         if not self.scan_lock.acquire(blocking=False):
             return
         try:
             with self.lock:
                 rows = copy.deepcopy(self.data['personagens'])
             for previous in rows:
-                if self.stop_event.is_set():
+                if self.stop_event.is_set() or self.clock() < self.network_until:
                     return
                 key = previous['nome'].casefold()
                 now = self.clock()
                 if not (previous['up'] or previous['death']) or now < self.next_poll.get(key, float('-inf')):
                     continue
-                self.next_poll[key] = now + 60
+                self.next_poll[key] = now + (60 if previous['death'] else 300)
                 try:
-                    payload = self.fetch(previous['nome'])
+                    if previous['death']:
+                        with self.lock:
+                            self.checks[(key, 'death')] = now
+                    payload = self._request(self.fetch, previous['nome'])
                     block = payload['character']
                     char = block['character']
                     if char['name'].casefold() != key or type(char.get('level')) is not int or char['level'] < 1:
                         raise ValueError('Personagem indisponível.')
+                    world = char.get('world')
+                    if not isinstance(world, str) or not MUNDO.fullmatch(world):
+                        raise ValueError('Mundo do personagem indisponível.')
                     deaths = block.get('deaths') if previous['death'] else []
-                    if not isinstance(deaths, list):
-                        raise ValueError('Mortes indisponíveis.')
-                    parsed = sorted((_morte(x) for x in deaths), key=lambda x: x[1])
+                    try:
+                        if not isinstance(deaths, list):
+                            raise ValueError('Mortes indisponíveis.')
+                        parsed = sorted((_morte(x) for x in deaths), key=lambda x: x[1])
+                    except ValueError:
+                        parsed = None
                     with self.lock:
                         data = copy.deepcopy(self.data)
                         row = next((r for r in data['personagens'] if r['nome'].casefold() == key), None)
                         if row is None or row['versao'] != previous['versao'] or self.stop_event.is_set():
                             continue
                         nome = _nome_voc(char['name'], char.get('vocation'))
-                        def event(channel, at, text):
-                            data[channel].append({'id': uuid.uuid4().hex, 'at': at, 'nome': char['name'], 'texto': text})
-                            data[channel] = data[channel][-200:]
-                        detected = datetime.fromtimestamp(now, timezone.utc).isoformat()
-                        if row['up']:
-                            if row['level'] is not None and char['level'] > row['level']:
-                                event('up', detected, f"{nome} subiu do level {row['level']} para {char['level']} · horário da detecção.")
-                            row['level'] = char['level']
-                        if row['death']:
+                        if row.get('world', '').casefold() != world.casefold():
+                            row.update(world=world, world_baseline=False, up_timestamp=None, level=None)
+                            self.up_status[key] = 'Mundo identificado; aguardando lista online'
+                        row['vocation'] = char.get('vocation') if isinstance(char.get('vocation'), str) else None
+                        if row['death'] and parsed is not None:
                             seen = set(row['mortes'] or [])
                             for ident, at, level, cause in parsed:
                                 if row['mortes'] is not None and ident not in seen:
-                                    event('death', at, f'{nome} morreu no level {level}: {cause}')
+                                    self._event(data, 'death', char['name'], at, f'{nome} morreu no level {level}: {cause}')
                                 seen.add(ident)
                             row['mortes'] = list(dict.fromkeys([*(row['mortes'] or []), *(x[0] for x in parsed)]))[-1000:]
                         self._save(data)
-                        self.status[key] = 'Consulta atualizada'
-                except Exception:
+                        self.status[key] = 'Ficha atualizada (cache da fonte: até 5 min)' if parsed is not None else 'Mortes inválidas; referência preservada'
+                except Exception as error:
+                    delay, message = self._failure(error)
+                    self.next_poll[key] = max(self.next_poll[key], self.clock() + delay)
                     with self.lock:
-                        self.status[key] = 'Fonte indisponível; última referência preservada'
+                        self.status[key] = message
+                        if previous['up'] and not previous.get('world'):
+                            self.up_status[key] = 'Mundo ainda não identificado: ' + message
         finally:
             self.scan_lock.release()
+
+    def _scan_world(self):
+        if not self.world_scan_lock.acquire(blocking=False):
+            return
+        try:
+            with self.lock:
+                rows = copy.deepcopy(self.data['personagens'])
+            worlds = {r['world'].casefold(): r['world'] for r in rows if r['up'] and isinstance(r.get('world'), str) and MUNDO.fullmatch(r['world'])}
+            for world_key, world in worlds.items():
+                now = self.clock()
+                if self.stop_event.is_set() or now < self.network_until:
+                    return
+                if now < self.next_world.get(world_key, float('-inf')):
+                    continue
+                self.next_world[world_key] = now + 60
+                selected = [r for r in rows if r['up'] and r.get('world', '').casefold() == world_key]
+                with self.lock:
+                    for r in selected:
+                        self.checks[(r['nome'].casefold(), 'up')] = now
+                try:
+                    payload = self._request(self.fetch_world, world)
+                    block = payload['world']
+                    if block['name'].casefold() != world_key or not isinstance(block.get('online_players'), list):
+                        raise ValueError('Lista online indisponível.')
+                    source_time = _timestamp(payload['information']['timestamp'])
+                    online = {}
+                    for player in block['online_players']:
+                        if not isinstance(player, dict) or not isinstance(player.get('name'), str) or type(player.get('level')) is not int or player['level'] < 1:
+                            raise ValueError('Lista online inválida.')
+                        key = player['name'].casefold()
+                        if key in online:
+                            raise ValueError('Personagem duplicado na lista online.')
+                        online[key] = player
+                    with self.lock:
+                        data = copy.deepcopy(self.data)
+                        for previous in selected:
+                            key = previous['nome'].casefold()
+                            row = next((r for r in data['personagens'] if r['nome'].casefold() == key), None)
+                            if row is None or row['versao'] != previous['versao'] or row.get('world', '').casefold() != world_key or self.stop_event.is_set():
+                                continue
+                            if row.get('up_timestamp') is not None and source_time < row['up_timestamp']:
+                                self.up_status[key] = 'Resposta antiga do mundo ignorada; referência preservada'
+                                continue
+                            player = online.get(key)
+                            if player is None:
+                                row['up_timestamp'] = source_time
+                                self.up_status[key] = 'Não aparece online neste mundo; referência preservada'
+                                continue
+                            nome = _nome_voc(player['name'], player.get('vocation') or row.get('vocation'))
+                            if row.get('world_baseline') and row.get('level') is not None and player['level'] > row['level']:
+                                self._event(data, 'up', player['name'], datetime.fromtimestamp(now, timezone.utc).isoformat(),
+                                            f"{nome} subiu do level {row['level']} para {player['level']} · horário da detecção (lista online do mundo).")
+                            row.update(level=player['level'], world_baseline=True, up_timestamp=source_time)
+                            self.up_status[key] = 'Online: referência atualizada (cache da fonte: até 60 s)'
+                        self._save(data)
+                except Exception as error:
+                    delay, message = self._failure(error)
+                    self.next_world[world_key] = max(self.next_world[world_key], self.clock() + delay)
+                    with self.lock:
+                        for row in selected:
+                            self.up_status[row['nome'].casefold()] = message
+        finally:
+            self.world_scan_lock.release()
+
+    def scan(self):
+        """Passo síncrono para testes; em produção cada fonte tem seu próprio loop."""
+        self._scan_char()
+        self._scan_world()
 
     def start(self):
         with self.lock:
             if self.thread and self.thread.is_alive():
                 return
             self.stop_event.clear()
-            def run():
+            def run(scan):
                 while not self.stop_event.is_set():
-                    self.scan()
+                    scan()
                     self.stop_event.wait(1)
-            self.thread = threading.Thread(target=run, name='MonitorPersonagens', daemon=True)
+            self.thread = threading.Thread(target=run, args=(self._scan_world,), name='MonitorMundos', daemon=True)
+            self.char_thread = threading.Thread(target=run, args=(self._scan_char,), name='MonitorMortes', daemon=True)
             self.thread.start()
+            self.char_thread.start()
 
     def close(self):
         self.stop_event.set()
         if self.thread and self.thread is not threading.current_thread():
             self.thread.join(timeout=2)
+        if self.char_thread and self.char_thread is not threading.current_thread():
+            self.char_thread.join(timeout=2)

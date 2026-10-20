@@ -21,13 +21,29 @@ Enter, duplo clique e Escape. A barra rola horizontalmente em telas estreitas.
 personagens. A lista é independente e não altera personagens, levels ou perfis
 globais. Cada nome pode monitorar UP Level e/ou Death, ou ser removido.
 
-Uma thread local acompanha os personagens enquanto o aplicativo está aberto,
-inclusive minimizado ou em outra tela. Uma consulta pública TibiaData por
-personagem combina level e mortes, com intervalo mínimo de 60 segundos. A fonte
-pode ter cache e atrasos: os avisos não são instantâneos. Não há leitura do jogo,
-microfone, envio à OpenAI nem mudança no Worker.
+Dois loops locais acompanham os personagens enquanto o aplicativo está aberto,
+inclusive minimizado ou em outra tela. UP vem da lista de jogadores online em
+`/world`: uma consulta por mundo a cada 60 segundos, compartilhada entre todos os
+nomes daquele mundo. A fonte tem cache de 60 segundos; cache e intervalo podem
+se somar. Personagens offline mantêm sua última referência e não geram um UP.
+
+Death continua usando `/character` a cada 60 segundos, com cache da fonte de até
+cinco minutos. Sem Death, a ficha serve para descobrir/revalidar mundo e vocação
+a cada cinco minutos. O level da ficha não substitui o level observado na lista
+online. Uma ficha lenta não bloqueia o loop de mundos. Os inícios das chamadas
+são espaçados em pelo menos um segundo e limites HTTP 403/429/503 suspendem as
+consultas, respeitando Retry-After entre cinco minutos e uma hora.
+Os tempos de cache são documentados na [FAQ da TibiaData](https://tibiadata.com/faq/).
+
+A interface lê o estado local a cada segundo e mostra a última verificação e a
+fonte de cada personagem; essa leitura não consulta a TibiaData. Os avisos não
+são instantâneos. Não há screenshots, leitura do jogo, microfone, envio à OpenAI
+nem mudança no Worker.
 
 A primeira resposta válida cria uma referência sem replay de mortes antigas.
+Na atualização de uma versão anterior, a primeira leitura do mundo também cria
+uma referência silenciosa. Trocar de mundo recria essa referência. Timestamps
+da fonte impedem que respostas antigas reduzam o level ou produzam falsos UPs.
 Depois disso, aumentos de level geram uma linha com level anterior/novo e horário
 **da detecção**. Mortes usam o horário fornecido pela fonte. Identidades estáveis
 de mortes evitam duplicação, inclusive após reiniciar. Desligar/religar um tipo

@@ -4,6 +4,11 @@ O card **Eventos do Tibia** mantém os anúncios da categoria `community`. O car
 **News** mostra os demais artigos de `/news/latest`, incluindo `development`
 (como “Balancing, Fixes and Changes”). O calendário continua independente.
 
+News ocupa a largura inteira acima do calendário e dos Eventos do Tibia. Os dias
+se distribuem em três colunas em telas largas, duas em telas médias e uma em
+telas compactas. Abaixo, calendário à esquerda e Eventos do Tibia à direita
+mantêm o layout anterior (uma coluna em telas estreitas).
+
 News agrupa por dia: artigos com imagem ficam visíveis; os avisos menores de
 `/news/newsticker` ficam em **News Ticker**, expansível abaixo dos artigos do dia.
 Dias que têm apenas avisos também aparecem. O estado aberto/fechado é preservado

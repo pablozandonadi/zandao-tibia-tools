@@ -19,6 +19,7 @@ const fs=require('fs'),assert=require('assert/strict');
     assistente_monitor_estado:async()=>window.fixture,
     assistente_monitor_configurar:async(nome,up,death,remove)=>{window.fixture.personagens=remove?[]:[{nome,up,death,estado:'Aguardando consulta'}];return window.fixture;}
    }};window.testStore=${JSON.stringify(saved)};Object.defineProperty(window,'localStorage',{configurable:true,value:{getItem:key=>window.testStore,setItem:(key,value)=>{window.testStore=value;},removeItem:()=>{window.testStore=null;}}});${blocked?"Object.defineProperty(window,'localStorage',{configurable:true,get(){throw new Error('blocked')}});":''}`});
+   await page.addScriptTag({content:`window.intervalLengths=[];window.originalInterval=window.setInterval;window.setInterval=(fn,ms)=>{window.intervalLengths.push(ms);return window.originalInterval(fn,ms);};`});
    for(const script of ['assistente.js','chat.js','assistente_canais.js'])await page.addScriptTag({content:fs.readFileSync('web/'+script,'utf8')});
    await page.waitForTimeout(30);
   }
@@ -26,6 +27,7 @@ const fs=require('fs'),assert=require('assert/strict');
   if(process.env.ASSISTENTE_SCREENSHOT_DIR){await page.setViewportSize({width:1400,height:900});await page.screenshot({path:process.env.ASSISTENTE_SCREENSHOT_DIR+'/assistente-canais-default.png'});}
   const ids=()=>page.locator('.chat-canais [role=tab]').evaluateAll(es=>es.map(e=>e.id.replace('chat-canal-','')));
   assert.deepEqual(await ids(),['local','log','up','death','help','ia']);
+  assert.ok(await page.evaluate(()=>window.intervalLengths.includes(1000)),'Estado do monitor é lido localmente a cada segundo');
   assert.equal(await page.locator('.assistente-nav').count(),1);
   async function open(id){if(await page.locator(`[data-assistente-tab=${id}]`).count()){await page.click(`[data-assistente-tab=${id}]`);return;}await page.click('[data-assistente-tab=overview]');await page.click('#assistente-canal-abrir');await page.selectOption('#assistente-canal-lista',id);await page.locator('#assistente-canal-dialog button').first().click();}
   await open('shared');await page.fill('#f-levels','200,300');await open('market');
@@ -71,7 +73,7 @@ const fs=require('fs'),assert=require('assert/strict');
   await page.evaluate(()=>window.pendingBoss[0].resolve({bosses:[{boss_id:'old',name:'Old Boss',aliases:[],category:'bane',goals:[25,100,300],progress:1,next_goal:25,missing:24,cooldown_minutes:1200}]}));await page.waitForTimeout(20);
   assert.match(await page.locator('#bosstiary-lista').innerText(),/New Boss/);assert.doesNotMatch(await page.locator('#bosstiary-lista').innerText(),/Old Boss/);
   await page.evaluate(()=>{window.pywebview.api.assistente_estado=window.oldApi.estado;window.pywebview.api.assistente_executar=window.oldApi.executar;window.assistenteSelect('overview');});
-  await page.click('#assistente-monitor-abrir');await page.fill('#assistente-monitor-nome','Other Player');await page.locator('.monitor-adicionar button').click();await page.waitForTimeout(20);assert.match(await page.locator('#assistente-monitor-lista').innerText(),/Other Player/);await page.keyboard.press('Escape');
+  await page.click('#assistente-monitor-abrir');await page.fill('#assistente-monitor-nome','Other Player');await page.locator('.monitor-adicionar button').click();await page.waitForTimeout(20);assert.match(await page.locator('#assistente-monitor-lista').innerText(),/Other Player/);assert.match(await page.locator('#assistente-monitor-lista').innerText(),/Última verificação/);assert.match(await page.locator('#assistente-monitor-dialog').innerText(),/cache da fonte de até 5 min/);await page.keyboard.press('Escape');
   await page.click('#chat-canal-up');const saved=await page.evaluate(()=>window.testStore);assert.ok(!saved.includes('Other Player'));await load(saved);assert.equal(await page.locator('#chat-canal-up').getAttribute('aria-selected'),'true');assert.equal((await ids()).at(-1),'ia');
   for(const width of [1400,320]){
    await page.setViewportSize({width,height:900});await page.click('[data-assistente-tab=overview]');await page.click('#chat-canal-ia');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
