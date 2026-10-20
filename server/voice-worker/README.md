@@ -248,7 +248,7 @@ Resposta `{request_id,kind,text,intent}`:
 - `action`: `intent` válido pelas mesmas regras do `/interpret`, inclusive o guard temporal, aplicado ao texto de todas as mensagens do jogador (uma data dita num turno anterior vale para o `sim` seguinte); `text` null ou string até 600 unidades UTF-16.
 - `out_of_scope`: `text` e `intent` null.
 
-Saída do modelo fora desse contrato, ou `status:"incomplete"`, recebe 502. O limite de reply permite tutoriais organizados; perguntas simples continuam breves. A resposta pública UTF-8 permanece dentro dos 8 KiB lidos pelo cliente. O cliente (`RemoteAIClient.chat`) revalida o corpo e a resposta com o mesmo contrato. Esta rota ainda não foi implantada nem validada contra a OpenAI real.
+Saída do modelo fora desse contrato, ou `status:"incomplete"`, recebe 502. O limite de reply permite tutoriais organizados; perguntas simples continuam breves. Respostas narrativas comuns em UTF-8 cabem nos 8 KiB lidos pelo cliente; conteúdo com muitos caracteres de controle escapados pode ultrapassar esse limite e ser recusado pelo cliente. O cliente (`RemoteAIClient.chat`) revalida o corpo e a resposta com o mesmo contrato. Esta rota ainda não foi implantada nem validada contra a OpenAI real.
 
 
 ### Parte C: contexto e tamanho real
