@@ -127,6 +127,23 @@ def _imagem_noticia(item_id, forcar=False):
     return achou.group(1) if achou else None
 
 
+def _lista_noticias(dados, tipo):
+    artigos, vistos = [], set()
+    lista = dados.get('news', []) if isinstance(dados, dict) else []
+    if not isinstance(lista, list):
+        return artigos
+    for item in sorted((x for x in lista if isinstance(x, dict)),
+                       key=lambda x: (str(x.get('date', '')), x.get('id') if type(x.get('id')) is int else -1), reverse=True):
+        item_id = item.get('id')
+        if (type(item_id) is not int or item_id <= 0 or item_id in vistos
+                or item.get('type', tipo) != tipo or not isinstance(item.get('category'), str)
+                or not item['category'].strip() or not isinstance(item.get('news'), str) or not item['news'].strip()):
+            continue
+        vistos.add(item_id)
+        artigos.append(item)
+    return artigos
+
+
 def buscar(mundo='', forcar=False):
     mundo = (mundo or '').strip()
     if mundo and not re.fullmatch(r'[A-Za-z]{2,40}', mundo):
@@ -152,16 +169,26 @@ def buscar(mundo='', forcar=False):
     avisos_mundo = _avisos_completos(avisos_mundo, bool(forcar))
     calendario = schedule.result()
     calendario['eventos'] = sorted(calendario.get('eventos', []) + eventos_compensacao(avisos_mundo, mundo), key=lambda e: (e['inicio'], e['titulo']))
-    avisos = [x for x in n['dados'].get('news', []) if x.get('category') == 'community'][:8]
+    artigos = _lista_noticias(n['dados'], 'news')
+    avisos = [x for x in artigos if x['category'] == 'community'][:8]
+    noticias_gerais = [x for x in artigos if x['category'] != 'community'][:8]
+    selecionados = avisos + noticias_gerais
     with ThreadPoolExecutor(max_workers=8) as pool:
-        imagens = list(pool.map(lambda x: _imagem_noticia(x.get('id'), bool(forcar)), avisos))
+        imagens = list(pool.map(lambda x: _imagem_noticia(x['id'], bool(forcar)), selecionados))
+    cards = [{'titulo': x['news'].strip(), 'data': x.get('date', ''), 'id': x['id'],
+              'categoria': x['category'], 'imagem': img} for x, img in zip(selecionados, imagens)]
+    ids_artigos = {x['id'] for x in artigos}
+    tickers_gerais = [x for x in _lista_noticias(ticker['dados'], 'ticker') if x['id'] not in ids_artigos][:10]
     return {
         **tibia_info.resumo_do_dia(), 'boostados': b,
         'mundo': info.get('name') or mundo, 'servidor': mundo_info,
         'servidor_velho': w['velho'], 'servidor_consulta': w['consulta'],
-        'anuncios': [{'titulo': (x.get('news') or '').strip(), 'data': x.get('date', ''), 'id': x.get('id'),
-                      'categoria': x.get('category'), 'imagem': img} for x, img in zip(avisos, imagens)],
+        'anuncios': cards[:len(avisos)], 'noticias': cards[len(avisos):],
         'anuncios_velhos': n['velho'], 'anuncios_consulta': n['consulta'],
+        'noticias_velhas': n['velho'], 'noticias_consulta': n['consulta'],
+        'news_ticker': [{'texto': x['news'].strip()[:400], 'data': x.get('date', ''), 'id': x['id']}
+                        for x in tickers_gerais],
+        'news_ticker_velho': ticker['velho'], 'news_ticker_consulta': ticker['consulta'],
         'avisos_mundo': avisos_mundo,
         'avisos_mundo_velhos': ticker['velho'] or any(x['velho'] or not x['completo'] for x in avisos_mundo),
         'killstatistics': kills.result(), 'dream_court': dream.result(), 'yasir': changes.result(), 'calendario': calendario,

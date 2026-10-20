@@ -33,6 +33,21 @@ BRT = timezone(timedelta(hours=-3))
 RANKING = 'https://guildstats.eu/top-experience?world={}&time=0'  # time=0 é "Yesterday"; só traz o top 500 do mundo
 TRANSFERS = 'https://guildstats.eu/world-transfer?{}={}&time=30'  # o site só oferece 7 ou 30 dias; o corte em 10 é feito aqui
 DIAS_TRANSFER = 10
+EMOJIS_VOC = {
+    **dict.fromkeys(('knight', 'elite knight', 'ek', 'k'), '🛡️'),
+    **dict.fromkeys(('paladin', 'royal paladin', 'rp', 'p'), '🏹'),
+    **dict.fromkeys(('druid', 'elder druid', 'ed', 'd'), '❄️'),
+    **dict.fromkeys(('sorcerer', 'master sorcerer', 'ms', 's'), '🔥'),
+}
+
+
+def _emoji_voc(vocation):
+    return EMOJIS_VOC.get(' '.join(vocation.casefold().split()), '') if isinstance(vocation, str) else ''
+
+
+def _nome_voc(nome, vocation=None):
+    emoji = _emoji_voc(vocation)
+    return f'{emoji} {nome}' if emoji else nome
 
 
 def _get(chave, endpoint):
@@ -75,20 +90,20 @@ def _kk(n):
 
 
 def _ranking(mundo):
-    """Top 500 de XP de ontem do mundo no GuildStats: [(nome, level, xp)] ou None."""
+    """Top 500 de XP de ontem do mundo no GuildStats: [(nome, level, xp, vocation)] ou None."""
     def buscar():
         p = guild_stats.Tables()
         p.feed(sources.get_text(RANKING.format(quote(mundo)), 6_000_000))
-        linhas = [(r[1], r[2], int(r[3].replace(',', ''))) for t in p.tables for r in t['rows']
+        linhas = [(r[1], r[2], int(r[3].replace(',', '')), r[5]) for t in p.tables for r in t['rows']
                   if len(r) >= 7 and r[0].isdigit() and re.fullmatch(r'[+-]?[0-9,]+', r[3])]
         if not linhas:
             raise ValueError('Ranking vazio')
         return linhas
-    return sources.cached('gs-topxp:' + mundo.lower(), buscar, ttl=1800)['dados']
+    return sources.cached('gs-topxp:v2:' + mundo.lower(), buscar, ttl=1800)['dados']
 
 
-def _linha_xp(i, nome, level, xp):
-    return f"{i}. {nome} (Lv {str(level).replace(',', '.')}) — {'+' if xp >= 0 else '-'}{_kk(abs(xp))}"
+def _linha_xp(i, nome, level, xp, vocation=None):
+    return f"{i}. {_nome_voc(nome, vocation)} (Lv {str(level).replace(',', '.')}) — {'+' if xp >= 0 else '-'}{_kk(abs(xp))}"
 
 
 def _xp_mundo(mundo):
@@ -99,7 +114,7 @@ def _xp_mundo(mundo):
         return '🏆 Top 10 XP de ontem: indisponível agora (GuildStats).'
     top = sorted(ranking, key=lambda x: -x[2])[:10]
     return '\n'.join([f'🏆 Top 10 XP de ontem — 🌍 {mundo.capitalize()} (GuildStats)']
-                     + [_linha_xp(i, n, lv, xp) for i, (n, lv, xp) in enumerate(top, 1)])
+                     + [_linha_xp(i, n, lv, xp, voc) for i, (n, lv, xp, voc) in enumerate(top, 1)])
 
 
 def _xp_guild(nome, mundo=None):
@@ -107,7 +122,7 @@ def _xp_guild(nome, mundo=None):
     d, _ = _get('guild:' + nome.lower(), '/guild/' + quote(nome))
     g = d.get('guild') or {}
     mundo = g.get('world') or mundo
-    membros = {str(x.get('name', '')).casefold() for x in g.get('members') or [] if isinstance(x, dict)}
+    membros = {str(x.get('name', '')).casefold(): x.get('vocation') for x in g.get('members') or [] if isinstance(x, dict)}
     ranking = _ranking(mundo) if membros and MUNDO.fullmatch(mundo or '') else None
     if ranking is None:
         return '🏆 Top XP de ontem: indisponível agora (GuildStats ou TibiaData).'
@@ -115,7 +130,8 @@ def _xp_guild(nome, mundo=None):
     if not achados:
         return f'🏆 Top XP de ontem — {nome}: nenhum membro ficou no top 500 do mundo no GuildStats.'
     linhas = [f'🏆 Top XP de ontem — {nome} (GuildStats)']
-    linhas += [_linha_xp(i, n, lv, xp) for i, (n, lv, xp) in enumerate(achados[:10], 1)]
+    linhas += [_linha_xp(i, n, lv, xp, membros[n.casefold()] if _emoji_voc(membros[n.casefold()]) else voc)
+               for i, (n, lv, xp, voc) in enumerate(achados[:10], 1)]
     linhas.append(f'_{len(achados)} de {len(membros)} membros aparecem no top 500 de XP do mundo._')
     return '\n'.join(linhas)
 
@@ -140,9 +156,11 @@ def _bomdia(rest, mundo, personagem=None, hoje=None):
     r = zandaobot.buscar(m)
     if r.get('erro'):
         return r['erro']
-    msg = zandaobot_report.gerar(r, {'comunidade': 'tibianos', 'assinatura': personagem})
+    ficha = _ficha(personagem) if personagem and NOME.fullmatch(personagem) else None
+    assinatura = _nome_voc(personagem, ficha[0].get('vocation')) if ficha else personagem
+    msg = zandaobot_report.gerar(r, {'comunidade': 'tibianos', 'assinatura': assinatura})
     extras = [_ou(_kill('', m), '⚔️ Criaturas mortas ontem')] if m and MUNDO.fullmatch(m) else []
-    guild, mundo_guild = _guild_do_personagem(personagem)
+    guild, mundo_guild = ((ficha[0].get('guild') or {}).get('name'), ficha[0].get('world')) if ficha else (None, None)
     # a guild é do personagem em uso: com outro mundo explícito no comando, não se aplica
     if guild and (not rest or rest.casefold() == str(mundo_guild).casefold()):
         extras += [_ou(_guild_info(guild, hoje), '🏰 Guild'), _xp_guild(guild, mundo_guild or m)]
@@ -210,7 +228,7 @@ def _online_guild(nome):
         return FALHA
     on = sorted((x for x in membros if isinstance(x, dict) and x.get('status') == 'online'), key=lambda x: -(x.get('level') or 0))
     linhas = [f"🟢 {g.get('name', nome)} online ({len(on)} de {len(membros)})"]
-    linhas += [f"• Lv {x.get('level', '?')} {x.get('name', '?')} ({x.get('vocation', '?')})" for x in on[:15]]
+    linhas += [f"• Lv {x.get('level', '?')} {_nome_voc(x.get('name', '?'), x.get('vocation'))} ({x.get('vocation', '?')})" for x in on[:15]]
     if len(on) > 15:
         linhas.append(f'… e mais {len(on) - 15}')
     return '\n'.join(linhas)
@@ -236,7 +254,7 @@ def _char(rest, mundo, personagem=None, hoje=None):
     if not f:
         return FALHA
     c, deaths = f
-    linhas = [f"📜 {c['name']}", f"🛡️ {c.get('vocation', '?')} · 🏆 Level {c.get('level', '?')} · 🌍 {c.get('world', '?')}"]
+    linhas = [f"📜 {_nome_voc(c['name'], c.get('vocation'))}", f"🛡️ {c.get('vocation', '?')} · 🏆 Level {c.get('level', '?')} · 🌍 {c.get('world', '?')}"]
     if (c.get('guild') or {}).get('name'):
         linhas.append(f"⚔️ Guilda: {c['guild']['name']}")
     if c.get('last_login'):
@@ -257,7 +275,8 @@ def _death(rest, mundo, personagem=None, hoje=None):
         return FALHA
     c, deaths = f
     m = _mortes(deaths, 10)
-    return '\n'.join([f"☠️ Mortes — {c['name']} (30 dias)", *m]) if m else f"☠️ {c['name']} não morreu nos últimos 30 dias."
+    nome_voc = _nome_voc(c['name'], c.get('vocation'))
+    return '\n'.join([f"☠️ Mortes — {nome_voc} (30 dias)", *m]) if m else f"☠️ {nome_voc} não morreu nos últimos 30 dias."
 
 
 def _guild_info(nome, hoje):
@@ -281,7 +300,7 @@ def _guild_info(nome, hoje):
     novos.sort(key=lambda x: x['joined'], reverse=True)
     linhas = [f"🏰 {g.get('name', nome)}", f"📅 Fundada em {g.get('founded', '❓')} · 🌍 {g.get('world', '❓')}",
               f'🟢 {on} de {len(membros)} online', f'🧙 {voc}']
-    linhas += ['➕ Entraram (7 dias):', *[f"• {x.get('name', '?')} — Lv {x.get('level', '?')} ({_data(x['joined'])})" for x in novos]] if novos else ['➕ Entraram (7 dias): ninguém.']
+    linhas += ['➕ Entraram (7 dias):', *[f"• {_nome_voc(x.get('name', '?'), x.get('vocation'))} — Lv {x.get('level', '?')} ({_data(x['joined'])})" for x in novos]] if novos else ['➕ Entraram (7 dias): ninguém.']
     return '\n'.join(linhas)
 
 
@@ -322,7 +341,7 @@ def _transfer(rest, mundo, personagem=None, hoje=None):
         # shortcut: a página lista no máximo 500 por período; acima disso o total é um mínimo
         total = f'{len(recentes)}+' if len(lista) >= 500 else str(len(recentes))
         linhas.append(f'{titulo}: {total}')
-        linhas += [f'• {n} (Lv {lv}, {voc}) {rumo} {antigo if rumo == "de" else atual} — {dia[8:]}/{dia[5:7]}'
+        linhas += [f'• {_nome_voc(n, voc)} (Lv {lv}, {voc}) {rumo} {antigo if rumo == "de" else atual} — {dia[8:]}/{dia[5:7]}'
                    for n, lv, voc, antigo, atual, dia in recentes[:10]]
         if len(recentes) > 10:
             linhas.append(f'… e mais {len(recentes) - 10}')

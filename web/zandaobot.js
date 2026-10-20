@@ -23,14 +23,23 @@ function zbImageSrc(raw) {
   return '';
 }
 const zbNewsIcons = {community:'🎉', development:'🛠️', technical:'⚙️', cipsoft:'🏢'};
-function zbAnnouncements(r) {
-  const items=(r.anuncios||[]).map(x=>{
+function zbNewsItem(x) {
     const safe=zbImageSrc(x.imagem), icon=zbNewsIcons[x.categoria]||'📰';
     const thumb=`<span class="zb-news-thumb"><span class="zb-news-fallback" ${safe?'hidden':''} aria-hidden="true">${icon}</span>${safe?`<img src="${esc(safe)}" alt="" loading="lazy">`:''}</span>`;
     const body=`${thumb}<span class="zb-news-body"><b>${esc(x.titulo)}</b><small>${esc(zbDate(x.data))}</small></span>`;
-    return Number.isInteger(x.id)?`<a class="zb-news" href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">${body}<span class="zb-news-go" aria-hidden="true">↗</span></a>`:`<div class="zb-news">${body}</div>`;
-  }).join('');
-  return `<section class="zb-panel zb-news-panel"><div class="zb-section-heading"><h2>Últimos anúncios oficiais</h2>${r.anuncios_velhos?'<span class="zb-badge zb-warning">Dados anteriores</span>':''}</div><div class="zb-news-list">${items||'<p class="zb-empty">Nenhum anúncio disponível.</p>'}</div><p class="zb-muted zb-news-stamp">Consulta: ${esc(zbStamp(r.anuncios_consulta))}</p></section>`;
+    return Number.isSafeInteger(x.id)&&x.id>0?`<a class="zb-news" href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">${body}<span class="zb-news-go" aria-hidden="true">↗</span></a>`:`<div class="zb-news">${body}</div>`;
+}
+function zbAnnouncements(r, news=false) {
+  const articles=(news?r.noticias:r.anuncios)||[], tickers=r.news_ticker||[];
+  const day=x=>/^\d{4}-\d{2}-\d{2}$/.test(x.data||'')?x.data:'';
+  const days=[...new Set([...articles,...tickers].map(day))].sort().reverse();
+  const items=news?days.map(date=>{
+    const notices=tickers.filter(x=>day(x)===date).map(x=>`<li>${esc(x.texto)} ${Number.isSafeInteger(x.id)&&x.id>0?`<a href="https://www.tibia.com/news/?subtopic=newsarchive&amp;id=${x.id}" target="_blank" rel="noopener noreferrer">Ler no site oficial ↗</a>`:''}</li>`).join('');
+    const key='news-ticker-'+(date||'unknown'), count=tickers.filter(x=>day(x)===date).length;
+    return `<div class="zb-news-day"><h3>${date?esc(zbDate(date)):'Data não informada'}</h3>${articles.filter(x=>day(x)===date).map(zbNewsItem).join('')}${notices?`<details class="zb-news-ticker" data-zb-key="${key}" ${zbOpen(key,false)}><summary>News Ticker (${count})</summary><ul>${notices}</ul></details>`:''}</div>`;
+  }).join(''):articles.map(zbNewsItem).join('');
+  const tickerInfo=news?`<p class="zb-muted zb-news-stamp">News Ticker: ${esc(zbStamp(r.news_ticker_consulta))}${r.news_ticker_velho?' · dados anteriores':''}${!tickers.length?' · nenhum aviso disponível':''}</p>`:'';
+  return `<section class="zb-panel zb-news-panel"><div class="zb-section-heading"><h2>${news?'News':'Eventos do Tibia'}</h2>${(news?r.noticias_velhas:r.anuncios_velhos)?'<span class="zb-badge zb-warning">Dados anteriores</span>':''}</div><div class="zb-news-list">${items||`<p class="zb-empty">${news?'Nenhuma notícia disponível.':'Nenhum anúncio disponível.'}</p>`}</div><p class="zb-muted zb-news-stamp">Consulta: ${esc(zbStamp(news?r.noticias_consulta:r.anuncios_consulta))}</p>${tickerInfo}</section>`;
 }
 function zbSprite(src, label, icon) {
   const safe=zbImageSrc(src);
@@ -85,7 +94,7 @@ function zbRender(r) {
   const online=server.name?`${server.players_online??'—'} jogadores · ${server.status==='online'?'online':server.status||'status desconhecido'}`:'Status indisponível';
   const save=new Date(r.server_save_ms).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
   const selectWorld=!r.mundo?`<div class="zb-panel zb-selection"><h2>Selecione o mundo de Tibia</h2><p>Yasir e Dream Court variam por mundo. Escolha abaixo ou pesquise no campo acima.</p><div class="zb-select-actions"><select id="zb-world-pick" aria-label="Selecionar mundo para Yasir e Dream Court"><option value="">Carregando mundos…</option></select><button class="zb-world-button" id="zb-config-world">Cadastrar personagem</button></div><small>Para usar o mundo automaticamente, cadastre e escolha seu personagem nas configurações desta instalação.</small></div>`:'';
-  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>${r.mundo?'Hoje em '+esc(world):'Resumo de hoje'}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div>${selectWorld}<div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta">${r.mundo?`<div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div>`:''}<div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}<div class="zb-feed-grid">${zbCalendar(r.calendario)}${zbAnnouncements(r)}</div>${wbPanel(r)}${notice}${mini}`;
+  $('zb-result').innerHTML=`<div class="zb-overview"><div><span class="zb-eyebrow">RESUMO DIÁRIO</span><h2>${r.mundo?'Hoje em '+esc(world):'Resumo de hoje'}</h2></div><div class="zb-updated"><span>${esc(zbDate(r.dia))}</span><small>Consulta às ${esc(new Date(r.consulta).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}))}</small></div></div><div class="zb-daily-grid">${globalCards}</div><div class="zb-section-heading zb-world-title"><h2>No mundo escolhido</h2><span class="zb-world-label">${esc(world)}</span></div>${selectWorld}<div class="zb-world-grid">${dreamCard}${yasirCard}</div><div class="zb-meta">${r.mundo?`<div><span>Mundo · ${esc(world)}</span><b>${esc(online)}</b><small>${esc(server.pvp_type||'')}${r.servidor_velho?' · dados anteriores':''}</small></div>`:''}<div><span>Próximo server save</span><b>${esc(save)}</b><small>Horário local</small></div></div>${yasirWorlds}<div class="zb-feed-grid">${zbCalendar(r.calendario)}<div class="zb-feed-stack">${zbAnnouncements(r,true)}${zbAnnouncements(r)}</div></div>${wbPanel(r)}${notice}${mini}`;
   wbBind(r);
   $('zb-result').querySelectorAll('details[data-zb-key]').forEach(d=>d.addEventListener('toggle',()=>{ZB.open[d.dataset.zbKey]=d.open;}));
   const picker=$('zb-world-pick');

@@ -48,6 +48,61 @@ class TestZandaoBot(unittest.TestCase):
             self.assertIn('erro', zandaobot.buscar('../Antica'))
             get.assert_not_called()
 
+    def test_news_separa_eventos_ordena_limita_e_inclui_tickers_gerais(self):
+        image = 'https://static.tibia.com/images/news/news_fixes_243x200.png'
+        main = {'id': 9024, 'date': '2026-10-20', 'category': 'development', 'type': 'news',
+                'news': 'Balancing, Fixes and Changes'}
+        entries = [main, dict(main), {**main, 'id': 9023, 'category': 'technical'},
+                   {**main, 'id': 9022, 'category': 'unknown-safe'},
+                   {**main, 'id': 9021, 'category': 'community'},
+                   {**main, 'id': 9020, 'type': 'ticker'}, None,
+                   {**main, 'id': True}, {**main, 'id': -1}]
+        entries += [{**main, 'id': i, 'date': '2026-10-19'} for i in range(9010, 9020)]
+        tickers = [{**main, 'id': i, 'type': 'ticker', 'news': 'Maintenance in Antica ' + 'x' * 500}
+                   for i in range(9030, 9042)]
+        tickers += [{**main, 'type': 'ticker'}, {**main, 'id': 9050}]
+        def get(url):
+            if url.endswith('/news/latest'):
+                return {'news': entries}
+            if url.endswith('/news/newsticker'):
+                return {'news': tickers}
+            if '/news/id/' in url:
+                return {'news': {'content_html': f'<img src="{image}">'}}
+            if '/world/' in url:
+                return {'world': {'name': 'Xybra'}}
+            return {'news': []}
+        with patch.object(tibia_info, '_get_json', side_effect=get) as fetch, patch.object(tibia_info, 'boostados', return_value={}):
+            result = zandaobot.buscar('Xybra')
+            cached = zandaobot.buscar('Xybra')
+        self.assertEqual([x['id'] for x in result['noticias']], [9024, 9023, 9022, 9019, 9018, 9017, 9016, 9015])
+        self.assertEqual([x['id'] for x in result['anuncios']], [9021])
+        self.assertEqual(result['noticias'][0]['imagem'], image)
+        self.assertEqual(len(result['news_ticker']), 10)
+        self.assertEqual(result['news_ticker'][0]['id'], 9041)
+        self.assertEqual(len(result['news_ticker'][0]['texto']), 400)
+        self.assertEqual(result['avisos_mundo'], [])
+        self.assertEqual(cached['noticias_consulta'], result['noticias_consulta'])
+        self.assertEqual(sum(call.args[0].endswith('/news/id/9024') for call in fetch.call_args_list), 1)
+
+    def test_news_preserva_cache_e_indica_falha_por_fonte(self):
+        entries = [{'id': 9024, 'date': '2026-10-20', 'category': 'development', 'news': 'Patch'}]
+        def get(url):
+            return {'news': entries} if url.endswith('/news/latest') else {'news': []}
+        with patch.object(tibia_info, '_get_json', side_effect=get), patch.object(tibia_info, 'boostados', return_value={}):
+            first = zandaobot.buscar()
+        with patch.object(tibia_info, '_get_json', side_effect=OSError()), patch.object(tibia_info, 'boostados', return_value={}):
+            stale = zandaobot.buscar(forcar=True)
+        self.assertEqual(stale['noticias'], first['noticias'])
+        self.assertEqual(stale['noticias_consulta'], first['noticias_consulta'])
+        self.assertTrue(stale['noticias_velhas'])
+        self.assertTrue(stale['news_ticker_velho'])
+        zandaobot._cache.clear()
+        with patch.object(tibia_info, '_get_json', side_effect=OSError()), patch.object(tibia_info, 'boostados', return_value={}):
+            empty = zandaobot.buscar()
+        self.assertEqual(empty['noticias'], [])
+        self.assertEqual(empty['news_ticker'], [])
+        self.assertIsNone(empty['noticias_consulta'])
+
     def test_mundos_ordenados(self):
         with patch.object(tibia_info, '_get_json', return_value={'worlds': {'regular_worlds': [{'name': 'Rasteibra'}, {'name': 'Antica'}]}}):
             self.assertEqual(zandaobot.mundos()['mundos'], ['Antica', 'Rasteibra'])

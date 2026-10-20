@@ -204,7 +204,7 @@ class PadroesDoPersonagem(unittest.TestCase):
             return c.responder(texto, mundo, date(2026, 10, 17), personagem=personagem)
 
     def test_char_e_death_sem_argumento_usam_o_personagem(self):
-        self.assertIn('📜 Elite Nestos', self.run_('char'))
+        self.assertIn('📜 🛡️ Elite Nestos', self.run_('char'))
         self.assertIn('Elite Nestos', self.run_('death'))
 
     def test_char_com_argumento_troca_o_alvo(self):
@@ -221,6 +221,29 @@ class PadroesDoPersonagem(unittest.TestCase):
         self.assertIn('315', r)
         self.assertIn('Quixada online', r)
         self.assertIn('Zaz', r)
+
+    def test_emojis_nas_respostas_de_personagem_online_guild_e_mortes(self):
+        self.assertIn('🛡️ Elite Nestos', self.run_('death'))
+        self.assertIn('❄️ Outro', self.run_('char Outro', mapa={'/character/Outro': {
+            'character': {'character': {'name': 'Outro', 'vocation': 'Elder Druid'}, 'deaths': []}}}))
+        self.assertIn('🛡️ Zaz', self.run_('online'))
+        self.assertIn('🔥 Mago', self.run_('guild'))
+        self.assertNotIn('🛡️ Quixada', self.run_('guild'))
+
+    def test_ranking_reutiliza_vocacoes_sem_buscas_por_jogador(self):
+        with patch.object(c.sources, 'get_text', return_value=RANKING_HTML) as get, \
+                patch.object(tibia_info, '_get_json', side_effect=fonte({'/guild/Quixada': GUILD})) as api:
+            mundo = c._xp_mundo('Antica')
+            guild = c._xp_guild('Quixada')
+        self.assertIn('1. 🛡️ Mago (Lv 688) — +1.25kkk', mundo)
+        self.assertIn('1. 🔥 Mago (Lv 688) — +1.25kkk', guild)
+        self.assertIn('2. 🛡️ Zaz (Lv 512) — +12.40kk', guild)
+        get.assert_called_once()
+        api.assert_called_once()
+
+    def test_guild_usa_vocacao_do_ranking_quando_roster_nao_informa(self):
+        guild = {'guild': {**GUILD['guild'], 'members': [{'name': 'Zaz'}, {'name': 'Mago', 'vocation': None}]}}
+        self.assertIn('🛡️ Mago', self.run_('exp Quixada', mapa={'/guild/Quixada': guild}))
 
     def test_online_com_argumento_nao_traz_a_guild_do_personagem(self):
         r = self.run_('online Antica')
@@ -302,6 +325,8 @@ class MensagemDoDiaExtras(unittest.TestCase):
         self.assertIn('Grande (Lv 900, EK) de Premia — 14/10', r)
         self.assertIn('⬅️ Saíram: 1', r)
         self.assertIn('Fujao (Lv 700, EK) para Wintera', r)
+        self.assertIn('🛡️ Grande', r)
+        self.assertIn('🛡️ Fujao', r)
 
     def test_transfer_pagina_mudada_ou_fora_do_ar_avisa(self):
         r = self.extra('transfer', html=lambda url, limit=0: '<table><tr><th>Outra</th></tr></table>')
@@ -317,6 +342,32 @@ class MensagemDoDiaExtras(unittest.TestCase):
         self.assertIn('nome inválido', self.extra('kill', 'Antica; drop'))
         self.assertIn('não tem guild', self.extra('exp_guild', personagem=''))
         self.assertIsNone(self.extra('apagar_tudo'))
+
+
+class Vocacoes(unittest.TestCase):
+    def test_aliases_confirmados_preservam_nome_original(self):
+        grupos = [('🛡️', ('Knight', 'Elite Knight', 'EK', 'K')), ('🏹', ('Paladin', 'Royal Paladin', 'RP', 'P')),
+                  ('❄️', ('Druid', 'Elder Druid', 'ED', 'D')), ('🔥', ('Sorcerer', 'Master Sorcerer', 'MS', 'S'))]
+        for emoji, aliases in grupos:
+            for voc in aliases:
+                with self.subTest(voc=voc):
+                    self.assertEqual(c._nome_voc("Old' Name", '  ' + voc.swapcase() + ' '), emoji + " Old' Name")
+
+    def test_desconhecida_ou_malformada_nao_adivinha(self):
+        for voc in (None, {}, [], 1, True, '', 'Monk', 'Exalted Monk', 'Unknown', 'knight druid'):
+            with self.subTest(voc=voc):
+                self.assertEqual(c._nome_voc('Elite Knight Name', voc), 'Elite Knight Name')
+
+    def test_bomdia_assina_com_vocacao_ja_consultada(self):
+        zandaobot._cache.clear()
+        with patch.object(zandaobot, 'buscar', return_value={'mundo': 'Antica'}), \
+                patch.object(tibia_info, '_get_json', side_effect=fonte({'/character/Elite%20Nestos': CHAR})) as get, \
+                patch.object(c.zandaobot_report, 'gerar', return_value='Bom dia') as gerar, \
+                patch.object(c, '_kill', return_value='KILL'), patch.object(c, '_guild_info', return_value='GUILD'), \
+                patch.object(c, '_xp_guild', return_value='XP'):
+            c.responder('bomdia', 'Antica', personagem='Elite Nestos')
+        self.assertEqual(gerar.call_args.args[1]['assinatura'], '🛡️ Elite Nestos')
+        get.assert_called_once()
 
 
 if __name__ == '__main__':

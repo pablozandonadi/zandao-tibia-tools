@@ -1,5 +1,6 @@
 """Mensagem compartilhável construída apenas com dados atuais e campos manuais."""
 from datetime import datetime, timezone, timedelta
+import mensagens_tibianas
 
 
 def gerar(r, campos=None, extras=(), mini=True):
@@ -25,7 +26,8 @@ def gerar(r, campos=None, extras=(), mini=True):
     boosted = r.get('boostados') or {}
     def boost(key):
         return (boosted.get(key) or {}).get('nome', '❓') if not boosted.get('velho') and not boosted.get('aguardando') else '❓'
-    lines = [f"🗓️ *{day(r.get('dia', ''))}*", '', f"☀️ Bom dia, {text('comunidade', 'tripulação')}! Que o dia traga boas caçadas e um baú cheio. 🏴‍☠️", '', f"🌍 *Mundo:* {r.get('mundo') or '❓'}"]
+    lines = [f"🗓️ *{day(r.get('dia', ''))}*", '', f"☀️ Bom dia, {text('comunidade', 'tripulação')}! Que o dia traga boas caçadas e um baú cheio. 🏴‍☠️", '',
+             '💬 *Mensagem do dia:*', mensagens_tibianas.proxima(), '', f"🌍 *Mundo:* {r.get('mundo') or '❓'}"]
     calendar = r.get('calendario') or {}
     active = [e for e in calendar.get('eventos', []) if e.get('estado') == 'ativo'] if not calendar.get('velho') else []
     for event in active:
