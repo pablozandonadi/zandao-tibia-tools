@@ -1,18 +1,17 @@
 """API autenticada: todas as entidades são resolvidas pelo proprietário no servidor."""
 from datetime import datetime
-from pathlib import Path
 import time
 import logging
 from collections import defaultdict,deque
 from threading import Lock
 from fastapi import FastAPI, Request, Depends, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse
 from .auth import Verifier
 from .domain import UTC, Invalid, validate
 from mensagem_automatica_report import generate
 
 def create_app(store,transport,verifier=None,origins=(),generator=generate):
-    verifier=verifier or Verifier();app=FastAPI(docs_url=None,redoc_url=None,openapi_url=None)
+    verifier=verifier or Verifier(store);app=FastAPI(docs_url=None,redoc_url=None,openapi_url=None)
     app.state.store=store;app.state.transport=transport
     rates=defaultdict(deque);rate_lock=Lock()
     @app.middleware('http')
@@ -68,15 +67,17 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     @app.get('/health')
     def health(): return {'ok':True,'mode':'live' if transport.real else 'simulation'}
     @app.get('/public-config')
-    def public_config(): return {'clientId':verifier.audience if verifier.issuer=='https://accounts.google.com' else '', 'mode':'live' if transport.real else 'simulation'}
-    @app.post('/auth/check')
-    async def check_login(request:Request):
-        data=await payload(request);fields(data,{'nonce'})
-        value=request.headers.get('authorization','')
-        if not value.startswith('Bearer ') or len(value)>10000 or not isinstance(data.get('nonce'),str): raise HTTPException(401,'Login inválido.')
-        try: verifier.verify(value[7:],data['nonce'])
-        except Invalid: raise HTTPException(401,'Fluxo de login inválido.') from None
-        return {'ok':True}
+    def public_config(): return {'mode':'live' if transport.real else 'simulation','installationCapacity':verifier.capacity}
+    def enrollment_limit(request):
+        if not verifier.limit(request.client.host if request.client else 'unknown'): raise HTTPException(429,'Limite de tentativas atingido.')
+    @app.post('/auth/register')
+    async def register(request:Request):
+        enrollment_limit(request);data=await payload(request);fields(data,{'credential','recovery'})
+        return verifier.register(data.get('credential'),data.get('recovery'))
+    @app.post('/auth/recover')
+    async def recover(request:Request):
+        enrollment_limit(request);data=await payload(request);fields(data,{'recovery','credential','newRecovery','operation'})
+        return verifier.recover(data.get('recovery'),data.get('credential'),data.get('newRecovery'),data.get('operation'))
     @app.post('/v1/preview')
     async def preview(request:Request,user=Depends(owner)):
         c=validate(await payload(request));return generator(c,datetime.now(UTC))
@@ -140,7 +141,5 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     def runs(user=Depends(owner)):
         with store.tx() as db: return [dict(x) for x in db.execute('SELECT id,subscription,reference,state,error FROM runs WHERE owner=? ORDER BY generation DESC LIMIT 100',(user,))]
     @app.get('/portal')
-    def portal(): return FileResponse(Path(__file__).parent.parent/'portal/index.html')
-    @app.get('/portal.js')
-    def portal_js(): return FileResponse(Path(__file__).parent.parent/'portal/portal.js',media_type='application/javascript')
+    def portal(): return JSONResponse({'message':'Abra a gestao de mensagens pelo aplicativo instalado.'})
     return app

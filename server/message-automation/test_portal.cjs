@@ -1,61 +1,47 @@
-/* Synthetic browser origin and Google/API fixtures; all network intercepted. */
-const {chromium}=require('playwright'),fs=require('fs'),assert=require('assert/strict');
-async function bounded(promise){let timer;try{await Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Synthetic request did not reach its fixture gate')),5000);})]);}finally{clearTimeout(timer);}}
+/* Trusted local interface with native-bridge fixtures; no Google, bearer or WhatsApp. */
+const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),assert=require('assert/strict');
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{})});
  try{
-  const page=await browser.newPage(),errors=[],requests=[];page.on('pageerror',e=>errors.push(e.message));
-  let logged=false,connected=false,revoked=false,subscriptions=[],config={},mode='simulation',holdCheck=false,releaseCheck,groupLabel='Grupo <script>malicioso</script>',previewText='Prévia <img src=x onerror=alert(1)>';
-  let firstPreviewRequested,releaseFirstPreview,signalHeldCheck,previewHeld=false;
-  const firstPreviewStarted=new Promise(resolve=>firstPreviewRequested=resolve),firstPreviewGate=new Promise(resolve=>releaseFirstPreview=resolve);
-  const heldCheckStarted=new Promise(resolve=>signalHeldCheck=resolve),heldCheckGate=new Promise(resolve=>releaseCheck=resolve);
-  await page.route('**/*',async route=>{
-   const req=route.request(),url=new URL(req.url()),path=url.pathname;requests.push({path,auth:req.headers().authorization});
-   if(url.hostname==='accounts.google.com')return route.fulfill({contentType:'application/javascript',body:`window.google={accounts:{id:{initialize:c=>{window.googleNonce=c.nonce;window.googleCallback=c.callback},renderButton:e=>{e.textContent='Google sintético'}}}};`});
-   if(path==='/portal')return route.fulfill({contentType:'text/html; charset=utf-8',body:fs.readFileSync('portal/index.html','utf8')});
-   if(path==='/portal.js')return route.fulfill({contentType:'application/javascript',body:fs.readFileSync('portal/portal.js','utf8')});
-   if(path==='/public-config')return route.fulfill({json:{clientId:'synthetic-client',mode}});
-   if(path==='/auth/check'){
-    assert.equal(req.postDataJSON().nonce,await page.evaluate(()=>googleNonce));
-    if(holdCheck){signalHeldCheck();await heldCheckGate;}
-    return route.fulfill({status:req.headers().authorization==='Bearer synthetic-id-token'?200:401,json:{ok:req.headers().authorization==='Bearer synthetic-id-token'}});
-   }
-   if(!path.startsWith('/v1/'))throw Error('Unexpected request '+path);
-   assert.equal(req.headers().authorization,'Bearer synthetic-id-token');assert.equal(url.search,'');logged=true;
-   let result={};const body=req.postDataJSON();
-   if(path==='/v1/subscriptions'&&req.method()==='GET')result=subscriptions;
-   else if(path==='/v1/connections'&&req.method()==='GET')result=connected||revoked?[{id:'connection',state:revoked?'revoked':'active'}]:[];
-   else if(path==='/v1/connections'&&req.method()==='POST'){assert.equal(body.riskAccepted,true);connected=true;revoked=false;result={id:'connection'};}
-   else if(path==='/v1/connections/connection/pair')result={state:'pairing'};
-   else if(path==='/v1/connections/connection'&&req.method()==='GET')result={state:'connected',simulated:true};
-   else if(path==='/v1/connections/connection/groups')result=[{id:'opaque-group',label:groupLabel}];
-   else if(path==='/v1/connections/connection'&&req.method()==='DELETE'){revoked=true;connected=false;result={state:'revoked'};}
-   else if(path==='/v1/preview'){config=body;if(!previewHeld){previewHeld=true;firstPreviewRequested();await firstPreviewGate;}result={text:previewText,reference_date:'2026-10-21'};}
-   else if(path==='/v1/destinations'){assert.equal(body.group,'opaque-group');result={id:'destination'};}
-   else if(path.startsWith('/v1/subscriptions')&&['POST','PUT'].includes(req.method())){subscriptions=[{id:'subscription',...body,state:body.active?'active':'inactive'}];result=subscriptions[0];}
-   else if(path==='/v1/runs')result=[{state:'simulated',reference:'2026-10-21'}];
-   else throw Error('Unknown API request '+path);
-   return route.fulfill({json:result});
+  const page=await browser.newPage(),errors=[],requests=[],calls=[];page.on('pageerror',e=>errors.push(e.message));
+  const folder=path.resolve(__dirname,'../../web/mensagem_automatica_portal');let connected=false,revoked=false,subscriptions=[],groupLabel='Grupo <script>malicioso</script>',previewText='Prévia <img src=x onerror=alert(1)>',releasePreview,signalPreview;
+  const previewStarted=new Promise(r=>signalPreview=r),previewGate=new Promise(r=>releasePreview=r);let first=true;
+  const configuration={personagem:'Pirata Teste',mundo:'Antica',blocks:{mundo:true},timezone:'UTC',generateAt:'12:00',sendAt:'12:10'};
+  await page.exposeBinding('nativeCall',async(_,action,args=[])=>{
+   calls.push({action,args});if(action==='boot')return {mode:'simulation',config:configuration};
+   if(action==='reveal_recovery')return {code:'f'.repeat(64)};
+   if(action==='recover'){assert.equal(args[0],'f'.repeat(64));return {ok:true};}
+   assert.equal(action,'request');const [p,method,body]=args;let result={};
+   if(p==='/v1/subscriptions'&&method==='GET')result=subscriptions;
+   else if(p==='/v1/connections'&&method==='GET')result=connected||revoked?[{id:'connection',state:revoked?'revoked':'active'}]:[];
+   else if(p==='/v1/connections'&&method==='POST'){assert.equal(body.riskAccepted,true);connected=true;revoked=false;result={id:'connection'};}
+   else if(p==='/v1/connections/connection/pair')result={state:'pairing'};
+   else if(p==='/v1/connections/connection'&&method==='GET')result={state:'connected',simulated:true};
+   else if(p==='/v1/connections/connection/groups')result=[{id:'opaque-group',label:groupLabel}];
+   else if(p==='/v1/connections/connection'&&method==='DELETE'){revoked=true;connected=false;result={state:'revoked'};}
+   else if(p==='/v1/preview'){assert.equal(body.personagem,'Pirata Teste');if(first){first=false;signalPreview();await previewGate;}result={text:previewText,reference_date:'2026-10-21'};}
+   else if(p==='/v1/destinations'){assert.equal(body.group,'opaque-group');result={id:'destination'};}
+   else if(p.startsWith('/v1/subscriptions')&&['POST','PUT'].includes(method)){subscriptions=[{id:'subscription',...body,state:body.active?'active':'inactive'}];result=subscriptions[0];}
+   else if(p==='/v1/runs')result=[{state:'simulated',reference:'2026-10-21'}];
+   else throw Error('Unexpected native operation '+p);
+   return {data:result};
   });
-  await page.goto('https://portal.test/portal');await page.waitForFunction(()=>window.googleCallback);
-  assert.equal(await page.locator('#settings').isVisible(),false);
-  await page.evaluate(()=>googleCallback({credential:'wrong-nonce-token'}));assert.equal(await page.locator('#settings').isVisible(),false);assert.match(await page.locator('#notice').textContent(),/Não foi possível verificar/);
-  await page.evaluate(()=>googleCallback({credential:'synthetic-id-token'}));await page.locator('#settings').waitFor();assert.equal(logged,true);
-  await page.locator('#import').setInputFiles({name:'config.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({personagem:'Pirata Teste',mundo:'Antica',blocks:{mundo:true},timezone:'UTC',generateAt:'12:00',sendAt:'12:10'}))});
-  await page.waitForFunction(()=>document.getElementById('config-summary').textContent.includes('Pirata Teste'));
-  await page.locator('#preview').click();await bounded(firstPreviewStarted);assert.equal(await page.locator('#preview-result').textContent(),'','Fixture holds response until explicitly released');releaseFirstPreview();await page.waitForFunction(()=>document.getElementById('preview-result').textContent.includes('<img'));assert.match(await page.locator('#preview-result').textContent(),/<img/);assert.equal(await page.locator('#preview-result img').count(),0);assert.equal(config.personagem,'Pirata Teste');
-  await page.locator('#pair').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Aceite os riscos'));assert.match(await page.locator('#notice').textContent(),/Aceite os riscos/);assert.equal(connected,false);
+  await page.addInitScript(()=>{window.pywebview={api:Object.fromEntries(['boot','request','reveal_recovery','recover'].map(name=>[name,(...args)=>window.nativeCall(name,args)]))};});
+  await page.route('**/*',async route=>{const url=new URL(route.request().url());requests.push(url.pathname);assert.equal(url.hostname,'local.test');assert.ok(['/index.html','/portal.js','/portal.css'].includes(url.pathname));return route.fulfill({contentType:url.pathname.endsWith('.js')?'application/javascript':url.pathname.endsWith('.css')?'text/css':'text/html; charset=utf-8',body:fs.readFileSync(path.join(folder,url.pathname.slice(1)))});});
+  await page.goto('https://local.test/index.html');await page.locator('#settings').waitFor();await page.waitForFunction(()=>document.getElementById('config-summary').textContent.includes('Pirata Teste'));
+  assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(calls.some(c=>c.action==='reveal_recovery'),false);
+  await page.locator('#preview').click();await previewStarted;assert.equal(await page.locator('#preview-result').textContent(),'');releasePreview();await page.waitForFunction(()=>document.getElementById('preview-result').textContent.includes('<img'));assert.equal(await page.locator('#preview-result img').count(),0);
+  await page.locator('#pair').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Aceite os riscos'));assert.equal(connected,false);
   await page.locator('#risk').check();await page.locator('#pair').click();await page.locator('#groups').selectOption('opaque-group');assert.equal(await page.locator('#groups script').count(),0);
-  await page.locator('#save').click();await page.waitForFunction(text=>document.getElementById('notice').textContent.includes(text),'simulação salva e pausada');assert.match(await page.locator('#notice').textContent(),/simulação salva e pausada/);await page.locator('#activate').click();await page.waitForFunction(text=>document.getElementById('notice').textContent.includes(text),'Nenhuma mensagem real');assert.match(await page.locator('#notice').textContent(),/Nenhuma mensagem real/);
-  await page.locator('#pause').click();await page.waitForFunction(text=>document.getElementById('notice').textContent.includes(text),'Agenda pausada');assert.match(await page.locator('#notice').textContent(),/pausada/);await page.locator('#runs').click();await page.waitForFunction(()=>document.getElementById('runs-result').textContent.includes('Simulado'));assert.match(await page.locator('#runs-result').textContent(),/Simulado/);
-  groupLabel='Piratas do Rocks';previewText='Prévia de simulação · Mundo: Antica';await page.locator('#refresh').click();await page.waitForFunction(()=>[...document.getElementById('groups').options].some(option=>option.textContent==='Piratas do Rocks'));await page.locator('#groups').selectOption('opaque-group');await page.locator('#preview').click();await page.waitForFunction(()=>document.getElementById('preview-result').textContent.includes('Prévia de simulação'));
+  await page.locator('#save').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('salva e pausada'));await page.locator('#activate').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Nenhuma mensagem real'));await page.locator('#pause').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Agenda pausada'));
+  await page.locator('#runs').click();await page.waitForFunction(()=>document.getElementById('runs-result').textContent.includes('Simulado'));
+  await page.locator('#reveal-recovery').click();await page.waitForFunction(()=>document.getElementById('recovery-code').textContent.length===64);await page.locator('#recovery-input').fill('f'.repeat(64));await page.locator('#recover').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Acesso recuperado'));assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(await page.locator('#recovery-input').inputValue(),'');
+  groupLabel='Piratas do Rocks';previewText='Prévia de simulação · Mundo: Antica';await page.locator('#refresh').click();await page.waitForFunction(()=>[...document.getElementById('groups').options].some(o=>o.textContent==='Piratas do Rocks'));await page.locator('#preview').click();await page.waitForFunction(()=>document.getElementById('preview-result').textContent.includes('Prévia de simulação'));
   if(process.env.MA_SCREENSHOT_DIR){await page.setViewportSize({width:1200,height:1000});await page.screenshot({path:process.env.MA_SCREENSHOT_DIR+'/portal-mensagem-automatica.png',fullPage:true});}
-  await page.locator('#revoke').click();await page.waitForFunction(text=>document.getElementById('notice').textContent.includes(text),'revogada');assert.match(await page.locator('#notice').textContent(),/revogada/);assert.equal(revoked,true);
-  assert.equal(await page.evaluate(()=>localStorage.length),0);assert.equal(await page.evaluate(()=>sessionStorage.length),0);
-  assert.ok(requests.every(r=>!r.path.includes('synthetic-id-token')));await page.locator('#logout').click();assert.equal(await page.locator('#settings').isVisible(),false);assert.match(await page.locator('#config-summary').textContent(),/Nenhuma configuração/);
-  holdCheck=true;const checked=page.waitForResponse(r=>new URL(r.url()).pathname==='/auth/check');await page.evaluate(()=>{window.pendingCallback=googleCallback({credential:'synthetic-id-token'});});await bounded(heldCheckStarted);
-  await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));releaseCheck();await checked;await page.evaluate(()=>pendingCallback);assert.equal(await page.locator('#settings').isVisible(),false,'Late callback cannot log in after logout');
+  await page.locator('#revoke').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('revogada'));assert.equal(revoked,true);
+  assert.equal(await page.evaluate(()=>localStorage.length+sessionStorage.length),0);assert.ok(calls.every(c=>!JSON.stringify(c).includes('Bearer')));assert.equal(requests.some(p=>p.startsWith('/v1')||p.includes('google')),false);
+  await page.locator('#reveal-recovery').click();await page.waitForFunction(()=>document.getElementById('recovery-code').textContent.length===64);await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(await page.locator('#settings').isVisible(),false);
   await page.setViewportSize({width:320,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);
-  console.log('Portal Google sintético: memória/bearer, importar/prévia, aceite, conexão/grupo opaco, salvar/ativar simulação/pausar/revogar, logout e 320px passaram.');
+  console.log('Gestão local sintética: config automática, proxy nativo sem bearer, XSS, simulação, recuperação explícita, limpeza e 320px passaram.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

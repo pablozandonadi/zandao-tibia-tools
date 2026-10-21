@@ -27,9 +27,7 @@ def components():
 
 def application():
     store,transport=components()
-    client=os.environ.get('GOOGLE_CLIENT_ID','')
-    issuer=os.environ.get('OIDC_ISSUER','https://accounts.google.com' if client else '')
-    verifier=Verifier(issuer,os.environ.get('OIDC_AUDIENCE',client),os.environ.get('OIDC_JWKS_URL','https://www.googleapis.com/oauth2/v3/certs' if client else ''),os.environ.get('GOOGLE_ALLOWED_DOMAIN',''))
+    verifier=Verifier(store)
     origins=tuple(x.strip() for x in os.environ.get('AUTOMATION_ORIGINS','').split(',') if x.strip())
     if any(not x.startswith('https://') or x.endswith('/') for x in origins): raise Invalid('Origens devem ser HTTPS exatas, sem barra final.')
     return create_app(store,transport,verifier,origins)

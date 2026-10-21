@@ -1,9 +1,9 @@
 name: Testar Mensagem automática offline
 on:
   push:
-    paths: ['server/message-automation/**', 'mensagem_automatica_core.py', 'mensagem_automatica_report.py', '.github/workflows/test-message-automation.yml']
+    paths: ['server/message-automation/**', 'mensagem_automatica_core.py', 'mensagem_automatica_report.py', 'mensagem_automatica_access.py', 'test_mensagem_automatica_access.py', 'web/mensagem_automatica_portal/**', '.github/workflows/test-message-automation.yml']
   pull_request:
-    paths: ['server/message-automation/**', 'mensagem_automatica_core.py', 'mensagem_automatica_report.py', '.github/workflows/test-message-automation.yml']
+    paths: ['server/message-automation/**', 'mensagem_automatica_core.py', 'mensagem_automatica_report.py', 'mensagem_automatica_access.py', 'test_mensagem_automatica_access.py', 'web/mensagem_automatica_portal/**', '.github/workflows/test-message-automation.yml']
 permissions:
   contents: read
 jobs:
@@ -17,8 +17,9 @@ jobs:
           cache: pip
           cache-dependency-path: server/message-automation/requirements.txt
       - run: python -m pip install -r server/message-automation/requirements.txt
-      - run: python -m unittest -v test_automation
+      - run: python -m unittest -v test_automation test_installation_auth
         working-directory: server/message-automation
+      - run: python -m unittest -v test_mensagem_automatica_access
       - run: python -m automation demo
         working-directory: server/message-automation
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020

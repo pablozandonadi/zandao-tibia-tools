@@ -110,5 +110,6 @@ class Store:
             db.deserialize(raw)
             db.execute("UPDATE objects SET state=CASE WHEN kind='connection' THEN 'revoked' ELSE 'inactive' END,version=version+1")
             db.execute("UPDATE runs SET state=CASE WHEN state='sending' THEN 'uncertain' ELSE 'cancelled' END,error='offline_restore' WHERE state NOT IN ('accepted','simulated','uncertain','failed','expired','cancelled')")
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='installations'").fetchone(): db.execute('UPDATE installations SET revoked=1')
             db.commit()
             with closing(sqlite3.connect(self.path)) as destination: db.backup(destination)

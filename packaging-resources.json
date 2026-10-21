@@ -2,6 +2,9 @@
   "schema": 1,
   "files": [
     "icon.ico",
+    "web/mensagem_automatica_portal/index.html",
+    "web/mensagem_automatica_portal/portal.js",
+    "web/mensagem_automatica_portal/portal.css",
     "voice/domain_actions.json",
     "sons_padrao/Bober.mp3",
     "sons_padrao/Fui Deletado.mp3",

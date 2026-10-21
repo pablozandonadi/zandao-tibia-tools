@@ -1304,18 +1304,14 @@ class API:
         except Exception:
             return {"erro": "Não foi possível consultar os dados da prévia. Nenhuma mensagem foi enviada."}
 
-    def mensagem_automatica_abrir_portal(self):
-        from urllib.parse import urlsplit
-        import webbrowser
-        url = os.environ.get("AUTOMATION_PORTAL_URL", "").strip()
+    def mensagem_automatica_abrir_portal(self, config):
+        from mensagem_automatica_access import open_management, AccessError
         try:
-            parsed = urlsplit(url)
-            if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/portal"):
-                raise ValueError()
-        except ValueError:
-            return {"erro": "O portal de conexão ainda não foi configurado pelo administrador."}
-        webbrowser.open(url if parsed.path else url.rstrip('/')+'/portal', new=2)
-        return {"ok": True}
+            return open_management(config)
+        except AccessError as error:
+            return {'erro': str(error)}
+        except Exception:
+            return {'erro': 'A gestão de mensagens ainda não está disponível.'}
 
     def zandaobot_mundos(self):
         return zandaobot.mundos()

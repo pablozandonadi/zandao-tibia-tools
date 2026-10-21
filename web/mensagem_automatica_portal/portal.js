@@ -2,13 +2,14 @@
 // Credencial somente em memória; nenhuma configuração ou token vai para a URL.
 (()=>{
  const $=id=>document.getElementById(id);
- let credential='',connection='',subscriptions=[],mode='simulation',qrTimer,pendingNonce='',loginEpoch=0,clientId='',configurationData=null;
+ let connection='',subscriptions=[],mode='simulation',qrTimer,configurationData=null,recoveryTimer,recoveryEpoch=0,closed=false;
  const notice=text=>$('notice').textContent=text;
  const clearQR=()=>{clearTimeout(qrTimer);$('qr').hidden=true;$('qr').removeAttribute('src');};
- function logout(){loginEpoch++;pendingNonce='';credential='';connection='';subscriptions=[];clearQR();$('settings').hidden=true;$('logout').hidden=true;configurationData=null;$('config-summary').textContent='Nenhuma configuração importada.';$('preview-result').textContent='';$('runs-result').textContent='';$('groups').replaceChildren(new Option('Escolha um grupo',''));$('subscriptions').replaceChildren(new Option('Nova configuração',''));$('connection-state').textContent='';$('risk').checked=false;notice('Você saiu. Entre novamente para continuar.');if(clientId)prepareLogin();}
+ function clearRecovery(){recoveryEpoch++;clearTimeout(recoveryTimer);$('recovery-code').textContent='';$('recovery-input').value='';}
+ function logout(){closed=true;$('access-controls').hidden=true;clearQR();clearRecovery();connection='';subscriptions=[];configurationData=null;$('settings').hidden=true;notice('Gestão encerrada. Feche esta janela.');}
  async function api(path,method='GET',body){
-  const response=await fetch('/v1/'+path,{method,headers:{'Authorization':'Bearer '+credential,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),credentials:'omit',cache:'no-store',redirect:'error'});
-  const result=await response.json();if(response.status===401){logout();throw Error('Entre novamente com Google.');}if(!response.ok)throw Error(result.error||'Não foi possível concluir a ação.');return result;
+  const result=await window.pywebview.api.request('/v1/'+path,method,body||null);
+  if(result.error)throw Error(result.error);return result.data;
  }
  const guarded=fn=>async()=>{try{await fn();}catch(e){notice(e.message||'Falha na operação.');}};
  const labels={dia:'Data',saudacao:'Saudação',frase:'Mensagem do dia',mundo:'Mundo',calendario:'Eventos do Tibia',yasir:'Yasir',rashid:'Rashid',criatura:'Criatura boostada',boss:'Boss boostado',dream:'Dream Court',dream_mortes:'Dream Court — mortes',mudancas_online:'Outras world changes online',server_save:'Próximo SS',comunidade:'Comunidade',assinatura:'Assinatura',deeplings:'Boss Deeplings',regiao:'Região boostada',roshamuul:'Roshamuul / robôs',drome:'Tibia Drome',coin_compra:'TC: comprar (gp)',coin_venda:'TC: vender (gp)',coin_hora:'Horário dos preços',kill:'Criaturas mortas ontem',exp_mundo:'XP do servidor',exp_guild:'XP da guild',guild:'Resumo da guild',online_guild:'Online da guild',char:'Personagem',transfer:'Entraram e saíram do mundo'};
@@ -60,29 +61,17 @@
  $('subscriptions').onchange=()=>{const s=subscriptions.find(s=>s.id===$('subscriptions').value);if(s){setConfig(s.config);connection=s.connection;}};
  $('runs').onclick=guarded(async()=>{renderRuns(await api('runs'));});
  $('logout').onclick=logout;window.addEventListener('pagehide',logout);
- function prepareLogin(){
-  const expected=crypto.randomUUID(),epoch=++loginEpoch;pendingNonce=expected;
-  google.accounts.id.initialize({client_id:clientId,nonce:expected,auto_select:false,callback:async result=>{
-   if(epoch!==loginEpoch||pendingNonce!==expected)return;
-   try{
-    const checked=await fetch('/auth/check',{method:'POST',headers:{'Authorization':'Bearer '+result.credential,'Content-Type':'application/json'},body:JSON.stringify({nonce:expected}),credentials:'omit',cache:'no-store',redirect:'error'});
-    if(epoch!==loginEpoch||pendingNonce!==expected)return;
-    if(!checked.ok)throw Error();
-    credential=result.credential;pendingNonce='';await loadSubscriptions();await refresh();
-    if(epoch!==loginEpoch)return;
-    $('settings').hidden=false;$('logout').hidden=false;notice('Login verificado. Importe sua configuração.');
-   }catch(e){if(epoch===loginEpoch){logout();notice('Não foi possível verificar este login.');}}
-  }});$('google-login').replaceChildren();google.accounts.id.renderButton($('google-login'),{type:'standard',theme:'outline',size:'large'});
- }
  async function boot(){
-  const response=await fetch('/public-config',{cache:'no-store',credentials:'omit'});const c=await response.json();mode=c.mode;
+  if(!window.pywebview?.api){notice('Abra esta janela pelo aplicativo instalado.');return;}
+  const c=await window.pywebview.api.boot();if(closed)return;if(c.error){notice(c.error);return;}
+  mode=c.mode;setConfig(c.config);$('settings').hidden=false;
   $('mode').textContent=mode==='simulation'?'Modo de simulação — sem envio real.':'Integração não oficial — envios reais exigem sua conexão e agenda ativa.';
   $('activate').textContent=mode==='simulation'?'Ativar agenda de simulação':'Ativar agenda';
-  if(!c.clientId){notice('Login Google ainda não configurado pelo administrador. Nenhuma conta pode ser conectada aqui.');return;}
-  // The official GIS script handles Google login outside the desktop WebView.
-  for(let i=0;i<100&&!window.google?.accounts?.id;i++)await new Promise(resolve=>setTimeout(resolve,100));
-  if(!window.google?.accounts?.id)throw Error('Não foi possível carregar o login Google.');
-  clientId=c.clientId;prepareLogin();
+  await loadSubscriptions();await refresh();if(closed)return;notice('Sua configuração está pronta para revisar. Salvar não ativa o envio.');
  }
- boot().catch(()=>notice('Portal indisponível. Tente novamente mais tarde.'));
+ $('reveal-recovery').onclick=guarded(async()=>{clearRecovery();const epoch=recoveryEpoch;const r=await window.pywebview.api.reveal_recovery();if(closed||epoch!==recoveryEpoch)return;if(r.error)throw Error(r.error);$('recovery-code').textContent=r.code;recoveryTimer=setTimeout(clearRecovery,30000);});
+ $('recovery-input').oninput=()=>{clearTimeout(recoveryTimer);recoveryTimer=setTimeout(clearRecovery,30000);};
+ $('recover').onclick=guarded(async()=>{const code=$('recovery-input').value.trim();clearRecovery();const r=await window.pywebview.api.recover(code);if(r.error)throw Error(r.error);await boot();notice('Acesso recuperado. O código anterior foi invalidado. Guarde seu novo código se precisar.');});
+ let started=false;const start=()=>{if(started)return;started=true;boot().catch(()=>notice('Gestão indisponível. Tente novamente.'));};
+ window.addEventListener('pywebviewready',start);if(window.pywebview?.api)start();
 })();

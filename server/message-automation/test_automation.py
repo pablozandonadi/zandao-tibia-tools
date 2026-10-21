@@ -12,7 +12,6 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime,timedelta
 from pathlib import Path
 from types import SimpleNamespace
-import jwt
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
@@ -175,25 +174,14 @@ class CoreTests(unittest.TestCase):
    with patch('automation.transport.httpx.Client',side_effect=lambda **kw:original(transport=httpx.MockTransport(response),**kw)):
     with self.assertRaises(exception):transport.send('id','group','private fixture','attempt')
  def test_auth_api_ownership_forgery_and_limits(self):
-  private=rsa.generate_private_key(public_exponent=65537,key_size=2048)
-  keys=SimpleNamespace(get_signing_key_from_jwt=lambda token:SimpleNamespace(key=private.public_key()))
-  verifier=Verifier('https://accounts.google.com','test-client','https://www.googleapis.com/oauth2/v3/certs',key_client=keys)
+  verifier=Verifier(self.store)
   app=create_app(self.store,self.transport,verifier,origins=('https://portal.test',),generator=snapshot);client=TestClient(app)
-  def headers(sub):
-   now=datetime.now(UTC);token=jwt.encode({'sub':sub,'iss':'https://accounts.google.com','aud':'test-client','iat':now,'exp':now+timedelta(minutes=5)},private,algorithm='RS256')
-   return {'Authorization':'Bearer '+token}
-  a=headers('A');b=headers('B')
+  a={'Authorization':'Bearer '+'a'*64};b={'Authorization':'Bearer '+'b'*64}
+  verifier.register('a'*64,'c'*64);verifier.register('b'*64,'d'*64)
   self.assertEqual(client.get('/v1/connections').status_code,401)
   self.assertEqual(client.get('/v1/connections',headers={'Authorization':'Bearer invalid'}).status_code,401)
   self.assertEqual(client.get('/v1/connections',headers={**a,'Origin':'https://evil.test'}).status_code,403)
   self.assertEqual(client.post('/v1/preview',json=config(),headers=a).status_code,200)
-  nonce='n'*40
-  for claim,expected in [(None,401),('wrong-nonce',401),(nonce,200)]:
-   now=datetime.now(UTC);claims={'sub':'A','iss':'https://accounts.google.com','aud':'test-client','iat':now,'exp':now+timedelta(minutes=5)}
-   if claim is not None:claims['nonce']=claim
-   token=jwt.encode(claims,private,algorithm='RS256')
-   response=client.post('/auth/check',json={'nonce':nonce},headers={'Authorization':'Bearer '+token})
-   self.assertEqual(response.status_code,expected)
   conn=client.post('/v1/connections',json={'riskAccepted':True},headers=a).json()['id']
   for path in [f'/v1/connections/{conn}',f'/v1/connections/{conn}/groups']:
    self.assertEqual(client.get(path,headers=b).status_code,400)
@@ -208,8 +196,6 @@ class CoreTests(unittest.TestCase):
   self.assertEqual(client.delete(f'/v1/connections/{conn}',headers=a).status_code,200)
   self.assertEqual(client.post(f'/v1/connections/{conn}/pair',headers=a).status_code,400)
   self.assertEqual(client.post('/v1/preview',content='x'*33000,headers=a).status_code,413)
-  self.assertEqual(TestClient(create_app(self.store,self.transport)).get('/v1/connections',headers=a).status_code,401)
-  wrong=jwt.encode({'sub':'A','iss':'https://accounts.google.com','aud':'test-client','exp':datetime.now(UTC)+timedelta(minutes=2),'iat':datetime.now(UTC)},'secret'*10,algorithm='HS256')
-  self.assertEqual(client.get('/v1/connections',headers={'Authorization':'Bearer '+wrong}).status_code,401)
+  self.assertEqual(client.get('/v1/connections',headers={'Authorization':'Bearer '+'e'*64}).status_code,401)
 
 if __name__=='__main__':unittest.main()

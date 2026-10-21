@@ -1,6 +1,6 @@
 # Ponte privada alternativa Baileys
 
-Implementação local revisável, **não implantada**. Substitui a ponte Go no mesmo contrato privado; a API, worker, autenticação Google e preferências continuam iguais. Escolher **uma** ponte por implantação/porta, sem operar as duas sobre a mesma sessão. O Docker existente na VM e seu diretório de autenticação não foram alterados nem importados.
+Implementação local revisável, **não implantada**. Substitui a ponte Go no mesmo contrato privado; a API, worker, identidade da instalação e preferências continuam iguais. Escolher **uma** ponte por implantação/porta, sem operar as duas sobre a mesma sessão. O Docker existente na VM e seu diretório de autenticação não foram alterados nem importados.
 
 ## Contrato e persistência
 
@@ -41,7 +41,7 @@ Esse trecho é uma proposta de override; não foi instalado ou iniciado. Não ex
 
 O modo real exige simultaneamente `BRIDGE_MODE=real`, `BRIDGE_ENABLE_REAL=I_ACCEPT_UNOFFICIAL_WHATSAPP`, aceite do proprietário e diretório privado em **mount Linux LUKS/dm-crypt comprovado via mountinfo + UUID CRYPT-LUKS**. Chaves fora do volume e backup. Sem isso a inicialização falha. O diretório novo recebe marcador próprio; diretório não vazio sem marcador é rejeitado, sem ler/importar seu conteúdo. Gate não é flag declarativa. Em container o mount pode não ser verificável: não enfraquecer a checagem; preparar execução compatível antes de habilitar real.
 
-Google Client ID e domínio HTTPS ainda estão pendentes. Login real, implantação, pareamento, envio de teste e ativação de agenda exigem configuração e aprovações separadas. Nada disso foi executado.
+Domínio HTTPS ainda está pendente. Identidade automática por instalação dispensa Google. Implantação, pareamento, envio de teste e ativação exigem configuração e aprovações separadas. Nada disso foi executado.
 
 ## Sessão legada, backup e restore
 

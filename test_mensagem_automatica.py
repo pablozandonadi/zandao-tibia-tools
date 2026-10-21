@@ -58,11 +58,11 @@ class AutomaticMessageTests(unittest.TestCase):
   cls=ast.ClassDef(name='FixtureAPI',bases=[],keywords=[],body=methods,decorator_list=[]);module=ast.fix_missing_locations(ast.Module(body=[cls],type_ignores=[]));namespace={'os':os};exec(compile(module,'<public-preview-test>','exec'),namespace);api=namespace['FixtureAPI']()
   self.assertIn('Mundo: Antica',api.mensagem_automatica_previa(config())['text'])
   self.assertIn('erro',api.mensagem_automatica_previa({**config(),'blocks':{'mini':True}}))
-  with patch.dict(os.environ,{'AUTOMATION_PORTAL_URL':'https://portal.example.test/portal'}),patch('webbrowser.open',return_value=True) as opened:
-   self.assertTrue(api.mensagem_automatica_abrir_portal()['ok']);opened.assert_called_once()
-  for invalid in ['javascript:bad','http://portal.test/portal','https://user:password@portal.test/portal','https://portal.test/portal?token=bad']:
-   with patch.dict(os.environ,{'AUTOMATION_PORTAL_URL':invalid}),patch('webbrowser.open') as opened:
-    self.assertIn('erro',api.mensagem_automatica_abrir_portal());opened.assert_not_called()
+  with patch('mensagem_automatica_access.open_management',return_value={'ok':True}) as opened:
+   self.assertTrue(api.mensagem_automatica_abrir_portal(config())['ok']);opened.assert_called_once_with(config())
+  from mensagem_automatica_access import AccessError
+  with patch('mensagem_automatica_access.open_management',side_effect=AccessError('Unavailable')):
+   self.assertIn('erro',api.mensagem_automatica_abrir_portal(config()))
  def test_windows_timezone_is_in_build_lock(self):
   self.assertIn('tzdata==2026.5',Path('requirements-build.lock').read_text())
   self.assertIn('--collect-all tzdata',Path('instalador/gerar_instalador.ps1').read_text())
