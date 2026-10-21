@@ -19,7 +19,9 @@ ALLOWED={
  'GET':re.compile(r'^/(public-config|v1/(connections(?:/'+ID+r'(?:/groups)?)?|subscriptions|runs))$'),
  'POST':re.compile(r'^/v1/(preview|connections(?:/'+ID+r'/pair)?|destinations|subscriptions)$'),
  'PUT':re.compile(r'^/v1/subscriptions/'+ID+r'$'),
- 'DELETE':re.compile(r'^/v1/connections/'+ID+r'$')}
+ 'DELETE':re.compile(r'^/v1/(connections|subscriptions)/'+ID+r'$')}
+# Servidor da VM Oracle; AUTOMATION_PORTAL_URL continua valendo como override administrativo.
+DEFAULT_ORIGIN='https://140.238.185.24'
 class NoRedirect(HTTPRedirectHandler):
  def redirect_request(self,*args,**kwargs): raise AccessError('Redirecionamento recusado.')
 
@@ -156,7 +158,7 @@ def open_management(config):
  import webview
  import app_paths
  from versao import CANAL_APP
- origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip())
+ origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)
  credentials=CredentialFile(origin,CANAL_APP)
  from mensagem_automatica_core import validate
  config=validate(config)

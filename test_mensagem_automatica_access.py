@@ -48,6 +48,9 @@ class AccessTests(unittest.TestCase):
   current=self.files.load()['credential']
   with self.assertRaises(AccessRejected):self.client.recover('f'*64)
   self.assertEqual(self.files.load()['credential'],current);self.client.request('/v1/connections')
+  # Hub: excluir rotina passa pela lista fechada; caminho fora do formato continua bloqueado.
+  self.assertEqual(self.client.request('/v1/subscriptions/'+'a'*32,'DELETE'),[])
+  with self.assertRaises(AccessError):self.client.request('/v1/subscriptions/x','DELETE')
  def test_corruption_origin_channel_and_proxy_fail_closed(self):
   self.client.request('/public-config')
   bound=CredentialFile('https://other.test','beta',self.tmp.name,self.files.protect,self.files.unprotect)
@@ -74,6 +77,11 @@ class AccessTests(unittest.TestCase):
   with patch.dict('sys.modules',{'webview':SimpleNamespace(create_window=window)}),patch.dict(os.environ,{'AUTOMATION_PORTAL_URL':'https://service.test','LOCALAPPDATA':self.tmp.name}):
    self.assertTrue(open_management({'personagem':'Sintetico','mundo':'Antica','blocks':{'mundo':True}})['ok'])
   args,kwargs=window.call_args;self.assertTrue(args[1].endswith('index.html'));self.assertNotIn('https:',args[1]);self.assertEqual(sorted(n for n in dir(kwargs['js_api']) if not n.startswith('_')),['boot','recover','request','reveal_recovery'])
+  # Sem variável de ambiente, usa o servidor embutido.
+  env={k:v for k,v in os.environ.items() if k!='AUTOMATION_PORTAL_URL'};env['LOCALAPPDATA']=self.tmp.name
+  with patch.dict('sys.modules',{'webview':SimpleNamespace(create_window=window)}),patch.dict(os.environ,env,clear=True):
+   self.assertTrue(open_management({'personagem':'Sintetico','mundo':'Antica','blocks':{'mundo':True}})['ok'])
+  self.assertEqual(window.call_args.kwargs['js_api']._client.origin,'https://140.238.185.24')
   with self.assertRaises(AccessError):NoRedirect().redirect_request(None,None,None,None,None,None)
   from urllib.request import ProxyHandler
   fake=Mock();fake.open.return_value.__enter__.return_value.read.return_value=b'{}'
