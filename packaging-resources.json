@@ -1633,6 +1633,8 @@
     "web/voz.css",
     "web/voz.js",
     "web/world_board.css",
+    "web/mensagem_automatica.css",
+    "web/mensagem_automatica.js",
     "web/world_board.js",
     "web/zandaobot.css",
     "web/zandaobot.js",
