@@ -119,18 +119,22 @@ def generate(config,now=None,provider=None):
         kills=source('killstatistics',('disponivel',));bosses=kills.get('bosses')
         if not bosses or any(type(b.get('last_day_killed')) is not int for b in bosses): raise Invalid('Contagens incompletas.')
         blocks['dream_mortes']='📊 Dream Court — mortes (Last Day): '+ '; '.join(str(b['nome'])+': '+str(b['last_day_killed']) for b in bosses)
-    lines=[blocks[k] for k in c['blocks'] if c['blocks'][k]]
+    lines=[blocks[k] for k in c['blocks'] if c['blocks'][k]];signature=''
     for key,label in FIELDS.items():
         if not c['fields'][key] or key=='comunidade' and 'saudacao' in selected: continue
         value=c['values'].get(key,'')
         if not value: raise Invalid('Preencha a variável selecionada.')
         if key not in ('comunidade','assinatura') and c['manualDate']!=ref: raise Invalid('Confirme a data dos valores manuais.')
-        lines.append(label+': '+value)
+        if key=='assinatura': signature=label+': '+value
+        else: lines.append(label+': '+value)
     if c['fields']['comunidade'] and not c['values'].get('comunidade'): raise Invalid('Preencha a comunidade.')
+    # Cabeçalho em linhas seguidas; cada consulta extra em bloco próprio; assinatura sempre no fim.
+    sections=['\n'.join(lines)] if lines else []
     for key in EXTRAS:
         if c['extras'][key]:
-            text,metadata=provider.extra(key,c['args'].get(key,''),c,now);lines.append(text);sources.extend(metadata)
-    result={'text':'\n\n'.join(lines),'sources':sources,'reference_date':ref,'generated_at':now.timestamp()}
+            text,metadata=provider.extra(key,c['args'].get(key,''),c,now);sections.append(text);sources.extend(metadata)
+    if signature: sections.append(signature)
+    result={'text':'\n\n'.join(sections),'sources':sources,'reference_date':ref,'generated_at':now.timestamp()}
     if len(result['text'])>16000: raise Invalid('Mensagem excede o limite de tamanho.')
     fresh(result,now,ref)
     return result

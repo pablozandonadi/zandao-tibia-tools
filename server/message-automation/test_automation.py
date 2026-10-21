@@ -110,6 +110,9 @@ class CoreTests(unittest.TestCase):
    def extra(self,*a):return 'extra test',[{'source':'fixture','fetched_at':NOW.timestamp(),'reference_date':'2026-10-21'}]
   out=generate({**config(),'blocks':{'yasir':True,'mudancas_online':True},'extras':{'guild':True}},NOW,Good())
   self.assertIn('Inativo',out['text']);self.assertNotIn('World Board',out['text']);self.assertIn('extra test',out['text'])
+  # Cabeçalho sem linhas em branco; consultas separadas; assinatura sempre no fim.
+  signed=generate({**config(),'blocks':{'dia':True,'mundo':True},'fields':{'assinatura':True},'values':{'assinatura':'Zandao'},'extras':{'guild':True}},NOW,Good())['text']
+  self.assertEqual(signed,'🗓️ 21/10/2026\n🌍 Mundo: Antica\n\nextra test\n\nAssinatura: Zandao')
   out['sources'][0]['fetched_at']-=4000
   with self.assertRaises(Invalid):fresh(out,NOW,'2026-10-21')
  def test_restore_invalidates_connections_and_jobs(self):
@@ -192,6 +195,12 @@ class CoreTests(unittest.TestCase):
   sub=client.post('/v1/subscriptions',json={'config':config(),'connection':conn,'destination':dest,'active':True},headers=a)
   self.assertEqual(sub.status_code,200);self.assertEqual(sub.json()['mode'],'simulation')
   self.assertEqual(client.get('/v1/subscriptions',headers=b).json(),[])
+  # Hub: rotina listada com o nome do grupo; excluir só pelo dono, some da lista e não volta por PUT.
+  key=sub.json()['id'];self.assertEqual(client.get('/v1/subscriptions',headers=a).json()[0]['destinationLabel'],'Grupo sintético (simulação)')
+  self.assertEqual(client.delete(f'/v1/subscriptions/{key}',headers=b).status_code,400)
+  self.assertEqual(client.delete(f'/v1/subscriptions/{key}',headers=a).status_code,200)
+  self.assertEqual(client.get('/v1/subscriptions',headers=a).json(),[])
+  self.assertEqual(client.put(f'/v1/subscriptions/{key}',json={'config':config(),'connection':conn,'destination':dest,'active':True},headers=a).status_code,400)
   self.assertEqual(client.delete(f'/v1/connections/{conn}',headers=b).status_code,400)
   self.assertEqual(client.delete(f'/v1/connections/{conn}',headers=a).status_code,200)
   self.assertEqual(client.post(f'/v1/connections/{conn}/pair',headers=a).status_code,400)

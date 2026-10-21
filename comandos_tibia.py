@@ -38,6 +38,7 @@ EMOJIS_VOC = {
     **dict.fromkeys(('paladin', 'royal paladin', 'rp', 'p'), '🏹'),
     **dict.fromkeys(('druid', 'elder druid', 'ed', 'd'), '❄️'),
     **dict.fromkeys(('sorcerer', 'master sorcerer', 'ms', 's'), '🔥'),
+    **dict.fromkeys(('monk', 'exalted monk', 'em', 'm'), '👊'),  # GuildStats abrevia Exalted Monk como EM
 }
 
 

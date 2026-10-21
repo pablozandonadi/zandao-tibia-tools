@@ -347,14 +347,15 @@ class MensagemDoDiaExtras(unittest.TestCase):
 class Vocacoes(unittest.TestCase):
     def test_aliases_confirmados_preservam_nome_original(self):
         grupos = [('🛡️', ('Knight', 'Elite Knight', 'EK', 'K')), ('🏹', ('Paladin', 'Royal Paladin', 'RP', 'P')),
-                  ('❄️', ('Druid', 'Elder Druid', 'ED', 'D')), ('🔥', ('Sorcerer', 'Master Sorcerer', 'MS', 'S'))]
+                  ('❄️', ('Druid', 'Elder Druid', 'ED', 'D')), ('🔥', ('Sorcerer', 'Master Sorcerer', 'MS', 'S')),
+                  ('👊', ('Monk', 'Exalted Monk', 'EM', 'M'))]
         for emoji, aliases in grupos:
             for voc in aliases:
                 with self.subTest(voc=voc):
                     self.assertEqual(c._nome_voc("Old' Name", '  ' + voc.swapcase() + ' '), emoji + " Old' Name")
 
     def test_desconhecida_ou_malformada_nao_adivinha(self):
-        for voc in (None, {}, [], 1, True, '', 'Monk', 'Exalted Monk', 'Unknown', 'knight druid'):
+        for voc in (None, {}, [], 1, True, '', 'Unknown', 'knight druid'):
             with self.subTest(voc=voc):
                 self.assertEqual(c._nome_voc('Elite Knight Name', voc), 'Elite Knight Name')
 

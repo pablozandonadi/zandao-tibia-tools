@@ -1,10 +1,24 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mensagem automática · ZandaoTools</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'"><link rel="stylesheet" href="portal.css">
-</head><body><h1>Mensagem automática</h1><p id="mode" role="status">Verificando configuração…</p><p id="notice" role="status" aria-live="polite"></p><button id="logout">Encerrar gestão</button>
-<fieldset id="access-controls"><legend>Recuperar acesso em outro computador</legend><p>O acesso é automático nesta instalação. Guarde o código em local seguro: quem tiver o código pode recuperar sua área.</p><button id="reveal-recovery">Mostrar meu código de recuperação</button><pre id="recovery-code"></pre><label>Código de recuperação<input id="recovery-input" type="password" autocomplete="off" spellcheck="false" maxlength="64"></label><button id="recover">Recuperar minha área</button></fieldset>
-<main id="settings" hidden><p>Configuração recebida do aplicativo. Revise antes de salvar. Para alterar as escolhas, volte à subseção Mensagem automática e abra a gestão novamente. O World Board manual não é usado.</p>
-<label>Importar configuração<input id="import" type="file" accept="application/json,.json"></label><section id="config-summary" aria-label="Resumo da configuração"><p>Nenhuma configuração importada.</p></section><button id="preview">Gerar prévia</button><pre id="preview-result"></pre>
-<fieldset><legend>Sua conexão WhatsApp</legend><p>Integração não oficial com o WhatsApp. Mudanças no WhatsApp podem interromper a conexão e existe risco de bloqueio da conta. Não há garantia de envio ou de manutenção da sessão.</p><label><input id="risk" type="checkbox"> Li e aceito esses riscos para conectar minha própria conta.</label><button id="pair">Criar conexão / mostrar QR</button><button id="refresh">Atualizar conexão e grupos</button><button id="revoke">Revogar minha conexão</button><p id="connection-state"></p><img id="qr" hidden alt="QR temporário para parear sua conta WhatsApp"><label>Grupo de destino<select id="groups"><option value="">Escolha um grupo</option></select></label></fieldset>
-<label>Configuração salva<select id="subscriptions"><option value="">Nova configuração</option></select></label><button id="save">Salvar pausada</button><button id="activate">Ativar agenda</button><button id="pause">Pausar agenda</button><button id="runs">Ver execuções</button><section id="runs-result" aria-label="Execuções recentes"></section></main>
+</head><body>
+<header class="top"><h1>Mensagem automática</h1><span id="mode" class="badge" role="status">Verificando…</span><button id="logout" class="ghost">Encerrar gestão</button></header>
+<p id="notice" role="status" aria-live="polite"></p>
+<main id="settings" hidden>
+<section class="card" aria-labelledby="wa-title"><div class="card-head"><h2 id="wa-title">WhatsApp</h2><span id="connection-state" class="badge">…</span></div>
+<p id="connection-detail" class="muted"></p>
+<div id="pair-box"><p class="muted risk">Integração não oficial com o WhatsApp. Mudanças no WhatsApp podem interromper a conexão e existe risco de bloqueio da conta. Não há garantia de envio ou de manutenção da sessão.</p><label><input id="risk" type="checkbox"> Li e aceito esses riscos para conectar minha própria conta.</label><button id="pair" class="primary">Conectar / mostrar QR</button><img id="qr" hidden alt="QR temporário para parear sua conta WhatsApp"></div>
+<div class="actions"><button id="refresh">Atualizar</button><button id="revoke" class="danger" hidden>Desconectar WhatsApp</button></div></section>
+<section class="card" aria-labelledby="routines-title"><div class="card-head"><h2 id="routines-title">Minhas rotinas</h2><span id="routine-count" class="muted"></span></div><div id="routines" class="routines"></div></section>
+<section class="card" id="preview-card" hidden aria-labelledby="preview-title"><div class="card-head"><h2 id="preview-title">Prévia</h2><button id="close-preview" class="ghost">Fechar</button></div><pre id="preview-result"></pre></section>
+<section class="card" id="runs-card" hidden aria-labelledby="runs-title"><div class="card-head"><h2 id="runs-title">Histórico</h2><button id="close-runs" class="ghost">Fechar</button></div><div id="runs-result"></div></section>
+<section class="card" aria-labelledby="new-title"><div class="card-head"><h2 id="new-title">Nova rotina</h2></div>
+<p class="muted">Usa a configuração do app no momento em que esta janela abriu. Mudou algo? Salve no app e abra esta janela de novo.</p>
+<details><summary>Ver o que vai na mensagem</summary><section id="config-summary" aria-label="Resumo da configuração"><p>Nenhuma configuração importada.</p></section></details>
+<label>Grupo de destino<select id="groups"><option value="">Escolha um grupo</option></select></label>
+<div class="actions"><button id="preview">Gerar prévia</button><button id="save">Criar pausada</button><button id="activate" class="primary">Criar e ativar</button></div>
+<label class="muted">Importar configuração<input id="import" type="file" accept="application/json,.json"></label></section>
+<button id="runs" class="ghost">Ver todo o histórico</button>
+</main>
+<details class="card" id="access-controls"><summary>Recuperar acesso em outro computador</summary><p>O acesso é automático nesta instalação. Guarde o código em local seguro: quem tiver o código pode recuperar sua área.</p><button id="reveal-recovery">Mostrar meu código de recuperação</button><pre id="recovery-code"></pre><label>Código de recuperação<input id="recovery-input" type="password" autocomplete="off" spellcheck="false" maxlength="64"></label><button id="recover">Recuperar minha área</button></details>
 <script src="portal.js"></script></body></html>

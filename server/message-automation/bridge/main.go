@@ -144,7 +144,8 @@ func (b *bridge) load(id string) (*session, error) {
 		s.db = db
 		s.client = whatsmeow.NewClient(device, nil)
 		s.client.ManualHistorySyncDownload = true
-		s.client.DisableManualHistorySyncReceipt = true
+		// The hist_sync receipt only acknowledges the notification (nothing is downloaded); without it the phone shows "chat sync paused".
+		s.client.DisableManualHistorySyncReceipt = false
 		s.client.AutomaticMessageRerequestFromPhone = false
 		s.client.UseRetryMessageStore = false
 		s.client.SetForceActiveDeliveryReceipts(false)
@@ -221,8 +222,10 @@ func (b *bridge) pair(id string, s *session) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	s.cancel = cancel
+	// whatsmeow keeps the Connect context for handlers and auto-reconnect, so the
+	// connection uses the client's background context; ctx only bounds the QR channel.
 	if s.client.Store.ID != nil {
-		return s.client.ConnectContext(ctx)
+		return s.client.Connect()
 	}
 	codes, err := s.client.GetQRChannel(ctx)
 	if err != nil {
@@ -249,7 +252,7 @@ func (b *bridge) pair(id string, s *session) error {
 			s.mu.Unlock()
 		}
 	}()
-	return s.client.ConnectContext(ctx)
+	return s.client.Connect()
 }
 func (b *bridge) revoke(id string, s *session) error {
 	s.revoked = true
@@ -330,7 +333,8 @@ func (b *bridge) resume(ctx context.Context, id string, s *session) error {
 	if s.client.IsConnected() && s.client.IsLoggedIn() {
 		return nil
 	}
-	return s.client.ConnectContext(ctx)
+	// Request-scoped ctx would end the connection as soon as the HTTP reply is sent.
+	return s.client.Connect()
 }
 
 func reply(w http.ResponseWriter, status int, value any) {

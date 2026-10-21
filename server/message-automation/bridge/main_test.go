@@ -109,8 +109,11 @@ func TestPersistentSQLiteStoreWithoutConnecting(t *testing.T) {
 	if s.client.IsConnected() || s.client.IsLoggedIn() {
 		t.Fatal("load connected unexpectedly")
 	}
-	if !s.client.ManualHistorySyncDownload || !s.client.DisableManualHistorySyncReceipt || s.client.UseRetryMessageStore {
+	if !s.client.ManualHistorySyncDownload || s.client.UseRetryMessageStore {
 		t.Fatal("history/retry persistence enabled")
+	}
+	if s.client.DisableManualHistorySyncReceipt {
+		t.Fatal("hist_sync receipt disabled: phone shows chat sync paused")
 	}
 	s.db.Close()
 	b.sessions = map[string]*session{}

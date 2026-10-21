@@ -134,9 +134,16 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
         data,state=subscription_data(user,await payload(request));return {'id':store.create(user,'subscription',data,state,limit=5),'state':state,'mode':'live' if transport.real else 'simulation'}
     @app.put('/v1/subscriptions/{key}')
     async def update_subscription(key,request:Request,user=Depends(owner)):
+        if store.get(user,key,'subscription')['state']=='revoked': raise Invalid('Rotina excluída.')
         data,state=subscription_data(user,await payload(request));store.update(user,key,'subscription',data,state);return {'id':key,'state':state}
+    @app.delete('/v1/subscriptions/{key}')
+    def delete_subscription(key,user=Depends(owner)):
+        # 'revoked' libera a vaga do limite e cancela execuções pendentes; o histórico de runs fica.
+        item=store.get(user,key,'subscription');store.update(user,key,'subscription',item['data'],'revoked');return {'id':key,'state':'revoked'}
     @app.get('/v1/subscriptions')
-    def subscriptions(user=Depends(owner)): return [{'id':x['id'],'state':x['state'],**x['data']} for x in store.list(user,'subscription')]
+    def subscriptions(user=Depends(owner)):
+        labels={d['id']:d['data'].get('label','') for d in store.list(user,'destination')}
+        return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],'')} for x in store.list(user,'subscription') if x['state']!='revoked']
     @app.get('/v1/runs')
     def runs(user=Depends(owner)):
         with store.tx() as db: return [dict(x) for x in db.execute('SELECT id,subscription,reference,state,error FROM runs WHERE owner=? ORDER BY generation DESC LIMIT 100',(user,))]
