@@ -1294,6 +1294,29 @@ class API:
             blocos = [b for b in ex.map(consulta, pedidos) if b]
         return {"mensagem": zandaobot_report.gerar(resumo, campos, blocos, bool(mini))}
 
+    def mensagem_automatica_previa(self, config):
+        from mensagem_automatica_core import Invalid
+        from mensagem_automatica_report import generate
+        try:
+            return generate(config)
+        except Invalid as error:
+            return {"erro": str(error)}
+        except Exception:
+            return {"erro": "Não foi possível consultar os dados da prévia. Nenhuma mensagem foi enviada."}
+
+    def mensagem_automatica_abrir_portal(self):
+        from urllib.parse import urlsplit
+        import webbrowser
+        url = os.environ.get("AUTOMATION_PORTAL_URL", "").strip()
+        try:
+            parsed = urlsplit(url)
+            if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path not in ("", "/portal"):
+                raise ValueError()
+        except ValueError:
+            return {"erro": "O portal de conexão ainda não foi configurado pelo administrador."}
+        webbrowser.open(url if parsed.path else url.rstrip('/')+'/portal', new=2)
+        return {"ok": True}
+
     def zandaobot_mundos(self):
         return zandaobot.mundos()
 
