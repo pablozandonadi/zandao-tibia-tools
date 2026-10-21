@@ -51,6 +51,12 @@ def _nome_voc(nome, vocation=None):
     return f'{emoji} {nome}' if emoji else nome
 
 
+def _item(nome, vocation=None):
+    # Em listas o emoji da vocação já marca a linha; o "•" só fica quando não há emoji.
+    emoji = _emoji_voc(vocation)
+    return f'{emoji} {nome}' if emoji else f'• {nome}'
+
+
 def _get(chave, endpoint):
     r = zandaobot._consultar(chave, endpoint)
     return r['dados'], r['velho']
@@ -229,7 +235,7 @@ def _online_guild(nome):
         return FALHA
     on = sorted((x for x in membros if isinstance(x, dict) and x.get('status') == 'online'), key=lambda x: -(x.get('level') or 0))
     linhas = [f"🟢 {g.get('name', nome)} online ({len(on)} de {len(membros)})"]
-    linhas += [f"• Lv {x.get('level', '?')} {_nome_voc(x.get('name', '?'), x.get('vocation'))} ({x.get('vocation', '?')})" for x in on[:15]]
+    linhas += [f"{_item(x.get('name', '?'), x.get('vocation'))} — Lv {x.get('level', '?')} ({x.get('vocation', '?')})" for x in on[:15]]
     if len(on) > 15:
         linhas.append(f'… e mais {len(on) - 15}')
     return '\n'.join(linhas)
@@ -301,7 +307,7 @@ def _guild_info(nome, hoje):
     novos.sort(key=lambda x: x['joined'], reverse=True)
     linhas = [f"🏰 {g.get('name', nome)}", f"📅 Fundada em {g.get('founded', '❓')} · 🌍 {g.get('world', '❓')}",
               f'🟢 {on} de {len(membros)} online', f'🧙 {voc}']
-    linhas += ['➕ Entraram (7 dias):', *[f"• {_nome_voc(x.get('name', '?'), x.get('vocation'))} — Lv {x.get('level', '?')} ({_data(x['joined'])})" for x in novos]] if novos else ['➕ Entraram (7 dias): ninguém.']
+    linhas += ['➕ Entraram (7 dias):', *[f"{_item(x.get('name', '?'), x.get('vocation'))} — Lv {x.get('level', '?')} ({_data(x['joined'])})" for x in novos]] if novos else ['➕ Entraram (7 dias): ninguém.']
     return '\n'.join(linhas)
 
 
@@ -342,7 +348,7 @@ def _transfer(rest, mundo, personagem=None, hoje=None):
         # shortcut: a página lista no máximo 500 por período; acima disso o total é um mínimo
         total = f'{len(recentes)}+' if len(lista) >= 500 else str(len(recentes))
         linhas.append(f'{titulo}: {total}')
-        linhas += [f'• {_nome_voc(n, voc)} (Lv {lv}, {voc}) {rumo} {antigo if rumo == "de" else atual} — {dia[8:]}/{dia[5:7]}'
+        linhas += [f'{_item(n, voc)} (Lv {lv}, {voc}) {rumo} {antigo if rumo == "de" else atual} — {dia[8:]}/{dia[5:7]}'
                    for n, lv, voc, antigo, atual, dia in recentes[:10]]
         if len(recentes) > 10:
             linhas.append(f'… e mais {len(recentes) - 10}')

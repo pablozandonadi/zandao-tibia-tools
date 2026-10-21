@@ -226,7 +226,7 @@ class PadroesDoPersonagem(unittest.TestCase):
         self.assertIn('🛡️ Elite Nestos', self.run_('death'))
         self.assertIn('❄️ Outro', self.run_('char Outro', mapa={'/character/Outro': {
             'character': {'character': {'name': 'Outro', 'vocation': 'Elder Druid'}, 'deaths': []}}}))
-        self.assertIn('🛡️ Zaz', self.run_('online'))
+        self.assertIn('\n🛡️ Zaz — Lv 512', self.run_('online'))
         self.assertIn('🔥 Mago', self.run_('guild'))
         self.assertNotIn('🛡️ Quixada', self.run_('guild'))
 
@@ -327,6 +327,10 @@ class MensagemDoDiaExtras(unittest.TestCase):
         self.assertIn('Fujao (Lv 700, EK) para Wintera', r)
         self.assertIn('🛡️ Grande', r)
         self.assertIn('🛡️ Fujao', r)
+        # O emoji da vocação já marca a linha: sem "•" antes dele.
+        self.assertIn('\n🛡️ Grande (Lv 900, EK) de Premia — 14/10', r)
+        self.assertNotIn('• ', r)
+        self.assertEqual(c._item('Sem Voc', None), '• Sem Voc')
 
     def test_transfer_pagina_mudada_ou_fora_do_ar_avisa(self):
         r = self.extra('transfer', html=lambda url, limit=0: '<table><tr><th>Outra</th></tr></table>')
