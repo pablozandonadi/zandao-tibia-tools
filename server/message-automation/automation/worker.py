@@ -32,6 +32,8 @@ class Worker:
                     if generation and generation>now: continue
                     state='pending' if generation and send else 'expired';error=None if state=='pending' else 'dst_nonexistent'
                     if generation and stamp-generation.timestamp()>MAX_AGE: state='expired';error='generation_late'
+                    # Rotina editada: execução de versão antiga que nunca despachou cede a vaga do dia; enviada ou incerta nunca.
+                    db.execute("DELETE FROM runs WHERE owner=? AND subscription=? AND destination=? AND reference=? AND version<? AND state IN ('failed','expired','cancelled')",(owner,row['id'],data['destination'],ref,row['version']))
                     db.execute('INSERT OR IGNORE INTO runs(id,owner,subscription,destination,reference,generation,send,state,error,version) VALUES(?,?,?,?,?,?,?,?,?,?)',
                                (ident(),owner,row['id'],data['destination'],ref,generation.timestamp() if generation else None,send.timestamp() if send else None,state,error,row['version']))
             # Per-owner round robin prevents a tenant's queue from occupying all 50 slots.

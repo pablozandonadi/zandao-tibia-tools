@@ -63,7 +63,17 @@ class CoreTests(unittest.TestCase):
   conn,dest,sub=self.subscription(c={**config(),'sendAt':'12:20'});worker=Worker(self.store,self.transport,snapshot);worker.tick(NOW)
   data=self.store.get('owner',sub,'subscription')['data'];data['config']['values']={'comunidade':'Mudou'}
   self.store.update('owner',sub,'subscription',data,'active');worker.tick(NOW+timedelta(minutes=20))
-  self.assertFalse(self.transport.sent);self.assertEqual(self.runs()[0]['state'],'cancelled')
+  # A versão antiga (já gerada) é cancelada; a revisão gera de novo e sai uma vez só.
+  self.assertEqual(len(self.transport.sent),1);self.assertEqual([(r['version'],r['state']) for r in self.runs()],[(2,'simulated')])
+  worker.tick(NOW+timedelta(minutes=21));self.assertEqual(len(self.transport.sent),1)
+ def test_edit_after_undispatched_failure_retries_same_day_but_never_resends(self):
+  conn,dest,sub=self.subscription()
+  def broken(c,now):raise Invalid('Preencha a variável selecionada.')
+  Worker(self.store,self.transport,broken).tick(NOW);self.assertEqual(self.runs()[0]['state'],'failed')
+  data=self.store.get('owner',sub,'subscription')['data'];data['config']['sendAt']='12:01';self.store.update('owner',sub,'subscription',data,'active')
+  worker=Worker(self.store,self.transport,snapshot);worker.tick(NOW+timedelta(minutes=1));self.assertEqual(len(self.transport.sent),1)
+  data['config']['sendAt']='12:02';self.store.update('owner',sub,'subscription',data,'active');worker.tick(NOW+timedelta(minutes=2))
+  self.assertEqual(len(self.transport.sent),1)
  def test_generation_late_crossing_server_save_expires(self):
   self.subscription(c={**config(),'generateAt':'07:55','sendAt':'08:10'})
   Worker(self.store,self.transport,snapshot).tick(NOW.replace(hour=8,minute=5))
