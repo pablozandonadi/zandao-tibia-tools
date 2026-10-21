@@ -82,6 +82,10 @@ class AccessTests(unittest.TestCase):
   with patch.dict('sys.modules',{'webview':SimpleNamespace(create_window=window)}),patch.dict(os.environ,env,clear=True):
    self.assertTrue(open_management({'personagem':'Sintetico','mundo':'Antica','blocks':{'mundo':True}})['ok'])
   self.assertEqual(window.call_args.kwargs['js_api']._client.origin,'https://140.238.185.24')
+  # Sem preferências salvas a tela abre mesmo assim, só com personagem e mundo.
+  with patch.dict('sys.modules',{'webview':SimpleNamespace(create_window=window)}),patch.dict(os.environ,env,clear=True):
+   self.assertTrue(open_management({'personagem':' Sintetico ','mundo':'Antica','blocks':{}})['ok'])
+  self.assertEqual(window.call_args.kwargs['js_api']._config,{'personagem':'Sintetico','mundo':'Antica'})
   with self.assertRaises(AccessError):NoRedirect().redirect_request(None,None,None,None,None,None)
   from urllib.request import ProxyHandler
   fake=Mock();fake.open.return_value.__enter__.return_value.read.return_value=b'{}'

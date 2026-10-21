@@ -1,23 +1,25 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mensagem automática · ZandaoTools</title>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mensagens automáticas · ZandaoTools</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'"><link rel="stylesheet" href="portal.css">
 </head><body>
-<header class="top"><h1>Mensagem automática</h1><span id="mode" class="badge" role="status">Verificando…</span><button id="logout" class="ghost">Encerrar gestão</button></header>
+<header class="top"><h1>Mensagens automáticas</h1><span id="mode" class="badge" role="status">Verificando…</span><button id="logout" class="ghost">Encerrar gestão</button></header>
 <p id="notice" role="status" aria-live="polite"></p>
 <main id="settings" hidden>
 <section class="card" aria-labelledby="wa-title"><div class="card-head"><h2 id="wa-title">WhatsApp</h2><span id="connection-state" class="badge">…</span></div>
 <p id="connection-detail" class="muted"></p>
 <div id="pair-box"><p class="muted risk">Integração não oficial com o WhatsApp. Mudanças no WhatsApp podem interromper a conexão e existe risco de bloqueio da conta. Não há garantia de envio ou de manutenção da sessão.</p><label><input id="risk" type="checkbox"> Li e aceito esses riscos para conectar minha própria conta.</label><button id="pair" class="primary">Conectar / mostrar QR</button><img id="qr" hidden alt="QR temporário para parear sua conta WhatsApp"></div>
 <div class="actions"><button id="refresh">Atualizar</button><button id="revoke" class="danger" hidden>Desconectar WhatsApp</button></div></section>
-<section class="card" aria-labelledby="routines-title"><div class="card-head"><h2 id="routines-title">Minhas rotinas</h2><span id="routine-count" class="muted"></span></div><div id="routines" class="routines"></div></section>
+<section class="card" aria-labelledby="routines-title"><div class="card-head"><h2 id="routines-title">Minhas rotinas</h2><span><span id="routine-count" class="muted"></span> <button id="new-routine" class="primary">+ Nova rotina</button></span></div><div id="routines" class="routines"></div></section>
+<section class="card" id="editor" hidden aria-labelledby="editor-title"><div class="card-head"><h2 id="editor-title">Nova rotina</h2><button id="editor-cancel" class="ghost">Cancelar</button></div>
+<label>Grupo de destino<input id="group-search" type="search" placeholder="Buscar grupo…" autocomplete="off"><select id="groups"><option value="">Escolha um grupo</option></select></label>
+<fieldset><legend>Horários</legend><div class="grid"><label>Gerar às<input id="ed-generate" type="time"></label><label>Enviar às<input id="ed-send" type="time"></label><label>Fuso horário<input id="ed-zone" maxlength="100" placeholder="Ex.: America/Cuiaba"></label></div><p class="muted">O envio precisa ser no mesmo horário ou depois da geração.</p></fieldset>
+<fieldset><legend>Personagem e mundo</legend><div class="grid"><label>Personagem<input id="ed-personagem" maxlength="40"></label><label>Mundo<input id="ed-mundo" maxlength="40"></label></div></fieldset>
+<fieldset><legend>Conteúdo básico</legend><div id="ed-blocks" class="ticks"></div></fieldset>
+<fieldset><legend>Variáveis manuais</legend><div id="ed-fields" class="rows"></div><label>Data dos valores manuais<input id="ed-manual" type="date"></label><p class="muted">Preços e bosses manuais só valem para o dia do Tibia informado.</p></fieldset>
+<fieldset><legend>Consultas adicionais</legend><p class="muted">Campo vazio usa o personagem e o mundo acima.</p><div id="ed-extras" class="rows"></div></fieldset>
+<div class="actions"><button id="preview">Prévia</button><button id="save">Salvar pausada</button><button id="activate" class="primary">Salvar e ativar</button></div></section>
 <section class="card" id="preview-card" hidden aria-labelledby="preview-title"><div class="card-head"><h2 id="preview-title">Prévia</h2><button id="close-preview" class="ghost">Fechar</button></div><pre id="preview-result"></pre></section>
 <section class="card" id="runs-card" hidden aria-labelledby="runs-title"><div class="card-head"><h2 id="runs-title">Histórico</h2><button id="close-runs" class="ghost">Fechar</button></div><div id="runs-result"></div></section>
-<section class="card" aria-labelledby="new-title"><div class="card-head"><h2 id="new-title">Nova rotina</h2></div>
-<p class="muted">Usa a configuração do app no momento em que esta janela abriu. Mudou algo? Salve no app e abra esta janela de novo.</p>
-<details><summary>Ver o que vai na mensagem</summary><section id="config-summary" aria-label="Resumo da configuração"><p>Nenhuma configuração importada.</p></section></details>
-<label>Grupo de destino<select id="groups"><option value="">Escolha um grupo</option></select></label>
-<div class="actions"><button id="preview">Gerar prévia</button><button id="save">Criar pausada</button><button id="activate" class="primary">Criar e ativar</button></div>
-<label class="muted">Importar configuração<input id="import" type="file" accept="application/json,.json"></label></section>
 <button id="runs" class="ghost">Ver todo o histórico</button>
 </main>
 <details class="card" id="access-controls"><summary>Recuperar acesso em outro computador</summary><p>O acesso é automático nesta instalação. Guarde o código em local seguro: quem tiver o código pode recuperar sua área.</p><button id="reveal-recovery">Mostrar meu código de recuperação</button><pre id="recovery-code"></pre><label>Código de recuperação<input id="recovery-input" type="password" autocomplete="off" spellcheck="false" maxlength="64"></label><button id="recover">Recuperar minha área</button></details>

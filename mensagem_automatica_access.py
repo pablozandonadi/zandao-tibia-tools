@@ -160,9 +160,11 @@ def open_management(config):
  from versao import CANAL_APP
  origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)
  credentials=CredentialFile(origin,CANAL_APP)
- from mensagem_automatica_core import validate
- config=validate(config)
+ from mensagem_automatica_core import validate,Invalid
+ # Preferências salvas só preenchem a "Nova rotina"; incompletas não impedem abrir a tela.
+ try:config=validate(config)
+ except Invalid:config={k:config[k].strip()[:40] for k in ('personagem','mundo') if isinstance(config,dict) and isinstance(config.get(k),str)}
  api=ManagementAPI(InstallationClient(origin,credentials),config)
  path=app_paths.resource_dir()/'web'/'mensagem_automatica_portal'/'index.html'
- webview.create_window('Mensagem automática',str(path),js_api=api,width=900,height=800,min_size=(320,500))
+ webview.create_window('Mensagens automáticas',str(path),js_api=api,width=900,height=860,min_size=(320,500))
  return {'ok':True}
