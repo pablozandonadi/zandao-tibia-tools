@@ -38,6 +38,8 @@ class PublicProvider:
 
     def extra(self,key,arg,c,now):
         # Namespace próprio preserva a formatação existente sem alterar globais do app.
+        if not isinstance(getattr(comandos_tibia,'EXTRAS',None),dict) or not callable(getattr(comandos_tibia,'extra',None)):
+            raise Invalid('Atualize os módulos de consulta para usar os extras da mensagem automática.')
         namespace=comandos_tibia.__dict__.copy()
         def clone(fn):
             copy=FunctionType(fn.__code__,namespace,fn.__name__,fn.__defaults__,fn.__closure__)

@@ -98,4 +98,6 @@ Reversão operacional: parar timer, pausar assinaturas, configurar transporte fa
 
 ## Pendências para uso real
 
+Compatibilidade de desenvolvimento: um checkout compartilhado antigo pode conter `comandos_tibia.py` anterior ao contrato `EXTRAS`/`extra`. A sincronização preserva esse módulo e seu fluxo manual. Nesse caso, geração básica e demo continuam disponíveis; selecionar consultas extras retorna um erro controlado pedindo atualização dos módulos, sem inventar resultados ou repetir como falha transitória. A Beta/develop coesa contém o contrato completo e mantém os sete extras funcionais. O módulo público `mensagens_tibianas.py`, quando ausente, precisa acompanhar os novos helpers; não copiar dados pessoais para preencher dependências.
+
 Conta/região/quota/volume Oracle e autorização de infraestrutura; domínio/TLS e client ID Google; confirmar mundo/horários/fuso; aprovação individual de riscos/pareamento; grupo e texto do teste real; verificação controlada de ausência de recibos de leitura e ativação final. VM, OAuth, firewall, TLS, systemd e WhatsApp não foram alterados por esta entrega. A documentação não constitui confirmação de leitura de mensagens ou intimações.

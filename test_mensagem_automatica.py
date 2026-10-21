@@ -66,5 +66,10 @@ class AutomaticMessageTests(unittest.TestCase):
  def test_windows_timezone_is_in_build_lock(self):
   self.assertIn('tzdata==2026.5',Path('requirements-build.lock').read_text())
   self.assertIn('--collect-all tzdata',Path('instalador/gerar_instalador.ps1').read_text())
+ def test_legacy_commands_fail_controlled_only_when_extras_selected(self):
+  with patch.object(comandos_tibia,'EXTRAS',None,create=True),patch.object(comandos_tibia,'extra',None,create=True):
+   self.assertIn('Mundo: Antica',generate(config(),NOW)['text'])
+   with self.assertRaisesRegex(Invalid,'Atualize os módulos de consulta'):
+    generate({**config(),'extras':{'char':True}},NOW)
 
 if __name__=='__main__':unittest.main()
