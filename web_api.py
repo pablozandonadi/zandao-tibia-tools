@@ -1021,9 +1021,9 @@ class API:
         return historico.panorama(lista)
 
     def hunt_comparar(self, ids):
-        """Compara de 2 a 4 hunts do histórico (na ordem em que foram escolhidas)."""
+        """Compara 2 ou mais hunts do histórico (na ordem em que foram escolhidas)."""
         todas = {h["id"]: h for h in historico.carregar()}
-        hunts = [todas[i] for i in ids if i in todas][:4]
+        hunts = [todas[i] for i in ids if i in todas]
         if len(hunts) < 2:
             return {"erro": "Escolha pelo menos 2 hunts para comparar."}
         return historico.comparar(hunts)

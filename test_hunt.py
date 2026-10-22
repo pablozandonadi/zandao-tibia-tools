@@ -347,8 +347,18 @@ class TestComparar(unittest.TestCase):
     def test_ranking_igual_ao_panorama(self):
         a = _reg_party("a", "2026-10-01, 10:00:00", "01:17h", 1, ["gloom maws"])
         b = _reg_party("b", "2026-10-02, 10:00:00", "02:00h", 2, ["gloom maws"])
-        self.assertEqual(historico.comparar([a, b])["ranking"], historico.panorama([a, b])["jogadores"])
-        self.assertEqual(historico.ranking_jogadores([a, b]), historico.panorama([a, b])["jogadores"])
+        self.assertEqual(historico.comparar([a, b])["ranking"], historico.panorama([a, b])["ranking"])
+        self.assertEqual(historico.ranking_jogadores([a, b]), historico.panorama([a, b])["ranking"])
+
+    def test_muitas_hunts_agrupa_avisos(self):
+        hs = [self._solo(f"s{i}", f"S{i}", 60, 10_000_000 + i, 500_000, prey=[] if i < 3 else [{"tipo": "xp", "estrelas": 7}])
+              for i in range(5)]
+        r = historico.comparar(hs)
+        prey = next(a for a in r["avisos"] if a.startswith("Prey diferente"))
+        self.assertIn("sem prey (3 hunts)", prey)
+        self.assertIn("★7 (2 hunts)", prey)
+        self.assertNotIn('"S0"', prey)                                      # com muitas hunts não cita uma por uma
+        self.assertIn('"S4" rendeu 0% a mais de XP por hora que a média das 5 hunts.', r["veredito"])
 
     def test_ranking_usa_so_o_tempo_de_quem_estava(self):
         a = _reg_party("a", "2026-10-01, 10:00:00", "01:00h", 1, ["varg"])
@@ -842,16 +852,23 @@ class TestPanorama(unittest.TestCase):
               for i in range(1, 8)]
         hs.append(self._reg("dragoes", "2026-10-09, 10:00:00", "01:00h", 1, ["dragon lord"]))
         r = historico.panorama(hs)
-        self.assertEqual(r["total"]["hunts"], 8)
-        self.assertEqual([l["id"] for l in r["linhas"]][0], "h1")  # em ordem de data (para o gráfico)
-        lucros = [l["lucro_membro_h"] for l in r["linhas"]]
-        st = r["stats"]["lucro_membro_h"]
+        self.assertEqual(len(r["hunts"]), 8)
+        self.assertEqual(r["hunts"][0]["id"], "h1")  # em ordem de data (para o gráfico)
+        linha = {l["chave"]: l for l in r["linhas"]}
+        lucros = linha["lucro_membro_h"]["valores"]
+        st = linha["lucro_membro_h"]["stats"]
         self.assertEqual((st["melhor"], st["pior"], st["media"]), (max(lucros), min(lucros), sum(lucros) // 8))
-        self.assertEqual(r["stats"]["supplies_membro_h"]["melhor"], min(l["supplies_membro_h"] for l in r["linhas"]))
-        knight = next(j for j in r["jogadores"] if j["nome"] == "Knight Alfa")
+        self.assertEqual((lucros[st["i_melhor"]], lucros[st["i_pior"]]), (max(lucros), min(lucros)))
+        sup = linha["supplies_membro_h"]
+        self.assertEqual(sup["stats"]["melhor"], min(sup["valores"]))    # gastar menos é melhor
+        knight = next(j for j in r["ranking"] if j["nome"] == "Knight Alfa")
         self.assertEqual(knight["hunts"], 8)
         self.assertEqual(knight["dano"], sum(12846796 * k for k in range(1, 8)) + 12846796)
-        self.assertEqual(r["jogadores"][0]["nome"], "Knight Alfa")  # maior dano/h primeiro
+        self.assertEqual(r["ranking"][0]["nome"], "Knight Alfa")  # maior dano/h primeiro
+        # muitas hunts: avisos resumidos e veredito contra a média
+        self.assertIn('1 de 8 hunts foram em outro spawn (monstros diferentes de "h1"). Use o filtro de spawn para comparar só um.', r["avisos"])
+        self.assertIn('Durações diferentes (de 1h00 a 2h00): compare pelas linhas "/ hora".', r["avisos"])
+        self.assertTrue(any("que a média das 8 hunts." in v for v in r["veredito"]))
 
         # filtro por spawn: nomes no plural do Hunting Analyser viram o nome do monstro
         self.assertEqual(historico.opcoes_monstros(hs)[0], ("Gloom Maw", 7))

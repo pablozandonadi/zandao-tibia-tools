@@ -183,33 +183,35 @@ def do_tamanho(h, filtro):
     return n >= 5 if filtro == "5+" else n == int(filtro)
 
 
-# (chave, rótulo, o que é melhor: 'max' | 'min' | None, tipo de número)
+# (chave, rótulo, o que é melhor: 'max' | 'min' | None, tipo de número, rótulo curto para cartões/gráfico/tabela)
 LINHAS_COMPARACAO = [
-    ("duracao", "Duração", None, "txt"),
-    ("membros", "Tamanho da party", None, "num"),
-    ("lucro_membro_h", "Lucro por membro / hora", "max", "gp"),
-    ("lucro_membro", "Lucro por membro (total)", "max", "gp"),
-    ("balance_h", "Balance da party / hora", "max", "gp"),
-    ("balance", "Balance da party (total)", "max", "gp"),
-    ("loot_membro_h", "Loot por membro / hora", "max", "gp"),
-    ("supplies_membro_h", "Supplies por membro / hora", "min", "gp"),
-    ("xp_h", "XP / hora", "max", "num"),
-    ("xp_raw_h", "Raw XP / hora", "max", "num"),
-    ("xp", "XP (total)", "max", "num"),
-    ("despesas", "Despesas extras", "min", "gp"),
-    ("dano_total", "Dano total da party", "max", "num"),
-    ("dano_h", "Dano da party / hora", "max", "num"),
-    ("dano_membro_h", "Dano por membro / hora", "max", "num"),
-    ("cura_total", "Cura total da party", "max", "num"),
-    ("cura_h", "Cura da party / hora", "max", "num"),
-    ("loot_total", "Loot da party (total)", "max", "gp"),
-    ("supplies_total", "Supplies da party (total)", "min", "gp"),
-    ("top_dano", "Quem bateu mais", None, "txt"),
-    ("top_cura", "Quem curou mais", None, "txt"),
-    ("top_supplies", "Quem gastou mais supplies", None, "txt"),
-    ("top_loot", "Quem lootou mais", None, "txt"),
-    ("top_balance", "Maior balance", None, "txt"),
+    ("duracao", "Duração", None, "txt", "Duração"),
+    ("membros", "Tamanho da party", None, "num", "Party"),
+    ("lucro_membro_h", "Lucro por membro / hora", "max", "gp", "Lucro/membro/h"),
+    ("lucro_membro", "Lucro por membro (total)", "max", "gp", "Lucro/membro"),
+    ("balance_h", "Balance da party / hora", "max", "gp", "Balance/h"),
+    ("balance", "Balance da party (total)", "max", "gp", "Balance"),
+    ("loot_membro_h", "Loot por membro / hora", "max", "gp", "Loot/membro/h"),
+    ("supplies_membro_h", "Supplies por membro / hora", "min", "gp", "Supplies/membro/h"),
+    ("xp_h", "XP / hora", "max", "num", "XP/h"),
+    ("xp_raw_h", "Raw XP / hora", "max", "num", "Raw XP/h"),
+    ("xp", "XP (total)", "max", "num", "XP"),
+    ("despesas", "Despesas extras", "min", "gp", "Despesas"),
+    ("dano_total", "Dano total da party", "max", "num", "Dano total"),
+    ("dano_h", "Dano da party / hora", "max", "num", "Dano/h"),
+    ("dano_membro_h", "Dano por membro / hora", "max", "num", "Dano/membro/h"),
+    ("cura_total", "Cura total da party", "max", "num", "Cura total"),
+    ("cura_h", "Cura da party / hora", "max", "num", "Cura/h"),
+    ("loot_total", "Loot da party (total)", "max", "gp", "Loot total"),
+    ("supplies_total", "Supplies da party (total)", "min", "gp", "Supplies total"),
+    ("top_dano", "Quem bateu mais", None, "txt", "Quem bateu mais"),
+    ("top_cura", "Quem curou mais", None, "txt", "Quem curou mais"),
+    ("top_supplies", "Quem gastou mais supplies", None, "txt", "Quem gastou mais"),
+    ("top_loot", "Quem lootou mais", None, "txt", "Quem lootou mais"),
+    ("top_balance", "Maior balance", None, "txt", "Maior balance"),
 ]
+# acima disso os avisos agrupam as hunts ("sem prey (12 hunts)") em vez de citar uma por uma
+AVISO_POR_NOME_ATE = 4
 
 # Só Hunt Analyser (sem Party Hunt): quem está sozinho não tem membros nem "quem bateu mais"; essas linhas somem
 LINHAS_SO_PARTY = {"membros", "balance_h", "balance", "dano_membro_h", "loot_total", "supplies_total",
@@ -385,8 +387,18 @@ def _aviso_prey(hunts, cab):
     partes[0] = partes[0][0].upper() + partes[0][1:]
     efeito = partes[0] if len(partes) == 1 else ", ".join(partes[:-1]) + " e " + partes[-1]
     verbo = "não é comparável" if len(partes) == 1 else "não são comparáveis"
-    quem = ", ".join(f"\"{c['nome']}\" " + ("sem prey" if not pr else "com " + rotulo_prey(pr, True)) for c, pr in zip(cab, preys))
+    quem = _quem(cab, ["sem prey" if not pr else "com " + rotulo_prey(pr, True) for pr in preys])
     return f"Prey diferente: {quem}. {efeito} {verbo} diretamente."
+
+
+def _quem(cab, rotulos):
+    """'"A" com X, "B" sem Y'; com muitas hunts agrupa: 'com X (12 hunts), sem Y (10 hunts)'."""
+    if len(cab) <= AVISO_POR_NOME_ATE:
+        return ", ".join(f"\"{c['nome']}\" {r}" for c, r in zip(cab, rotulos))
+    cont = {}
+    for r in rotulos:
+        cont[r] = cont.get(r, 0) + 1
+    return ", ".join(f"{r} ({k} hunt{'s' if k > 1 else ''})" for r, k in sorted(cont.items(), key=lambda x: -x[1]))
 
 
 # tipo de prey -> (nome, métrica do comparativo que ela mexe, rótulo da métrica); defesa mexe no dano recebido (não medido)
@@ -480,7 +492,7 @@ def _aviso_postura(hunts, cab):
     posturas = [_posturas.normalizar_postura(h["postura"]) or "" for h in hunts]
     if len(set(posturas)) < 2:
         return None
-    quem = ", ".join(f"\"{c['nome']}\" " + ("sem postura" if not p else "com " + _posturas.rotulo_postura(p)) for c, p in zip(cab, posturas))
+    quem = _quem(cab, ["sem postura" if not p else "com " + _posturas.rotulo_postura(p) for p in posturas])
     return f"Postura diferente: {quem}. O dano e a cura podem não ser comparáveis diretamente."
 
 
@@ -491,7 +503,7 @@ def _aviso_roda(hunts, cab):
     rodas = [_roda.normalizar_roda(h["roda"]) or {} for h in hunts]
     if len({r.get("codigo", "") for r in rodas}) < 2:
         return None
-    quem = ", ".join(f"\"{c['nome']}\" " + ("sem roda" if not r else "com " + _roda.rotulo_roda(r)) for c, r in zip(cab, rodas))
+    quem = _quem(cab, ["sem roda" if not r else "com " + _roda.rotulo_roda(r) for r in rodas])
     return f"Roda diferente: {quem}. O dano e a cura podem não ser comparáveis diretamente."
 
 
@@ -508,7 +520,7 @@ def _aviso_set(hunts, cab):
                 mudou.append(rotulo)
     if not mudou:
         return None
-    quem = ", ".join(f"\"{c['nome']}\" " + ("sem set" if not s else "com " + _sets.rotulo_set(s)) for c, s in zip(cab, conjuntos))
+    quem = _quem(cab, ["sem set" if not s else "com " + _sets.rotulo_set(s) for s in conjuntos])
     return f"Set diferente: {quem} (muda: {', '.join(mudou)}). O dano, a cura e o lucro podem não ser comparáveis diretamente."
 
 
@@ -525,7 +537,7 @@ def comparar(hunts):
         extra, pj = _metricas_jogadores(_membros_da_hunt(h), m["minutos"])
         m.update(extra)
         por_jogador.append(pj)
-    cab = [{"id": h["id"], "nome": h.get("nome") or "Hunt", "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
+    cab = [{"id": h["id"], "nome": h.get("nome") or "Hunt", "data": _data(h), "minutos": m["minutos"],
             "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": "" if m["duracao"] == "—" else m["duracao"], "party": tem_party(h),
             "monstros": (h.get("monstros") or [])[:4], "prey": rotulo_prey(normalizar_prey(h.get("prey"))),
             "charms": preys_charms.rotulo_charms(preys_charms.normalizar_charms(h.get("charms"))),
@@ -538,7 +550,7 @@ def comparar(hunts):
     party = [c["party"] for c in cab]
     so_solo = not any(party)
     linhas = []
-    for chave, rotulo, melhor, tipo in LINHAS_COMPARACAO:
+    for chave, rotulo, melhor, tipo, curto in LINHAS_COMPARACAO:
         if so_solo and chave in LINHAS_SO_PARTY:
             continue
         if so_solo:
@@ -546,33 +558,43 @@ def comparar(hunts):
         valores = [None if chave.startswith("top_") and not p else m[chave] for m, p in zip(ms, party)]
         if all(v is None for v in valores):
             continue
-        idx = None
+        idx, stats = None, None
         numeros = [(i, v) for i, v in enumerate(valores) if isinstance(v, (int, float))]
         if melhor and len(numeros) >= 2 and len({v for _, v in numeros}) > 1:
             idx = (max if melhor == "max" else min)(numeros, key=lambda x: x[1])[0]
-        linhas.append({"chave": chave, "rotulo": rotulo, "tipo": tipo, "valores": valores, "melhor": idx})
+        if melhor and len(numeros) >= 2:
+            ordem = sorted(numeros, key=lambda x: x[1], reverse=melhor == "max")
+            stats = {"media": sum(v for _, v in numeros) // len(numeros), "melhor": ordem[0][1], "pior": ordem[-1][1],
+                     "i_melhor": ordem[0][0], "i_pior": ordem[-1][0]}
+        linhas.append({"chave": chave, "rotulo": rotulo, "curto": curto, "tipo": tipo, "valores": valores, "melhor": idx,
+                       "criterio": melhor, "stats": stats})
 
     avisos = []
+    muitas = len(hunts) > AVISO_POR_NOME_ATE
     tamanhos = [m["membros"] for m in ms]
     if len(set(tamanhos)) > 1:
-        avisos.append(f"Parties de tamanhos diferentes ({' x '.join(str(t) for t in tamanhos)} membros): "
-                      "compare pelas linhas \"por membro\".")
+        faixa = f"de {min(tamanhos)} a {max(tamanhos)}" if muitas else " x ".join(str(t) for t in tamanhos)
+        avisos.append(f"Parties de tamanhos diferentes ({faixa} membros): compare pelas linhas \"por membro\".")
     minutos = [m["minutos"] for m in ms if m["minutos"]]
     if minutos and max(minutos) > 1.2 * min(minutos):
-        avisos.append(f"Durações diferentes ({' x '.join(_fmt_dur(m['minutos']) for m in ms)}): "
-                      "compare pelas linhas \"/ hora\".")
+        faixa = f"de {_fmt_dur(min(minutos))} a {_fmt_dur(max(minutos))}" if muitas else " x ".join(_fmt_dur(m['minutos']) for m in ms)
+        avisos.append(f"Durações diferentes ({faixa}): compare pelas linhas \"/ hora\".")
     personagens = {c["personagem"].lower() for c in cab if c["personagem"]}
     if len(personagens) > 1:
         avisos.append("Personagens diferentes: a XP é de cada um (vocação e level mudam muito a XP/h).")
     conjuntos = [_monstros(h) for h in hunts]
     if all(conjuntos):
         base = conjuntos[0]
-        for c, s in zip(cab[1:], conjuntos[1:]):
-            if len(base & s) / len(base | s) < 0.5:
-                avisos.append(f"\"{c['nome']}\" foi em outro spawn (monstros diferentes de \"{cab[0]['nome']}\").")
+        fora = [c for c, s in zip(cab[1:], conjuntos[1:]) if len(base & s) / len(base | s) < 0.5]
+        if muitas and fora:
+            avisos.append(f"{len(fora)} de {len(cab)} hunts foram em outro spawn (monstros diferentes de \"{cab[0]['nome']}\"). "
+                          "Use o filtro de spawn para comparar só um.")
+        else:
+            avisos += [f"\"{c['nome']}\" foi em outro spawn (monstros diferentes de \"{cab[0]['nome']}\")." for c in fora]
     if not so_solo and not all(party):
-        sem = ", ".join(f"\"{c['nome']}\"" for c, p in zip(cab, party) if not p)
-        avisos.append(f"{sem} só tem o Hunt Analyser (sem Party Hunt): não há dados por membro dele. "
+        sem = [c for c, p in zip(cab, party) if not p]
+        quem = f"{len(sem)} hunts" if muitas else ", ".join(f"\"{c['nome']}\"" for c in sem)
+        avisos.append(f"{quem} só {'têm' if muitas and len(sem) > 1 else 'tem'} o Hunt Analyser (sem Party Hunt): não há dados por membro. "
                       "Compare pelas linhas \"por membro\" e \"/ hora\".")
     aviso_prey = _aviso_prey(hunts, cab)
     if aviso_prey:
@@ -594,11 +616,16 @@ def comparar(hunts):
         if len(vals) < 2:
             continue
         vals.sort(key=lambda x: -x[1])
-        (i1, v1), (i2, v2) = vals[0], vals[1]
-        if v1 == v2:
+        i1, v1 = vals[0]
+        # 2 hunts: contra a outra; mais que isso: contra a média de todas (o 2º lugar diz pouco com 20 hunts)
+        if len(vals) == 2:
+            ref, contra = vals[1][1], f"\"{cab[vals[1][0]]['nome']}\""
+        else:
+            ref, contra = sum(v for _, v in vals) // len(vals), f"a média das {len(vals)} hunts"
+        if v1 == ref:
             continue
-        dif = f"{(v1 - v2) / v2 * 100:.0f}% a mais" if v2 > 0 else "mais"
-        veredito.append(f"\"{cab[i1]['nome']}\" rendeu {dif} de {rotulo} que \"{cab[i2]['nome']}\".")
+        dif = f"{(v1 - ref) / ref * 100:.0f}% a mais" if ref > 0 else "mais"
+        veredito.append(f"\"{cab[i1]['nome']}\" rendeu {dif} de {rotulo} que {contra}.")
     # tabela por jogador: quem aparece em mais hunts primeiro; melhor valor de cada métrica entre as hunts
     nomes = {}
     for pj in por_jogador:
@@ -649,49 +676,13 @@ def filtrar(hunts, personagem="", tamanho="", monstro=""):
             and do_tamanho(h, tamanho) and do_monstro(h, monstro)]
 
 
-# (chave, rótulo curto, o que é melhor, tipo)
-COLUNAS_PANORAMA = [
-    ("lucro_membro_h", "Lucro/membro/h", "max", "gp"),
-    ("lucro_membro", "Lucro/membro", "max", "gp"),
-    ("balance_h", "Balance/h", "max", "gp"),
-    ("xp_h", "XP/h", "max", "num"),
-    ("dano_membro_h", "Dano/membro/h", "max", "num"),
-    ("cura_h", "Cura/h", "max", "num"),
-    ("loot_membro_h", "Loot/membro/h", "max", "gp"),
-    ("supplies_membro_h", "Supplies/membro/h", "min", "gp"),
-]
+def _data(h):
+    return h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " ")
 
 
 def panorama(hunts):
-    """Todas as hunts (já filtradas) numa tabela: uma linha por hunt, colunas normalizadas por hora/membro,
-    média/melhor/pior de cada coluna e ranking somado por jogador."""
-    linhas, pares = [], []
-    for h in hunts:
-        m = metricas(h)
-        extra, pj = _metricas_jogadores(_membros_da_hunt(h), m["minutos"])
-        m.update(extra)
-        pares.append((m["minutos"], pj))
-        linhas.append({
-            "id": h["id"], "nome": h.get("nome") or "Hunt",
-            "data": h.get("data_hunt") or (h.get("criado_em") or "")[:16].replace("T", " "),
-            "personagem": h.get("personagem") or "", "membros": m["membros"], "duracao": m["duracao"],
-            "minutos": m["minutos"], "monstros": (h.get("monstros") or [])[:3],
-            **{c: m.get(c) for c, *_ in COLUNAS_PANORAMA},
-        })
-
-    stats = {}
-    for chave, _, criterio, _ in COLUNAS_PANORAMA:
-        vals = [l[chave] for l in linhas if l[chave] is not None]
-        if not vals:
-            continue
-        stats[chave] = {"media": sum(vals) // len(vals),
-                        "melhor": max(vals) if criterio == "max" else min(vals),
-                        "pior": min(vals) if criterio == "max" else max(vals)}
-
-    minutos = sum(l["minutos"] or 0 for l in linhas)
-    return {"colunas": [{"chave": c, "rotulo": r, "melhor": b, "tipo": t} for c, r, b, t in COLUNAS_PANORAMA],
-            "linhas": sorted(linhas, key=lambda l: l["data"]), "stats": stats, "jogadores": _ranking(pares),
-            "total": {"hunts": len(linhas), "minutos": minutos}}
+    """Comparar todas: o mesmo comparativo das hunts selecionadas, com as hunts (já filtradas) em ordem de data."""
+    return comparar(sorted(hunts, key=_data))
 
 
 def _ranking(pares):
