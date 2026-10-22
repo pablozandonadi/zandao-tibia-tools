@@ -3,6 +3,9 @@
 const el=id=>document.getElementById(id),node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 const stamp=v=>new Date(v).toLocaleString('pt-BR'),hhmm=m=>`${Math.floor(m/60)}:${String(m%60).padStart(2,'0')}`;
 const btn=(text,fn)=>{const b=node('button',text,'btn btn-sm');b.type='button';b.addEventListener('click',fn);return b;};
+const gp=v=>Number(v).toLocaleString('pt-BR'),day=v=>new Date(v).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),OFFERS=[['buy','Compra'],['sell','Venda'],['traded','Negociado']];
+// último preço salvo contra o anterior do mesmo tipo, como nos Embuimentos: subiu = vermelho, caiu = verde
+function variation(item,offer){const [last,prev]=item.observations.filter(o=>o.offer_type===offer);if(!prev||!prev.price_gp||last.price_gp===prev.price_gp)return null;const pct=Math.round((last.price_gp-prev.price_gp)/prev.price_gp*1000)/10;return node('span',` ${pct>0?'▲':'▼'} ${Math.abs(pct).toLocaleString('pt-BR')}% · antes ${gp(prev.price_gp)} (${day(prev.at)})`,`market-var ${pct>0?'neg':'pos'}`);}
 let state={context:{},timers:[],stamina_alerts:[]},hooks,editing=null,marketEdit=null,marketWorld='',timerSig='',marketSig='',profile='',images=new Map(),marketData=null,historySelection=null,historySig='',historyOpener=null;
 function minutes(value){if(!/^\d{1,2}:\d{2}$/.test(value))throw Error('Informe hh:mm, por exemplo 38:10 (máximo 42:00).');const [h,m]=value.split(':').map(Number);if(m>59||h*60+m>2520)throw Error('Stamina deve estar entre 0:00 e 42:00.');return h*60+m;}
 function date(value){const d=new Date(value);if(!value||!Number.isFinite(d.getTime()))throw Error('Informe data e hora.');return d.toISOString();}
@@ -10,7 +13,7 @@ function report(error){el('assistente-feedback').textContent=error.message;}
 function resetTimer(){editing=null;el('timer-editor').reset();el('timer-save').textContent='Criar timer';el('timer-reset').hidden=true;el('timer-personal').disabled=false;el('timer-duration-label').firstChild.textContent='Duração';}
 function resetMarket(){marketEdit=null;el('market-history-editor').hidden=true;el('market-history-reason').value='';el('market-history-feedback').textContent='';}
 function closeHistory(){const dialog=el('market-history-dialog');if(dialog.open)dialog.close();historySelection=null;historySig='';resetMarket();}
-function openHistory(item,world,opener){historySelection={item,world,context:{...state.context}};historyOpener=opener;historySig='';resetMarket();renderHistory();el('market-history-dialog').showModal();el('market-history-close').focus();}
+function openHistory(item,world,opener){historySelection={item,world,context:{...state.context}};historyOpener=opener;historySig='';resetMarket();el('market-history-dialog').showModal();renderHistory();el('market-history-close').focus();}
 function renderHistory(){
  if(!historySelection||!marketData||historySelection.world!==marketData.world_id)return;
  const item=marketData.items.find(v=>v.item===historySelection.item)||{item:historySelection.item,total:0,observations:[]},sig=JSON.stringify(item);
@@ -19,6 +22,13 @@ function renderHistory(){
  el('market-history-note').textContent=`${item.total} registros · mais recentes primeiro.${item.total>100?' Exibindo os últimos 100 registros.':''} Compra e venda são observações individuais.`;
  const list=el('market-history-list');list.replaceChildren();
  if(!item.observations.length){list.append(node('p','Nenhum preço registrado para este item.'));return;}
+ // gráfico evolutivo: uma linha por tipo (cor fixa por tipo), um ponto por momento registrado; compra e venda gravadas juntas caem no mesmo ponto
+ const series=OFFERS.map(([key,title],i)=>({chave:key,rotulo:title,cor:CORES_GRAF[i],desdeZero:false})).filter(c=>item.observations.some(o=>o.offer_type===c.chave)),points=new Map(),two=v=>String(v).padStart(2,'0');
+ for(const o of [...item.observations].reverse()){const d=new Date(o.at),p=points.get(o.at)||{nome:item.item,data:`${d.getFullYear()}-${two(d.getMonth()+1)}-${two(d.getDate())} ${two(d.getHours())}:${two(d.getMinutes())}`};p[o.offer_type]=o.price_gp;points.set(o.at,p);}
+ const summary=node('div',undefined,'resumo-chips market-resumo');
+ for(const c of series){const v=item.observations.filter(o=>o.offer_type===c.chave).map(o=>o.price_gp),chip=node('span',`${c.rotulo}: menor ${gp(Math.min(...v))} · maior ${gp(Math.max(...v))} · média ${gp(Math.round(v.reduce((a,b)=>a+b,0)/v.length))}`,'chip chip-neutro'),sw=node('i',undefined,'sw');sw.style.background=c.cor;chip.prepend(sw);summary.append(chip);}
+ const chart=node('div');chart.innerHTML=points.size>=2?graficoEvolucao([...points.values()],series,'mkt',Math.max(360,Math.min(960,el('market-history-dialog').clientWidth-60))||860,true):'<p class="dica">Registre mais preços para ver a evolução.</p>';
+ list.append(summary,chart);ligarGrafico('mkt');
  const table=node('table',undefined,'assistente-table market-history-table'),head=node('thead'),titles=node('tr');
  for(const title of ['Data','Tipo','Preço','Ações'])titles.append(node('th',title));head.append(titles);table.append(head);const body=node('tbody');
  for(const p of item.observations){const row=node('tr');for(const [title,value] of [['Data',stamp(p.at)],['Tipo',({sell:'Venda',buy:'Compra',traded:'Negociado'})[p.offer_type]||p.offer_type],['Preço',Number(p.price_gp).toLocaleString('pt-BR')+' GP']]){const cell=node('td',value);cell.dataset.label=title;row.append(cell);}
@@ -41,7 +51,7 @@ function renderTimers(){const sig=JSON.stringify([state.context.character_id,sta
 async function prices(data){if(!hooks)return;if(data.world_id!==el('assistente-world').value.trim())return;marketData=data;const sig=JSON.stringify(data);if(sig===marketSig)return;marketSig=sig;marketWorld=data.world_id;
  const out=el('assistente-precos');out.replaceChildren();const grid=node('div',undefined,'assistente-cards');out.append(grid);
  const names=[];for(const item of data.items||[]){names.push(item.item);const card=node('article',undefined,'card calmo market-item'),picture=node('span','?','market-picture');picture.dataset.marketImage=item.item;card.append(picture,node('strong',item.item));
- for(const [key,title] of [['buy','Compra'],['sell','Venda'],['traded','Negociado']]){const p=item.latest[key];card.append(node('p',`${title}: ${p?Number(p.price_gp).toLocaleString('pt-BR')+' GP · '+stamp(p.at):'Sem preço informado'}`,'dica'));}
+ for(const [key,title] of OFFERS){const p=item.latest[key],line=node('p',`${title}: ${p?gp(p.price_gp)+' GP · '+stamp(p.at):'Sem preço informado'}`,'dica'),change=p&&variation(item,key);if(change)line.append(change);card.append(line);}
  const historyButton=btn(`Ver histórico (${item.total})`,e=>openHistory(item.item,data.world_id,e.currentTarget));historyButton.dataset.marketHistory=item.item;card.append(btn('Informar preços',()=>{el('market-item').value=item.item;el('market-buy').value='';el('market-sell').value='';el('market-buy').focus();}),historyButton);grid.append(card);}
  renderHistory();
  const pending=names.filter(name=>!images.has(name));for(const name of pending)images.set(name,null);

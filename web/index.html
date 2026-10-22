@@ -2737,7 +2737,8 @@ const durCurta = (d) => { const m = /^(\d+):(\d+)/.exec(d || ''); return m ? `${
 const curto = (v) => {
   if (v === null || v === undefined) return '—';
   const a = Math.abs(v), sinal = v < 0 ? '-' : '';
-  return a >= 1e6 ? `${sinal}${(a / 1e6).toFixed(a >= 1e7 ? 0 : 1)}kk` : a >= 1e3 ? `${sinal}${Math.round(a / 1e3)}k` : `${v}`;
+  // abaixo de 100k uma casa decimal: senão um eixo de 45k a 48k repete "46k"
+  return a >= 1e6 ? `${sinal}${(a / 1e6).toFixed(a >= 1e7 ? 0 : 1)}kk` : a >= 1e3 ? `${sinal}${a >= 1e5 ? Math.round(a / 1e3) : +(a / 1e3).toFixed(1)}k` : `${v}`;
 };
 
 function htmlRanking(jogadores, col) {
@@ -2944,16 +2945,17 @@ function desenharRanking() {
 
 // gráfico de linha em ordem de data, com a média tracejada e dica ao passar o mouse. Com várias métricas de escalas diferentes
 // (XP/h na casa dos milhões, lucro na dos milhares), cada linha vira "% acima/abaixo da própria média", num eixo só.
-function graficoEvolucao(linhas, cols, pref = 'graf', W = 860) {
+// mesmaEscala: várias linhas da mesma grandeza (compra e venda de um item) ficam no valor real, sem a linha da média.
+function graficoEvolucao(linhas, cols, pref = 'graf', W = 860, mesmaEscala = false) {
   cols = [].concat(cols);
   const tem = (p, c) => p[c.chave] !== null && p[c.chave] !== undefined;
   const pts = linhas.filter((p) => cols.some((c) => tem(p, c)));
   if (pts.length < 2) return '<p class="dica">Precisa de pelo menos 2 hunts com esse dado para o gráfico.</p>';
-  const rel = cols.length > 1;
+  const multi = cols.length > 1, rel = multi && !mesmaEscala;
   const medias = cols.map((c) => { const v = pts.filter((p) => tem(p, c)).map((p) => p[c.chave]); return v.reduce((a, b) => a + b, 0) / v.length; });
   // valor desenhado: o próprio número, ou a % em relação à média da métrica (média 0 não tem %: essa linha não aparece)
   const val = (p, j) => !tem(p, cols[j]) ? null : !rel ? p[cols[j].chave] : medias[j] ? (p[cols[j].chave] - medias[j]) / Math.abs(medias[j]) * 100 : null;
-  const nomesNoFim = rel && cols.length <= 4;
+  const nomesNoFim = multi && cols.length <= 4;
   const Hh = 260, ml = 64, mr = nomesNoFim ? 124 : 16, mt = 14, mb = 30;
   const vals = pts.flatMap((p) => cols.map((_, j) => val(p, j))).filter((v) => v !== null);
   if (!vals.length) return '<p class="dica">Sem dados para o gráfico.</p>';
@@ -2987,14 +2989,14 @@ function graficoEvolucao(linhas, cols, pref = 'graf', W = 860) {
   }
   window['_pts_' + pref] = pts.map((p, i) => ({
     x: x(i), y: Math.min(...cols.map((_, j) => val(p, j)).filter((v) => v !== null).map(y)), nome: p.nome, data: p.data, W,
-    vals: cols.map((c, j) => ({ rot: c.rotulo, v: p[c.chave], cor: rel ? cor(j) : null, pct: rel ? val(p, j) : null })),
+    vals: cols.map((c, j) => ({ rot: c.rotulo, v: p[c.chave], cor: multi ? cor(j) : null, pct: rel ? val(p, j) : null })),
   }));
   return `<div class="grafico" id="${pref}-box"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Evolução de ${esc(cols.map((c) => c.rotulo).join(', '))} por hunt">
     ${grade.map((g) => `<line x1="${ml}" x2="${W - mr}" y1="${y(g)}" y2="${y(g)}" stroke="rgba(243,239,230,.08)"/>
       <text x="${ml - 8}" y="${y(g) + 4}" text-anchor="end" font-size="11" fill="#9aa1b0" font-family="Space Mono, monospace">${eixo(g)}</text>`).join('')}
     ${lo < 0 && !rel ? `<line x1="${ml}" x2="${W - mr}" y1="${y(0)}" y2="${y(0)}" stroke="rgba(243,239,230,.35)"/>` : ''}
-    <line x1="${ml}" x2="${W - mr}" y1="${y(media)}" y2="${y(media)}" stroke="#9aa1b0" stroke-dasharray="5 5"/>
-    <text x="${rel ? ml + 6 : W - mr}" y="${y(media) - 5}" text-anchor="${rel ? 'start' : 'end'}" font-size="11" fill="#9aa1b0">média</text>
+    ${multi && !rel ? '' : `<line x1="${ml}" x2="${W - mr}" y1="${y(media)}" y2="${y(media)}" stroke="#9aa1b0" stroke-dasharray="5 5"/>
+    <text x="${rel ? ml + 6 : W - mr}" y="${y(media) - 5}" text-anchor="${rel ? 'start' : 'end'}" font-size="11" fill="#9aa1b0">média</text>`}
     ${pts.map((p, i) => (i % passoX === 0 && pts.length - 1 - i >= passoX / 2) || i === pts.length - 1 ? `<text x="${x(i)}" y="${Hh - 8}" text-anchor="middle" font-size="11" fill="#9aa1b0">${dataCurta(p.data)}</text>` : '').join('')}
     <line id="${pref}-cruz" x1="0" x2="0" y1="${mt}" y2="${Hh - mb}" stroke="rgba(243,239,230,.3)" visibility="hidden"/>
     ${cols.map((c, j) => `<path d="${caminho(j)}" fill="none" stroke="${cor(j)}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`).join('')}
