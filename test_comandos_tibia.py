@@ -106,9 +106,11 @@ class ComandosTibia(unittest.TestCase):
         with patch.object(zandaobot, 'buscar', return_value={'erro': 'Mundo não encontrado.'}):
             self.assertEqual(c.responder('bomdia Xyz', 'Antica'), 'Mundo não encontrado.')
         with patch.object(zandaobot, 'buscar', return_value={'mundo': 'Antica'}) as b, patch.object(c, '_kill', return_value='KILL'), \
+                patch.object(c, '_xp_mundo', return_value='XP'), patch.object(c, '_transfer', return_value='TRANSFER'), \
                 patch.object(c.zandaobot_report, 'gerar', return_value='☀️ Bom dia') as g:
             r = c.responder('bom dia', 'Antica')
-        self.assertEqual(r, '☀️ Bom dia' + chr(10) * 2 + 'KILL')
+        self.assertEqual(r, '☀️ Bom dia')
+        self.assertEqual(g.call_args.args[2], ['KILL', 'XP', 'TRANSFER'])
         b.assert_called_once_with('Antica')
         g.assert_called_once()
 
@@ -130,6 +132,10 @@ CHAR = {'character': {'character': {'name': 'Elite Nestos', 'level': 512, 'vocat
 BASE = 'Bom dia, tibianos!' + chr(10) + chr(10) + '⏰ Próximo SS: 18/10/2026 às 07:00 (Brasília)' + chr(10) + chr(10) + '🏴‍☠️ _Elite Nestos_'
 
 
+def fake_gerar(r, campos=None, extras=(), **kw):
+    return (chr(10) * 2).join(['Bom dia, tibianos!', *extras, '✍️ Elite Nestos'])
+
+
 class BomDiaCompleto(unittest.TestCase):
     def setUp(self):
         zandaobot._cache.clear()
@@ -137,14 +143,15 @@ class BomDiaCompleto(unittest.TestCase):
 
     def bomdia(self, texto='bomdia', mapa=None, html=RANKING_HTML, personagem='Elite Nestos'):
         mapa = {'/killstatistics/Antica': ks(('Hydra', 5)), '/character/Elite%20Nestos': CHAR, '/guild/Quixada': GUILD, **(mapa or {})}
-        with patch.object(tibia_info, '_get_json', side_effect=fonte(mapa)), patch.object(zandaobot, 'buscar', return_value={'mundo': 'Antica'}),                 patch.object(c.zandaobot_report, 'gerar', return_value=BASE),                 patch.object(c.sources, 'get_text', side_effect=(lambda url, limit=0: html) if isinstance(html, str) else html):
+        with patch.object(tibia_info, '_get_json', side_effect=fonte(mapa)), patch.object(zandaobot, 'buscar', return_value={'mundo': 'Antica'}),                 patch.object(c.zandaobot_report, 'gerar', side_effect=fake_gerar),                 patch.object(c.sources, 'get_text', side_effect=(lambda url, limit=0: html) if isinstance(html, str) else html):
             return c.responder(texto, 'Antica', date(2026, 10, 17), personagem=personagem)
 
     def test_traz_kill_guild_e_top_xp_antes_do_proximo_ss(self):
         r = self.bomdia()
-        for esperado in ('Hydra', '🏰 Quixada', 'Top XP de ontem — Quixada', 'Mago', 'Zaz'):
+        for esperado in ('Hydra', '🏰 *Quixada*', 'Top XP de ontem — Quixada', 'Mago', 'Zaz', 'Top 10 XP de ontem — Antica', 'Transferências de mundo'):
             self.assertIn(esperado, r)
-        self.assertLess(r.index('Top XP de ontem'), r.index('Próximo SS'))
+        self.assertLess(r.index('Top XP de ontem — Quixada'), r.index('Entraram na guild'))
+        self.assertLess(r.index('Entraram na guild'), r.index('✍️'))
         self.assertTrue(r.startswith('Bom dia, tibianos!'))
 
     def test_top_xp_so_com_membros_da_guild_em_ordem_e_em_kk(self):
@@ -152,8 +159,8 @@ class BomDiaCompleto(unittest.TestCase):
         self.assertNotIn('Estranho', xp)
         self.assertNotIn('Fora', xp)
         self.assertLess(xp.index('Mago'), xp.index('Zaz'))
-        self.assertIn('+1.25kkk', xp)
-        self.assertIn('+12.40kk', xp)
+        self.assertIn('+1,25kkk', xp)
+        self.assertIn('+12,40kk', xp)
         self.assertIn('2 de 2 membros', xp)
 
     def test_ranking_fora_do_ar_nao_derruba_o_bomdia(self):
@@ -162,7 +169,7 @@ class BomDiaCompleto(unittest.TestCase):
         r = self.bomdia(html=falha)
         self.assertIn('Top XP de ontem: indisponível agora', r)
         self.assertIn('Hydra', r)
-        self.assertIn('Próximo SS', r)
+        self.assertIn('✍️', r)
 
     def test_sem_guild_nao_mostra_blocos_de_guild(self):
         sem = {'character': {'character': {'name': 'Elite Nestos', 'level': 5, 'vocation': 'Knight', 'world': 'Antica'}, 'deaths': []}}
@@ -214,7 +221,7 @@ class PadroesDoPersonagem(unittest.TestCase):
         self.assertNotIn('Elite Nestos', r)
 
     def test_guild_sem_argumento_usa_a_guild_do_personagem(self):
-        self.assertIn('🏰 Quixada', self.run_('guild'))
+        self.assertIn('🏰 *Quixada*', self.run_('guild'))
 
     def test_online_sem_argumento_traz_mundo_e_guild(self):
         r = self.run_('online')
@@ -227,7 +234,7 @@ class PadroesDoPersonagem(unittest.TestCase):
         self.assertIn('❄️ Outro', self.run_('char Outro', mapa={'/character/Outro': {
             'character': {'character': {'name': 'Outro', 'vocation': 'Elder Druid'}, 'deaths': []}}}))
         self.assertIn('\n🛡️ Zaz — Lv 512', self.run_('online'))
-        self.assertIn('🔥 Mago', self.run_('guild'))
+        self.assertIn('🔥 *Mago*', self.run_('guild'))
         self.assertNotIn('🛡️ Quixada', self.run_('guild'))
 
     def test_ranking_reutiliza_vocacoes_sem_buscas_por_jogador(self):
@@ -235,15 +242,15 @@ class PadroesDoPersonagem(unittest.TestCase):
                 patch.object(tibia_info, '_get_json', side_effect=fonte({'/guild/Quixada': GUILD})) as api:
             mundo = c._xp_mundo('Antica')
             guild = c._xp_guild('Quixada')
-        self.assertIn('1. 🛡️ Mago (Lv 688) — +1.25kkk', mundo)
-        self.assertIn('1. 🔥 Mago (Lv 688) — +1.25kkk', guild)
-        self.assertIn('2. 🛡️ Zaz (Lv 512) — +12.40kk', guild)
+        self.assertIn('🥇 🛡️ *Mago* (Lv 688) — +1,25kkk', mundo)
+        self.assertIn('🥇 🔥 *Mago* (Lv 688) — +1,25kkk', guild)
+        self.assertIn('🥈 🛡️ *Zaz* (Lv 512) — +12,40kk', guild)
         get.assert_called_once()
         api.assert_called_once()
 
     def test_guild_usa_vocacao_do_ranking_quando_roster_nao_informa(self):
         guild = {'guild': {**GUILD['guild'], 'members': [{'name': 'Zaz'}, {'name': 'Mago', 'vocation': None}]}}
-        self.assertIn('🛡️ Mago', self.run_('exp Quixada', mapa={'/guild/Quixada': guild}))
+        self.assertIn('🛡️ *Mago*', self.run_('exp Quixada', mapa={'/guild/Quixada': guild}))
 
     def test_online_com_argumento_nao_traz_a_guild_do_personagem(self):
         r = self.run_('online Antica')
@@ -253,13 +260,13 @@ class PadroesDoPersonagem(unittest.TestCase):
     def test_exp_sem_argumento_traz_top10_do_mundo_e_da_guild(self):
         r = self.run_('exp')
         mundo, guild = r.split('Top XP de ontem — Quixada')
-        self.assertIn('Top 10 XP de ontem — 🌍 Antica', mundo)
+        self.assertIn('Top 10 XP de ontem — Antica', mundo)
         self.assertIn('Estranho', mundo)
         self.assertIn('Zaz', guild)
         self.assertNotIn('Estranho', guild)
 
     def test_exp_aceita_mundo_ou_guild_explicitos(self):
-        self.assertIn('🌍 Secura', self.run_('exp Secura'))
+        self.assertIn('Top 10 XP de ontem — Secura', self.run_('exp Secura'))
         r = self.run_('exp Quixada')
         self.assertIn('Top XP de ontem — Quixada', r)
         self.assertNotIn('Top 10 XP', r)
@@ -268,7 +275,7 @@ class PadroesDoPersonagem(unittest.TestCase):
         linhas = ''.join(f'<tr><td>{i}</td><td>Jog{i}</td><td>500</td><td>+{i},000,000</td><td>1h</td><td>EK</td><td>Antica</td></tr>' for i in range(1, 16))
         html = '<table><tr><th>#</th></tr>' + linhas + '</table>'
         r = self.run_('exp', html=html, personagem='')
-        self.assertEqual(len([l for l in r.splitlines() if l[:1].isdigit()]), 10)
+        self.assertEqual(len([l for l in r.splitlines() if l[:1].isdigit() or l[:1] in '🥇🥈🥉']), 10)
         self.assertIn('Jog15', r)
         self.assertNotIn('Jog5 ', r)
 
@@ -319,27 +326,25 @@ class MensagemDoDiaExtras(unittest.TestCase):
 
     def test_transfer_corta_em_10_dias_e_ordena_por_level(self):
         r = self.extra('transfer')
-        self.assertIn('➡️ Entraram: 2', r)
+        self.assertIn('🟢 *Entraram (2):*', r)
         self.assertNotIn('Antigo', r)
         self.assertLess(r.index('Grande'), r.index('Medio'))
-        self.assertIn('Grande (Lv 900, EK) de Premia — 14/10', r)
-        self.assertIn('⬅️ Saíram: 1', r)
-        self.assertIn('Fujao (Lv 700, EK) para Wintera', r)
-        self.assertIn('🛡️ Grande', r)
-        self.assertIn('🛡️ Fujao', r)
-        # O emoji da vocação já marca a linha: sem "•" antes dele.
-        self.assertIn('\n🛡️ Grande (Lv 900, EK) de Premia — 14/10', r)
+        self.assertIn('🛡️ *Grande* — Lv 900, de Premia (14/10)', r)
+        self.assertIn('🔴 *Saíram (1):*', r)
+        self.assertIn('🛡️ *Fujao* — Lv 700, para Wintera (10/10)', r)
+                # O emoji da vocação já marca a linha: sem "•" antes dele.
+        self.assertIn('\n🛡️ *Grande* — Lv 900', r)
         self.assertNotIn('• ', r)
         self.assertEqual(c._item('Sem Voc', None), '• Sem Voc')
 
     def test_transfer_pagina_mudada_ou_fora_do_ar_avisa(self):
         r = self.extra('transfer', html=lambda url, limit=0: '<table><tr><th>Outra</th></tr></table>')
-        self.assertIn('Entraram: indisponível agora.', r)
-        self.assertIn('Saíram: indisponível agora.', r)
+        self.assertIn('Entraram:* indisponível agora.', r)
+        self.assertIn('Saíram:* indisponível agora.', r)
 
     def test_campo_preenchido_troca_o_padrao(self):
         self.assertIn('Demon', self.extra('kill', 'Secura', mapa={'/killstatistics/Secura': ks(('Demon', 3))}))
-        self.assertIn('🏰 Quixada', self.extra('guild'))
+        self.assertIn('🏰 *Quixada*', self.extra('guild'))
 
     def test_falhas_viram_aviso_curto(self):
         self.assertEqual(self.extra('kill'), '⚔️ Criaturas mortas ontem: indisponível agora.')

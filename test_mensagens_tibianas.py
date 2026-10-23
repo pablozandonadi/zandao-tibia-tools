@@ -42,22 +42,22 @@ class MensagensTibianas(unittest.TestCase):
         self.assertEqual(len(set(sorteadas)), 60)
 
     def test_report_sorteia_uma_vez_e_preserva_campos_e_extras(self):
-        with patch.object(mensagens, 'proxima', return_value='Piada tibiana de teste.') as escolher:
+        with patch.object(mensagens, 'do_dia', return_value='Piada tibiana de teste.') as escolher:
             texto = zandaobot_report.gerar({'mundo': 'Antica'}, {'comunidade': 'Tibianos', 'assinatura': 'Aventureiro'}, extras=['EXTRA'])
-        escolher.assert_called_once_with()
+        escolher.assert_called_once()
         self.assertEqual(texto.count('💬 *Mensagem do dia:*'), 1)
         self.assertEqual(texto.count('Piada tibiana de teste.'), 1)
         self.assertLess(texto.index('Bom dia'), texto.index('Mensagem do dia'))
         self.assertLess(texto.index('Mensagem do dia'), texto.index('*Mundo:*'))
         self.assertIn('EXTRA', texto)
-        self.assertIn('_Aventureiro_', texto)
+        self.assertIn('✍️ Aventureiro', texto)
 
     def test_bomdia_inclui_a_mesma_secao_sem_novo_sorteio(self):
         with patch.object(comandos_tibia.zandaobot, 'buscar', return_value={'mundo': 'Antica'}), \
                 patch.object(comandos_tibia, '_kill', return_value='KILL'), \
-                patch.object(mensagens, 'proxima', return_value='Piada tibiana de teste.') as escolher:
+                patch.object(mensagens, 'do_dia', return_value='Piada tibiana de teste.') as escolher:
             texto = comandos_tibia.responder('bomdia', 'Antica')
-        escolher.assert_called_once_with()
+        escolher.assert_called_once()
         self.assertEqual(texto.count('💬 *Mensagem do dia:*'), 1)
         self.assertIn('KILL', texto)
 

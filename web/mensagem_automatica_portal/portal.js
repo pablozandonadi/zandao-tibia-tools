@@ -5,7 +5,7 @@
  let connection='',connected=false,groups=[],subscriptions=[],runs=[],editing=null,mode='simulation',qrTimer,configurationData=null,recoveryTimer,recoveryEpoch=0,closed=false,armed='';
  const BLOCKS=[['dia','Data'],['saudacao','Saudação'],['frase','Mensagem do dia'],['mundo','Mundo'],['calendario','Eventos do Tibia'],['yasir','Yasir (consulta online)'],['rashid','Rashid'],['criatura','Criatura boostada'],['boss','Boss boostado'],['dream','Dream Court'],['dream_mortes','Dream Court — mortes (Last Day)'],['mudancas_online','Outras world changes (consulta online)'],['server_save','Próximo SS']];
  const FIELDS=[['comunidade','Comunidade'],['assinatura','Assinatura'],['deeplings','Boss Deeplings'],['regiao','Região boostada'],['roshamuul','Roshamuul / robôs'],['drome','Tibia Drome (fim da rotação)'],['coin_compra','TC: comprar (gp)'],['coin_venda','TC: vender (gp)'],['coin_hora','Horário dos preços']];
- const EXTRAS=[['kill','Top 10 criaturas mortas ontem','mundo'],['exp_mundo','Top 10 XP do servidor (ontem)','mundo'],['exp_guild','Top XP da guild (ontem)','guild'],['guild','Resumo da guild','guild'],['online_guild','Online da guild','guild'],['char','Personagem (ficha e mortes recentes)','personagem'],['transfer','Entraram e saíram do mundo (10 dias)','mundo']];
+ const EXTRAS=[['noticias','O que rolou em Tibia (notícias e avisos)',''],['kill','Top 10 criaturas mortas ontem','mundo'],['exp_mundo','Top 10 XP do servidor (ontem)','mundo'],['exp_guild','Top XP da guild (ontem)','guild'],['guild','Resumo da guild','guild'],['online_guild','Online da guild','guild'],['char','Personagem (ficha e mortes recentes)','personagem'],['transfer','Transferências de mundo (10 dias)','mundo']];
  const NEW_BLOCKS=['dia','saudacao','frase','mundo','server_save'];
  const notice=text=>$('notice').textContent=text;
  const clearQR=()=>{clearTimeout(qrTimer);$('qr').hidden=true;$('qr').removeAttribute('src');};
@@ -51,7 +51,7 @@
   const fields=$('ed-fields');fields.replaceChildren();
   for(const [k,label] of FIELDS){const row=el('div','row');tick(row,'fields',k,label,on('fields',k));row.append(field('value',k,val('values',k,200),200,'Valor',label+': valor'));fields.append(row);}
   const extras=$('ed-extras');extras.replaceChildren();
-  for(const [k,label,kind] of EXTRAS){const row=el('div','row');tick(row,'extras',k,label,on('extras',k));row.append(field('arg',k,val('args',k,40),40,'Padrão: '+(kind==='guild'?'guild do personagem':kind==='mundo'?'mundo acima':'personagem acima'),label+': outro '+kind+' (opcional)'));extras.append(row);}
+  for(const [k,label,kind] of EXTRAS){const row=el('div','row');tick(row,'extras',k,label,on('extras',k));if(kind)row.append(field('arg',k,val('args',k,40),40,'Padrão: '+(kind==='guild'?'guild do personagem':kind==='mundo'?'mundo acima':'personagem acima'),label+': outro '+kind+' (opcional)'));extras.append(row);}
   $('group-search').value='';renderGroups(s?.destinationLabel);
   $('editor').hidden=false;$('editor').scrollIntoView({block:'start'});
  }

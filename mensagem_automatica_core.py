@@ -8,7 +8,7 @@ FIELDS = {'comunidade':'Comunidade', 'assinatura':'Assinatura', 'deeplings':'Bos
           'regiao':'Região boostada', 'roshamuul':'Roshamuul / robôs', 'drome':'Tibia Drome',
           'coin_compra':'TC: comprar (gp)', 'coin_venda':'TC: vender (gp)', 'coin_hora':'Horário dos preços'}
 BLOCKS = ('dia','saudacao','frase','mundo','calendario','yasir','rashid','criatura','boss','dream','dream_mortes','mudancas_online','server_save')
-EXTRAS = ('kill','exp_mundo','exp_guild','guild','online_guild','char','transfer')
+EXTRAS = ('noticias','kill','exp_mundo','guild','exp_guild','online_guild','char','transfer')
 MAX_AGE = 1800
 
 class Invalid(ValueError):

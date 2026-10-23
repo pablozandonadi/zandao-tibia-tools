@@ -1,4 +1,5 @@
 """Humor original de Tibia, local e sem repetição durante cada ciclo da sessão."""
+import hashlib
 import random
 import threading
 
@@ -81,3 +82,9 @@ def proxima():
                 _fila[0], _fila[-1] = _fila[-1], _fila[0]
         _ultima = _fila.pop()
         return _ultima
+
+
+def do_dia(dia, chave=''):
+    """Frase do dia pela data (date): avança uma por dia, sem repetir em 60 dias nem depender da sessão. `chave` desloca o ponto de partida por perfil."""
+    inicio = int.from_bytes(hashlib.sha256(chave.encode()).digest()[:4])
+    return MENSAGENS[(dia.toordinal() + inicio) % len(MENSAGENS)]

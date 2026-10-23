@@ -56,7 +56,7 @@ class AutomaticMessageTests(unittest.TestCase):
  def test_desktop_methods_without_loading_app_or_server(self):
   tree=ast.parse(Path('web_api.py').read_text(encoding='utf-8'));methods=[n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name in ('mensagem_automatica_previa','mensagem_automatica_abrir_portal')]
   cls=ast.ClassDef(name='FixtureAPI',bases=[],keywords=[],body=methods,decorator_list=[]);module=ast.fix_missing_locations(ast.Module(body=[cls],type_ignores=[]));namespace={'os':os};exec(compile(module,'<public-preview-test>','exec'),namespace);api=namespace['FixtureAPI']()
-  self.assertIn('Mundo: Antica',api.mensagem_automatica_previa(config())['text'])
+  self.assertIn('Mundo:* Antica',api.mensagem_automatica_previa(config())['text'])
   self.assertIn('erro',api.mensagem_automatica_previa({**config(),'blocks':{'mini':True}}))
   with patch('mensagem_automatica_access.open_management',return_value={'ok':True}) as opened:
    self.assertTrue(api.mensagem_automatica_abrir_portal(config())['ok']);opened.assert_called_once_with(config())
@@ -68,7 +68,7 @@ class AutomaticMessageTests(unittest.TestCase):
   self.assertIn('--collect-all tzdata',Path('instalador/gerar_instalador.ps1').read_text())
  def test_legacy_commands_fail_controlled_only_when_extras_selected(self):
   with patch.object(comandos_tibia,'EXTRAS',None,create=True),patch.object(comandos_tibia,'extra',None,create=True):
-   self.assertIn('Mundo: Antica',generate(config(),NOW)['text'])
+   self.assertIn('Mundo:* Antica',generate(config(),NOW)['text'])
    with self.assertRaisesRegex(Invalid,'Atualize os módulos de consulta'):
     generate({**config(),'extras':{'char':True}},NOW)
 

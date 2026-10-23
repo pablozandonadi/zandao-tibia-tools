@@ -1,9 +1,9 @@
 """Seleção independente: não altera nem chama o gerador manual/World Board."""
-import hashlib
 import time
 from datetime import datetime, timedelta
 from types import SimpleNamespace, FunctionType
 from zoneinfo import ZoneInfo
+import mensagem_formato
 import mensagens_tibianas
 import tibia_info
 import zandaobot
@@ -81,32 +81,33 @@ def generate(config,now=None,provider=None):
         stamp=require_source(d,now,ref,states)
         sources.append({'source':key,'fetched_at':stamp,'reference_date':ref})
         return d
-    blocks={};date_label=datetime.fromisoformat(ref).strftime('%d/%m/%Y')
-    blocks['dia']='🗓️ '+date_label
-    blocks['saudacao']='☀️ Bom dia, '+(c['values'].get('comunidade') if c['fields']['comunidade'] else '')+'!' if c['fields']['comunidade'] and c['values'].get('comunidade') else '☀️ Bom dia, tripulação!'
-    position=int.from_bytes(hashlib.sha256((ref+c['personagem']+c['mundo']).encode()).digest()[:4])%len(mensagens_tibianas.MENSAGENS)
-    blocks['frase']='💬 Mensagem do dia: '+mensagens_tibianas.MENSAGENS[position]
-    blocks['mundo']='🌍 Mundo: '+c['mundo']
-    rashid=tibia_info.RASHID[datetime.fromisoformat(ref).weekday()]
-    blocks['rashid']='🧳 Rashid: '+rashid
+    blocks={};day=datetime.fromisoformat(ref).date()
+    zone=ZoneInfo(c['timezone'] or 'America/Sao_Paulo')
+    blocks['dia']='📅 '+mensagem_formato.data_hora(day,now.astimezone(zone))
+    blocks['saudacao']='☀️ *Bom dia, '+(c['values'].get('comunidade') if c['fields']['comunidade'] else '')+'!*' if c['fields']['comunidade'] and c['values'].get('comunidade') else '☀️ *Bom dia, tripulação!*'
+    blocks['frase']=mensagem_formato.frase(mensagens_tibianas.do_dia(day,c['personagem']+c['mundo']))
+    blocks['mundo']='🌍 *Mundo:* '+c['mundo']
+    rashid=tibia_info.RASHID[day.weekday()]
+    blocks['rashid']='🧭 *Rashid:* '+rashid
     local=now.astimezone(ZoneInfo('Europe/Berlin'));ss=local.replace(hour=10,minute=0,second=0,microsecond=0)
     if ss<=local: ss=(local+timedelta(days=1)).replace(hour=10,minute=0,second=0,microsecond=0)
-    blocks['server_save']='⏰ Próximo SS: '+ss.astimezone(ZoneInfo(c['timezone'] or 'Europe/Berlin')).strftime('%d/%m/%Y às %H:%M')+' ('+(c['timezone'] or 'Europe/Berlin')+')'
+    blocks['server_save']='⏰ *Próximo SS:* '+ss.astimezone(ZoneInfo(c['timezone'] or 'Europe/Berlin')).strftime('%d/%m/%Y às %H:%M')+' ('+(c['timezone'] or 'Europe/Berlin')+')'
     if 'calendario' in selected:
         calendar=source('calendario',('disponivel',));events=calendar.get('eventos')
         if not isinstance(events,list): raise Invalid('Calendário incompleto.')
         active=[e for e in events if e.get('estado')=='ativo']
-        blocks['calendario']='\n'.join('🎉 Evento: '+e['titulo']+' (até '+e['fim']+' no SS)' for e in active) or '🎉 Nenhum evento listado no calendário.'
+        blocks['calendario']='\n'.join('🎉 *Evento:* '+e['titulo']+' (até '+mensagem_formato.dia_mes(e['fim'])+')' for e in active) or '🎉 *Evento:* nenhum no momento'
     if selected & {'yasir','mudancas_online'}:
         y=source('yasir',('presente','ausente'))
         if y.get('origem')=='world_board_manual': raise Invalid('World Board manual não permitido.')
-        blocks['yasir']='🐪 Yasir: '+('🟢 Ativo' if y['estado']=='presente' else '🔴 Inativo')+' (consulta online)'
+        blocks['yasir']='🐪 *Yasir:* '+('🟢 Ativo' if y['estado']=='presente' else '🔴 Inativo')
         if 'mudancas_online' in selected:
             if y.get('mudancas_velhas') or not isinstance(y.get('mudancas'),list): raise Invalid('Mudanças online indisponíveis.')
-            blocks['mudancas_online']='🌍 Outras world changes (consulta online):\n'+('\n'.join('• '+x for x in y['mudancas'] if isinstance(x,str)) or 'Nenhuma listada na consulta online.')
+            itens=[x for x in y['mudancas'] if isinstance(x,str)]
+            blocks['mudancas_online']='🌍 *Outras world changes:*\n'+'\n'.join('• '+x for x in itens) if itens else ''
     if selected & {'criatura','boss'}:
         boosted=source('boostados')
-        for key,label in [('criatura','⭐ Criatura boostada: '),('boss','👑 Boss boostado: ')]:
+        for key,label in [('criatura','🧬 *Criatura do dia:* '),('boss','👑 *Boss do dia:* ')]:
             if key in selected:
                 name=(boosted.get(key) or {}).get('nome')
                 if not name: raise Invalid('Boostado indisponível.')
@@ -114,26 +115,29 @@ def generate(config,now=None,provider=None):
     if 'dream' in selected:
         dream=source('dream_court',('previsto',))
         if not dream.get('nome'): raise Invalid('Dream Court indisponível.')
-        blocks['dream']='🌙 Dream Court: '+dream['nome']+' · rotação prevista'
+        blocks['dream']='🌙 *Dream Court:* '+dream['nome']+' · rotação prevista'
     if 'dream_mortes' in selected:
         kills=source('killstatistics',('disponivel',));bosses=kills.get('bosses')
         if not bosses or any(type(b.get('last_day_killed')) is not int for b in bosses): raise Invalid('Contagens incompletas.')
-        blocks['dream_mortes']='📊 Dream Court — mortes (Last Day): '+ '; '.join(str(b['nome'])+': '+str(b['last_day_killed']) for b in bosses)
-    lines=[blocks[k] for k in c['blocks'] if c['blocks'][k]];signature=''
+        blocks['dream_mortes']='📊 *Dream Court — mortes (Last Day):* '+ '; '.join(str(b['nome'])+': '+str(b['last_day_killed']) for b in bosses)
+    chosen={k for k in c['blocks'] if c['blocks'][k]};signature=''
+    pick=lambda keys:[blocks[k] for k in keys if k in chosen and blocks.get(k)]
+    detail=pick(('mundo','rashid','criatura','boss','calendario','yasir','dream','dream_mortes'))
     for key,label in FIELDS.items():
         if not c['fields'][key] or key=='comunidade' and 'saudacao' in selected: continue
         value=c['values'].get(key,'')
         if not value: raise Invalid('Preencha a variável selecionada.')
         if key not in ('comunidade','assinatura') and c['manualDate']!=ref: raise Invalid('Confirme a data dos valores manuais.')
-        if key=='assinatura': signature=label+': '+value
-        else: lines.append(label+': '+value)
+        if key=='assinatura': signature='✍️ '+value
+        else: detail.append('*'+label+':* '+value)
+    detail+=pick(('server_save',))
     if c['fields']['comunidade'] and not c['values'].get('comunidade'): raise Invalid('Preencha a comunidade.')
-    # Cabeçalho em linhas seguidas; cada consulta extra em bloco próprio; assinatura sempre no fim.
-    sections=['\n'.join(lines)] if lines else []
+    # Parágrafos do modelo: saudação+data, frase, detalhes do dia, world changes; depois cada consulta extra e a assinatura.
+    sections=['\n'.join(group) for group in (pick(('saudacao','dia')),pick(('frase',)),detail,pick(('mudancas_online',))) if group]
     for key in EXTRAS:
         if c['extras'][key]:
             text,metadata=provider.extra(key,c['args'].get(key,''),c,now);sections.append(text);sources.extend(metadata)
-    if signature: sections.append(signature)
+    if signature: sections.append('━━━━━━━━━━━━━━\n'+signature)
     result={'text':'\n\n'.join(sections),'sources':sources,'reference_date':ref,'generated_at':now.timestamp()}
     if len(result['text'])>16000: raise Invalid('Mensagem excede o limite de tamanho.')
     fresh(result,now,ref)

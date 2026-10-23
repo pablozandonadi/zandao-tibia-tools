@@ -29,14 +29,14 @@ class BoardTests(unittest.TestCase):
  def test_report_unknown_not_inactive(self):
   r={'dia':'2026-10-12','mundo':'Antica','personagem':'Char','boostados':{'velho':True},'yasir':{'estado':'indisponivel'}}
   s=report.gerar(r,{'comunidade':'Piratas','coin_compra':'43.552'})
-  self.assertIn('Bom dia, Piratas!',s);self.assertIn('*Fury Gate:* ❓',s);self.assertIn('comprar 43.552 gp',s);self.assertNotIn('None',s)
+  self.assertIn('Bom dia, Piratas!',s);self.assertNotIn('Fury Gate',s);self.assertIn('comprar 43.552 gp',s);self.assertNotIn('None',s)
  def test_report_manual_presence(self):
   r={'dia':'2026-10-12','world_board':{'valido':True,'completo':True,'consulta':1,'eventos':[{'id':'warpath','nome':'Warpath'}]}}
   s=report.gerar(r);self.assertIn("*Bibby's Bloodbath:* 🟢 Ativo",s);self.assertIn('*Fury Gate:* 🔴 Inativo',s)
  def test_report_ticks(self):
   r={'dia':'2026-10-12','yasir':{'estado':'presente','mudancas':['Nomads','Oriental Trader']}}
-  s=report.gerar(r);self.assertIn('• Nomads',s);self.assertIn('_Consulta online',s);self.assertNotIn('• Oriental',s)
+  s=report.gerar(r);self.assertIn('• Nomads',s);self.assertIn('Outras world changes',s);self.assertNotIn('• Oriental',s)
   s=report.gerar(r,extras=['KILL','XP'],mini=False)
   self.assertNotIn('world changes',s);self.assertNotIn('\n\n\n',s)
-  self.assertLess(s.index('KILL'),s.index('XP'));self.assertLess(s.index('XP'),s.index('Próximo SS'))
+  self.assertLess(s.index('KILL'),s.index('XP'));self.assertLess(s.index('XP'),s.index('✍️'))
 if __name__=='__main__':unittest.main()

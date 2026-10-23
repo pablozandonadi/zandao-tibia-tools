@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 
 import guild_stats
+import mensagem_formato
 import tibia_info
 import zandaobot
 import zandaobot_report
@@ -51,6 +52,11 @@ def _nome_voc(nome, vocation=None):
     return f'{emoji} {nome}' if emoji else nome
 
 
+def _item_negrito(nome, vocation=None):
+    emoji = _emoji_voc(vocation)
+    return f'{emoji} *{nome}*' if emoji else f'• *{nome}*'
+
+
 def _item(nome, vocation=None):
     # Em listas o emoji da vocação já marca a linha; o "•" só fica quando não há emoji.
     emoji = _emoji_voc(vocation)
@@ -68,6 +74,17 @@ def _data(texto, hora=False):
     except ValueError:
         return '❓'
     return d.strftime('%d/%m/%Y %H:%M' if hora else '%d/%m/%Y')
+
+
+def _lv(level):
+    """Level com ponto de milhar (1.156), como o jogo mostra no pt-BR."""
+    return f'{level:,}'.replace(',', '.') if isinstance(level, int) else str(level)
+
+
+def _data_iso(texto):
+    """dd/mm/aaaa de uma data AAAA-MM-DD, sem fuso (data pura não deve deslocar de dia)."""
+    t = str(texto or '')
+    return f'{t[8:10]}/{t[5:7]}/{t[:4]}' if re.fullmatch(r'\d{4}-\d{2}-\d{2}.*', t) else '❓'
 
 
 def _ficha(nome):
@@ -93,7 +110,7 @@ def _mortes(deaths, limite):
 
 
 def _kk(n):
-    return f'{n / 1e9:.2f}kkk' if abs(n) >= 1e9 else f'{n / 1e6:.2f}kk'
+    return (f'{n / 1e9:.2f}kkk' if abs(n) >= 1e9 else f'{n / 1e6:.2f}kk').replace('.', ',')
 
 
 def _ranking(mundo):
@@ -109,8 +126,13 @@ def _ranking(mundo):
     return sources.cached('gs-topxp:v2:' + mundo.lower(), buscar, ttl=1800)['dados']
 
 
+MEDALHAS = ('🥇', '🥈', '🥉')
+
+
 def _linha_xp(i, nome, level, xp, vocation=None):
-    return f"{i}. {_nome_voc(nome, vocation)} (Lv {str(level).replace(',', '.')}) — {'+' if xp >= 0 else '-'}{_kk(abs(xp))}"
+    emoji = _emoji_voc(vocation)
+    pos = MEDALHAS[i - 1] if i <= 3 else f'{i}.'
+    return f"{pos} {emoji + ' ' if emoji else ''}*{nome}* (Lv {str(level).replace(',', '.')}) — {'+' if xp >= 0 else '-'}{_kk(abs(xp))}"
 
 
 def _xp_mundo(mundo):
@@ -120,7 +142,7 @@ def _xp_mundo(mundo):
     if ranking is None:
         return '🏆 Top 10 XP de ontem: indisponível agora (GuildStats).'
     top = sorted(ranking, key=lambda x: -x[2])[:10]
-    return '\n'.join([f'🏆 Top 10 XP de ontem — 🌍 {mundo.capitalize()} (GuildStats)']
+    return '\n'.join([f'🏆 *Top 10 XP de ontem — {mundo.capitalize()}:*']
                      + [_linha_xp(i, n, lv, xp, voc) for i, (n, lv, xp, voc) in enumerate(top, 1)])
 
 
@@ -136,7 +158,7 @@ def _xp_guild(nome, mundo=None):
     achados = sorted((x for x in ranking if x[0].casefold() in membros), key=lambda x: -x[2])
     if not achados:
         return f'🏆 Top XP de ontem — {nome}: nenhum membro ficou no top 500 do mundo no GuildStats.'
-    linhas = [f'🏆 Top XP de ontem — {nome} (GuildStats)']
+    linhas = [f'🏆 *Top XP de ontem — {nome}:*']
     linhas += [_linha_xp(i, n, lv, xp, membros[n.casefold()] if _emoji_voc(membros[n.casefold()]) else voc)
                for i, (n, lv, xp, voc) in enumerate(achados[:10], 1)]
     linhas.append(f'_{len(achados)} de {len(membros)} membros aparecem no top 500 de XP do mundo._')
@@ -165,17 +187,17 @@ def _bomdia(rest, mundo, personagem=None, hoje=None):
         return r['erro']
     ficha = _ficha(personagem) if personagem and NOME.fullmatch(personagem) else None
     assinatura = _nome_voc(personagem, ficha[0].get('vocation')) if ficha else personagem
-    msg = zandaobot_report.gerar(r, {'comunidade': 'tibianos', 'assinatura': assinatura})
-    extras = [_ou(_kill('', m), '⚔️ Criaturas mortas ontem')] if m and MUNDO.fullmatch(m) else []
+    mundo_ok = bool(m and MUNDO.fullmatch(m))
+    extras = [_ou(_kill('', m), '⚔️ Criaturas mortas ontem'), _xp_mundo(m)] if mundo_ok else []
     guild, mundo_guild = ((ficha[0].get('guild') or {}).get('name'), ficha[0].get('world')) if ficha else (None, None)
     # a guild é do personagem em uso: com outro mundo explícito no comando, não se aplica
     if guild and (not rest or rest.casefold() == str(mundo_guild).casefold()):
-        extras += [_ou(_guild_info(guild, hoje), '🏰 Guild'), _xp_guild(guild, mundo_guild or m)]
-    if not extras:
-        return msg
-    corte = msg.rfind('⏰ Próximo SS')
-    bloco = '\n\n'.join(extras)
-    return msg + '\n\n' + bloco if corte < 0 else msg[:corte] + bloco + '\n\n' + msg[corte:]
+        info = _guild_info(guild, hoje, True)
+        cabecalho, novos = info if isinstance(info, tuple) else (_ou(info, '🏰 Guild'), None)
+        extras += [cabecalho, _xp_guild(guild, mundo_guild or m), *([novos] if novos else [])]
+    if mundo_ok:
+        extras.append(_ou(_transfer('', m, hoje=hoje), '🚪 Transferências de mundo'))
+    return zandaobot_report.gerar(r, {'comunidade': 'tibianos', 'assinatura': assinatura}, extras)
 
 
 def _kill(rest, mundo, personagem=None, hoje=None):
@@ -193,8 +215,8 @@ def _kill(rest, mundo, personagem=None, hoje=None):
     if not vivos:
         return f'Sem abates registrados ontem em {m}.'
     top = sorted(vivos, key=lambda x: (-x[1], x[0]))[:10]
-    linhas = [f'⚔️ Top 10 criaturas mortas ontem — 🌍 {m.capitalize()}' + (' (dados antigos)' if velho else '')]
-    linhas += [f'{i}. {capwords(nome)} — {n:,} mortes'.replace(',', '.') for i, (nome, n) in enumerate(top, 1)]
+    linhas = [f'⚔️ *Top 10 criaturas mortas ontem — {m.capitalize()}*' + (' (dados antigos)' if velho else '')]
+    linhas += [f'{i}. {capwords(nome)} — {n:,}'.replace(',', '.') for i, (nome, n) in enumerate(top, 1)]
     return '\n'.join(linhas)
 
 
@@ -286,7 +308,8 @@ def _death(rest, mundo, personagem=None, hoje=None):
     return '\n'.join([f"☠️ Mortes — {nome_voc} (30 dias)", *m]) if m else f"☠️ {nome_voc} não morreu nos últimos 30 dias."
 
 
-def _guild_info(nome, hoje):
+def _guild_info(nome, hoje, novos_separado=False):
+    """Cabeçalho da guild + quem entrou em 7 dias. Com novos_separado devolve (cabeçalho, entraram) ou o aviso de erro como texto."""
     if not NOME.fullmatch(nome):
         return 'Use: guild {guild}.'
     d, _ = _get('guild:' + nome.lower(), '/guild/' + quote(nome))
@@ -305,10 +328,18 @@ def _guild_info(nome, hoje):
         except ValueError:
             pass
     novos.sort(key=lambda x: x['joined'], reverse=True)
-    linhas = [f"🏰 {g.get('name', nome)}", f"📅 Fundada em {g.get('founded', '❓')} · 🌍 {g.get('world', '❓')}",
-              f'🟢 {on} de {len(membros)} online', f'🧙 {voc}']
-    linhas += ['➕ Entraram (7 dias):', *[f"{_item(x.get('name', '?'), x.get('vocation'))} — Lv {x.get('level', '?')} ({_data(x['joined'])})" for x in novos]] if novos else ['➕ Entraram (7 dias): ninguém.']
-    return '\n'.join(linhas)
+    linhas = [f"🏰 *{g.get('name', nome)}*", f"📅 Fundada em {_data_iso(g.get('founded'))} · 🌍 {g.get('world', '❓')} · 🟢 {on} de {len(membros)} online",
+              f'🧙 {voc}']
+    if novos_separado:
+        return '\n'.join(linhas), _entraram(novos)
+    return '\n'.join([*linhas, '', _entraram(novos)])
+
+
+def _entraram(novos):
+    if not novos:
+        return '➕ *Entraram na guild (7 dias):* ninguém'
+    return '\n'.join([f'➕ *Entraram na guild (7 dias):* {len(novos)}',
+                      *[f"{_item_negrito(x.get('name', '?'), x.get('vocation'))} — Lv {_lv(x.get('level', '?'))} ({_data(x['joined'])[:5]})" for x in novos]])
 
 
 def _guild(rest, mundo, personagem=None, hoje=None):
@@ -338,21 +369,33 @@ def _transfer(rest, mundo, personagem=None, hoje=None):
     if not MUNDO.fullmatch(m):
         return 'Nome de mundo inválido. Use só letras, ex.: Antica.'
     corte = ((hoje or date.today()) - timedelta(days=DIAS_TRANSFER)).isoformat()
-    linhas = [f'🔁 Entraram e saíram — 🌍 {m.capitalize()} (últimos {DIAS_TRANSFER} dias, GuildStats)']
-    for lado, titulo, rumo in (('worldActual', '➡️ Entraram', 'de'), ('worldFormer', '⬅️ Saíram', 'para')):
+    linhas = [f'🚪 *Transferências de mundo — {m.capitalize()} ({DIAS_TRANSFER} dias)*']
+    for lado, titulo, rumo in (('worldActual', '🟢 *Entraram', 'de'), ('worldFormer', '🔴 *Saíram', 'para')):
         lista = _transferidos(m, lado)
         if lista is None:
-            linhas.append(f'{titulo}: indisponível agora.')
+            linhas.append(f'{titulo}:* indisponível agora.')
             continue
-        recentes = sorted((x for x in lista if x[5] >= corte), key=lambda x: -x[1])
+        # o GuildStats repete linhas; sem isso o mesmo personagem aparece duas vezes
+        recentes = sorted({x for x in lista if x[5] >= corte}, key=lambda x: (-x[1], x[0]))
         # shortcut: a página lista no máximo 500 por período; acima disso o total é um mínimo
         total = f'{len(recentes)}+' if len(lista) >= 500 else str(len(recentes))
-        linhas.append(f'{titulo}: {total}')
-        linhas += [f'{_item(n, voc)} (Lv {lv}, {voc}) {rumo} {antigo if rumo == "de" else atual} — {dia[8:]}/{dia[5:7]}'
+        linhas.append(f'{titulo} ({total}):*')
+        linhas += [f'{_item_negrito(n, voc)} — Lv {_lv(lv)}, {rumo} {antigo if rumo == "de" else atual} ({dia[8:]}/{dia[5:7]})'
                    for n, lv, voc, antigo, atual, dia in recentes[:10]]
         if len(recentes) > 10:
-            linhas.append(f'… e mais {len(recentes) - 10}')
+            linhas.append(f'…e mais {len(recentes) - 10}')
     return '\n'.join(linhas)
+
+
+def _noticias(rest, mundo, personagem=None, hoje=None):
+    """Bloco "O que rolou em Tibia": últimas notícias e avisos curtos da TibiaData."""
+    artigos, _ = _get('noticias', '/news/latest')
+    avisos, _ = _get('tickers', '/news/newsticker')
+    lista = zandaobot._lista_noticias(artigos, 'news')
+    vistos = {x['id'] for x in lista}
+    cards = [{'titulo': x['news'].strip(), 'data': x.get('date', ''), 'categoria': x['category']} for x in lista]
+    curtos = [{'texto': x['news'], 'data': x.get('date', '')} for x in zandaobot._lista_noticias(avisos, 'ticker') if x['id'] not in vistos]
+    return mensagem_formato.noticias(cards, curtos) or '📰 *O que rolou em Tibia:* nada recente.'
 
 
 def _guild_ou_padrao(rest, personagem):
@@ -362,13 +405,14 @@ def _guild_ou_padrao(rest, personagem):
 SEM_GUILD = 'Informe a guild (o personagem em uso não tem guild).'
 # Consultas que a Mensagem do dia pode incluir. Campo vazio = padrão do personagem em uso (mundo, guild ou nome).
 EXTRAS = {
+    'noticias': ('📰 O que rolou em Tibia', _noticias),
     'kill': ('⚔️ Criaturas mortas ontem', lambda a, m, p, h: _kill(a, m)),
     'exp_mundo': ('🏆 Top XP do servidor', lambda a, m, p, h: _xp_mundo(a or m)),
     'exp_guild': ('🏆 Top XP da guild', lambda a, m, p, h: _xp_guild(g) if (g := _guild_ou_padrao(a, p)) else SEM_GUILD),
     'guild': ('🏰 Guild', _guild),
     'online_guild': ('🟢 Online da guild', lambda a, m, p, h: _online_guild(g) if (g := _guild_ou_padrao(a, p)) else SEM_GUILD),
     'char': ('📜 Personagem', _char),
-    'transfer': ('🔁 Entraram e saíram', _transfer),
+    'transfer': ('🚪 Transferências de mundo', _transfer),
 }
 
 

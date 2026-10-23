@@ -1,5 +1,5 @@
 // Consultas que a Mensagem do dia pode incluir: [chave, rótulo, tipo do campo]. Campo vazio = padrão do personagem em uso.
-const WB_TICKS=[['mini','World Board manual (preencher)',''],['kill','Top 10 criaturas mortas ontem','mundo'],['exp_mundo','Top 10 XP do servidor (ontem)','mundo'],['exp_guild','Top XP da guild (ontem)','guild'],['guild','Resumo da guild','guild'],['online_guild','Online da guild','guild'],['char','Personagem (ficha e mortes recentes)','personagem'],['transfer','Entraram e saíram do mundo (10 dias)','mundo']];
+const WB_TICKS=[['mini','World Board manual (preencher)',''],['kill','Top 10 criaturas mortas ontem','mundo'],['exp_mundo','Top 10 XP do servidor (ontem)','mundo'],['exp_guild','Top XP da guild (ontem)','guild'],['guild','Resumo da guild','guild'],['online_guild','Online da guild','guild'],['char','Personagem (ficha e mortes recentes)','personagem'],['transfer','Transferências de mundo (10 dias)','mundo']];
 const WB_CHAVE='zt-mensagem-dia-ticks';
 const WB={draft:'',dirty:false,full:false,fields:{},msg:'',status:'',unknown:[],ticks:{mini:true},args:{}};
 try{const s=JSON.parse(localStorage.getItem(WB_CHAVE)||'null');if(s&&typeof s==='object'){WB.ticks={...WB.ticks,...s.ticks};WB.args={...s.args};}}catch(e){/* sem armazenamento: vale o padrão */}
