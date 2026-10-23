@@ -105,7 +105,7 @@ class CoreTests(unittest.TestCase):
  def test_validation_and_selective_generation(self):
   for patch in [{'blocks':{'mini':True}},{'sendAt':'11:59'},{'timezone':'Invalid/Zone'},{'owner':'victim'}]:
    with self.assertRaises(Invalid):validate({**config(),**patch},True)
-  self.assertEqual(generate(config(),NOW)['text'],'🌍 Mundo: Antica')
+  self.assertEqual(generate(config(),NOW)['text'],'🌍 *Mundo:* Antica')
   for k in ['dia','saudacao','frase','mundo','rashid','server_save']:
    c={**config(),'blocks':{k:True}};self.assertTrue(generate(c,NOW)['text'])
   c={**config(),'fields':{'coin_compra':True},'values':{'coin_compra':'100'}}
@@ -120,9 +120,9 @@ class CoreTests(unittest.TestCase):
    def extra(self,*a):return 'extra test',[{'source':'fixture','fetched_at':NOW.timestamp(),'reference_date':'2026-10-21'}]
   out=generate({**config(),'blocks':{'yasir':True,'mudancas_online':True},'extras':{'guild':True}},NOW,Good())
   self.assertIn('Inativo',out['text']);self.assertNotIn('World Board',out['text']);self.assertIn('extra test',out['text'])
-  # Cabeçalho sem linhas em branco; consultas separadas; assinatura sempre no fim.
+  # Parágrafos do modelo; consultas separadas; assinatura sempre no fim, depois do traço.
   signed=generate({**config(),'blocks':{'dia':True,'mundo':True},'fields':{'assinatura':True},'values':{'assinatura':'Zandao'},'extras':{'guild':True}},NOW,Good())['text']
-  self.assertEqual(signed,'🗓️ 21/10/2026\n🌍 Mundo: Antica\n\nextra test\n\nAssinatura: Zandao')
+  self.assertEqual(signed,'📅 quarta-feira, 21 de outubro de 2026 às 12:00\n\n🌍 *Mundo:* Antica\n\nextra test\n\n━━━━━━━━━━━━━━\n✍️ Zandao')
   out['sources'][0]['fetched_at']-=4000
   with self.assertRaises(Invalid):fresh(out,NOW,'2026-10-21')
  def test_restore_invalidates_connections_and_jobs(self):
