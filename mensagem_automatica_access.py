@@ -163,6 +163,9 @@ def admin_request(path,method='GET',body=None):
  origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)
  try:return InstallationClient(origin,CredentialFile(origin,CANAL_APP)).request(path,method,body)
  except AccessRejected:raise AccessError('Pedido recusado. Confira os dados e tente de novo.') from None
+ except AccessError as error:
+  if 'ainda não está disponível' in str(error):raise AccessError('Esta conta ainda não é administradora. Em Configurações › "Tenho um código de acesso", ative o código do dono.') from None
+  raise
 
 def claim_code(code):
  """Apresenta ao servidor o código de liberação (do dono ou de um recurso pago) para esta instalação. Devolve True se a conta ficou administradora; levanta AccessError se o código não valer."""
