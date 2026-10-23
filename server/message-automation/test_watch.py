@@ -11,14 +11,15 @@ from automation.watch import Watcher, validate_watch
 
 T0=datetime(2026,10,23,12,tzinfo=UTC)
 
-def member(name,level,status='offline',vocation='Elite Knight'): return {'name':name,'level':level,'status':status,'vocation':vocation}
+def member(name,level,status='online',vocation='Elite Knight'): return {'name':name,'level':level,'status':status,'vocation':vocation}
 
 class Feed:
-    """TibiaData sintética: guild e fichas mudam entre as varreduras."""
-    def __init__(self): self.members=[];self.deaths={};self.calls=[]
+    """TibiaData sintética: a lista da guild pode trazer level atrasado (guild_levels); a lista online do mundo é a atual."""
+    def __init__(self): self.members=[];self.deaths={};self.calls=[];self.guild_levels={}
     def __call__(self,path):
         self.calls.append(path)
-        if path.startswith('/guild/'): return {'guild':{'members':self.members}}
+        if path.startswith('/guild/'): return {'guild':{'world':'Rasteibra','members':[{**m,'level':self.guild_levels.get(m['name'],m['level'])} for m in self.members]}}
+        if path.startswith('/world/'): return {'world':{'online_players':[{'name':'Jogador de Fora','level':50,'vocation':'Druid'}]+[{'name':m['name'],'level':m['level'],'vocation':m['vocation']} for m in self.members if m['status']=='online']}}
         if path.startswith('/character/'):
             name=path.split('/')[-1].replace('%20',' ')
             return {'character':{'deaths':self.deaths.get(name,[])}}
@@ -68,8 +69,43 @@ class WatchTests(unittest.TestCase):
         self.feed.members=[member('Ana',102)];self.tick(9);self.feed.members=[member('Ana',103)];self.tick(12)
         self.assertEqual(len(self.texts()),2,'perder level e voltar ao mesmo não avisa de novo')
 
+    def test_level_up_vem_da_lista_online_mesmo_com_a_guild_atrasada(self):
+        # A lista da guild na TibiaData demora a refletir o level; o aviso não pode esperar por ela.
+        self.feed.members=[member('Ana',499)];self.feed.guild_levels={'Ana':498};self.watch();self.tick(0)
+        self.assertEqual(self.transport.sent,[],'level diferente entre as fontes não vira aviso falso na primeira varredura')
+        self.feed.members=[member('Ana',500)];self.tick(1)
+        self.assertEqual(len(self.texts()),1);self.assertIn('level *500*',self.texts()[0])
+        self.tick(2);self.assertEqual(len(self.texts()),1)
+
+    def test_quem_esta_offline_nao_gera_level_up(self):
+        self.feed.members=[member('Ana',499)];self.watch();self.tick(0)
+        self.feed.members=[member('Ana',520,'offline')];self.feed.guild_levels={'Ana':520};self.tick(2)
+        self.assertEqual(self.transport.sent,[],'a lista da guild sozinha, com a pessoa offline, não gera aviso')
+        self.feed.members=[member('Ana',520)];self.tick(4)
+        self.assertEqual(len(self.texts()),1,'ao voltar online com level maior que o último visto, avisa uma vez')
+        self.tick(6);self.assertEqual(len(self.texts()),1)
+
+    def test_varredura_a_cada_minuto_sem_reconsultar_a_guild(self):
+        self.feed.members=[member('Ana',499)];self.watch();self.tick(0);self.tick(1);self.tick(2)
+        self.assertEqual(sum(c.startswith('/guild/') for c in self.feed.calls),1,'a pertença só renova a cada 15 min')
+        self.assertEqual(sum(c.startswith('/world/') for c in self.feed.calls),3)
+        self.tick(16);self.assertEqual(sum(c.startswith('/guild/') for c in self.feed.calls),2)
+
+    def test_novo_membro_entra_na_lista_depois_da_renovacao(self):
+        self.feed.members=[member('Ana',100)];self.watch();self.tick(0)
+        self.feed.members=[member('Ana',100),member('Bia',300)];self.tick(16);self.tick(17)
+        self.assertEqual(self.transport.sent,[],'novo membro só memoriza o level')
+        self.feed.members=[member('Ana',100),member('Bia',301)];self.tick(18)
+        self.assertEqual(len(self.texts()),1);self.assertIn('*Bia*',self.texts()[0])
+
+    def test_rodizio_confere_a_ficha_de_todos_os_online(self):
+        self.feed.members=[member(f'P{i:02d}',100) for i in range(45)];self.watch();self.tick(0)
+        self.tick(1);self.tick(2)
+        fichas={c for c in self.feed.calls if c.startswith('/character/')}
+        self.assertEqual(len(fichas),45,'com mais online que o limite por varredura, ninguém fica sem conferência')
+
     def test_intervalo_minimo_entre_varreduras(self):
-        self.feed.members=[member('Ana',499)];self.watch();self.tick(0);antes=len(self.feed.calls);self.tick(1)
+        self.feed.members=[member('Ana',499)];self.watch();self.tick(0);antes=len(self.feed.calls);self.watcher.tick(T0+timedelta(seconds=20))
         self.assertEqual(len(self.feed.calls),antes)
 
     def test_morte_depois_da_criacao_avisa_uma_vez_e_ignora_antiga(self):
@@ -115,15 +151,13 @@ class WatchTests(unittest.TestCase):
         self.tick(6);self.assertEqual(len(self.texts()),8)
 
     def test_aviso_velho_demais_expira_em_vez_de_chegar_atrasado(self):
-        self.feed.members=[member('Ana',100,'online')];self.watch(hourlyCap=1);self.tick(0)
-        self.feed.members=[member('Ana',100,'online'),member('Bia',100,'online')]
+        self.feed.members=[member('Ana',100,'online'),member('Bia',100,'online')];self.watch(hourlyCap=1);self.tick(0)
         self.feed.deaths={'Ana':[death(T0+timedelta(minutes=1))],'Bia':[death(T0+timedelta(minutes=2))]};self.tick(3);self.tick(6)
         self.assertEqual(len(self.texts()),1)
         self.tick(200);self.assertEqual(len(self.texts()),1)
 
     def test_conexao_revogada_cancela_o_que_estava_na_fila(self):
-        self.feed.members=[member('Ana',100,'online')];self.watch(hourlyCap=1);self.tick(0)
-        self.feed.members=[member('Ana',100,'online'),member('Bia',100,'online')]
+        self.feed.members=[member('Ana',100,'online'),member('Bia',100,'online')];self.watch(hourlyCap=1);self.tick(0)
         self.feed.deaths={'Ana':[death(T0+timedelta(minutes=1))],'Bia':[death(T0+timedelta(minutes=2))]};self.tick(3)
         self.store.revoke('o',self.conn);self.tick(70)
         self.assertEqual(len(self.texts()),1)
@@ -172,6 +206,20 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(client.delete(f'/v1/watches/{key}',headers=a).status_code,200)
         self.assertEqual(len(client.get('/v1/watches',headers=a).json()),2)
         self.assertEqual(client.put(f'/v1/watches/{key}',json=body,headers=a).status_code,400,'excluído não volta')
+
+    def test_banco_antigo_ganha_as_colunas_novas_sem_perder_dados(self):
+        import sqlite3
+        from contextlib import closing
+        old=Path(tempfile.mkdtemp())/'old.sqlite';self.addCleanup(lambda:old.unlink(missing_ok=True) if old.exists() else None)
+        with closing(sqlite3.connect(old)) as db:
+            db.executescript("CREATE TABLE watch_members(watch TEXT NOT NULL,name TEXT NOT NULL,level INTEGER NOT NULL,online INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(watch,name));"
+                             "CREATE TABLE watch_meta(watch TEXT PRIMARY KEY,last_run REAL NOT NULL DEFAULT 0,since REAL NOT NULL DEFAULT 0,primed INTEGER NOT NULL DEFAULT 0);"
+                             "INSERT INTO watch_members VALUES('w','Ana',500,1);INSERT INTO watch_meta VALUES('w',1,1,1);")
+        Store(old,Fernet.generate_key())
+        with closing(sqlite3.connect(old)) as db:
+            self.assertTrue({'vocation','checked'}<={r[1] for r in db.execute('PRAGMA table_info(watch_members)')})
+            self.assertTrue({'world','roster_at'}<={r[1] for r in db.execute('PRAGMA table_info(watch_meta)')})
+            self.assertEqual(db.execute("SELECT name,level FROM watch_members").fetchall(),[('Ana',500)])
 
     def test_conteudo_cifrado_no_banco(self):
         self.feed.members=[member('Ana Secreta',499)];self.watch();self.tick(0)

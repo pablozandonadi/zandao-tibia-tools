@@ -20,13 +20,18 @@ class Store:
             CREATE INDEX IF NOT EXISTS owners ON objects(owner,kind);
             CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,owner TEXT NOT NULL,subscription TEXT NOT NULL,destination TEXT NOT NULL,reference TEXT NOT NULL,generation REAL,send REAL,state TEXT NOT NULL,snapshot BLOB,receipt BLOB,attempt TEXT,lease REAL,error TEXT,version INTEGER NOT NULL,generation_attempts INTEGER NOT NULL DEFAULT 0,retry_after REAL NOT NULL DEFAULT 0,
               UNIQUE(owner,subscription,destination,reference));
-            CREATE TABLE IF NOT EXISTS watch_members(watch TEXT NOT NULL,name TEXT NOT NULL,level INTEGER NOT NULL,online INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(watch,name));
-            CREATE TABLE IF NOT EXISTS watch_meta(watch TEXT PRIMARY KEY,last_run REAL NOT NULL DEFAULT 0,since REAL NOT NULL DEFAULT 0,primed INTEGER NOT NULL DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS watch_members(watch TEXT NOT NULL,name TEXT NOT NULL,level INTEGER NOT NULL,online INTEGER NOT NULL DEFAULT 0,vocation TEXT,checked REAL NOT NULL DEFAULT 0,PRIMARY KEY(watch,name));
+            CREATE TABLE IF NOT EXISTS watch_meta(watch TEXT PRIMARY KEY,last_run REAL NOT NULL DEFAULT 0,since REAL NOT NULL DEFAULT 0,primed INTEGER NOT NULL DEFAULT 0,world TEXT,roster_at REAL NOT NULL DEFAULT 0);
             CREATE TABLE IF NOT EXISTS watch_events(id TEXT PRIMARY KEY,owner TEXT NOT NULL,watch TEXT NOT NULL,key TEXT NOT NULL,text BLOB NOT NULL,state TEXT NOT NULL,created REAL NOT NULL,sent_at REAL,attempt TEXT,lease REAL,error TEXT,UNIQUE(watch,key));
             ''')
             columns={r['name'] for r in db.execute('PRAGMA table_info(runs)')}
             for name,definition in [('generation_attempts','INTEGER NOT NULL DEFAULT 0'),('retry_after','REAL NOT NULL DEFAULT 0')]:
                 if name not in columns: db.execute('ALTER TABLE runs ADD COLUMN '+name+' '+definition)
+            # Bancos criados antes do vigia usar a lista online do mundo ganham as colunas novas sem perder dados.
+            for table,additions in (('watch_members',[('vocation','TEXT'),('checked','REAL NOT NULL DEFAULT 0')]),('watch_meta',[('world','TEXT'),('roster_at','REAL NOT NULL DEFAULT 0')])):
+                have={r['name'] for r in db.execute('PRAGMA table_info('+table+')')}
+                for name,definition in additions:
+                    if name not in have: db.execute('ALTER TABLE '+table+' ADD COLUMN '+name+' '+definition)
         if os.name!='nt': os.chmod(self.path,0o600)
 
     @contextmanager

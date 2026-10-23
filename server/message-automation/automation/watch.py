@@ -13,8 +13,9 @@ from .transport import NotDispatched
 
 log=logging.getLogger('automation')
 GUILD=re.compile(r"[A-Za-z][A-Za-z '\-.]{1,39}")
-MIN_INTERVAL=120       # a TibiaData atualiza a guild a cada alguns minutos; consultar mais seguido só gasta cota
-MAX_FETCH=30           # fichas consultadas por varredura
+MIN_INTERVAL=50        # varredura a cada minuto (a lista online do mundo é renovada pela TibiaData em cerca de 1 min)
+ROSTER_TTL=900         # a pertença à guild muda pouco: renova a cada 15 min
+MAX_FETCH=30           # fichas consultadas por varredura, em rodízio entre os membros online
 DEFAULT_PER_MINUTE=3   # ritmo padrão; o dono escolhe de 1 a 120 por minuto
 EVENT_TTL=3*3600       # aviso que não coube no limite por hora e já ficou velho some em vez de chegar atrasado
 EMOJI={'knight':'🛡️','paladin':'🏹','druid':'❄️','sorcerer':'🔥','monk':'👊'}
@@ -70,6 +71,15 @@ class Watcher:
             try: self.dispatch(key,owner,data,stamp)
             except Exception as error: log.warning('watch=%s dispatch_failed=%s',key,type(error).__name__)
 
+    def roster(self,data,stamp,meta,known):
+        """Quem é da guild e em que mundo. A lista da guild na TibiaData traz o level atrasado, então só serve para a pertença (renovada a cada 15 min)."""
+        if meta and meta['world'] and known and stamp-meta['roster_at']<ROSTER_TTL: return meta['world'],None
+        guild=(self.fetch('/guild/'+quote(data['guild'])) or {}).get('guild') or {}
+        members=[(m['name'],m.get('vocation')) for m in guild.get('members') or [] if isinstance(m,dict) and isinstance(m.get('name'),str) and m['name']]
+        world=guild.get('world')
+        if not members or not isinstance(world,str) or not world: raise Invalid('Guild sem membros.')  # falha fechada: lista vazia nunca vira "todos saíram"
+        return world,members
+
     def scan(self,key,owner,data,stamp):
         with self.store.tx() as db:
             meta=db.execute('SELECT * FROM watch_meta WHERE watch=?',(key,)).fetchone()
@@ -77,31 +87,45 @@ class Watcher:
             db.execute('INSERT INTO watch_meta(watch,last_run,since,primed) VALUES(?,?,?,0) ON CONFLICT(watch) DO UPDATE SET last_run=excluded.last_run',(key,stamp,stamp))
             known={r['name']:dict(r) for r in db.execute('SELECT * FROM watch_members WHERE watch=?',(key,))}
         primed=bool(meta and meta['primed']);since=meta['since'] if meta else stamp
-        guild=(self.fetch('/guild/'+quote(data['guild'])) or {}).get('guild') or {}
-        members=[m for m in guild.get('members') or [] if isinstance(m,dict) and isinstance(m.get('name'),str) and type(m.get('level')) is int and m['level']>0]
-        if not members: raise Invalid('Guild sem membros.')  # falha fechada: lista vazia nunca vira "todos saíram"
-        events=[];ms=data['milestone']
-        for m in members:
-            prev=known.get(m['name'])
-            if primed and prev is not None and data['ups'] and m['level']//ms>prev['level']//ms:
-                events.append((f"up:{m['name']}:{m['level']//ms*ms}",up_text(m)))
+        world,roster=self.roster(data,stamp,meta,known)
+        # Level up vem da lista online do mundo, que é atual (a mesma fonte do UP Level do app); quem não está online não muda de level.
+        listed=(self.fetch('/world/'+quote(world)) or {}).get('world',{}).get('online_players')
+        if not isinstance(listed,list) or not listed: raise Invalid('Lista online indisponível.')
+        online={p['name']:p for p in listed if isinstance(p,dict) and isinstance(p.get('name'),str) and type(p.get('level')) is int and p['level']>0}
+        names={n for n,_ in roster} if roster is not None else set(known)
+        vocations=dict(roster or ())
+        def vocation(name): return (online.get(name) or {}).get('vocation') or vocations.get(name) or (known.get(name) or {}).get('vocation')
+        events=[];ms=data['milestone'];levels={}
+        for name in sorted(names&set(online)):
+            level=online[name]['level'];prev=(known.get(name) or {}).get('level',0)
+            if primed and prev>0 and data['ups'] and level//ms>prev//ms:
+                events.append((f"up:{name}:{level//ms*ms}",up_text({'name':name,'level':level,'vocation':vocation(name)})))
+            levels[name]=level
+        checked=[]
         if data['deaths'] and primed:
-            # a morte aparece na ficha quando o personagem ainda está online ou acabou de sair
-            check=[m for m in members if m.get('status')=='online' or (known.get(m['name']) or {}).get('online')][:MAX_FETCH]
-            def sheet(m):
-                try: return m,(self.fetch('/character/'+quote(m['name'])) or {}).get('character',{}).get('deaths')
-                except Exception: return m,None
-            with ThreadPoolExecutor(max_workers=4) as pool: results=list(pool.map(sheet,check))
-            for m,deaths in results:
+            # a morte aparece na ficha quando o personagem ainda está online ou acabou de sair; rodízio pelos que esperam há mais tempo
+            candidates=sorted((n for n in names if n in online or (known.get(n) or {}).get('online')),key=lambda n:((known.get(n) or {}).get('checked',0),n))
+            checked=candidates[:MAX_FETCH]
+            def sheet(name):
+                try: return name,(self.fetch('/character/'+quote(name)) or {}).get('character',{}).get('deaths')
+                except Exception: return name,None
+            with ThreadPoolExecutor(max_workers=6) as pool: results=list(pool.map(sheet,checked))
+            for name,deaths in results:
                 for death in deaths if isinstance(deaths,list) else []:
                     try:
                         at=datetime.fromisoformat(str(death['time']).replace('Z','+00:00')).timestamp()
                         if type(death.get('level')) is not int or at<since or stamp-at>EVENT_TTL: continue
-                        events.append((f"death:{m['name']}:{death['time']}",death_text(m,death)))
+                        events.append((f"death:{name}:{death['time']}",death_text({'name':name,'vocation':vocation(name)},death)))
                     except (KeyError,ValueError,TypeError): continue
         with self.store.tx() as db:
-            for m in members:
-                db.execute('INSERT INTO watch_members(watch,name,level,online) VALUES(?,?,?,?) ON CONFLICT(watch,name) DO UPDATE SET level=excluded.level,online=excluded.online',(key,m['name'],m['level'],1 if m.get('status')=='online' else 0))
+            if roster is not None:
+                for gone in set(known)-names: db.execute('DELETE FROM watch_members WHERE watch=? AND name=?',(key,gone))
+                for name,voc in roster: db.execute('INSERT INTO watch_members(watch,name,level,online,vocation) VALUES(?,?,0,0,?) ON CONFLICT(watch,name) DO UPDATE SET vocation=excluded.vocation',(key,name,voc))
+                db.execute('UPDATE watch_meta SET world=?,roster_at=? WHERE watch=?',(world,stamp,key))
+            for name in names:
+                if name in levels: db.execute('UPDATE watch_members SET level=?,online=1,vocation=COALESCE(?,vocation) WHERE watch=? AND name=?',(levels[name],online[name].get('vocation'),key,name))
+                else: db.execute('UPDATE watch_members SET online=0 WHERE watch=? AND name=?',(key,name))
+            for name in checked: db.execute('UPDATE watch_members SET checked=? WHERE watch=? AND name=?',(stamp,key,name))
             for event_key,text in events:
                 event=ident()
                 db.execute("INSERT OR IGNORE INTO watch_events(id,owner,watch,key,text,state,created) VALUES(?,?,?,?,?,'pending',?)",(event,owner,key,event_key,self.store.pack(owner,event,text),stamp))
