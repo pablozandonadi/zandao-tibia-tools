@@ -116,3 +116,14 @@ Registro/recovery públicos:60/min global e10/IP persistentes em SQLite, somente
 Guardar código por ação explícita; sem DPAPI/código não há recuperação silenciosa. Rejeição definitiva preserva acesso anterior válido; resultado de rede incerto conserva pending e exige retomar antes de outra recuperação. Nunca apagar arquivo protegido para contornar erro. Código errado em instalação nova pode ser corrigido explicitamente sem gerar outro owner.
 
 Restore offline revoga TODAS identidades/códigos restaurados, além de conexões/agendas. Backup não ressuscita acesso revogado. Reconciliação administrativa posterior obrigatória; sem claim automático ou adoção da sessão legada. Parar todos serviços e bloquear rede da ponte até reconciliar.
+
+## Alertas da guild (mortes e level up)
+
+Recurso só de envio: o servidor consulta a lista pública da guild e a ficha pública dos membros (TibiaData) a cada ~2 minutos pelo mesmo `tick` do worker (timer de 1 minuto) e manda **uma mensagem por evento** ao grupo escolhido. Nada do que os membros escrevem no grupo é lido; o bom dia segue pelas rotinas diárias.
+
+- **Objeto `watch`** (até 3 por instalação): `guild`, `milestone` (level up só ao cruzar múltiplos de N, padrão 50), `deaths`, `ups`, `hourlyCap` (1 a 60 avisos por hora, padrão 20), `connection`, `destination`. API: `GET/POST /v1/watches`, `PUT/DELETE /v1/watches/{id}`; mesmas regras de dono, conexão ativa e grupo autorizado das rotinas.
+- **Sem retroativo:** a primeira varredura só memoriza os levels; mortes anteriores à criação do alerta são ignoradas. Cada evento tem chave única (`up:nome:marco`, `death:nome:horário`), então nunca repete, mesmo se o personagem perder e recuperar o level.
+- **Proteções do número:** no máximo 3 mensagens por minuto e o teto por hora configurado; aviso que não coube e passou de 3 h expira em vez de chegar atrasado. Envio registrado antes do despacho: falha conhecida vira `failed`, resposta duvidosa vira `uncertain` e nunca é repetida. Revogar a conexão cancela a fila.
+- **Conteúdo:** nomes vindos do jogo perdem `*`, `_`, `~`, crase e quebras de linha antes de entrar na mensagem. Texto do evento é cifrado no banco como os demais conteúdos.
+- **Falha fechada:** guild vazia ou fonte fora do ar não gera evento nem apaga a memória de levels.
+- **Implantação:** atualizar o checkout da VM (`zt-deploy.sh`) cria as tabelas `watch_*` sozinho; nenhuma unidade systemd nova. Testes: `python -m unittest test_watch` em `server/message-automation`.

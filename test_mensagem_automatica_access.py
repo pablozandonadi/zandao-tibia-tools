@@ -51,6 +51,10 @@ class AccessTests(unittest.TestCase):
   # Hub: excluir rotina passa pela lista fechada; caminho fora do formato continua bloqueado.
   self.assertEqual(self.client.request('/v1/subscriptions/'+'a'*32,'DELETE'),[])
   with self.assertRaises(AccessError):self.client.request('/v1/subscriptions/x','DELETE')
+  # Alertas da guild: mesmas regras (lista fechada, id hexadecimal de 32 caracteres, sem query).
+  self.client.request('/v1/watches');self.client.request('/v1/watches','POST',{});self.client.request('/v1/watches/'+'a'*32,'PUT',{});self.client.request('/v1/watches/'+'a'*32,'DELETE')
+  for path,method in [('/v1/watches/x','DELETE'),('/v1/watches?x=1','GET'),('/v1/watches/'+'a'*32,'POST'),('/v1/watches/../connections','GET')]:
+   with self.assertRaises(AccessError):self.client.request(path,method)
  def test_corruption_origin_channel_and_proxy_fail_closed(self):
   self.client.request('/public-config')
   bound=CredentialFile('https://other.test','beta',self.tmp.name,self.files.protect,self.files.unprotect)

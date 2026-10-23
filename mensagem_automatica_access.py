@@ -16,10 +16,10 @@ class AccessRejected(AccessError): pass
 SECRET=re.compile(r'^[a-f0-9]{64}$')
 ID=r'[a-f0-9]{32}'
 ALLOWED={
- 'GET':re.compile(r'^/(public-config|v1/(connections(?:/'+ID+r'(?:/groups)?)?|subscriptions|runs))$'),
- 'POST':re.compile(r'^/v1/(preview|connections(?:/'+ID+r'/pair)?|destinations|subscriptions)$'),
- 'PUT':re.compile(r'^/v1/subscriptions/'+ID+r'$'),
- 'DELETE':re.compile(r'^/v1/(connections|subscriptions)/'+ID+r'$')}
+ 'GET':re.compile(r'^/(public-config|v1/(connections(?:/'+ID+r'(?:/groups)?)?|subscriptions|watches|runs))$'),
+ 'POST':re.compile(r'^/v1/(preview|connections(?:/'+ID+r'/pair)?|destinations|subscriptions|watches)$'),
+ 'PUT':re.compile(r'^/v1/(subscriptions|watches)/'+ID+r'$'),
+ 'DELETE':re.compile(r'^/v1/(connections|subscriptions|watches)/'+ID+r'$')}
 # Servidor da VM Oracle; AUTOMATION_PORTAL_URL continua valendo como override administrativo.
 DEFAULT_ORIGIN='https://140.238.185.24'
 class NoRedirect(HTTPRedirectHandler):

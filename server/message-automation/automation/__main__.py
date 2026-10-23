@@ -10,6 +10,7 @@ from .domain import UTC,validate,reference_day
 from .store import Store
 from .transport import FakeTransport
 from .worker import Worker
+from .watch import Watcher
 from .runtime import components
 
 def demo():
@@ -33,7 +34,10 @@ def main():
     logging.basicConfig(level=logging.INFO,format='%(levelname)s %(message)s')
     if args.command=='demo': return demo()
     store,transport=components()
-    if args.command=='tick': return Worker(store,transport).tick()
+    if args.command=='tick':
+        # Rotinas diárias primeiro; o vigia da guild roda no mesmo minuto e nunca derruba a rotina se falhar.
+        Worker(store,transport).tick()
+        return Watcher(store,transport).tick()
     if not args.file: parser.error('--file obrigatório')
     if args.command=='backup': store.backup(args.file)
     else:

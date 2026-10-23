@@ -17,7 +17,7 @@ jobs:
           cache: pip
           cache-dependency-path: server/message-automation/requirements.txt
       - run: python -m pip install -r server/message-automation/requirements.txt
-      - run: python -m unittest -v test_automation test_installation_auth
+      - run: python -m unittest -v test_automation test_installation_auth test_watch
         working-directory: server/message-automation
       - run: python -m unittest -v test_mensagem_automatica_access
       - run: python -m automation demo

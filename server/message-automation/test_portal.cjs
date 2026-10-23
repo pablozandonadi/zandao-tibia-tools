@@ -4,7 +4,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
  const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{})});
  try{
   const page=await browser.newPage(),errors=[],requests=[],calls=[];page.on('pageerror',e=>errors.push(e.message));
-  const folder=path.resolve(__dirname,'../../web/mensagem_automatica_portal');let connected=false,revoked=false,subscriptions=[],groupLabel='Grupo <script>malicioso</script>',previewText='Prévia <img src=x onerror=alert(1)>',releasePreview,signalPreview;
+  const folder=path.resolve(__dirname,'../../web/mensagem_automatica_portal');let connected=false,revoked=false,subscriptions=[],watchesList=[],groupLabel='Grupo <script>malicioso</script>',previewText='Prévia <img src=x onerror=alert(1)>',releasePreview,signalPreview;
   const previewStarted=new Promise(r=>signalPreview=r),previewGate=new Promise(r=>releasePreview=r);let first=true;
   const configuration={personagem:'Pirata Teste',mundo:'Antica',blocks:{mundo:true},timezone:'UTC',generateAt:'12:00',sendAt:'12:10'};
   await page.exposeBinding('nativeCall',async(_,action,args=[])=>{
@@ -23,6 +23,10 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
    else if(p==='/v1/destinations'){assert.equal(body.group,'opaque-group');result={id:'destination'};}
    else if(p.startsWith('/v1/subscriptions')&&['POST','PUT'].includes(method)){subscriptions=[{id:'subscription',...body,destinationLabel:groupLabel,state:body.active?'active':'inactive'}];result=subscriptions[0];}
    else if(p==='/v1/subscriptions/subscription'&&method==='DELETE'){subscriptions=[];result={id:'subscription',state:'revoked'};}
+   else if(p==='/v1/watches'&&method==='GET')result=watchesList;
+   else if(p==='/v1/watches'&&method==='POST'){watchesList=[{id:'watch',...body,destinationLabel:groupLabel,state:'active'}];result=watchesList[0];}
+   else if(p==='/v1/watches/watch'&&method==='PUT'){watchesList=[{...watchesList[0],...body,state:body.active?'active':'inactive'}];result=watchesList[0];}
+   else if(p==='/v1/watches/watch'&&method==='DELETE'){watchesList=[];result={id:'watch',state:'revoked'};}
    else if(p==='/v1/runs')result=[{subscription:'subscription',state:'simulated',reference:'2026-10-21'}];
    else throw Error('Unexpected native operation '+p);
    return {data:result};
@@ -47,6 +51,14 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   await routine.getByRole('button',{name:'Histórico'}).click();await page.waitForFunction(()=>document.getElementById('runs-result').textContent.includes('Simulado'));
   await page.locator('#runs').click();await page.waitForFunction(()=>document.getElementById('runs-title').textContent==='Todo o histórico');
   await routine.getByRole('button',{name:'Excluir'}).click();assert.equal(subscriptions.length,1);await routine.getByRole('button',{name:'Confirmar exclusão'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Rotina excluída'));assert.equal(subscriptions.length,0);
+  // Alertas da guild: criar (com nome hostil), pausar e excluir; o texto do servidor nunca vira HTML.
+  await page.locator('#watch-groups').selectOption('opaque-group');await page.locator('#watch-guild').fill('<img src=x onerror=alert(1)>Piratas');await page.locator('#watch-milestone').fill('100');await page.locator('#watch-save').click();
+  await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Alerta de simulação ativado'));
+  const watch=page.locator('#watches article');assert.equal(await page.locator('#watches img').count(),0);assert.ok((await watch.textContent()).includes('Level ups a cada 100'));
+  assert.equal(watchesList[0].milestone,100);assert.equal(watchesList[0].deaths,true);assert.equal(watchesList[0].hourlyCap,20);assert.equal(watchesList[0].active,true);
+  await watch.getByRole('button',{name:'Pausar'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Alerta pausado'));assert.equal(watchesList[0].state,'inactive');
+  await watch.getByRole('button',{name:'Excluir'}).click();assert.equal(watchesList.length,1);await watch.getByRole('button',{name:'Confirmar exclusão'}).click();
+  await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Alerta excluído'));assert.equal(watchesList.length,0);
   await page.locator('#access-controls summary').click();await page.locator('#reveal-recovery').click();await page.waitForFunction(()=>document.getElementById('recovery-code').textContent.length===64);await page.locator('#recovery-input').fill('f'.repeat(64));await page.locator('#recover').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Acesso recuperado'));assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(await page.locator('#recovery-input').inputValue(),'');
   groupLabel='Piratas do Rocks';previewText='Prévia de simulação · Mundo: Antica';await page.locator('#refresh').click();await page.locator('#new-routine').click();await page.waitForFunction(()=>[...document.getElementById('groups').options].some(o=>o.textContent==='Piratas do Rocks'));await page.locator('#preview').click();await page.waitForFunction(()=>document.getElementById('preview-result').textContent.includes('Prévia de simulação'));
   if(process.env.MA_SCREENSHOT_DIR){await page.setViewportSize({width:1200,height:1000});await page.screenshot({path:process.env.MA_SCREENSHOT_DIR+'/portal-mensagem-automatica.png',fullPage:true});}

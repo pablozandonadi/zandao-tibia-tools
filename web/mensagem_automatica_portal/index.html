@@ -10,6 +10,15 @@
 <div id="pair-box"><p class="muted risk">Integração não oficial com o WhatsApp. Mudanças no WhatsApp podem interromper a conexão e existe risco de bloqueio da conta. Não há garantia de envio ou de manutenção da sessão.</p><label><input id="risk" type="checkbox"> Li e aceito esses riscos para conectar minha própria conta.</label><button id="pair" class="primary">Conectar / mostrar QR</button><img id="qr" hidden alt="QR temporário para parear sua conta WhatsApp"></div>
 <div class="actions"><button id="refresh">Atualizar</button><button id="revoke" class="danger" hidden>Desconectar WhatsApp</button></div></section>
 <section class="card" aria-labelledby="routines-title"><div class="card-head"><h2 id="routines-title">Minhas rotinas</h2><span><span id="routine-count" class="muted"></span> <button id="new-routine" class="primary">+ Nova rotina</button></span></div><div id="routines" class="routines"></div></section>
+<section class="card" aria-labelledby="watch-title"><div class="card-head"><h2 id="watch-title">Alertas da guild</h2><span id="watch-count" class="muted"></span></div>
+<p class="muted">Avisa no grupo quando um membro da guild morre ou sobe de level. Só envia: o bot não lê o que é escrito no grupo. O bom dia segue pelas rotinas acima.</p>
+<div id="watches"></div>
+<div class="row"><label for="watch-guild">Guild</label><input id="watch-guild" maxlength="40" placeholder="Ex.: Piratas do Rocks"></div>
+<div class="row"><label for="watch-groups">Grupo</label><select id="watch-groups"></select></div>
+<div class="row"><label for="watch-milestone">Avisar level up a cada</label><input id="watch-milestone" type="number" min="5" max="1000" value="50"> <span class="muted">níveis (50 = 100, 150, 200…)</span></div>
+<div class="row"><label for="watch-cap">Máximo de avisos por hora</label><input id="watch-cap" type="number" min="1" max="60" value="20"></div>
+<div class="row"><label class="tick"><input id="watch-deaths" type="checkbox" checked>Mortes</label> <label class="tick"><input id="watch-ups" type="checkbox" checked>Level ups (nos marcos)</label></div>
+<div class="actions"><button id="watch-save" class="primary">Salvar e ativar alerta</button></div></section>
 <section class="card" id="editor" hidden aria-labelledby="editor-title"><div class="card-head"><h2 id="editor-title">Nova rotina</h2><button id="editor-cancel" class="ghost">Cancelar</button></div>
 <label>Grupo de destino<input id="group-search" type="search" placeholder="Buscar grupo…" autocomplete="off"><select id="groups"><option value="">Escolha um grupo</option></select></label>
 <fieldset><legend>Horários</legend><div class="grid"><label>Gerar às<input id="ed-generate" type="time"></label><label>Enviar às<input id="ed-send" type="time"></label><label>Fuso horário<input id="ed-zone" maxlength="100" placeholder="Ex.: America/Cuiaba"></label></div><p class="muted">O envio precisa ser no mesmo horário ou depois da geração.</p></fieldset>

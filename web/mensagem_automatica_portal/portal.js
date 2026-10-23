@@ -10,7 +10,7 @@
  const notice=text=>$('notice').textContent=text;
  const clearQR=()=>{clearTimeout(qrTimer);$('qr').hidden=true;$('qr').removeAttribute('src');};
  function clearRecovery(){recoveryEpoch++;clearTimeout(recoveryTimer);$('recovery-code').textContent='';$('recovery-input').value='';}
- function logout(){closed=true;$('access-controls').hidden=true;clearQR();clearRecovery();connection='';groups=[];subscriptions=[];runs=[];editing=null;configurationData=null;$('routines').replaceChildren();$('settings').hidden=true;notice('Gestão encerrada. Feche esta janela.');}
+ function logout(){closed=true;$('access-controls').hidden=true;clearQR();clearRecovery();connection='';groups=[];subscriptions=[];runs=[];editing=null;configurationData=null;$('routines').replaceChildren();watches=[];$('watches').replaceChildren();$('settings').hidden=true;notice('Gestão encerrada. Feche esta janela.');}
  async function api(path,method='GET',body){
   const result=await window.pywebview.api.request('/v1/'+path,method,body||null);
   if(result.error)throw Error(result.error);return result.data;
@@ -104,8 +104,36 @@
   if(status.qrImage&&status.expiresAt>Date.now()/1000&&/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(status.qrImage)){
    $('qr').src=status.qrImage;$('qr').hidden=false;qrTimer=setTimeout(clearQR,Math.min((status.expiresAt-Date.now()/1000)*1000,90000));
   }
-  if(connected){groups=await api('connections/'+connection+'/groups');renderGroups(editing?.destinationLabel);$('connection-detail').textContent=groups.length+' grupos disponíveis para envio.';}
+  if(connected){groups=await api('connections/'+connection+'/groups');renderGroups(editing?.destinationLabel);options($('watch-groups'),groups,'Escolha um grupo');$('connection-detail').textContent=groups.length+' grupos disponíveis para envio.';}
  }
+ // Alertas da guild: o servidor detecta mortes e marcos de level e envia um aviso por evento; aqui só se configura.
+ let watches=[];
+ const watchBody=(w,active)=>({guild:w.guild,milestone:w.milestone,deaths:w.deaths,ups:w.ups,hourlyCap:w.hourlyCap,connection:w.connection,destination:w.destination,active});
+ async function loadWatches(){watches=await api('watches');renderWatches();}
+ function renderWatches(){
+  const root=$('watches');root.replaceChildren();$('watch-count').textContent=watches.length+' de 3';
+  for(const w of watches){
+   const on=w.state==='active',card=el('article','routine'+(on?' on':'')),head=el('div','routine-head');
+   head.append(el('span','badge '+(on?'good':''),stateLabel(w.state)),el('h3','',text(w.guild)+' → '+(text(w.destinationLabel)||'Grupo sem nome')));
+   card.append(head,el('p','muted',[w.deaths?'Mortes':'',w.ups?'Level ups a cada '+Number(w.milestone):''].filter(Boolean).join(' · ')+' · até '+Number(w.hourlyCap)+' avisos/hora'));
+   const actions=el('div','actions');
+   const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};
+   add(on?'Pausar':'Ativar',async()=>{await api('watches/'+w.id,'PUT',watchBody(w,!on));await loadWatches();notice(on?'Alerta pausado.':'Alerta ativado.');});
+   add('Excluir',async b=>{
+    if(armed!==w.id){armed=w.id;b.textContent='Confirmar exclusão';setTimeout(()=>{if(armed===w.id){armed='';b.textContent='Excluir';}},5000);return;}
+    armed='';await api('watches/'+w.id,'DELETE');await loadWatches();notice('Alerta excluído.');
+   },'danger');
+   card.append(actions);root.append(card);
+  }
+ }
+ $('watch-save').onclick=guarded(async()=>{
+  if(!connection||!connected)throw Error('Conecte seu WhatsApp antes de salvar.');
+  if(!$('watch-groups').value)throw Error('Escolha o grupo de destino.');
+  const dest=await api('destinations','POST',{connection,group:$('watch-groups').value});
+  await api('watches','POST',{guild:$('watch-guild').value.trim(),milestone:Number($('watch-milestone').value),deaths:$('watch-deaths').checked,ups:$('watch-ups').checked,hourlyCap:Number($('watch-cap').value),connection,destination:dest.id,active:true});
+  $('watch-guild').value='';await loadWatches();
+  notice(mode==='simulation'?'Alerta de simulação ativado. Nenhuma mensagem real será enviada.':'Alerta ativado. Os avisos começam na próxima varredura (cerca de 2 minutos); o que já aconteceu antes não é enviado.');
+ });
  $('new-routine').onclick=()=>openEditor(null);$('editor-cancel').onclick=closeEditor;
  $('group-search').oninput=()=>renderGroups();
  $('preview').onclick=guarded(async()=>showPreview(await api('preview','POST',collect())));
@@ -123,7 +151,7 @@
   const live=mode!=='simulation';$('mode').textContent=live?'Envio real':'Simulação';$('mode').className='badge '+(live?'good':'warn');
   $('mode').title=live?'Integração não oficial — envios reais exigem sua conexão e rotina ativa.':'Modo de simulação — sem envio real.';
   $('activate').textContent=live?'Salvar e ativar':'Salvar e ativar simulação';
-  await refresh();await loadRoutines();if(closed)return;notice('');
+  await refresh();await loadRoutines();await loadWatches().catch(()=>{});if(closed)return;notice('');
  }
  $('reveal-recovery').onclick=guarded(async()=>{clearRecovery();const epoch=recoveryEpoch;const r=await window.pywebview.api.reveal_recovery();if(closed||epoch!==recoveryEpoch)return;if(r.error)throw Error(r.error);$('recovery-code').textContent=r.code;recoveryTimer=setTimeout(clearRecovery,30000);});
  $('recovery-input').oninput=()=>{clearTimeout(recoveryTimer);recoveryTimer=setTimeout(clearRecovery,30000);};

@@ -20,6 +20,9 @@ class Store:
             CREATE INDEX IF NOT EXISTS owners ON objects(owner,kind);
             CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,owner TEXT NOT NULL,subscription TEXT NOT NULL,destination TEXT NOT NULL,reference TEXT NOT NULL,generation REAL,send REAL,state TEXT NOT NULL,snapshot BLOB,receipt BLOB,attempt TEXT,lease REAL,error TEXT,version INTEGER NOT NULL,generation_attempts INTEGER NOT NULL DEFAULT 0,retry_after REAL NOT NULL DEFAULT 0,
               UNIQUE(owner,subscription,destination,reference));
+            CREATE TABLE IF NOT EXISTS watch_members(watch TEXT NOT NULL,name TEXT NOT NULL,level INTEGER NOT NULL,online INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(watch,name));
+            CREATE TABLE IF NOT EXISTS watch_meta(watch TEXT PRIMARY KEY,last_run REAL NOT NULL DEFAULT 0,since REAL NOT NULL DEFAULT 0,primed INTEGER NOT NULL DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS watch_events(id TEXT PRIMARY KEY,owner TEXT NOT NULL,watch TEXT NOT NULL,key TEXT NOT NULL,text BLOB NOT NULL,state TEXT NOT NULL,created REAL NOT NULL,sent_at REAL,attempt TEXT,lease REAL,error TEXT,UNIQUE(watch,key));
             ''')
             columns={r['name'] for r in db.execute('PRAGMA table_info(runs)')}
             for name,definition in [('generation_attempts','INTEGER NOT NULL DEFAULT 0'),('retry_after','REAL NOT NULL DEFAULT 0')]:
@@ -74,6 +77,7 @@ class Store:
             self.read(db,owner,key,kind)
             db.execute('UPDATE objects SET body=?,state=?,version=version+1 WHERE id=? AND owner=?',(self.pack(owner,key,data),state,key,owner))
             if kind=='subscription': db.execute("UPDATE runs SET state='cancelled',error='configuration_changed' WHERE owner=? AND subscription=? AND state IN ('pending','preparing','ready')",(owner,key))
+            if kind=='watch': db.execute("UPDATE watch_events SET state='cancelled',error='configuration_changed' WHERE owner=? AND watch=? AND state='pending'",(owner,key))
 
     def revoke(self,owner,key):
         # Commit before network logout: failure to contact bridge must never permit new sends.
@@ -86,6 +90,12 @@ class Store:
                     db.execute("UPDATE objects SET state='inactive',version=version+1 WHERE id=?",(sub['id'],))
                     db.execute("UPDATE runs SET state='cancelled',error='revoked' WHERE owner=? AND subscription=? AND state IN ('pending','preparing','ready')",(owner,sub['id']))
                     db.execute("UPDATE runs SET state='uncertain',error='revoked_during_dispatch' WHERE owner=? AND subscription=? AND state='sending'",(owner,sub['id']))
+            for watch in db.execute("SELECT id FROM objects WHERE owner=? AND kind='watch'",(owner,)).fetchall():
+                item=self.read(db,owner,watch['id'],'watch')
+                if item['data'].get('connection')==key:
+                    db.execute("UPDATE objects SET state='inactive',version=version+1 WHERE id=?",(watch['id'],))
+                    db.execute("UPDATE watch_events SET state='cancelled',error='revoked' WHERE watch=? AND state='pending'",(watch['id'],))
+                    db.execute("UPDATE watch_events SET state='uncertain',error='revoked_during_dispatch' WHERE watch=? AND state='sending'",(watch['id'],))
             return row['data']
 
     def backup(self,destination):
@@ -110,6 +120,8 @@ class Store:
             db.deserialize(raw)
             db.execute("UPDATE objects SET state=CASE WHEN kind='connection' THEN 'revoked' ELSE 'inactive' END,version=version+1")
             db.execute("UPDATE runs SET state=CASE WHEN state='sending' THEN 'uncertain' ELSE 'cancelled' END,error='offline_restore' WHERE state NOT IN ('accepted','simulated','uncertain','failed','expired','cancelled')")
+            if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='watch_events'").fetchone():
+                db.execute("UPDATE watch_events SET state=CASE WHEN state='sending' THEN 'uncertain' ELSE 'cancelled' END,error='offline_restore' WHERE state IN ('pending','sending')")
             if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='installations'").fetchone(): db.execute('UPDATE installations SET revoked=1')
             db.commit()
             with closing(sqlite3.connect(self.path)) as destination: db.backup(destination)
