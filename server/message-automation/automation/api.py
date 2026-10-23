@@ -121,7 +121,7 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     # ---- Comandos dos bots: o administrador liga/desliga e reescreve a resposta; o bot do WhatsApp lê daqui, o app lê a parte pública ----
     @app.get('/v1/admin/botcmds')
     def admin_botcmds(user=Depends(administrator)):
-        return {scope:[{'cmd':cmd,'label':label,'enabled':saved.get(cmd,{}).get('enabled',True),'text':saved.get(cmd,{}).get('text',''),'default':HELP if (scope,cmd)==('whatsapp','help') else ''} for cmd,label in cmds.items()]
+        return {scope:[{'cmd':cmd,'label':label,'enabled':saved.get(cmd,{}).get('enabled',True),'text':saved.get(cmd,{}).get('text',''),'default':HELP if (scope,cmd)==('whatsapp','help') else '{resposta}'} for cmd,label in cmds.items()]
                 for scope,cmds in BOT_COMMANDS.items() for saved in [store.bot_settings(scope)]}
     @app.put('/v1/admin/botcmds/{scope}/{cmd}')
     async def admin_botcmd_set(scope,cmd,request:Request,user=Depends(administrator)):

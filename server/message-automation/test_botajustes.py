@@ -67,6 +67,7 @@ class AjustesTests(unittest.TestCase):
         self.assertEqual([c['cmd'] for c in listed['whatsapp']], ['help', 'duelo', 'evolucao', 'precocoin', 'pt', 'char', 'online', 'xptop'])
         self.assertEqual(next(c for c in listed['whatsapp'] if c['cmd'] == 'help')['default'], HELP)
         self.assertTrue(all(c['enabled'] and c['text'] == '' for c in listed['assistente']))
+        self.assertTrue(all(c['default'] == '{resposta}' for c in listed['assistente'] + listed['whatsapp'] if c['cmd'] != 'help'), 'modelo padrão dos comandos com dados: só a resposta automática')
         self.assertEqual(client.get('/public/botcmds').json(), {})
         for bad in ({'enabled': 'sim', 'text': ''}, {'enabled': True, 'text': 'a' * 1501}, {'enabled': True, 'extra': 1}, {'text': 'x'}):
             self.assertEqual(client.put('/v1/admin/botcmds/assistente/exp', json=bad, headers=h['a']).status_code, 400, bad)

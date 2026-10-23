@@ -35,7 +35,7 @@
   // ---- comandos ----
   function cartao(bot, c) {
     const ligado = h('input', {type: 'checkbox', checked: c.enabled});
-    const texto = h('textarea', {rows: 4, maxLength: 1500, placeholder: DICA, value: c.text || ''});
+    const texto = h('textarea', {style: 'width:100%;box-sizing:border-box', rows: 4, maxLength: 1500, placeholder: DICA, value: c.text || ''});
     const aviso = h('span', {className: 'dica'});
     const mostrar = t => { aviso.textContent = t; };
     const salvar = async () => {
@@ -50,8 +50,8 @@
     };
     return h('div', {className: 'card'},
       h('h3', {texto: c.label}),
-      h('label', {}, ligado, ' Responde a este comando'),
-      h('label', {}, 'Texto da resposta ', texto),
+      h('label', {style: 'display:block;margin:8px 0'}, ligado, ' Responde a este comando'),
+      h('label', {style: 'display:block;margin:8px 0'}, 'Texto da resposta', h('br'), texto),
       ...(c.default ? [h('button', {className: 'btn', type: 'button', texto: 'Usar o texto padrão como base', onclick: () => { texto.value = c.default; }})] : []),
       h('button', {className: 'btn btn-primary', type: 'button', texto: 'Salvar', onclick: salvar}),
       h('button', {className: 'btn', type: 'button', texto: 'Restaurar padrão', onclick: restaurar}),
