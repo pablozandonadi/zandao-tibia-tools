@@ -36,6 +36,17 @@ class AjustesTests(unittest.TestCase):
         with self.assertRaises(Invalid): s.bot_settings('x')
         with self.assertRaises(Invalid): s.bot_reset('whatsapp', 'naoexiste')
 
+    def test_todo_comando_dos_bots_esta_na_lista_do_admin(self):
+        """Comando novo que não entrar em BOT_COMMANDS (e no mapa do bot) não aparece no Admin: este teste falha para lembrar."""
+        import comandos_tibia, bot_ajustes
+        from automation.botcmds import KEYS
+        from automation.store import BOT_COMMANDS
+        self.assertEqual(set(KEYS.values()), set(BOT_COMMANDS['whatsapp']))
+        self.assertEqual(set(comandos_tibia.HANDLERS), set(BOT_COMMANDS['assistente']))
+        self.assertEqual(set(comandos_tibia.HANDLERS), set(bot_ajustes.CHAVES))
+        pick = Bot().pick
+        for cmd in BOT_COMMANDS['whatsapp']: self.assertTrue(pick('!' + cmd), cmd)
+
     def test_bot_desligado_fica_em_silencio_e_ligado_segue_padrao(self):
         ajustes = {'duelo': {'enabled': False, 'text': ''}}
         b = Bot(trade=TRADE, settings=lambda: ajustes)
