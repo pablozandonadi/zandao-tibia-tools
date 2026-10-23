@@ -53,14 +53,14 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   await routine.getByRole('button',{name:'Excluir'}).click();assert.equal(subscriptions.length,1);await routine.getByRole('button',{name:'Confirmar exclusão'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Rotina excluída'));assert.equal(subscriptions.length,0);
   // Alertas da guild: criar (com nome hostil), pausar e excluir; o texto do servidor nunca vira HTML.
   await page.locator('#watch-groups').selectOption('opaque-group');await page.locator('#watch-guild').fill('<img src=x onerror=alert(1)>Piratas');
-  for(const [milestone,cap,expected] of [['0','20','de 1 a 1000'],['50','999','de 1 a 60']]){
-   await page.locator('#watch-milestone').fill(milestone);await page.locator('#watch-cap').fill(cap);await page.locator('#watch-save').click();
+  for(const [milestone,cap,expected,minute] of [['0','20','de 1 a 1000','3'],['50','1001','de 0 a 1000','3'],['50','20','por minuto','0']]){
+   await page.locator('#watch-milestone').fill(milestone);await page.locator('#watch-cap').fill(cap);await page.locator('#watch-minute').fill(minute);await page.locator('#watch-save').click();
    await page.waitForFunction(text=>document.getElementById('notice').textContent.includes(text),expected);assert.equal(watchesList.length,0);
   }
-  await page.locator('#watch-cap').fill('20');await page.locator('#watch-milestone').fill('100');await page.locator('#watch-save').click();
+  await page.locator('#watch-cap').fill('20');await page.locator('#watch-minute').fill('3');await page.locator('#watch-milestone').fill('100');await page.locator('#watch-save').click();
   await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Alerta de simulação ativado'));
   const watch=page.locator('#watches article');assert.equal(await page.locator('#watches img').count(),0);assert.ok((await watch.textContent()).includes('Level ups a cada 100'));
-  assert.equal(watchesList[0].milestone,100);assert.equal(watchesList[0].deaths,true);assert.equal(watchesList[0].hourlyCap,20);assert.equal(watchesList[0].active,true);
+  assert.equal(watchesList[0].milestone,100);assert.equal(watchesList[0].deaths,true);assert.equal(watchesList[0].hourlyCap,20);assert.equal(watchesList[0].perMinute,3);assert.equal(watchesList[0].active,true);
   await watch.getByRole('button',{name:'Pausar'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Alerta pausado'));assert.equal(watchesList[0].state,'inactive');
   await watch.getByRole('button',{name:'Excluir'}).click();assert.equal(watchesList.length,1);await watch.getByRole('button',{name:'Confirmar exclusão'}).click();
   await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Alerta excluído'));assert.equal(watchesList.length,0);

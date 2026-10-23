@@ -41,8 +41,8 @@ class WatchTests(unittest.TestCase):
     def tick(self,minutes): self.watcher.tick(T0+timedelta(minutes=minutes))
 
     def test_validacao_do_contrato(self):
-        self.assertEqual(validate_watch({'guild':'  Piratas   do Rocks '}),{'guild':'Piratas do Rocks','milestone':1,'hourlyCap':20,'deaths':True,'ups':True})
-        for bad in ({},{'guild':'x'},{'guild':'ok guild','milestone':0},{'guild':'ok guild','milestone':1001},{'guild':'ok guild','hourlyCap':61},{'guild':'ok guild','deaths':'sim'},
+        self.assertEqual(validate_watch({'guild':'  Piratas   do Rocks '}),{'guild':'Piratas do Rocks','milestone':1,'hourlyCap':0,'perMinute':3,'deaths':True,'ups':True})
+        for bad in ({},{'guild':'x'},{'guild':'ok guild','milestone':0},{'guild':'ok guild','milestone':1001},{'guild':'ok guild','hourlyCap':1001},{'guild':'ok guild','hourlyCap':-1},{'guild':'ok guild','perMinute':0},{'guild':'ok guild','perMinute':121},{'guild':'ok guild','deaths':'sim'},
                     {'guild':'ok guild','deaths':False,'ups':False},{'guild':'<b>x</b>'}):
             with self.subTest(bad=bad),self.assertRaises(Invalid): validate_watch(bad)
 
@@ -102,6 +102,18 @@ class WatchTests(unittest.TestCase):
         self.tick(9);self.assertEqual(len(self.texts()),4)
         self.tick(65);self.assertEqual(len(self.texts()),6,'passada a hora, o restante ainda válido segue')
 
+    def test_sem_limite_por_hora_so_com_ritmo_por_minuto(self):
+        self.feed.members=[member(f'P{i}',100,'online') for i in range(8)];self.watch();self.tick(0)
+        self.feed.deaths={f'P{i}':[death(T0+timedelta(minutes=1))] for i in range(8)}
+        self.tick(3);self.assertEqual(len(self.texts()),3,'ritmo de 3 por minuto mesmo sem teto')
+        self.tick(6);self.tick(9);self.assertEqual(len(self.texts()),8,'sem teto, a fila inteira sai nas varreduras seguintes')
+
+    def test_ritmo_por_minuto_e_escolhido_pelo_dono(self):
+        self.feed.members=[member(f'P{i}',100,'online') for i in range(8)];self.watch(perMinute=5);self.tick(0)
+        self.feed.deaths={f'P{i}':[death(T0+timedelta(minutes=1))] for i in range(8)}
+        self.tick(3);self.assertEqual(len(self.texts()),5,'5 por minuto, como configurado')
+        self.tick(6);self.assertEqual(len(self.texts()),8)
+
     def test_aviso_velho_demais_expira_em_vez_de_chegar_atrasado(self):
         self.feed.members=[member('Ana',100,'online')];self.watch(hourlyCap=1);self.tick(0)
         self.feed.members=[member('Ana',100,'online'),member('Bia',100,'online')]
@@ -144,7 +156,7 @@ class WatchTests(unittest.TestCase):
         verifier.register('a'*64,'c'*64);verifier.register('b'*64,'d'*64)
         conn=client.post('/v1/connections',json={'riskAccepted':True},headers=a).json()['id'];client.post(f'/v1/connections/{conn}/pair',headers=a)
         dest=client.post('/v1/destinations',json={'connection':conn,'group':'fake-group'},headers=a).json()['id']
-        body={'guild':'Piratas do Rocks','milestone':50,'deaths':True,'ups':True,'hourlyCap':20,'connection':conn,'destination':dest,'active':True}
+        body={'guild':'Piratas do Rocks','milestone':50,'deaths':True,'ups':True,'hourlyCap':20,'perMinute':3,'connection':conn,'destination':dest,'active':True}
         self.assertEqual(client.post('/v1/watches',json=body).status_code,401)
         for bad in ({**body,'guild':''},{**body,'milestone':0},{**body,'extra':1},{**body,'deaths':False,'ups':False},{**body,'destination':'outro'}):
             self.assertEqual(client.post('/v1/watches',json=bad,headers=a).status_code,400,bad)

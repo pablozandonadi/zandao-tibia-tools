@@ -146,7 +146,7 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
         labels={d['id']:d['data'].get('label','') for d in store.list(user,'destination')}
         return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],'')} for x in store.list(user,'subscription') if x['state']!='revoked']
     def watch_data(user,data):
-        fields(data,{'guild','milestone','deaths','ups','hourlyCap','connection','destination','active'})
+        fields(data,{'guild','milestone','deaths','ups','hourlyCap','perMinute','connection','destination','active'})
         if type(data.get('active',False)) is not bool: raise Invalid('Estado inválido.')
         config=validate_watch(data)
         conn=connection(user,data.get('connection',''));dest=store.get(user,data.get('destination',''),'destination')

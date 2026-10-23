@@ -15,7 +15,7 @@ log=logging.getLogger('automation')
 GUILD=re.compile(r"[A-Za-z][A-Za-z '\-.]{1,39}")
 MIN_INTERVAL=120       # a TibiaData atualiza a guild a cada alguns minutos; consultar mais seguido só gasta cota
 MAX_FETCH=30           # fichas consultadas por varredura
-SEND_PER_TICK=3        # ritmo máximo: 3 mensagens por minuto, mesmo com fila grande
+DEFAULT_PER_MINUTE=3   # ritmo padrão; o dono escolhe de 1 a 120 por minuto
 EVENT_TTL=3*3600       # aviso que não coube no limite por hora e já ficou velho some em vez de chegar atrasado
 EMOJI={'knight':'🛡️','paladin':'🏹','druid':'❄️','sorcerer':'🔥','monk':'👊'}
 
@@ -24,7 +24,7 @@ def validate_watch(data):
     guild=data.get('guild')
     if not isinstance(guild,str) or not GUILD.fullmatch(' '.join(guild.split())): raise Invalid('Informe o nome da guild.')
     out={'guild':' '.join(guild.split())}
-    for key,low,high,default in (('milestone',1,1000,1),('hourlyCap',1,60,20)):
+    for key,low,high,default in (('milestone',1,1000,1),('hourlyCap',0,1000,0),('perMinute',1,120,DEFAULT_PER_MINUTE)):
         value=data.get(key,default)
         if type(value) is not int or not low<=value<=high: raise Invalid('Valor fora do limite.')
         out[key]=value
@@ -118,7 +118,8 @@ class Watcher:
             db.execute("UPDATE watch_events SET state='expired' WHERE watch=? AND state='pending' AND created<?",(key,stamp-EVENT_TTL))
             db.execute("UPDATE watch_events SET state='uncertain',error='dispatch_interrupted' WHERE watch=? AND state='sending' AND lease<=?",(key,stamp))
             used=db.execute("SELECT count(*) FROM watch_events WHERE watch=? AND sent_at>=?",(key,stamp-3600)).fetchone()[0]
-            room=min(SEND_PER_TICK,data['hourlyCap']-used)
+            per_minute=data.get('perMinute',DEFAULT_PER_MINUTE)  # alertas criados antes do campo existir seguem no ritmo padrão
+            room=per_minute if data['hourlyCap']==0 else min(per_minute,data['hourlyCap']-used)  # hourlyCap 0 = sem teto por hora
             if room<=0: return
             pending=db.execute("SELECT id FROM watch_events WHERE watch=? AND state='pending' ORDER BY created,id LIMIT ?",(key,room)).fetchall()
         for row in pending:

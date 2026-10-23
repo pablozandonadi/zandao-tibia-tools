@@ -108,14 +108,14 @@
  }
  // Alertas da guild: o servidor detecta mortes e marcos de level e envia um aviso por evento; aqui só se configura.
  let watches=[];
- const watchBody=(w,active)=>({guild:w.guild,milestone:w.milestone,deaths:w.deaths,ups:w.ups,hourlyCap:w.hourlyCap,connection:w.connection,destination:w.destination,active});
+ const watchBody=(w,active)=>({guild:w.guild,milestone:w.milestone,deaths:w.deaths,ups:w.ups,hourlyCap:w.hourlyCap,perMinute:w.perMinute,connection:w.connection,destination:w.destination,active});
  async function loadWatches(){watches=await api('watches');renderWatches();}
  function renderWatches(){
   const root=$('watches');root.replaceChildren();$('watch-count').textContent=watches.length+' de 3';
   for(const w of watches){
    const on=w.state==='active',card=el('article','routine'+(on?' on':'')),head=el('div','routine-head');
    head.append(el('span','badge '+(on?'good':''),stateLabel(w.state)),el('h3','',text(w.guild)+' → '+(text(w.destinationLabel)||'Grupo sem nome')));
-   card.append(head,el('p','muted',[w.deaths?'Mortes':'',w.ups?(Number(w.milestone)===1?'Todo level up':'Level ups a cada '+Number(w.milestone)):''].filter(Boolean).join(' · ')+' · até '+Number(w.hourlyCap)+' avisos/hora'));
+   card.append(head,el('p','muted',[w.deaths?'Mortes':'',w.ups?(Number(w.milestone)===1?'Todo level up':'Level ups a cada '+Number(w.milestone)):''].filter(Boolean).join(' · ')+(Number(w.hourlyCap)===0?' · sem limite por hora':' · até '+Number(w.hourlyCap)+' avisos/hora')+' · até '+Number(w.perMinute||3)+' por minuto'));
    const actions=el('div','actions');
    const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};
    add(on?'Pausar':'Ativar',async()=>{await api('watches/'+w.id,'PUT',watchBody(w,!on));await loadWatches();notice(on?'Alerta pausado.':'Alerta ativado.');});
@@ -130,13 +130,14 @@
   if(!connection||!connected)throw Error('Conecte seu WhatsApp antes de salvar.');
   if(!$('watch-groups').value)throw Error('Escolha o grupo de destino.');
   // Os mesmos limites do servidor, com aviso claro: a recusa dele aparece só como "pedido recusado".
-  const milestone=Number($('watch-milestone').value),cap=Number($('watch-cap').value);
+  const milestone=Number($('watch-milestone').value),cap=Number($('watch-cap').value),perMinute=Number($('watch-minute').value);
   if(!$('watch-guild').value.trim())throw Error('Informe o nome da guild.');
   if(!Number.isInteger(milestone)||milestone<1||milestone>1000)throw Error('Level up a cada: use um número de 1 a 1000 (1 = todo level).');
-  if(!Number.isInteger(cap)||cap<1||cap>60)throw Error('Máximo de avisos por hora: use um número de 1 a 60.');
+  if(!Number.isInteger(cap)||cap<0||cap>1000)throw Error('Máximo de avisos por hora: use um número de 0 a 1000 (0 = sem limite).');
+  if(!Number.isInteger(perMinute)||perMinute<1||perMinute>120)throw Error('Máximo de avisos por minuto: use um número de 1 a 120.');
   if(!$('watch-deaths').checked&&!$('watch-ups').checked)throw Error('Marque mortes, level ups ou os dois.');
   const dest=await api('destinations','POST',{connection,group:$('watch-groups').value});
-  await api('watches','POST',{guild:$('watch-guild').value.trim(),milestone:Number($('watch-milestone').value),deaths:$('watch-deaths').checked,ups:$('watch-ups').checked,hourlyCap:Number($('watch-cap').value),connection,destination:dest.id,active:true});
+  await api('watches','POST',{guild:$('watch-guild').value.trim(),milestone:Number($('watch-milestone').value),deaths:$('watch-deaths').checked,ups:$('watch-ups').checked,hourlyCap:cap,perMinute,connection,destination:dest.id,active:true});
   $('watch-guild').value='';await loadWatches();
   notice(mode==='simulation'?'Alerta de simulação ativado. Nenhuma mensagem real será enviada.':'Alerta ativado. Os avisos começam na próxima varredura (cerca de 2 minutos); o que já aconteceu antes não é enviado.');
  });
