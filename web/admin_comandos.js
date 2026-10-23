@@ -6,7 +6,7 @@
   const bridge = () => window.pywebview && window.pywebview.api;
   const GENERICO = 'Não foi possível concluir. Tente novamente.';
   const BOTS = [['whatsapp', 'Bot do WhatsApp (no grupo, com !)'], ['assistente', 'Bot do assistente tibiano (no app)']];
-  const DICA = 'Vazio = resposta padrão. Escreva {resposta} para incluir a resposta automática no meio do seu texto; sem {resposta}, o bot responde só o seu texto.';
+  const DICA = 'Vazio = resposta padrão. "Usar o texto padrão como base" mostra o modelo de hoje; mude o que quiser e use as variáveis para os dados que mudam. Texto sem variáveis vira uma resposta fixa. A prévia consulta os dados reais com o exemplo ao lado.';
   let geracao = 0;
   const chamar = async f => { try { return await f(bridge()); } catch (e) { return {erro: GENERICO}; } };
   function h(tag, props, ...filhos) {
@@ -35,7 +35,7 @@
   // ---- comandos ----
   function cartao(bot, c) {
     const ligado = h('input', {type: 'checkbox', checked: c.enabled});
-    const texto = h('textarea', {style: 'width:100%;box-sizing:border-box', rows: 4, maxLength: 1500, placeholder: DICA, value: c.text || ''});
+    const texto = h('textarea', {style: 'width:100%;box-sizing:border-box', rows: 10, maxLength: 1500, placeholder: DICA, value: c.text || ''});
     const aviso = h('span', {className: 'dica'});
     const mostrar = t => { aviso.textContent = t; };
     const salvar = async () => {
@@ -48,14 +48,29 @@
       if (r && r.erro) { mostrar(r.erro); return; }
       ligado.checked = true; texto.value = ''; mostrar('Voltou ao padrão.');
     };
+    const exemplo = h('input', {type: 'text', maxLength: 80, value: c.example || '', placeholder: 'Exemplo para a prévia'});
+    const previa = h('pre', {className: 'dica', style: 'white-space:pre-wrap'});
+    const inserir = nome => {  // a variável entra onde está o cursor
+      const ini = typeof texto.selectionStart === 'number' ? texto.selectionStart : texto.value.length;
+      const fim = typeof texto.selectionEnd === 'number' ? texto.selectionEnd : ini;
+      texto.value = texto.value.slice(0, ini) + '{' + nome + '}' + texto.value.slice(fim);
+    };
+    const ver = async () => {
+      previa.textContent = 'Consultando…';
+      const r = await chamar(api => api.admin_cmd_previa(bot, c.cmd, texto.value, exemplo.value));
+      previa.textContent = r && r.erro ? r.erro : r.texto;
+    };
     return h('div', {className: 'card'},
       h('h3', {texto: c.label}),
       h('label', {style: 'display:block;margin:8px 0'}, ligado, ' Responde a este comando'),
       h('label', {style: 'display:block;margin:8px 0'}, 'Texto da resposta', h('br'), texto),
+      h('div', {className: 'dica'}, 'Variáveis (clique para inserir): ', ...(c.vars || []).map(v => h('button', {className: 'btn', type: 'button', texto: '{' + v.name + '}', title: v.desc, onclick: () => inserir(v.name)}))),
       ...(c.default ? [h('button', {className: 'btn', type: 'button', texto: 'Usar o texto padrão como base', onclick: () => { texto.value = c.default; }})] : []),
+      h('label', {style: 'display:block;margin:8px 0'}, 'Exemplo para a prévia ', exemplo),
+      h('button', {className: 'btn', type: 'button', texto: 'Prévia', onclick: ver}),
       h('button', {className: 'btn btn-primary', type: 'button', texto: 'Salvar', onclick: salvar}),
       h('button', {className: 'btn', type: 'button', texto: 'Restaurar padrão', onclick: restaurar}),
-      aviso);
+      aviso, previa);
   }
 
   // dados: {bots: {whatsapp: [...], assistente: [...]}, erro}

@@ -1389,6 +1389,14 @@ class API:
         r = self._admin_mensagens(f'/v1/admin/botcmds/{bot}/{comando}', 'PUT', {'enabled': ligado, 'text': texto})
         return r if 'erro' in r else {'ok': True}
 
+    def admin_cmd_previa(self, bot, comando, texto='', exemplo=''):
+        if bot not in ('whatsapp', 'assistente') or not isinstance(comando, str) or not re.fullmatch(r'[a-z]{2,12}', comando):
+            return {'erro': 'Comando inválido.'}
+        if not isinstance(texto, str) or not isinstance(exemplo, str):
+            return {'erro': 'Dados inválidos.'}
+        r = self._admin_mensagens('/v1/admin/botcmds/preview', 'POST', {'bot': bot, 'cmd': comando, 'text': texto, 'arg': exemplo})
+        return r if 'erro' in r else {'texto': r['dados'].get('text', '')}
+
     def admin_cmd_restaurar(self, bot, comando):
         if bot not in ('whatsapp', 'assistente') or not isinstance(comando, str) or not re.fullmatch(r'[a-z]{2,12}', comando):
             return {'erro': 'Comando inválido.'}

@@ -4,6 +4,7 @@ As fontes entram por funções injetáveis (testes sem rede). Nomes vindos de fo
 """
 import re
 import threading
+import modelos
 from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor
 import time
@@ -37,6 +38,33 @@ HELP='''📖 *Comandos do bot*
 
 Ex.: !duelo Fulano x Ciclano · !pt Zazamyon ek · !online Jadebra
 _Um comando a cada poucos segundos por pessoa._'''
+
+T_COIN='🪙 *Tibia Coin — {mundo}*\n• 1 TC ≈ *{preco}* gold (média de venda, {data})\n• 1kk de gold ≈ *{tc_por_kk} TC* ≈ R$ {reais_min} a R$ {reais_max}\n• Pacote de {pacote_tc} TC: R$ {pacote_min} a R$ {pacote_max}\n{aviso}'
+T_DUEL='⚔️ *{nome1} x {nome2}* — últimos 30 dias\n{tabela}\n{resultado}'
+T_EVOLUTION='📈 *Evolução — {nome}*\n{ficha}\n\n{xp_ganha}\n\n{projecao}\n\n{grafico}'
+T_CHAR='📜 *{nome}*\n{ficha}\n{guilda}\n{casas}\n{residencia}\n{extra}\n{login}\n\n{mortes}'
+T_PARTY='🤝 *Party match — {nome}*{filtro}\n{ficha}\n🔗 Shared: {shared_min}–{shared_max} · jogadores online\n\n{lista}'
+T_ONLINE='{bolinha} *{nome}* — {estado}\n👥 *{jogadores}* jogadores online agora\n{lugar}'
+T_ONLINE_GUILD='🟢 *{nome}* online ({online} de {total})\n{lista}'
+T_XPTOP='📈 *XP — últimos 30 dias*\n📅 até {ate}\n\n📜 *{nome}*\n{ficha}\n{guilda}\n\n{dias}\n{aviso}\n\n*Resumo (GuildStats)*\n• Ontem: {xp_ontem}\n• 7 dias: {xp_7d}\n• 30 dias: *{xp_30d}* (média {xp_media}/dia)'
+
+# Catálogo mostrado no Admin: modelo padrão (igual à resposta de hoje), variáveis e um exemplo para a prévia.
+MODELS={
+    'help':{'template':HELP,'vars':{},'example':''},
+    'duelo':{'template':T_DUEL,'example':'Zazamyon x Papelaum Meliexp','vars':{'nome1':'primeiro personagem','nome2':'segundo personagem','tabela':'tabela lado a lado (nível e XP)','resultado':'quem passa quem e quando'}},
+    'evolucao':{'template':T_EVOLUTION,'example':'Zazamyon','vars':{'nome':'personagem','ficha':'vocação, level e mundo','xp_ganha':'bloco de XP ganha (ontem, 7 e 30 dias)','projecao':'bloco da projeção de level','grafico':'gráfico dos últimos dias','level':'level','mundo':'mundo','vocacao':'vocação'}},
+    'precocoin':{'template':T_COIN,'example':'Rasteibra','vars':{'mundo':'mundo','preco':'gold por 1 TC','data':'data da cotação (dd/mm)','tc_por_kk':'TC que 1kk de gold compra','reais_min':'R$ mínimo de 1kk','reais_max':'R$ máximo de 1kk','pacote_tc':'TC do pacote','pacote_min':'R$ mínimo do pacote','pacote_max':'R$ máximo do pacote','aviso':'nota sobre a fonte da cotação'}},
+    'pt':{'template':T_PARTY,'example':'Zazamyon ek','vars':{'nome':'personagem','filtro':'filtro de vocação (se houver)','ficha':'vocação, level e mundo','shared_min':'menor level da faixa','shared_max':'maior level da faixa','lista':'jogadores por vocação'}},
+    'char':{'template':T_CHAR,'example':'Zazamyon','vars':{'nome':'personagem','ficha':'vocação, level e mundo','guilda':'guilda e cargo','casas':'casas','residencia':'residência','extra':'achievement points e conta','login':'último login','mortes':'bloco de mortes recentes'}},
+    'online':{'template':T_ONLINE,'example':'Rasteibra','vars':{'bolinha':'🟢/🔴 do mundo','nome':'mundo ou guild','estado':'Online ou Offline (mundo)','jogadores':'jogadores online (mundo)','lugar':'região e tipo de PvP (mundo)','online':'membros online (guild)','total':'membros da guild','lista':'lista de membros online (guild)'}},
+    'xptop':{'template':T_XPTOP,'example':'Zazamyon','vars':{'ate':'data final (dd/mm)','nome':'personagem','ficha':'vocação, level e mundo','guilda':'guilda','dias':'XP dia a dia','aviso':'nota sobre o histórico','xp_ontem':'XP de ontem','xp_7d':'XP em 7 dias','xp_30d':'XP em 30 dias','xp_media':'média por dia (30 dias)'}}}
+
+class Reply:
+    """Resposta montada por modelo. O administrador pode trocar o modelo; `{resposta}` é o modelo padrão já preenchido."""
+    def __init__(self,template,variables): self.template=template;self.variables=variables
+    def text(self,custom=''):
+        default=modelos.renderizar(self.template,self.variables)
+        return modelos.renderizar(custom,{**self.variables,'resposta':default}) if custom else default
 
 def clean(value,limit=40):
     return re.sub(r'[*_~`\x00-\x1f]','',str(value))[:limit].strip()
@@ -178,17 +206,17 @@ class Bot:
         picked=self.pick(text)
         if not picked: return None
         custom=str(self.settings().get(KEYS[picked[0].__name__],{}).get('text') or '')
-        if custom and '{resposta}' not in custom: return custom  # texto fixo: nem consulta as fontes
-        try: reply=picked[0](picked[1],world,today or date.today())
-        except Exception: reply=FAIL
-        return custom.replace('{resposta}',reply) if custom else reply
+        if custom and not modelos.usa_variaveis(custom): return custom  # texto fixo: nem consulta as fontes
+        try: out=picked[0](picked[1],world,today or date.today())
+        except Exception: return FAIL
+        return out if isinstance(out,str) else out.text(custom)  # aviso de uso/erro vai sempre como está
 
     def warm(self,world):
         """Mantém o ranking do mundo no cache para o comando responder sem esperar a fonte."""
         if self.ranking is default_ranking:
             for window in (0,7,30): default_ranking(world,window,True)
 
-    def help(self,arg,world,today): return HELP
+    def help(self,arg,world,today): return Reply(HELP,{})
 
     def coin(self,arg,world,today):
         mundo=arg or world
@@ -199,9 +227,8 @@ class Bot:
         when=str(r.get('data_base',''))[:10];when=f'{when[8:10]}/{when[5:7]}' if re.fullmatch(r'\d{4}-\d{2}-\d{2}',when) else '❓'
         per_kk=Decimal(1_000_000)/price;low,high=(per_kk*value/PACKAGE_TC for value in PACKAGE_REAIS)
         old='⚠️ _Cotação antiga: o TibiaTrade ainda não atualizou este mundo._' if r.get('estado')=='antiga' else '_Média diária de venda do TibiaTrade; não é o Market em tempo real._'
-        return '\n'.join([title,f'• 1 TC ≈ *{pt(price)}* gold (média de venda, {when})',
-                          f'• 1kk de gold ≈ *{decimal_pt(per_kk)} TC* ≈ R$ {decimal_pt(low)} a R$ {decimal_pt(high)}',
-                          f'• Pacote de {PACKAGE_TC} TC: R$ {decimal_pt(PACKAGE_REAIS[0])} a R$ {decimal_pt(PACKAGE_REAIS[1])}',old])
+        return Reply(T_COIN,{'mundo':clean(mundo.capitalize()),'preco':pt(price),'data':when,'tc_por_kk':decimal_pt(per_kk),'reais_min':decimal_pt(low),'reais_max':decimal_pt(high),
+                             'pacote_tc':PACKAGE_TC,'pacote_min':decimal_pt(PACKAGE_REAIS[0]),'pacote_max':decimal_pt(PACKAGE_REAIS[1]),'aviso':old})
 
     def xp(self,info):
         """XP de ontem, 7 e 30 dias de um personagem (None onde está fora do top 500 do mundo)."""
@@ -226,11 +253,10 @@ class Bot:
               ('XP ontem',*(kk(p['xp'][0]) if p['xp'][0] is not None else '—' for p in pair))]
         widths=[max(len(r[i]) for r in [('',label(a),label(b)),*rows]) for i in range(3)]
         line=lambda r:'  '.join(r[i].ljust(widths[i]) if i==0 else r[i].rjust(widths[i]) for i in range(3))
-        lines=[f'⚔️ *{clean(a["name"])} x {clean(b["name"])}* — últimos 30 dias','```',line(('',label(a),label(b))),*(line(r) for r in rows),'```']
+        table='\n'.join(['```',line(('',label(a),label(b))),*(line(r) for r in rows),'```'])
         missing=[clean(p['name']) for p in pair if p['xp'][30] is None]
-        if missing: lines.append(f'_Sem dados de XP de {", ".join(missing)}: fora do top 500 do mundo no GuildStats._')
-        else: lines.append(self.verdict(a,b,today))
-        return '\n'.join(lines)
+        result=f'_Sem dados de XP de {", ".join(missing)}: fora do top 500 do mundo no GuildStats._' if missing else self.verdict(a,b,today)
+        return Reply(T_DUEL,{'nome1':clean(a['name']),'nome2':clean(b['name']),'tabela':table,'resultado':result})
 
     def verdict(self,a,b,today):
         import tibia_info
@@ -251,25 +277,25 @@ class Bot:
         info=self.sheet(arg)
         if not info or not WORLD.fullmatch(info.get('world') or ''): return f'Não encontrei o personagem *{clean(arg)}*.'
         xp=self.xp(info);name=clean(info['name'])
-        lines=[f'📈 *Evolução — {name}*',f'{emoji(info["vocation"])} {clean(info["vocation"])} · 🏆 Lv *{pt(info["level"])}* · 🌍 {clean(info["world"])}'.replace('  ',' ').strip(),'']
+        sheet=f'{emoji(info["vocation"])} {clean(info["vocation"])} · 🏆 Lv *{pt(info["level"])}* · 🌍 {clean(info["world"])}'.replace('  ',' ').strip()
         if xp[30] is None:
-            return '\n'.join([*lines,'Sem dados de XP: o personagem está fora do top 500 do mundo no GuildStats.'])
+            return '\n'.join([f'📈 *Evolução — {name}*',sheet,'','Sem dados de XP: o personagem está fora do top 500 do mundo no GuildStats.'])
         rate=xp[30]/30
-        lines+=['*XP ganha*',f'• Ontem: *{kk(xp[0])}*' if xp[0] is not None else '• Ontem: — (fora do top 500 de ontem)',
+        gained='\n'.join(['*XP ganha*',f'• Ontem: *{kk(xp[0])}*' if xp[0] is not None else '• Ontem: — (fora do top 500 de ontem)',
                 f'• 7 dias: *{kk(xp[7])}* (média {kk(xp[7]/7)}/dia)' if xp[7] is not None else '• 7 dias: —',
-                f'• 30 dias: *{kk(xp[30])}* (média {kk(rate)}/dia)','']
+                f'• 30 dias: *{kk(xp[30])}* (média {kk(rate)}/dia)'])
         need=tibia_info.xp_total(info['level']+1)-tibia_info.xp_total(info['level'])
-        lines.append('🔮 *Projeção no ritmo atual (média de 30 dias)*')
+        projection=['🔮 *Projeção no ritmo atual (média de 30 dias)*']
         if rate>0:
-            per_level=need/rate;lines.append(f'• Cada level custa ~{kk(need)} ≈ *{decimal_pt(per_level,1)} dias*')
-            days_left=max(1,round(per_level));lines.append(f'• Lv {pt(info["level"]+1)} em até ~{days_left} {"dia" if days_left==1 else "dias"} ({short(today+timedelta(days=per_level))})')
-        else: lines.append('• Sem ganho de XP nos últimos 30 dias: sem projeção.')
+            per_level=need/rate;projection.append(f'• Cada level custa ~{kk(need)} ≈ *{decimal_pt(per_level,1)} dias*')
+            days_left=max(1,round(per_level));projection.append(f'• Lv {pt(info["level"]+1)} em até ~{days_left} {"dia" if days_left==1 else "dias"} ({short(today+timedelta(days=per_level))})')
+        else: projection.append('• Sem ganho de XP nos últimos 30 dias: sem projeção.')
         days=[(d,x) for d,x in self.history(info['world'],info['name']) if x is not None][-14:]
         if len(days)>=3:
             top=max(abs(x) for _,x in days) or 1
-            lines+=['',f'📊 *XP por dia (últimos {len(days)} dias)*','```',*(f'{d[8:10]}/{d[5:7]} '+('█'*max(1,round(10*abs(x)/top))).ljust(10)+f' {kk(x)}'+(' 💀' if x<0 else '') for d,x in days),'```']
-        else: lines+=['','_A curva diária começa a ser gravada agora e aparece em poucos dias._']
-        return '\n'.join(lines)
+            chart='\n'.join([f'📊 *XP por dia (últimos {len(days)} dias)*','```',*(f'{d[8:10]}/{d[5:7]} '+('█'*max(1,round(10*abs(x)/top))).ljust(10)+f' {kk(x)}'+(' 💀' if x<0 else '') for d,x in days),'```'])
+        else: chart='_A curva diária começa a ser gravada agora e aparece em poucos dias._'
+        return Reply(T_EVOLUTION,{'nome':name,'ficha':sheet,'xp_ganha':gained,'projecao':'\n'.join(projection),'grafico':chart,'level':pt(info['level']),'mundo':clean(info['world']),'vocacao':clean(info['vocation'])})
 
     def charinfo(self,arg,world,today):
         """Ficha completa de qualquer personagem (mesmo conteúdo do comando `char` do Tibia Tudo), no padrão do WhatsApp."""
@@ -278,26 +304,27 @@ class Bot:
         info=((data or {}).get('character') or {}).get('character') or {}
         if not info.get('name'): return f'Não encontrei o personagem *{clean(arg)}*.'
         voc=clean(info.get('vocation','')) or '?'
-        lines=[f'📜 *{clean(info["name"])}*',f'{emoji(voc) or "🛡️"} {voc} · 🏆 Level *{pt(info.get("level") or 0)}* · 🌍 {clean(info.get("world","?"))}']
+        sheet=f'{emoji(voc) or "🛡️"} {voc} · 🏆 Level *{pt(info.get("level") or 0)}* · 🌍 {clean(info.get("world","?"))}'
         guild=info.get('guild') or {}
-        if guild.get('name'): lines.append(f'⚔️ *Guilda:* {clean(guild["name"])}'+(f' ({clean(guild["rank"])})' if guild.get('rank') else ''))
+        guild_line=f'⚔️ *Guilda:* {clean(guild["name"])}'+(f' ({clean(guild["rank"])})' if guild.get('rank') else '') if guild.get('name') else ''
         houses=[f'{clean(h.get("name","?"),50)} ({clean(h.get("town","?"))})' for h in info.get('houses') or [] if isinstance(h,dict)]
-        if houses: lines.append('🏠 *Casa(s):* '+', '.join(houses))
-        if info.get('residence'): lines.append(f'📍 *Residência:* {clean(info["residence"])}')
+        houses_line='🏠 *Casa(s):* '+', '.join(houses) if houses else ''
+        residence=f'📍 *Residência:* {clean(info["residence"])}' if info.get('residence') else ''
         extra=[x for x in (f'🎖️ {pt(info["achievement_points"])} achievement points' if type(info.get('achievement_points')) is int else '',clean(info.get('account_status',''))) if x]
-        if extra: lines.append(' · '.join(extra))
+        login=''
         if info.get('last_login'):
-            try: lines.append(f'⏰ *Último login:* {brt(info["last_login"]).strftime("%d/%m/%y - %H:%M")}')
+            try: login=f'⏰ *Último login:* {brt(info["last_login"]).strftime("%d/%m/%y - %H:%M")}'
             except ValueError: pass
         deaths=[d for d in (data.get('character') or {}).get('deaths') or [] if isinstance(d,dict)][:8]
         if deaths:
-            lines+=['',f'{emoji(voc) or "💀"} *Mortes (últimos 30 dias)*']
+            rows=[]
             for d in deaths:
                 try: when=brt(d['time']).strftime('%d/%m/%Y')
                 except (KeyError,ValueError): when='?'
-                lines.append(f'· {when} — Lv {clean(d.get("level","?"),6)} — {clean(d.get("reason",""),120)}')
-        else: lines+=['','💀 Sem mortes nos últimos 30 dias.']
-        return '\n'.join(lines)
+                rows.append(f'· {when} — Lv {clean(d.get("level","?"),6)} — {clean(d.get("reason",""),120)}')
+            death_block='\n'.join([f'{emoji(voc) or "💀"} *Mortes (últimos 30 dias)*',*rows])
+        else: death_block='💀 Sem mortes nos últimos 30 dias.'
+        return Reply(T_CHAR,{'nome':clean(info['name']),'ficha':sheet,'guilda':guild_line,'casas':houses_line,'residencia':residence,'extra':' · '.join(extra),'login':login,'mortes':death_block})
 
     def party(self,arg,world,today):
         """Party finder: jogadores online do mesmo mundo dentro da faixa de shared XP (mesma conta do Tibia Tudo: de 2/3 a 3/2 do level)."""
@@ -319,17 +346,16 @@ class Bot:
         for p in sorted(found,key=lambda p:p['name'].casefold()): by_code.setdefault(vocation_code(p['vocation']),[]).append(p)
         shown=[p for rows in by_code.values() for p in rows[:PARTY_PER_VOCATION]]
         with ThreadPoolExecutor(max_workers=8) as pool: guilds={p['name']:(g or {}).get('guild') for p,g in zip(shown,pool.map(lambda p:self.sheet(p['name']),shown))}
-        lines=[f'🤝 *Party match — {clean(info["name"])}*'+(f' — filtro {wanted}' if wanted else ''),
-               f'{emoji(info["vocation"])} [{vocation_code(info["vocation"])}] · 🏆 Lv *{pt(info["level"])}* · 🌍 {clean(info["world"])}',
-               f'🔗 Shared: {pt(low)}–{pt(high)} · jogadores online']
-        if not found: return '\n'.join([*lines,'','Ninguém online na faixa agora.'])
+        groups=[]
         for code in ('EK','RP','ED','MS','EM'):
             rows=by_code.get(code,[])[:PARTY_PER_VOCATION]
             if not rows: continue
-            lines+=['',f'{emoji(rows[0]["vocation"])} *{clean(rows[0]["vocation"])}*']
-            lines+=[f'· 🟢 {emoji(p["vocation"])} [{code}] *{clean(p["name"])}* — Lv *{pt(p["level"])}* ({clean(guilds.get(p["name"]) or "Sem Guild")})' for p in rows]
-            if len(by_code[code])>len(rows): lines.append(f'…e mais {len(by_code[code])-len(rows)}')
-        return '\n'.join(lines)
+            block=[f'{emoji(rows[0]["vocation"])} *{clean(rows[0]["vocation"])}*']
+            block+=[f'· 🟢 {emoji(p["vocation"])} [{code}] *{clean(p["name"])}* — Lv *{pt(p["level"])}* ({clean(guilds.get(p["name"]) or "Sem Guild")})' for p in rows]
+            if len(by_code[code])>len(rows): block.append(f'…e mais {len(by_code[code])-len(rows)}')
+            groups.append('\n'.join(block))
+        return Reply(T_PARTY,{'nome':clean(info['name']),'filtro':f' — filtro {wanted}' if wanted else '','ficha':f'{emoji(info["vocation"])} [{vocation_code(info["vocation"])}] · 🏆 Lv *{pt(info["level"])}* · 🌍 {clean(info["world"])}',
+                              'shared_min':pt(low),'shared_max':pt(high),'lista':'\n\n'.join(groups) if found else 'Ninguém online na faixa agora.'})
 
     def online_cmd(self,arg,world,today):
         """Quantos estão online no mundo (ou quem está online numa guild), como o comando `online` do Tibia Tudo."""
@@ -339,17 +365,15 @@ class Bot:
         if info:
             up=str(info.get('status','')).casefold()=='online'
             pvp=clean(info.get('pvp_type',''));mark='⚔️' if 'open' in pvp.casefold() else '🕊️' if 'optional' in pvp.casefold() else '💀' if 'hardcore' in pvp.casefold() else '⚔️'
-            lines=[f'{"🟢" if up else "🔴"} *{clean(info.get("name",target))}* — {"Online" if up else "Offline"}',f'👥 *{pt(info.get("players_online") or 0)}* jogadores online agora']
             place=' · '.join(x for x in (f'📍 {clean(info.get("location",""))}' if info.get('location') else '',f'{mark} {pvp}' if pvp else '') if x)
-            return '\n'.join([*lines,*([place] if place else [])])
+            return Reply(T_ONLINE,{'bolinha':'🟢' if up else '🔴','nome':clean(info.get('name',target)),'estado':'Online' if up else 'Offline','jogadores':pt(info.get('players_online') or 0),'lugar':place})
         guild=self.guild(target)
         if not guild: return f'Não encontrei o mundo ou a guild *{clean(target)}*.'
         members=[m for m in guild.get('members') or [] if isinstance(m,dict) and m.get('status')=='online']
         members.sort(key=lambda m:-(m.get('level') or 0))
-        lines=[f'🟢 *{clean(guild.get("name",target))}* online ({len(members)} de {len(guild.get("members") or [])})']
-        lines+=[f'{emoji(m.get("vocation"))} *{clean(m.get("name","?"))}* — Lv {pt(m.get("level") or 0)} ({clean(m.get("vocation","?"))})' for m in members[:15]]
-        if len(members)>15: lines.append(f'…e mais {len(members)-15}')
-        return '\n'.join(lines)
+        rows=[f'{emoji(m.get("vocation"))} *{clean(m.get("name","?"))}* — Lv {pt(m.get("level") or 0)} ({clean(m.get("vocation","?"))})' for m in members[:15]]
+        if len(members)>15: rows.append(f'…e mais {len(members)-15}')
+        return Reply(T_ONLINE_GUILD,{'nome':clean(guild.get('name',target)),'online':len(members),'total':len(guild.get('members') or []),'lista':'\n'.join(rows)})
 
     def xptop(self,arg,world,today):
         """XP dia a dia do personagem. O histórico diário é gravado pelo próprio servidor (o GuildStats protege a aba diária), então só existe a partir de quando o bot começou a gravar."""
@@ -358,19 +382,20 @@ class Bot:
         info=self.sheet(arg)
         if not info or not WORLD.fullmatch(info.get('world') or ''): return f'Não encontrei o personagem *{clean(arg)}*.'
         xp=self.xp(info);last=today-timedelta(days=1)
-        lines=['📈 *XP — últimos 30 dias*',f'📅 até {last.strftime("%d/%m")}','',f'📜 *{clean(info["name"])}*',
-               f'{emoji(info["vocation"])} {clean(info["vocation"])} · 🏆 Level *{pt(info["level"])}* · 🌍 {clean(info["world"])}']
-        if info.get('guild'): lines.append(f'⚔️ *Guilda:* {clean(info["guild"])}')
-        lines.append('')
-        if xp[30] is None: return '\n'.join([*lines,'Sem dados de XP: o personagem está fora do top 500 do mundo no GuildStats.'])
+        sheet=f'{emoji(info["vocation"])} {clean(info["vocation"])} · 🏆 Level *{pt(info["level"])}* · 🌍 {clean(info["world"])}'
+        guild_line=f'⚔️ *Guilda:* {clean(info["guild"])}' if info.get('guild') else ''
+        if xp[30] is None:
+            lines=['📈 *XP — últimos 30 dias*',f'📅 até {last.strftime("%d/%m")}','',f'📜 *{clean(info["name"])}*',sheet,*([guild_line] if guild_line else []),'']
+            return '\n'.join([*lines,'Sem dados de XP: o personagem está fora do top 500 do mundo no GuildStats.'])
         rows={d:(lv,x) for d,lv,x in self.daily(info['world'],info['name'])}
         days=[(last-timedelta(days=i)).isoformat() for i in range(30)]
         have=[d for d in days if d in rows]
+        day_lines=[]
         for index,day in enumerate(have):
             lv,x=rows[day];older=rows.get(have[index+1][:10]) if index+1<len(have) and (date.fromisoformat(day)-date.fromisoformat(have[index+1])).days==1 else None
             trend='' if older is None else (' 📈' if x>older[1] else ' 📉')
-            lines.append(f'{day[8:10]}/{day[5:7]} — Lv *{pt(lv)}* — {kk(x)}{trend}'+(' 💀' if x<0 else ''))
-        if not have: lines.append('_Ainda sem dados diários: o bot começou a gravar o XP por dia agora e a lista cresce a cada dia._')
-        else: lines.append(f'_Sem dados antes de {min(have)[8:10]}/{min(have)[5:7]}: o bot só grava o XP diário desde essa data._')
-        lines+=['',f'*Resumo (GuildStats)*',f'• Ontem: {kk(xp[0]) if xp[0] is not None else "—"}',f'• 7 dias: {kk(xp[7]) if xp[7] is not None else "—"}',f'• 30 dias: *{kk(xp[30])}* (média {kk(xp[30]/30)}/dia)']
-        return '\n'.join(lines)
+            day_lines.append(f'{day[8:10]}/{day[5:7]} — Lv *{pt(lv)}* — {kk(x)}{trend}'+(' 💀' if x<0 else ''))
+        if not have: note='_Ainda sem dados diários: o bot começou a gravar o XP por dia agora e a lista cresce a cada dia._'
+        else: note=f'_Sem dados antes de {min(have)[8:10]}/{min(have)[5:7]}: o bot só grava o XP diário desde essa data._'
+        return Reply(T_XPTOP,{'ate':last.strftime('%d/%m'),'nome':clean(info['name']),'ficha':sheet,'guilda':guild_line,'dias':'\n'.join(day_lines),'aviso':note,
+                              'xp_ontem':kk(xp[0]) if xp[0] is not None else '—','xp_7d':kk(xp[7]) if xp[7] is not None else '—','xp_30d':kk(xp[30]),'xp_media':kk(xp[30]/30)})

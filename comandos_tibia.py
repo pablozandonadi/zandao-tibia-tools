@@ -10,6 +10,7 @@ from urllib.parse import quote
 import bot_ajustes
 import guild_stats
 import mensagem_formato
+import modelos
 import tibia_info
 import zandaobot
 import zandaobot_report
@@ -435,8 +436,16 @@ def extra(chave, arg='', mundo='', personagem='', hoje=None):
 HANDLERS = {'bomdia': _bomdia, 'kill': _kill, 'boss': _boss, 'online': _online, 'char': _char, 'death': _death, 'guild': _guild, 'exp': _exp}
 
 
-def responder(texto, mundo='', hoje=None, personagem=''):
-    """Resposta em texto, ou None quando a mensagem não é um destes comandos."""
+MODELO_PADRAO = '{titulo}\n{corpo}'
+VARIAVEIS = {'titulo': 'primeira linha da resposta', 'corpo': 'o resto da resposta', 'resposta': 'a resposta inteira', 'argumento': 'o que foi digitado depois do comando',
+             'mundo': 'mundo do personagem em uso', 'personagem': 'personagem em uso'}
+# Catálogo mostrado no Admin: o texto de cada comando é montado na hora (e também alimenta a Mensagem do dia), então o modelo usa título + corpo.
+MODELOS = {chave: {'template': MODELO_PADRAO, 'vars': VARIAVEIS, 'example': exemplo} for chave, exemplo in
+           (('bomdia', 'Rasteibra'), ('kill', 'Rasteibra'), ('boss', 'Rasteibra'), ('online', 'Rasteibra'), ('char', 'Zazamyon'), ('death', 'Zazamyon'), ('guild', 'Piratas do Rocks'), ('exp', 'Rasteibra'))}
+
+
+def responder(texto, mundo='', hoje=None, personagem='', ajuste=None):
+    """Resposta em texto, ou None quando a mensagem não é um destes comandos. `ajuste` (prévia do Admin) troca o que veio do servidor."""
     m = COMANDO.fullmatch(texto or '')
     if not m:
         return None
@@ -445,12 +454,17 @@ def responder(texto, mundo='', hoje=None, personagem=''):
     so_mundo = cmd in ('bomdia', 'kill', 'boss')
     if rest and not (MUNDO.fullmatch(rest) if so_mundo else _arg_ok(rest)):
         return None
-    ajuste = bot_ajustes.ajuste(cmd)  # o administrador pode desligar o comando ou trocar o texto (valem para todos)
+    ajuste = bot_ajustes.ajuste(cmd) if ajuste is None else ajuste  # o administrador pode desligar o comando ou trocar o texto (valem para todos)
     if ajuste.get('enabled') is False:
         return None
-    def automatica():
-        try:
-            return HANDLERS[cmd](rest, mundo, personagem, hoje or date.today())
-        except Exception:
-            return FALHA
-    return bot_ajustes.montar(ajuste['text'], automatica) if ajuste.get('text') else automatica()
+    modelo = ajuste.get('text') or ''
+    if modelo and not modelos.usa_variaveis(modelo):
+        return modelo  # texto fixo: nem consulta as fontes
+    try:
+        resposta = HANDLERS[cmd](rest, mundo, personagem, hoje or date.today())
+    except Exception:
+        return FALHA
+    if not modelo:
+        return resposta
+    titulo, _, corpo = resposta.partition('\n')
+    return modelos.renderizar(modelo, {'resposta': resposta, 'titulo': titulo, 'corpo': corpo, 'argumento': rest, 'mundo': mundo, 'personagem': personagem})

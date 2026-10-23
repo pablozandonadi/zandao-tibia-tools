@@ -105,6 +105,16 @@ class RecursosDonoTests(unittest.TestCase):
             self.assertIn('erro', self.api.admin_cmd_restaurar('outro', 'exp')); self.assertIn('erro', self.api.admin_cmd_restaurar('whatsapp', '/x'))
             self.assertEqual(pedido.call_count, chamadas, 'nada fora do formato chega ao servidor')
 
+    def test_previa_dos_comandos_exige_admin_e_valida_antes_de_ir_ao_servidor(self):
+        with mock.patch('mensagem_automatica_access.admin_request', return_value={'text': 'Resposta de exemplo'}) as pedido:
+            self.assertEqual(self.api.admin_cmd_previa('whatsapp', 'precocoin', '{preco}', 'Antica'), {'erro': 'Somente o administrador pode fazer isso.'}); pedido.assert_not_called()
+            self.escrever('{"admin_ia": true}')
+            self.assertEqual(self.api.admin_cmd_previa('whatsapp', 'precocoin', '{preco}', 'Antica'), {'texto': 'Resposta de exemplo'})
+            pedido.assert_called_once_with('/v1/admin/botcmds/preview', 'POST', {'bot': 'whatsapp', 'cmd': 'precocoin', 'text': '{preco}', 'arg': 'Antica'})
+            for ruim in (('x', 'exp', '', ''), ('whatsapp', '../x', '', ''), ('whatsapp', 'exp', 5, ''), ('whatsapp', 'exp', '', None)):
+                self.assertIn('erro', self.api.admin_cmd_previa(*ruim), ruim)
+            self.assertEqual(pedido.call_count, 1)
+
     def test_formato_do_codigo_e_validado_antes_de_ir_ao_servidor(self):
         for ruim in ('', 'curto', 'x' * 44, 'x' * 42, None, 123):
             with self.assertRaises(acesso.AccessError): acesso.claim_code(ruim)

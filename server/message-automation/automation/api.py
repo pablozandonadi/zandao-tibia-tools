@@ -9,9 +9,12 @@ from fastapi.responses import JSONResponse
 from .auth import Verifier
 from .domain import UTC, Invalid, validate
 from .watch import validate_watch
-from .commands import validate_botgroup
-from .botcmds import HELP
+import re
+from zoneinfo import ZoneInfo
+from .commands import validate_botgroup, Commander
+from .botcmds import MODELS
 from .store import BOT_COMMANDS
+from comandos_tibia import MODELOS, responder
 from mensagem_automatica_report import generate
 
 def create_app(store,transport,verifier=None,origins=(),generator=generate):
@@ -121,8 +124,23 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     # ---- Comandos dos bots: o administrador liga/desliga e reescreve a resposta; o bot do WhatsApp lê daqui, o app lê a parte pública ----
     @app.get('/v1/admin/botcmds')
     def admin_botcmds(user=Depends(administrator)):
-        return {scope:[{'cmd':cmd,'label':label,'enabled':saved.get(cmd,{}).get('enabled',True),'text':saved.get(cmd,{}).get('text',''),'default':HELP if (scope,cmd)==('whatsapp','help') else '{resposta}'} for cmd,label in cmds.items()]
+        catalog={'whatsapp':MODELS,'assistente':MODELOS}
+        return {scope:[{'cmd':cmd,'label':label,'enabled':saved.get(cmd,{}).get('enabled',True),'text':saved.get(cmd,{}).get('text',''),'default':catalog[scope][cmd]['template'],
+                        'example':catalog[scope][cmd]['example'],'vars':[{'name':name,'desc':desc} for name,desc in {**catalog[scope][cmd]['vars'],'resposta':'a resposta padrão inteira'}.items()]} for cmd,label in cmds.items()]
                 for scope,cmds in BOT_COMMANDS.items() for saved in [store.bot_settings(scope)]}
+    @app.post('/v1/admin/botcmds/preview')
+    async def admin_botcmd_preview(request:Request,user=Depends(administrator)):
+        """Roda o comando de verdade (fontes públicas) com o modelo ainda não salvo, para o administrador ver como fica."""
+        data=await payload(request);fields(data,{'bot','cmd','text','arg'})
+        scope,cmd,text,arg=data.get('bot'),data.get('cmd'),data.get('text',''),data.get('arg','')
+        if scope not in BOT_COMMANDS or cmd not in BOT_COMMANDS[scope]: raise Invalid('Comando desconhecido.')
+        if not isinstance(text,str) or len(text)>1500 or not isinstance(arg,str) or len(arg)>80: raise Invalid('Texto ou exemplo inválido.')
+        arg=' '.join(re.sub(r'[\x00-\x1f\x7f]','',arg).split());override={'enabled':True,'text':text.strip()}
+        if scope=='whatsapp':
+            bot=Commander(store,transport).bot;bot.settings=lambda:{cmd:override}
+            reply=bot.handle(f'!{cmd} {arg}'.strip(),'Rasteibra',datetime.now(ZoneInfo('America/Sao_Paulo')).date())
+        else: reply=responder(f'{cmd} {arg}'.strip(),'Rasteibra',personagem='',ajuste=override)
+        return {'text':(reply or 'Este exemplo não é um uso válido do comando.')[:3500]}
     @app.put('/v1/admin/botcmds/{scope}/{cmd}')
     async def admin_botcmd_set(scope,cmd,request:Request,user=Depends(administrator)):
         data=await payload(request);fields(data,{'enabled','text'})

@@ -46,8 +46,9 @@ const botao = (no, rotulo) => achar(no, n => n.tagName === 'button' && n.textCon
   // Lista dos dois bots; nomes e textos nunca viram HTML.
   const ataque = '<img src=x onerror=alert(1)>';
   lista = {bots: {
-    whatsapp: [{cmd: 'help', label: '!help', enabled: true, text: '', default: 'LISTA PADRAO'}, {cmd: 'duelo', label: ataque, enabled: false, text: ataque, default: ''}],
-    assistente: [{cmd: 'exp', label: 'exp', enabled: true, text: '', default: ''}]}};
+    whatsapp: [{cmd: 'help', label: '!help', enabled: true, text: '', default: 'LISTA PADRAO', example: '', vars: [{name: 'resposta', desc: 'a resposta padrão inteira'}]},
+               {cmd: 'duelo', label: ataque, enabled: false, text: ataque, default: '', example: 'Ana x Bia', vars: [{name: 'nome1', desc: 'primeiro personagem'}, {name: 'resposta', desc: 'tudo'}]}],
+    assistente: [{cmd: 'exp', label: 'exp', enabled: true, text: '', default: '', example: 'Rasteibra', vars: [{name: 'titulo', desc: 'primeira linha'}]}]}};
   await ui.carregar();
   const cartoes = todos(raiz, n => n.className === 'card');
   assert.equal(cartoes.length, 3);
@@ -66,6 +67,20 @@ const botao = (no, rotulo) => achar(no, n => n.tagName === 'button' && n.textCon
   assert.deepEqual(chamadas.pop(), ['salvar', 'whatsapp', 'help', false, 'Oi!\n{resposta}']);
   assert.ok(texto(cartoes[0]).includes('Salvo.'));
   await botao(cartoes[2], 'Salvar').listeners.click(); assert.deepEqual(chamadas.pop(), ['salvar', 'assistente', 'exp', true, '']);
+
+  // Variáveis: cada uma é um botão que insere {nome} no texto; a prévia manda o texto ainda não salvo e o exemplo.
+  const textoDuelo = achar(cartoes[1], n => n.tagName === 'textarea');
+  const chip = botao(cartoes[1], '{nome1}'); assert.equal(chip.title, 'primeiro personagem');
+  textoDuelo.value = 'Duelo: '; chip.listeners.click(); assert.equal(textoDuelo.value, 'Duelo: {nome1}');
+  assert.equal(botao(cartoes[0], '{resposta}') !== null, true);
+  const exemploDuelo = achar(cartoes[1], n => n.placeholder === 'Exemplo para a prévia'); assert.equal(exemploDuelo.value, 'Ana x Bia');
+  global.window.pywebview.api.admin_cmd_previa = async (...a) => { chamadas.push(['previa', ...a]); return {texto: 'Duelo: Ana'}; };
+  await botao(cartoes[1], 'Prévia').listeners.click();
+  assert.deepEqual(chamadas.pop(), ['previa', 'whatsapp', 'duelo', 'Duelo: {nome1}', 'Ana x Bia']);
+  assert.equal(achar(cartoes[1], n => n.tagName === 'pre').textContent, 'Duelo: Ana');
+  global.window.pywebview.api.admin_cmd_previa = async () => ({erro: 'Este exemplo não é um uso válido do comando.'});
+  await botao(cartoes[1], 'Prévia').listeners.click(); assert.ok(texto(cartoes[1]).includes('não é um uso válido'));
+  chamadas.length = 0;
 
   // Erro ao salvar aparece no cartão; restaurar limpa o cartão.
   falha = {erro: 'Texto de até 1500 caracteres.'};

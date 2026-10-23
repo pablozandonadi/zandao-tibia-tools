@@ -72,9 +72,20 @@ class BotAjustesTests(unittest.TestCase):
             with mock.patch.object(bot_ajustes, 'ajuste', return_value={'enabled': True, 'text': ''}):
                 self.assertEqual(comandos_tibia.responder('exp', 'Antica'), 'AUTO')
 
+    def test_responder_com_variaveis_do_assistente(self):
+        auto = lambda rest, mundo, personagem, hoje: '🏆 Top XP\nlinha 1\nlinha 2'
+        with mock.patch.dict(comandos_tibia.HANDLERS, {'exp': auto}):
+            r = lambda texto, ajuste: comandos_tibia.responder(texto, 'Antica', personagem='Zaza', ajuste=ajuste)
+            self.assertEqual(r('exp Rasteibra', {'enabled': True, 'text': '[{titulo}]\n{corpo}'}), '[🏆 Top XP]\nlinha 1\nlinha 2')
+            self.assertEqual(r('exp Rasteibra', {'enabled': True, 'text': '{personagem} em {mundo} pediu {argumento}'}), 'Zaza em Antica pediu Rasteibra')
+            self.assertEqual(r('exp', {'enabled': True, 'text': '{resposta}\nBoa caçada'}), '🏆 Top XP\nlinha 1\nlinha 2\nBoa caçada')
+            self.assertEqual(r('exp', {'enabled': True, 'text': '{titulo}\n{corpo}'}), '🏆 Top XP\nlinha 1\nlinha 2', 'modelo padrão = resposta de hoje')
+        for cmd, info in comandos_tibia.MODELOS.items():
+            self.assertTrue(set(comandos_tibia.modelos.VARIAVEL.findall(info['template'])) <= set(info['vars']), cmd)
+
     def test_proxy_local_aceita_so_as_rotas_exatas_dos_comandos(self):
         A = acesso.ALLOWED
-        for metodo, caminho in (('GET', '/v1/admin/botcmds'), ('PUT', '/v1/admin/botcmds/whatsapp/duelo'), ('DELETE', '/v1/admin/botcmds/assistente/exp')):
+        for metodo, caminho in (('GET', '/v1/admin/botcmds'), ('PUT', '/v1/admin/botcmds/whatsapp/duelo'), ('DELETE', '/v1/admin/botcmds/assistente/exp'), ('POST', '/v1/admin/botcmds/preview')):
             self.assertTrue(A[metodo].fullmatch(caminho), caminho)
         for metodo, caminho in (('POST', '/v1/admin/botcmds'), ('PUT', '/v1/admin/botcmds/outro/exp'), ('PUT', '/v1/admin/botcmds/whatsapp/'), ('PUT', '/v1/admin/botcmds/whatsapp/Exp'),
                                 ('DELETE', '/v1/admin/botcmds/whatsapp'), ('GET', '/v1/admin/botcmds/whatsapp/exp'), ('PUT', '/v1/admin/botcmds/whatsapp/a/b')):

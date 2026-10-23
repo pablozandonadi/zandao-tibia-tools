@@ -54,9 +54,3 @@ def ajuste(chave):
             threading.Thread(target=_atualizar, daemon=True).start()
         return dict(_dados.get(chave, {}))
 
-
-def montar(texto, resposta):
-    """Texto do administrador; {resposta} entra com a resposta automática (função, chamada só se o texto a usa)."""
-    if '{resposta}' not in texto:
-        return texto
-    return texto.replace('{resposta}', resposta())

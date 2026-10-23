@@ -47,6 +47,41 @@ class AjustesTests(unittest.TestCase):
         pick = Bot().pick
         for cmd in BOT_COMMANDS['whatsapp']: self.assertTrue(pick('!' + cmd), cmd)
 
+    def test_modelo_padrao_de_cada_comando_do_whatsapp_reproduz_a_resposta_de_hoje(self):
+        """O texto que o Admin entrega como base tem de gerar exatamente a resposta padrão (e as variáveis do catálogo têm de existir)."""
+        from automation.botcmds import MODELS
+        import modelos
+        b = Bot(trade=TRADE, settings=lambda: {})
+        reply = b.coin('Rasteibra', '', TODAY)
+        self.assertEqual(reply.text(), modelos.renderizar(MODELS['precocoin']['template'], reply.variables))
+        self.assertEqual(reply.text('{resposta}'), reply.text(), '{resposta} = padrão')
+        self.assertEqual(reply.text('💰 {preco} gold em {mundo}'), '💰 48.000 gold em Rasteibra')
+        self.assertEqual(reply.text('{aviso_inexistente}'), '{aviso_inexistente}')
+        for cmd, info in MODELS.items():
+            self.assertEqual(set(modelos.VARIAVEL.findall(info['template'])) - set(info['vars']), set(), cmd)
+
+    def test_preview_roda_o_comando_com_o_modelo_ainda_nao_salvo(self):
+        from unittest.mock import patch
+        import comandos_tibia
+        verifier = Verifier(self.store); client = TestClient(create_app(self.store, FakeTransport(), verifier))
+        h = {}
+        for letter, recovery in (('a', 'c'), ('b', 'd')):
+            verifier.register(letter * 64, recovery * 64); h[letter] = {'Authorization': 'Bearer ' + letter * 64}
+        client.post('/v1/claim', json={'code': self.store.create_claim('dono')}, headers=h['a'])
+        client.post('/v1/claim', json={'code': self.store.admin_new_claim('Cliente')}, headers=h['b'])
+        corpo = {'bot': 'whatsapp', 'cmd': 'precocoin', 'text': 'Moeda em {mundo}: {preco}', 'arg': 'Antica'}
+        self.assertEqual(client.post('/v1/admin/botcmds/preview', json=corpo, headers=h['b']).status_code, 403)
+        with patch('automation.botcmds.default_trade', TRADE):
+            r = client.post('/v1/admin/botcmds/preview', json=corpo, headers=h['a'])
+            self.assertEqual((r.status_code, r.json()), (200, {'text': 'Moeda em Antica: 48.000'}))
+            self.assertIn('🪙 *Tibia Coin — Antica*', client.post('/v1/admin/botcmds/preview', json={**corpo, 'text': ''}, headers=h['a']).json()['text'])
+        with patch.dict(comandos_tibia.HANDLERS, {'exp': lambda rest, mundo, personagem, hoje: '🏆 Top XP\nlinha 1\nlinha 2'}):
+            r = client.post('/v1/admin/botcmds/preview', json={'bot': 'assistente', 'cmd': 'exp', 'text': '[{titulo}]\n{corpo}', 'arg': ''}, headers=h['a'])
+            self.assertEqual(r.json(), {'text': '[🏆 Top XP]\nlinha 1\nlinha 2'})
+        self.assertEqual(self.store.bot_settings('whatsapp'), {}, 'a prévia nunca grava')
+        for ruim in ({**corpo, 'cmd': 'naoexiste'}, {**corpo, 'bot': 'x'}, {**corpo, 'text': 'a' * 1501}, {**corpo, 'arg': 'a' * 81}, {**corpo, 'extra': 1}, {'bot': 'whatsapp'}):
+            self.assertEqual(client.post('/v1/admin/botcmds/preview', json=ruim, headers=h['a']).status_code, 400, ruim)
+
     def test_bot_desligado_fica_em_silencio_e_ligado_segue_padrao(self):
         ajustes = {'duelo': {'enabled': False, 'text': ''}}
         b = Bot(trade=TRADE, settings=lambda: ajustes)
@@ -78,7 +113,11 @@ class AjustesTests(unittest.TestCase):
         self.assertEqual([c['cmd'] for c in listed['whatsapp']], ['help', 'duelo', 'evolucao', 'precocoin', 'pt', 'char', 'online', 'xptop'])
         self.assertEqual(next(c for c in listed['whatsapp'] if c['cmd'] == 'help')['default'], HELP)
         self.assertTrue(all(c['enabled'] and c['text'] == '' for c in listed['assistente']))
-        self.assertTrue(all(c['default'] == '{resposta}' for c in listed['assistente'] + listed['whatsapp'] if c['cmd'] != 'help'), 'modelo padrão dos comandos com dados: só a resposta automática')
+        porta = next(c for c in listed['whatsapp'] if c['cmd'] == 'precocoin')
+        self.assertIn('{mundo}', porta['default']); self.assertIn('{preco}', porta['default']); self.assertEqual(porta['example'], 'Rasteibra')
+        self.assertEqual(next(v for v in porta['vars'] if v['name'] == 'preco')['desc'], 'gold por 1 TC'); self.assertIn('resposta', [v['name'] for v in porta['vars']])
+        self.assertTrue(all(c['default'] == '{titulo}\n{corpo}' for c in listed['assistente']))
+        self.assertTrue(all(c['vars'] and c['example'] is not None for c in listed['assistente'] + listed['whatsapp'] if c['cmd'] != 'help'))
         self.assertEqual(client.get('/public/botcmds').json(), {})
         for bad in ({'enabled': 'sim', 'text': ''}, {'enabled': True, 'text': 'a' * 1501}, {'enabled': True, 'extra': 1}, {'text': 'x'}):
             self.assertEqual(client.put('/v1/admin/botcmds/assistente/exp', json=bad, headers=h['a']).status_code, 400, bad)
