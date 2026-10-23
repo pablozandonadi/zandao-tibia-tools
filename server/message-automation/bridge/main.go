@@ -47,6 +47,8 @@ type session struct {
 	attempts map[string]bool
 	imu      sync.Mutex
 	inbox    []inboxItem
+	targets  map[string]types.JID // group handle -> JID, refreshed at most every few minutes (typing must be quick)
+	targetAt time.Time
 }
 
 // inboxItem is the only thing ever kept from a group: a command line, with opaque handles for group and sender.
@@ -210,6 +212,36 @@ func (b *bridge) collect(id string, s *session, m *events.Message) {
 		s.inbox = s.inbox[1:]
 	}
 	s.inbox = append(s.inbox, item)
+}
+
+// typing shows "typing…" (or clears it) in an authorized group while the bot prepares a reply.
+func (b *bridge) typing(ctx context.Context, id string, s *session, g, state string) error {
+	if s.revoked || (state != "composing" && state != "paused") {
+		return errUnavailable
+	}
+	if !b.real {
+		if g != "fake-group" {
+			return errUnavailable
+		}
+		return nil
+	}
+	jid, ok := s.targets[g]
+	if !ok || time.Since(s.targetAt) > 5*time.Minute {
+		_, targets, err := b.groups(ctx, id, s)
+		if err != nil {
+			return err
+		}
+		s.targets, s.targetAt = targets, time.Now()
+		jid, ok = targets[g]
+	}
+	if !ok {
+		return errUnavailable
+	}
+	presence := types.ChatPresenceComposing
+	if state == "paused" {
+		presence = types.ChatPresencePaused
+	}
+	return s.client.SendChatPresence(ctx, jid, presence, types.ChatPresenceMediaText)
 }
 
 // drain hands over the fresh command lines and forgets them.
@@ -485,7 +517,18 @@ func (b *bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-		case "inbox":
+		case "typing":
+				if r.Method == http.MethodPost {
+					var body struct {
+						Group string `json:"group"`
+						State string `json:"state"`
+					}
+					if decode(r, &body) == nil && b.typing(ctx, id, s, body.Group, body.State) == nil {
+						reply(w, 200, map[string]any{"ok": true, "simulated": !b.real})
+						return
+					}
+				}
+			case "inbox":
 				if r.Method == http.MethodPost && !s.revoked {
 					reply(w, 200, map[string]any{"messages": s.drain(time.Now()), "simulated": !b.real})
 					return

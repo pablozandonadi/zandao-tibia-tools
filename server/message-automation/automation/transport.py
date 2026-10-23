@@ -9,7 +9,10 @@ class NotDispatched(Invalid): pass
 
 class FakeTransport:
     real=False
-    def __init__(self): self.sessions={};self.sent=[];self.inbound={}
+    def __init__(self): self.sessions={};self.sent=[];self.inbound={};self.typing_log=[]
+    def typing(self,session,group,state):
+        if group!='fake-group': raise Invalid('Destino indisponível.')
+        self.typing_log.append((session,group,state))
     def inbox(self,session): return self.inbound.pop(session,[])  # testes colocam aqui as linhas de comando "recebidas"
     def pair(self,session): self.sessions[session]='connected';return {'state':'connected','simulated':True}
     def status(self,session): return {'state':self.sessions.get(session,'connected'),'simulated':True}
@@ -47,6 +50,10 @@ class BridgeTransport:
         if self.status(session)['state']!='connected': raise NotDispatched('Conexão indisponível.')
         return self.request('GET','/sessions/'+session+'/groups')['groups']
     def revoke(self,session): return self.request('DELETE','/sessions/'+session)
+    def typing(self,session,group,state):
+        """Mostra "digitando…" no grupo enquanto o bot prepara a resposta. É só cortesia: qualquer falha é ignorada."""
+        try: self.request('POST','/sessions/'+session+'/typing',{'group':group,'state':state})
+        except Exception: pass
     def inbox(self,session):
         """Linhas de comando ("!...") recebidas nos grupos desde a última leitura. Falha de rede devolve vazio: ler comandos nunca atrapalha o envio."""
         try:

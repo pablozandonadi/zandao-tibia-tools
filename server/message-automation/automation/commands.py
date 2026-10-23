@@ -5,9 +5,10 @@ recebido nunca é gravado: guardamos só o id da mensagem (para não responder d
 """
 import logging
 import re
+import time
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
-from .botcmds import Bot, WORLD
+from .botcmds import Bot, WORLD, WARM_EVERY
 from .domain import UTC, Invalid, reference_day
 from .store import ident
 
@@ -27,7 +28,7 @@ def validate_botgroup(data):
 class Commander:
     def __init__(self,store,transport,bot=None,clock=None):
         self.store=store;self.transport=transport;self.clock=clock or (lambda:datetime.now(UTC))
-        self.bot=bot or Bot(history=self.history,track=self.track)
+        self.bot=bot or Bot(history=self.history,track=self.track,daily=self.daily);self.warmed={}
 
     # ---- histórico diário de XP (instantâneo do ranking de "ontem" do mundo) ----
     def track(self,world):
@@ -36,6 +37,11 @@ class Commander:
     def history(self,world,name):
         with self.store.tx() as db:
             return [(r['day'],r['xp']) for r in db.execute('SELECT day,xp FROM rank_history WHERE world=? AND name=? COLLATE NOCASE ORDER BY day',(world.capitalize(),name))]
+
+    def daily(self,world,name):
+        """[(dia, level, xp)] gravados pelo próprio servidor para o personagem."""
+        with self.store.tx() as db:
+            return [(r['day'],r['level'],r['xp']) for r in db.execute('SELECT day,level,xp FROM rank_history WHERE world=? AND name=? COLLATE NOCASE ORDER BY day DESC',(world.capitalize(),name))]
 
     def snapshot(self,now):
         local=now.astimezone(ZoneInfo('Europe/Berlin'))
@@ -51,13 +57,29 @@ class Commander:
                 db.execute('DELETE FROM rank_history WHERE day<?',((date.fromisoformat(today)-timedelta(days=HISTORY_DAYS)).isoformat(),))
 
     # ---- leitura e resposta ----
-    def tick(self,now=None):
-        now=now or self.clock();stamp=now.timestamp()
+    def groups(self):
         with self.store.tx() as db:
             rows=db.execute("SELECT id,owner,body FROM objects WHERE kind='botgroup' AND state='active' ORDER BY id").fetchall()
-            groups=[(r['id'],r['owner'],self.store.unpack(r['owner'],r['id'],r['body'])) for r in rows]
-            db.execute('DELETE FROM command_seen WHERE at<?',(stamp-SEEN_TTL,))
-        for key,owner,data in groups: self.track(data['world'])
+            return [(r['id'],r['owner'],self.store.unpack(r['owner'],r['id'],r['body'])) for r in rows]
+
+    def maintain(self,now=None):
+        """Tarefas de fundo, no ritmo das varreduras: registrar mundos, manter o ranking quente, gravar o histórico do dia e limpar ids antigos."""
+        now=now or self.clock()
+        with self.store.tx() as db: db.execute('DELETE FROM command_seen WHERE at<?',(now.timestamp()-SEEN_TTL,))
+        for key,owner,data in self.groups():
+            self.track(data['world'])
+            last=self.warmed.get(data['world'])
+            if last is None or time.monotonic()-last>=WARM_EVERY:
+                self.warmed[data['world']]=time.monotonic()
+                try: self.bot.warm(data['world'])
+                except Exception as error: log.warning('warm_failed=%s',type(error).__name__)
+        try: self.snapshot(now)
+        except Exception as error: log.warning('snapshot_failed=%s',type(error).__name__)
+
+    def tick(self,now=None):
+        """Lê e responde os comandos recebidos (chamado a cada poucos segundos)."""
+        now=now or self.clock();stamp=now.timestamp()
+        groups=self.groups()
         for connection in sorted({data['connection'] for _,_,data in groups}):
             try: items=self.transport.inbox(connection) or []
             except Exception as error:
@@ -70,8 +92,6 @@ class Commander:
                     try:
                         if self.process(key,owner,data,item,stamp,now): handled+=1
                     except Exception as error: log.warning('botgroup=%s command_failed=%s',key,type(error).__name__)
-        try: self.snapshot(now)
-        except Exception as error: log.warning('snapshot_failed=%s',type(error).__name__)
 
     def process(self,key,owner,data,item,stamp,now):
         if not isinstance(item,dict) or any(not isinstance(item.get(k),str) or not item[k] for k in ('id','group','sender','text')): return False
@@ -82,6 +102,9 @@ class Commander:
             if db.execute('INSERT OR IGNORE INTO command_seen(botgroup,msg,at) VALUES(?,?,?)',(key,item['id'],stamp)).rowcount==0: return False
             last=db.execute('SELECT last FROM command_use WHERE botgroup=? AND sender=?',(key,item['sender'])).fetchone()
             if last and stamp-last['last']<data.get('cooldown',30): return False  # dentro do intervalo: silêncio, sem responder "espere"
+        if not self.bot.known(item['text']): return False
+        try: self.transport.typing(conn['id'],dest['data']['group'],'composing')  # "digitando…" enquanto busca os dados
+        except Exception: pass
         reply=self.bot.handle(item['text'],data['world'],now.astimezone(ZoneInfo('America/Sao_Paulo')).date())
         if reply is None: return False
         with self.store.tx() as db: db.execute('INSERT INTO command_use(botgroup,sender,last) VALUES(?,?,?) ON CONFLICT(botgroup,sender) DO UPDATE SET last=excluded.last',(key,item['sender'],stamp))

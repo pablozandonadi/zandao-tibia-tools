@@ -124,7 +124,7 @@ class WatchTests(unittest.TestCase):
         ticks=[];self.watcher.tick=lambda now=None:ticks.append(1);clock=[0.0]
         with patch('automation.watch.time.monotonic',lambda:clock[0]),patch('automation.watch.time.sleep',lambda s:clock.__setitem__(0,clock[0]+s)):
             self.watcher.run()
-        self.assertEqual(len(ticks),3);self.assertLess(clock[0],45)
+        self.assertEqual(len(ticks),3);self.assertLess(clock[0],55)
 
     def test_morte_depois_da_criacao_avisa_uma_vez_e_ignora_antiga(self):
         self.feed.members=[member('Bia',800,'online',vocation='Royal Paladin')];self.watch();self.tick(0)

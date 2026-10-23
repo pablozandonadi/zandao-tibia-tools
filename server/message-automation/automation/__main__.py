@@ -38,7 +38,8 @@ def main():
     if args.command=='tick':
         # Rotinas diárias primeiro; o vigia da guild roda no mesmo minuto e nunca derruba a rotina se falhar.
         Worker(store,transport).tick()
-        return Watcher(store,transport).run(also=(Commander(store,transport).tick,))
+        commander=Commander(store,transport)
+        return Watcher(store,transport).run(also=(commander.maintain,),fast=(commander.tick,))
     if not args.file: parser.error('--file obrigatório')
     if args.command=='backup': store.backup(args.file)
     else:

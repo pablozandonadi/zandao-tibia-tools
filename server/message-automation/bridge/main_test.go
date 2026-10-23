@@ -205,3 +205,27 @@ func TestInboxEndpointFakeMode(t *testing.T) {
 		t.Fatal("revoked session returned commands")
 	}
 }
+
+func TestTypingFakeMode(t *testing.T) {
+	b := fixture()
+	base := "/sessions/" + testID
+	ok := call(b, "POST", base+"/typing", `{"group":"fake-group","state":"composing"}`)
+	if ok.Code != 200 || !strings.Contains(ok.Body.String(), `"simulated":true`) {
+		t.Fatalf("typing: %d %s", ok.Code, ok.Body.String())
+	}
+	if call(b, "POST", base+"/typing", `{"group":"fake-group","state":"paused"}`).Code != 200 {
+		t.Fatal("paused rejected")
+	}
+	for _, body := range []string{`{"group":"arbitrary-jid","state":"composing"}`, `{"group":"fake-group","state":"recording"}`, `{"group":"fake-group"}`, `{"group":"fake-group","state":"composing","extra":1}`} {
+		if call(b, "POST", base+"/typing", body).Code != 409 {
+			t.Fatalf("accepted: %s", body)
+		}
+	}
+	if call(b, "GET", base+"/typing", "").Code != 409 {
+		t.Fatal("typing must be POST only")
+	}
+	call(b, "DELETE", base, "")
+	if call(b, "POST", base+"/typing", `{"group":"fake-group","state":"composing"}`).Code != 409 {
+		t.Fatal("revoked session typed")
+	}
+}

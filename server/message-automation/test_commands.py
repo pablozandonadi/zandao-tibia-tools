@@ -86,6 +86,82 @@ class BotTests(unittest.TestCase):
         def boom(name): raise OSError('rede')
         self.assertIn('Não consegui consultar',Bot(sheet=boom).handle('!evolucao Alguem','Tornabra',TODAY))
 
+ZANDAO={'character':{'character':{'name':'Zandao','vocation':'Master Sorcerer','level':524,'world':'Rasteibra','residence':'Roshamuul','achievement_points':357,'account_status':'Premium Account',
+        'guild':{'name':'Xandebro','rank':'Member'},'last_login':'2026-10-23T13:30:38Z',
+        'houses':[{'name':'Theater Avenue 8a','town':'Carlin'},{'name':'Wood Avenue 4b','town':'Edron'}]},
+        'deaths':[{'time':'2026-10-23T01:46:01Z','level':524,'reason':'Died at Level 524 by crazed summer rearguard.'},{'time':'2026-10-22T18:32:13Z','level':524,'reason':'Killed at Level 524 by *Zandao* and burning book.'}]}}
+ONLINE=[{'name':'Zandao','level':524,'vocation':'Master Sorcerer'},{'name':'Bolotiss','level':378,'vocation':'Elite Knight'},{'name':'Artututs','level':551,'vocation':'Elite Knight'},
+        {'name':'Guardia Nevery','level':652,'vocation':'Elite Knight'},{'name':'Longe','level':900,'vocation':'Elite Knight'},{'name':'Pequeno','level':100,'vocation':'Royal Paladin'},
+        {'name':'Perto Rp','level':600,'vocation':'Royal Paladin'},{'name':'Perto Ed','level':500,'vocation':'Elder Druid'}]
+GUILDS={'artututs':None,'bolotiss':None,'guardia nevery':'Xandebro'}
+
+def party_bot(**extra):
+    sheets={**{k:v for k,v in SHEETS.items()},'zandao':{'name':'Zandao','level':524,'vocation':'Master Sorcerer','world':'Rasteibra','guild':'Xandebro'}}
+    base=dict(sheet=lambda n:sheets.get(n.casefold()) or ({'name':n,'level':1,'vocation':'x','world':'Rasteibra','guild':GUILDS.get(n.casefold())} if n.casefold() in GUILDS else None),
+               online=lambda world:ONLINE if world=='Rasteibra' else None,character=lambda n:ZANDAO if n.casefold()=='zandao' else None,
+               world=lambda n:{'name':'Rasteibra','status':'online','players_online':206,'location':'South America','pvp_type':'Open PvP'} if n.casefold()=='rasteibra' else None,
+               guild=lambda n:{'name':'Xandebro','members':[{'name':'Ana','level':900,'vocation':'Elite Knight','status':'online'},{'name':'Bia','level':1000,'vocation':'Master Sorcerer','status':'online'},{'name':'Cid','level':50,'vocation':'Knight','status':'offline'}]} if n.casefold()=='xandebro' else None,
+               ranking=lambda world,window:RANK.get((world,window)) if world=='Tornabra' else [('Zandao',524,{0:30_000_000,7:200_000_000,30:800_000_000}[window],'MS')])
+    base.update(extra)
+    return Bot(**base)
+
+class NovosComandosTests(unittest.TestCase):
+    def test_char_ficha_completa_no_padrao(self):
+        r=party_bot().handle('!char Zandao','',TODAY)
+        for esperado in ('📜 *Zandao*','🔥 Master Sorcerer · 🏆 Level *524* · 🌍 Rasteibra','⚔️ *Guilda:* Xandebro (Member)','🏠 *Casa(s):* Theater Avenue 8a (Carlin), Wood Avenue 4b (Edron)',
+                         '📍 *Residência:* Roshamuul','357 achievement points · Premium Account','⏰ *Último login:* 23/10/26 - 10:30','🔥 *Mortes (últimos 30 dias)*',
+                         '· 22/10/2026 — Lv 524 — Died at Level 524 by crazed summer rearguard.'): self.assertIn(esperado,r)
+        self.assertNotIn('*Zandao* and burning',r,'marcadores dentro do texto de morte são removidos')
+
+    def test_char_erros_e_sem_mortes(self):
+        b=party_bot();self.assertIn('Não encontrei',b.handle('!char Fantasma','',TODAY));self.assertIn('Use:',b.handle('!char','',TODAY));self.assertIn('Use:',b.handle('!personagem 12','',TODAY))
+        sem={'character':{'character':{'name':'Novo','level':10,'vocation':'Knight','world':'Antica'},'deaths':[]}}
+        self.assertIn('Sem mortes',Bot(character=lambda n:sem).handle('!char Novo','',TODAY))
+
+    def test_pt_party_finder_na_faixa_de_shared(self):
+        r=party_bot().handle('!pt Zandao ek','',TODAY)
+        self.assertIn('🤝 *Party match — Zandao* — filtro EK',r);self.assertIn('[MS] · 🏆 Lv *524* · 🌍 Rasteibra',r);self.assertIn('🔗 Shared: 350–786 · jogadores online',r)
+        self.assertIn('*Artututs* — Lv *551* (Sem Guild)',r);self.assertIn('*Guardia Nevery* — Lv *652* (Xandebro)',r);self.assertIn('*Bolotiss* — Lv *378*',r)
+        for fora in ('Longe','Pequeno','Perto Rp','Perto Ed','*Zandao* —'): self.assertNotIn(fora,r)
+
+    def test_pt_sem_filtro_agrupa_por_vocacao_em_ordem(self):
+        r=party_bot().handle('!pt Zandao','',TODAY)
+        self.assertLess(r.index('Elite Knight'),r.index('Royal Paladin'));self.assertLess(r.index('Royal Paladin'),r.index('Elder Druid'))
+        self.assertLess(r.index('Artututs'),r.index('Guardia Nevery'),'ordem alfabética dentro da vocação');self.assertIn('Perto Rp',r);self.assertIn('Perto Ed',r)
+
+    def test_pt_filtro_e_mensagens(self):
+        b=party_bot()
+        self.assertIn('Use:',b.handle('!pt','',TODAY));self.assertIn('Não encontrei',b.handle('!pt Fantasma','',TODAY))
+        self.assertIn('Ninguém online na faixa',b.handle('!pt Zandao em','',TODAY));self.assertIn('filtro RP',b.handle('!pt Zandao rp','',TODAY))
+
+    def test_pt_limita_por_vocacao(self):
+        many=[{'name':f'Jogador{i:02d}','level':600,'vocation':'Elite Knight'} for i in range(12)]
+        r=party_bot(online=lambda w:[{'name':'Zandao','level':524,'vocation':'Master Sorcerer'},*many]).handle('!pt Zandao ek','',TODAY)
+        self.assertEqual(r.count('· 🟢'),8);self.assertIn('…e mais 4',r)
+
+    def test_online_mundo_no_padrao(self):
+        r=party_bot().handle('!online Rasteibra','',TODAY)
+        self.assertEqual(r.split('\n'),['🟢 *Rasteibra* — Online','👥 *206* jogadores online agora','📍 South America · ⚔️ Open PvP'])
+        self.assertIn('206',party_bot().handle('!online','Rasteibra',TODAY))
+
+    def test_online_de_guild_e_erros(self):
+        r=party_bot().handle('!online Xandebro','',TODAY)
+        self.assertIn('🟢 *Xandebro* online (2 de 3)',r);self.assertLess(r.index('Bia'),r.index('Ana'));self.assertNotIn('Cid',r)
+        self.assertIn('Não encontrei o mundo ou a guild',party_bot().handle('!online Inexistente','',TODAY));self.assertIn('Use:',party_bot().handle('!online 12','',TODAY))
+
+    def test_xptop_sem_historico_e_com_historico(self):
+        r=party_bot().handle('!xptop Zandao','',TODAY)
+        self.assertIn('📈 *XP — últimos 30 dias*',r);self.assertIn('📅 até 22/10',r);self.assertIn('📜 *Zandao*',r);self.assertIn('Ainda sem dados diários',r)
+        self.assertIn('30 dias: *800,00kk* (média 26,67kk/dia)',r)
+        rows=[('2026-10-22',524,30_000_000),('2026-10-21',523,25_000_000),('2026-10-20',522,-5_000_000),('2026-10-18',520,9_000_000)]
+        r=party_bot(daily=lambda w,n:rows).handle('!xptop Zandao','',TODAY)
+        self.assertIn('22/10 — Lv *524* — 30,00kk 📈',r);self.assertIn('21/10 — Lv *523* — 25,00kk 📈',r);self.assertIn('20/10 — Lv *522* — -5,00kk 💀',r)
+        self.assertIn('18/10 — Lv *520* — 9,00kk',r);self.assertNotIn('19/10',r);self.assertIn('Sem dados antes de 18/10',r)
+        self.assertIn('Não encontrei',party_bot().handle('!xptop Fantasma','',TODAY))
+
+    def test_help_lista_todos(self):
+        for comando in ('!help','!duelo','!evolucao','!precocoin','!pt','!char','!online','!xptop'): self.assertIn(comando,HELP)
+
 NOW=datetime(2026,10,23,15,tzinfo=UTC)  # 17h em Berlim: depois do server save e do meio-dia
 def item(text,id_='m1',sender='s1',group='fake-group'): return {'id':id_,'group':group,'sender':sender,'text':text}
 
@@ -138,12 +214,15 @@ class CommanderTests(unittest.TestCase):
         raw=self.store.path.read_bytes();self.assertNotIn(b'SegredoUnico',raw);self.assertNotIn(b'OutroSegredo',raw)
 
     def test_snapshot_diario_so_depois_do_meio_dia_de_berlim_e_uma_vez(self):
-        self.group();self.commander.tick(datetime(2026,10,23,9,tzinfo=UTC))
-        self.assertEqual(self.fetches,[],'antes do meio-dia em Berlim não grava')
-        self.commander.tick(NOW)
+        self.group();self.commander.maintain(datetime(2026,10,23,9,tzinfo=UTC))
+        self.assertEqual([f for f in self.fetches if f[1]==0 and False],[]);antes_do_meio_dia=len(self.fetches)
+        with self.store.tx() as db: self.assertEqual(db.execute('SELECT count(*) FROM rank_history').fetchone()[0],0,'antes do meio-dia em Berlim não grava')
+        self.commander.maintain(NOW)
         with self.store.tx() as db: rows=db.execute('SELECT day,name,xp FROM rank_history ORDER BY name').fetchall()
         self.assertEqual({r['day'] for r in rows},{'2026-10-22'});self.assertEqual(len(rows),3)
-        antes=len(self.fetches);self.commander.tick(NOW+timedelta(minutes=5));self.assertEqual(len(self.fetches),antes,'já gravou hoje')
+        with self.store.tx() as db: gravado=db.execute('SELECT count(*) FROM rank_history').fetchone()[0]
+        self.commander.maintain(NOW+timedelta(minutes=5))
+        with self.store.tx() as db: self.assertEqual(db.execute('SELECT count(*) FROM rank_history').fetchone()[0],gravado,'já gravou hoje')
         self.assertEqual(self.commander.history('Tornabra','papelaum meliexp'),[('2026-10-22',153_970_000)])
 
     def test_mundo_consultado_passa_a_ter_historico(self):
