@@ -11,6 +11,7 @@ from urllib.request import Request, build_opener, HTTPRedirectHandler, HTTPSHand
 from urllib.error import HTTPError, URLError
 from voz_credenciais import _proteger, _desproteger
 
+PROCESS_MUTEX=threading.RLock()
 class AccessError(ValueError): pass
 class AccessRejected(AccessError): pass
 SECRET=re.compile(r'^[a-f0-9]{64}$')
@@ -39,7 +40,7 @@ class CredentialFile:
   local=root or os.environ.get('LOCALAPPDATA')
   if not local:raise AccessError('Não foi possível acessar o armazenamento protegido do Windows.')
   self.path=Path(local)/'TibiaTudo'/'automation'/self.channel/'installation.dpapi'
-  self.mutex=threading.RLock()
+  self.mutex=PROCESS_MUTEX  # única no app: pedidos simultâneos (várias abas do Admin) esperam a vez em vez de brigar pela trava do arquivo
  @contextmanager
  def locked(self):
   with self.mutex:

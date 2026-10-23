@@ -80,6 +80,20 @@ class BotAjustesTests(unittest.TestCase):
                                 ('DELETE', '/v1/admin/botcmds/whatsapp'), ('GET', '/v1/admin/botcmds/whatsapp/exp'), ('PUT', '/v1/admin/botcmds/whatsapp/a/b')):
             self.assertFalse(A.get(metodo) and A[metodo].fullmatch(caminho), caminho)
 
+    def test_pedidos_simultaneos_esperam_a_vez_em_vez_de_falhar(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as raiz:
+            erros = []
+            def pedido():
+                try:
+                    with acesso.CredentialFile('https://x.test', 'beta', root=raiz).locked():  # uma instância por pedido, como no app
+                        time.sleep(0.05)
+                except Exception as erro:
+                    erros.append(str(erro))
+            fios = [threading.Thread(target=pedido) for _ in range(6)]
+            [f.start() for f in fios]; [f.join() for f in fios]
+            self.assertEqual(erros, [])
+
     def test_leitura_publica_nao_usa_credencial(self):
         usados = []
         def falso(self, path, method='GET', body=None, credential=None):
