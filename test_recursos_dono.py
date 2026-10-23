@@ -88,6 +88,23 @@ class RecursosDonoTests(unittest.TestCase):
         with mock.patch('mensagem_automatica_access.admin_request', side_effect=RuntimeError('rede')):
             self.assertIn('erro', self.api.admin_msg_listar())
 
+    def test_comandos_dos_bots_exigem_admin_e_validam_antes_de_ir_ao_servidor(self):
+        with mock.patch('mensagem_automatica_access.admin_request', return_value={'whatsapp': [], 'assistente': []}) as pedido:
+            for chamada in (self.api.admin_cmd_listar, lambda: self.api.admin_cmd_salvar('whatsapp', 'help', True, ''), lambda: self.api.admin_cmd_restaurar('whatsapp', 'help')):
+                self.assertEqual(chamada(), {'erro': 'Somente o administrador pode fazer isso.'})
+            pedido.assert_not_called()
+            self.escrever('{"admin_ia": true}')
+            self.assertEqual(self.api.admin_cmd_listar(), {'bots': {'whatsapp': [], 'assistente': []}})
+            self.assertEqual(self.api.admin_cmd_salvar('assistente', 'exp', False, 'Desligado'), {'ok': True})
+            pedido.assert_called_with('/v1/admin/botcmds/assistente/exp', 'PUT', {'enabled': False, 'text': 'Desligado'})
+            self.assertEqual(self.api.admin_cmd_restaurar('whatsapp', 'duelo'), {'ok': True})
+            pedido.assert_called_with('/v1/admin/botcmds/whatsapp/duelo', 'DELETE', None)
+            chamadas = pedido.call_count
+            for ruim in (('outro', 'exp', True, ''), ('whatsapp', '../x', True, ''), ('whatsapp', 'Exp', True, ''), ('whatsapp', 'exp', 'sim', ''), ('whatsapp', 'exp', True, 5), ('whatsapp', None, True, '')):
+                self.assertIn('erro', self.api.admin_cmd_salvar(*ruim), ruim)
+            self.assertIn('erro', self.api.admin_cmd_restaurar('outro', 'exp')); self.assertIn('erro', self.api.admin_cmd_restaurar('whatsapp', '/x'))
+            self.assertEqual(pedido.call_count, chamadas, 'nada fora do formato chega ao servidor')
+
     def test_formato_do_codigo_e_validado_antes_de_ir_ao_servidor(self):
         for ruim in ('', 'curto', 'x' * 44, 'x' * 42, None, 123):
             with self.assertRaises(acesso.AccessError): acesso.claim_code(ruim)

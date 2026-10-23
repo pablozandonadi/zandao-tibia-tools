@@ -12,6 +12,11 @@ from pathlib import Path
 from cryptography.fernet import Fernet
 from .domain import Invalid
 
+# Comandos que o administrador pode ligar/desligar e reescrever. cmd -> rótulo mostrado no Admin.
+BOT_COMMANDS={
+    'whatsapp':{'help':'!help','duelo':'!duelo','evolucao':'!evolucao','precocoin':'!precocoin','pt':'!pt','char':'!char','online':'!online','xptop':'!xptop'},
+    'assistente':{'bomdia':'bom dia','kill':'kill','boss':'boss','online':'online','char':'char','death':'death','guild':'guild','exp':'exp'}}
+
 def ident(): return uuid.uuid4().hex
 
 class Store:
@@ -34,6 +39,7 @@ class Store:
             CREATE TABLE IF NOT EXISTS command_use(botgroup TEXT NOT NULL,sender TEXT NOT NULL,last REAL NOT NULL,PRIMARY KEY(botgroup,sender));
             CREATE TABLE IF NOT EXISTS command_seen(botgroup TEXT NOT NULL,msg TEXT NOT NULL,at REAL NOT NULL,PRIMARY KEY(botgroup,msg));
             CREATE TABLE IF NOT EXISTS rank_history(world TEXT NOT NULL,day TEXT NOT NULL,name TEXT NOT NULL,level INTEGER NOT NULL,xp INTEGER NOT NULL,PRIMARY KEY(world,day,name));
+            CREATE TABLE IF NOT EXISTS bot_settings(scope TEXT NOT NULL,cmd TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,text TEXT NOT NULL DEFAULT '',PRIMARY KEY(scope,cmd));
             CREATE TABLE IF NOT EXISTS rank_meta(world TEXT PRIMARY KEY,last_day TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS watch_events(id TEXT PRIMARY KEY,owner TEXT NOT NULL,watch TEXT NOT NULL,key TEXT NOT NULL,text BLOB NOT NULL,state TEXT NOT NULL,created REAL NOT NULL,sent_at REAL,attempt TEXT,lease REAL,error TEXT,UNIQUE(watch,key));
             ''')
@@ -94,6 +100,26 @@ class Store:
         with self.tx() as db:
             if db.execute('SELECT 1 FROM admins WHERE owner=?',(owner,)).fetchone(): raise Invalid('Não é possível remover uma conta de administrador.')
             if db.execute('DELETE FROM entitlements WHERE owner=?',(owner,)).rowcount==0: raise Invalid('Conta não encontrada.')
+
+    # ---- Ajustes dos comandos dos bots (WhatsApp e assistente): ligar/desligar e texto da resposta, definidos pelo administrador ----
+    def bot_settings(self,scope):
+        """{comando: {'enabled': bool, 'text': str}} só dos comandos que o administrador mexeu."""
+        if scope not in BOT_COMMANDS: raise Invalid('Bot desconhecido.')
+        with self.tx() as db: return {r['cmd']:{'enabled':bool(r['enabled']),'text':r['text']} for r in db.execute('SELECT cmd,enabled,text FROM bot_settings WHERE scope=?',(scope,))}
+
+    def bot_set(self,scope,cmd,enabled,text):
+        if scope not in BOT_COMMANDS or cmd not in BOT_COMMANDS[scope]: raise Invalid('Comando desconhecido.')
+        if type(enabled) is not bool: raise Invalid('Informe se o comando fica ligado.')
+        if not isinstance(text,str): raise Invalid('Texto inválido.')
+        text=re.sub(r'[\x00-\x08\x0b-\x1f\x7f]','',text.replace('\r\n','\n')).strip()
+        if len(text)>1500: raise Invalid('Texto de até 1500 caracteres.')
+        with self.tx() as db:
+            if enabled and not text: db.execute('DELETE FROM bot_settings WHERE scope=? AND cmd=?',(scope,cmd))  # ligado e sem texto = padrão
+            else: db.execute('INSERT INTO bot_settings(scope,cmd,enabled,text) VALUES(?,?,?,?) ON CONFLICT(scope,cmd) DO UPDATE SET enabled=excluded.enabled,text=excluded.text',(scope,cmd,int(enabled),text))
+
+    def bot_reset(self,scope,cmd):
+        if scope not in BOT_COMMANDS or cmd not in BOT_COMMANDS[scope]: raise Invalid('Comando desconhecido.')
+        with self.tx() as db: db.execute('DELETE FROM bot_settings WHERE scope=? AND cmd=?',(scope,cmd))
 
     def claim(self,owner,code):
         """Libera a conta de quem apresenta um código válido (e ainda com usos)."""

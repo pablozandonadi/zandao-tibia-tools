@@ -1377,6 +1377,24 @@ class API:
         r = self._admin_mensagens('/v1/admin/accounts/' + conta, 'DELETE')
         return r if 'erro' in r else {'ok': True}
 
+    def admin_cmd_listar(self):
+        r = self._admin_mensagens('/v1/admin/botcmds')
+        return r if 'erro' in r else {'bots': r['dados']}
+
+    def admin_cmd_salvar(self, bot, comando, ligado, texto=''):
+        if bot not in ('whatsapp', 'assistente') or not isinstance(comando, str) or not re.fullmatch(r'[a-z]{2,12}', comando):
+            return {'erro': 'Comando inválido.'}
+        if not isinstance(ligado, bool) or not isinstance(texto, str):
+            return {'erro': 'Dados inválidos.'}
+        r = self._admin_mensagens(f'/v1/admin/botcmds/{bot}/{comando}', 'PUT', {'enabled': ligado, 'text': texto})
+        return r if 'erro' in r else {'ok': True}
+
+    def admin_cmd_restaurar(self, bot, comando):
+        if bot not in ('whatsapp', 'assistente') or not isinstance(comando, str) or not re.fullmatch(r'[a-z]{2,12}', comando):
+            return {'erro': 'Comando inválido.'}
+        r = self._admin_mensagens(f'/v1/admin/botcmds/{bot}/{comando}', 'DELETE')
+        return r if 'erro' in r else {'ok': True}
+
     def mensagem_automatica_abrir_portal(self, config):
         from mensagem_automatica_access import open_management, AccessError
         if not _recurso_dono('mensagens_automaticas'):

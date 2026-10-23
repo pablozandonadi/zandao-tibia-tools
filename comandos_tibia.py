@@ -7,6 +7,7 @@ from string import capwords
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 
+import bot_ajustes
 import guild_stats
 import mensagem_formato
 import tibia_info
@@ -444,7 +445,12 @@ def responder(texto, mundo='', hoje=None, personagem=''):
     so_mundo = cmd in ('bomdia', 'kill', 'boss')
     if rest and not (MUNDO.fullmatch(rest) if so_mundo else _arg_ok(rest)):
         return None
-    try:
-        return HANDLERS[cmd](rest, mundo, personagem, hoje or date.today())
-    except Exception:
-        return FALHA
+    ajuste = bot_ajustes.ajuste(cmd)  # o administrador pode desligar o comando ou trocar o texto (valem para todos)
+    if ajuste.get('enabled') is False:
+        return None
+    def automatica():
+        try:
+            return HANDLERS[cmd](rest, mundo, personagem, hoje or date.today())
+        except Exception:
+            return FALHA
+    return bot_ajustes.montar(ajuste['text'], automatica) if ajuste.get('text') else automatica()

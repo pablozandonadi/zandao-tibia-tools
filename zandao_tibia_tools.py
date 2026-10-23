@@ -95,6 +95,12 @@ def main():
     if api._rede.config["enabled"]:
         api._rede.start()
     try:
+        import bot_ajustes
+        from mensagem_automatica_access import public_botcmds
+        bot_ajustes.iniciar(public_botcmds)  # comandos do assistente seguem o que o administrador definiu no servidor (busca em segundo plano)
+    except Exception:
+        pass  # sem isso o assistente usa os padrões do app
+    try:
         webview.start(icon=os.path.join(PASTA_RECURSOS, "icon.ico"), private_mode=False, http_port=porta_http(CANAL_APP),
                       storage_path=os.path.join(data_dir(), "webview_session", VERSAO_APP))
     finally:

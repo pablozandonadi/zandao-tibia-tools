@@ -16,10 +16,10 @@ class AccessRejected(AccessError): pass
 SECRET=re.compile(r'^[a-f0-9]{64}$')
 ID=r'[a-f0-9]{32}'
 ALLOWED={
- 'GET':re.compile(r'^/(public-config|v1/(connections(?:/'+ID+r'(?:/groups)?)?|subscriptions|watches|botgroups|runs|admin/claims|admin/accounts))$'),
+ 'GET':re.compile(r'^/(public-config|v1/(connections(?:/'+ID+r'(?:/groups)?)?|subscriptions|watches|botgroups|runs|admin/claims|admin/accounts|admin/botcmds))$'),
  'POST':re.compile(r'^/v1/(preview|claim|connections(?:/'+ID+r'/pair)?|destinations|subscriptions|watches|botgroups|admin/claims)$'),
- 'PUT':re.compile(r'^/v1/(subscriptions|watches|botgroups)/'+ID+r'$'),
- 'DELETE':re.compile(r'^/v1/((connections|subscriptions|watches|botgroups)/'+ID+r'|admin/claims/[a-f0-9]{16}|admin/accounts/[a-f0-9]{32})$')}
+ 'PUT':re.compile(r'^/v1/((subscriptions|watches|botgroups)/'+ID+r'|admin/botcmds/(whatsapp|assistente)/[a-z]{2,12})$'),
+ 'DELETE':re.compile(r'^/v1/((connections|subscriptions|watches|botgroups)/'+ID+r'|admin/claims/[a-f0-9]{16}|admin/accounts/[a-f0-9]{32}|admin/botcmds/(whatsapp|assistente)/[a-z]{2,12})$')}
 # Servidor da VM Oracle; AUTOMATION_PORTAL_URL continua valendo como override administrativo.
 DEFAULT_ORIGIN='https://140.238.185.24'
 class NoRedirect(HTTPRedirectHandler):
@@ -166,6 +166,11 @@ def admin_request(path,method='GET',body=None):
  except AccessError as error:
   if 'ainda não está disponível' in str(error):raise AccessError('Esta conta ainda não é administradora. Em Configurações › "Tenho um código de acesso", ative o código do dono.') from None
   raise
+
+def public_botcmds():
+ """Ajustes públicos dos comandos do assistente (sem login: não registra esta instalação no servidor). Levanta AccessError se o servidor não responder."""
+ origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)
+ return InstallationClient(origin,None)._send('/public/botcmds')
 
 def claim_code(code):
  """Apresenta ao servidor o código de liberação (do dono ou de um recurso pago) para esta instalação. Devolve True se a conta ficou administradora; levanta AccessError se o código não valer."""

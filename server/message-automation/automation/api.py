@@ -10,6 +10,8 @@ from .auth import Verifier
 from .domain import UTC, Invalid, validate
 from .watch import validate_watch
 from .commands import validate_botgroup
+from .botcmds import HELP
+from .store import BOT_COMMANDS
 from mensagem_automatica_report import generate
 
 def create_app(store,transport,verifier=None,origins=(),generator=generate):
@@ -116,6 +118,20 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     @app.delete('/v1/admin/accounts/{key}')
     def admin_remove_account(key,user=Depends(administrator)):
         store.admin_remove_account(key);return {'owner':key,'removed':True}
+    # ---- Comandos dos bots: o administrador liga/desliga e reescreve a resposta; o bot do WhatsApp lê daqui, o app lê a parte pública ----
+    @app.get('/v1/admin/botcmds')
+    def admin_botcmds(user=Depends(administrator)):
+        return {scope:[{'cmd':cmd,'label':label,'enabled':saved.get(cmd,{}).get('enabled',True),'text':saved.get(cmd,{}).get('text',''),'default':HELP if (scope,cmd)==('whatsapp','help') else ''} for cmd,label in cmds.items()]
+                for scope,cmds in BOT_COMMANDS.items() for saved in [store.bot_settings(scope)]}
+    @app.put('/v1/admin/botcmds/{scope}/{cmd}')
+    async def admin_botcmd_set(scope,cmd,request:Request,user=Depends(administrator)):
+        data=await payload(request);fields(data,{'enabled','text'})
+        store.bot_set(scope,cmd,data.get('enabled'),data.get('text',''));return {'scope':scope,'cmd':cmd}
+    @app.delete('/v1/admin/botcmds/{scope}/{cmd}')
+    def admin_botcmd_reset(scope,cmd,user=Depends(administrator)):
+        store.bot_reset(scope,cmd);return {'scope':scope,'cmd':cmd,'reset':True}
+    @app.get('/public/botcmds')
+    def public_botcmds(): return store.bot_settings('assistente')  # sem login: o app de qualquer usuário lê só o que o administrador mudou no assistente
     @app.post('/v1/preview')
     async def preview(request:Request,user=Depends(owner)):
         c=validate(await payload(request));return generator(c,datetime.now(UTC))

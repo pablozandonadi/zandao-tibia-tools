@@ -28,7 +28,7 @@ def validate_botgroup(data):
 class Commander:
     def __init__(self,store,transport,bot=None,clock=None):
         self.store=store;self.transport=transport;self.clock=clock or (lambda:datetime.now(UTC))
-        self.bot=bot or Bot(history=self.history,track=self.track,daily=self.daily);self.warmed={}
+        self.bot=bot or Bot(history=self.history,track=self.track,daily=self.daily,settings=lambda:self.store.bot_settings('whatsapp'));self.warmed={}
 
     # ---- histórico diário de XP (instantâneo do ranking de "ontem" do mundo) ----
     def track(self,world):

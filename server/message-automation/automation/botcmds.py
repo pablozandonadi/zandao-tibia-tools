@@ -152,8 +152,11 @@ def default_trade(world):
     import tibiatrade_cotacao
     return tibiatrade_cotacao.consultar(world)
 
+KEYS={'help':'help','coin':'precocoin','duel':'duelo','evolution':'evolucao','party':'pt','charinfo':'char','online_cmd':'online','xptop':'xptop'}  # método -> chave do comando no Admin
+
 class Bot:
-    def __init__(self,ranking=None,sheet=None,trade=None,history=None,track=None,character=None,online=None,world=None,guild=None,daily=None):
+    def __init__(self,ranking=None,sheet=None,trade=None,history=None,track=None,character=None,online=None,world=None,guild=None,daily=None,settings=None):
+        self.settings=settings or (lambda:{})  # ajustes do administrador: {comando: {'enabled': bool, 'text': str}}
         self.ranking=ranking or default_ranking;self.sheet=sheet or default_sheet;self.trade=trade or default_trade
         self.character=character or default_character;self.online=online or default_online;self.world=world or default_world;self.guild=guild or default_guild
         self.daily=daily or (lambda world,name:[])
@@ -165,16 +168,20 @@ class Bot:
         if not found: return None
         handler={'help':self.help,'ajuda':self.help,'comandos':self.help,'precocoin':self.coin,'tc':self.coin,
                  'duelo':self.duel,'evolucao':self.evolution,'evo':self.evolution,'pt':self.party,'party':self.party,'char':self.charinfo,'personagem':self.charinfo,'online':self.online_cmd,'xptop':self.xptop}.get(norm(found[1]))
-        return (handler,' '.join(found[2].split())) if handler else None
+        if not handler or self.settings().get(KEYS[handler.__name__],{}).get('enabled') is False: return None  # comando desligado pelo administrador: silêncio
+        return handler,' '.join(found[2].split())
 
     def known(self,text): return self.pick(text) is not None
 
     def handle(self,text,world='',today=None):
-        """Resposta ao comando, ou None se não for um comando conhecido."""
+        """Resposta ao comando, ou None se não for um comando conhecido (ou estiver desligado)."""
         picked=self.pick(text)
         if not picked: return None
-        try: return picked[0](picked[1],world,today or date.today())
-        except Exception: return FAIL
+        custom=str(self.settings().get(KEYS[picked[0].__name__],{}).get('text') or '')
+        if custom and '{resposta}' not in custom: return custom  # texto fixo: nem consulta as fontes
+        try: reply=picked[0](picked[1],world,today or date.today())
+        except Exception: reply=FAIL
+        return custom.replace('{resposta}',reply) if custom else reply
 
     def warm(self,world):
         """Mantém o ranking do mundo no cache para o comando responder sem esperar a fonte."""
