@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -47,7 +48,8 @@ type session struct {
 	attempts map[string]bool
 	imu      sync.Mutex
 	inbox    []inboxItem
-	targets  map[string]types.JID // group handle -> JID, refreshed at most every few minutes (typing must be quick)
+	tmu      sync.Mutex
+	targets  map[string]types.JID // group handle -> JID, refreshed at most every few minutes (typing and sending must be quick)
 	targetAt time.Time
 }
 
@@ -225,17 +227,9 @@ func (b *bridge) typing(ctx context.Context, id string, s *session, g, state str
 		}
 		return nil
 	}
-	jid, ok := s.targets[g]
-	if !ok || time.Since(s.targetAt) > 5*time.Minute {
-		_, targets, err := b.groups(ctx, id, s)
-		if err != nil {
-			return err
-		}
-		s.targets, s.targetAt = targets, time.Now()
-		jid, ok = targets[g]
-	}
-	if !ok {
-		return errUnavailable
+	jid, err := b.target(ctx, id, s, g)
+	if err != nil {
+		return err
 	}
 	presence := types.ChatPresenceComposing
 	if state == "paused" {
@@ -257,6 +251,39 @@ func (s *session) drain(now time.Time) []inboxItem {
 	s.inbox = nil
 	return fresh
 }
+// target resolves a group handle to its JID using the cached group list (refreshed every few minutes). Asking WhatsApp for the whole
+// list on every send made sends fail whenever that query was slow; a known group keeps working from the cache in that case.
+func (b *bridge) target(ctx context.Context, id string, s *session, g string) (types.JID, error) {
+	return resolveTarget(s, g, func() (map[string]types.JID, error) {
+		_, targets, err := b.groups(ctx, id, s)
+		return targets, err
+	})
+}
+
+func resolveTarget(s *session, g string, load func() (map[string]types.JID, error)) (types.JID, error) {
+	s.tmu.Lock()
+	jid, ok := s.targets[g]
+	fresh := time.Since(s.targetAt) <= 5*time.Minute
+	s.tmu.Unlock()
+	if ok && fresh {
+		return jid, nil
+	}
+	targets, err := load()
+	if err != nil {
+		if ok {
+			return jid, nil
+		}
+		return types.JID{}, err
+	}
+	s.tmu.Lock()
+	s.targets, s.targetAt = targets, time.Now()
+	s.tmu.Unlock()
+	if found, exists := targets[g]; exists {
+		return found, nil
+	}
+	return types.JID{}, errUnavailable
+}
+
 func (b *bridge) groups(ctx context.Context, id string, s *session) ([]group, map[string]types.JID, error) {
 	if s.revoked {
 		return nil, nil, errUnavailable
@@ -391,13 +418,9 @@ func (b *bridge) send(ctx context.Context, id string, s *session, g, text, attem
 		s.attempts[attempt] = true
 		return map[string]any{"id": attempt, "simulated": true}, nil
 	}
-	_, targets, err := b.groups(ctx, id, s)
+	jid, err := b.target(ctx, id, s, g)
 	if err != nil {
 		return nil, err
-	}
-	jid, ok := targets[g]
-	if !ok {
-		return nil, errUnavailable
 	}
 	if _, err = s.db.ExecContext(ctx, "INSERT INTO automation_attempts(id,state) VALUES(?,'sending')", attempt); err != nil {
 		return nil, errUnavailable
@@ -547,6 +570,7 @@ func (b *bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						reply(w, 200, result)
 						return
 					}
+					log.Printf("send failed before dispatch=%t err=%v", !errors.Is(err, errUncertain), err) // never the text or the group
 					if errors.Is(err, errUncertain) {
 						reply(w, 502, map[string]string{"error": "unavailable", "dispatch": "uncertain"})
 						return

@@ -229,3 +229,28 @@ func TestTypingFakeMode(t *testing.T) {
 		t.Fatal("revoked session typed")
 	}
 }
+
+func TestResolveTargetUsesCacheAndSurvivesSlowGroupList(t *testing.T) {
+	s := &session{}
+	jid := types.NewJID("111", types.GroupServer)
+	calls := 0
+	load := func() (map[string]types.JID, error) { calls++; return map[string]types.JID{"g1": jid}, nil }
+	failing := func() (map[string]types.JID, error) { calls++; return nil, errUnavailable }
+
+	if got, err := resolveTarget(s, "g1", load); err != nil || got != jid || calls != 1 {
+		t.Fatalf("first lookup must load the list once: %v %v %d", got, err, calls)
+	}
+	if got, err := resolveTarget(s, "g1", failing); err != nil || got != jid || calls != 1 {
+		t.Fatalf("fresh cache must not ask WhatsApp again: %v %v %d", got, err, calls)
+	}
+	s.targetAt = time.Now().Add(-10 * time.Minute)
+	if got, err := resolveTarget(s, "g1", failing); err != nil || got != jid || calls != 2 {
+		t.Fatalf("stale cache with a failing refresh must keep a known group working: %v %v %d", got, err, calls)
+	}
+	if _, err := resolveTarget(s, "unknown", failing); err == nil {
+		t.Fatal("an unknown group with a failing list must be refused")
+	}
+	if _, err := resolveTarget(s, "unknown", load); err == nil {
+		t.Fatal("a group missing from a fresh list must be refused")
+	}
+}
