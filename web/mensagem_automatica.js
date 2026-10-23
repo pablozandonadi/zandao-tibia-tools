@@ -1,8 +1,9 @@
-// Menu "Mensagens" (as mensagens automáticas do WhatsApp). Recurso fechado: o menu só aparece nas instalações liberadas;
-// rotinas, alertas, comandos e conexão ficam na janela de gestão. A liberação vem de um código de acesso (Configurações).
+// Menu "Mensagens" (as mensagens automáticas do WhatsApp). Recurso fechado: o menu só aparece nas instalações liberadas e,
+// ao clicar, abre direto a janela de gestão (rotinas, alertas, comandos e conexão). A liberação vem de um código de acesso (Configurações).
 function maKey(r){return 'zt-mensagem-automatica-v1:'+JSON.stringify([r.personagem||'',r.mundo||''].map(v=>String(v).trim().toLowerCase()));}
 // Preferências salvas antes da tela única só preenchem a "Nova rotina".
 function maSaved(r){try{const v=JSON.parse(localStorage.getItem(maKey(r))||'{}');return v&&typeof v==='object'&&!Array.isArray(v)?v:{};}catch(e){return {};}}
+function maAviso(texto,erro){try{if(typeof toast==='function')toast(texto,erro);}catch(e){/* sem aviso na tela */}}
 async function maAtualizar(){
  try{
   if(typeof api?.recursos_liberados!=='function')return;
@@ -12,15 +13,17 @@ async function maAtualizar(){
   if(typeof window.adminIaCarregar==='function')window.adminIaCarregar();
  }catch(e){/* sem a ponte do app (ou falha): o menu fica escondido */}
 }
+let maAbrindo=false;
 async function maAbrir(){
- const status=document.getElementById('ma-status');
+ if(maAbrindo)return;maAbrindo=true;
  try{
   if(typeof api?.mensagem_automatica_abrir_portal!=='function')throw Error();
   let contexto={};try{contexto=(await api.assistente_estado()).context||{};}catch(e){/* abre mesmo sem personagem */}
   const r={personagem:contexto.character_id||'',mundo:contexto.world_id||''};
   const result=await api.mensagem_automatica_abrir_portal({...maSaved(r),...r});
-  status.textContent=result.erro||'';
- }catch(e){status.textContent='Não foi possível abrir as mensagens automáticas.';}
+  if(result&&result.erro)maAviso(result.erro,true);
+ }catch(e){maAviso('Não foi possível abrir as mensagens automáticas.',true);}
+ finally{setTimeout(()=>{maAbrindo=false;},1500);}  // um clique só: evita abrir várias janelas
 }
 async function maAtivarCodigo(){
  const campo=document.getElementById('cfg-codigo'),status=document.getElementById('cfg-codigo-status'),botao=document.getElementById('cfg-codigo-ok');
@@ -34,8 +37,7 @@ async function maAtivarCodigo(){
  finally{botao.disabled=false;}
 }
 function maIniciar(){
- const abrir=document.getElementById('ma-abrir'),ok=document.getElementById('cfg-codigo-ok');
- if(abrir)abrir.onclick=maAbrir;
+ const ok=document.getElementById('cfg-codigo-ok');
  if(ok)ok.onclick=maAtivarCodigo;
  maAtualizar();
 }
