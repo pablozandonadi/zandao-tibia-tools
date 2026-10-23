@@ -87,6 +87,9 @@ def stamina_at(start, elapsed):
     elapsed-=below*3
     return min(2520,start+below+(int(elapsed//6) if start+below>=2340 else 0))
 
+SOURCES=('manual','voice','tibiatrade')  # origem do preço; registros antigos sem campo = manual
+
+
 class Store:
     def __init__(self, folder, clock=None):
         self.folder=Path(folder);self.path=self.folder/'assistente-tibiano.json'
@@ -113,6 +116,7 @@ class Store:
                 if t['status'] not in ('active','completed','cancelled'): raise ValueError()
             for p in d['prices']:
                 label(p['id']);label(p['world_id']);item_name(p['item']);price_gp(p['price_gp']);instant(p['at']);self._offer(p['offer_type'])
+                if p.get('source','manual') not in SOURCES: raise ValueError()
             d['catalog']=merge_catalog(d['catalog'])
             self._cache=((st.st_mtime_ns,st.st_size),json.dumps(d,ensure_ascii=False))
             return d
@@ -207,9 +211,27 @@ class Store:
             items=[]
             for name in names:
                 history=[row for row in rows if row['item']==name]
-                latest={offer:next((row for row in history if row['offer_type']==offer),None) for offer in ('buy','sell','traded')}
+                latest={offer:next((row for row in history if row['offer_type']==offer and row.get('source')!='tibiatrade'),None) for offer in ('buy','sell','traded')}
+                latest['tibiatrade']=next((row for row in history if row.get('source')=='tibiatrade'),None)
                 items.append({'item':name,'latest':latest,'total':len(history),'observations':history[:100]})
             return deepcopy({'world_id': world, 'total': len(rows), 'observations': rows[:100], 'items':items})
+
+    def market_quote_add(self, world, item, price, at, source):
+        """Grava a venda de um item vinda da cotação do TibiaTrade ou do valor manual da conversão; sem duplicar."""
+        if source not in ('manual','tibiatrade'): raise ValueError('Origem inválida.')
+        world=label(world);item=item_name(item);price=price_gp(price);at=instant(self.clock() if at is None else at)
+        if at>instant(self.clock())+timedelta(minutes=5): raise ValueError('Preço observado não pode estar no futuro.')
+        with LOCK:
+            d=self._read()
+            mine=[v for v in d['prices'] if v['world_id']==world and v['item']==item and v['offer_type']=='sell' and v.get('source','manual')==source]
+            # site: uma linha por data-base (mesmo apagada, para não voltar); manual: só quando o valor muda
+            if source=='tibiatrade' and any(instant(v['at'])==at for v in mine): return None
+            if source=='manual':
+                alive=[v for v in mine if not v['deleted']]
+                if alive and max(alive,key=lambda v:instant(v['at']))['price_gp']==price: return None
+            obs={'id':uuid.uuid4().hex,'world_id':world,'item':item,'offer_type':'sell','price_gp':price,'at':iso(at),'deleted':False,'source':source}
+            d['prices'].append(obs);self._save(d)
+            return deepcopy(obs)
 
     def execute(self,intent,args=None,context=None,request_id=None,source="manual"):
         if not isinstance(intent,str) or not isinstance(args or {},dict): raise ValueError('Comando inválido.')
@@ -734,7 +756,7 @@ def validate_state(d):
             for item in items:item_name(item)
         for p in d['prices']:
             label(p['world_id']);item_name(p['item']);price_gp(p['price_gp']);instant(p['at'])
-            if p['offer_type'] not in ('buy','sell','traded') or type(p['deleted']) is not bool:raise ValueError()
+            if p['offer_type'] not in ('buy','sell','traded') or type(p['deleted']) is not bool or p.get('source','manual') not in SOURCES:raise ValueError()
         for b in d['catalog']:
             label(b['boss_id']);label(b['name']);label(b['source'])
             if not isinstance(b['aliases'],list) or len(b['aliases'])>10:raise ValueError()

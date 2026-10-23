@@ -8,6 +8,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
+from decimal import Decimal
 
 import webview
 
@@ -1388,12 +1389,25 @@ class API:
         except (ValueError, TypeError):
             return {'erro': 'Confira os valores: gold em GP, K ou KK e taxas maiores que zero.'}
 
-    def conversao_tc_cotacao(self, mundo, atualizar=False):
-        return tibiatrade_cotacao.consultar(mundo, atualizar)
-
-    def conversao_tc_salvar(self, valores, automatico=True):
+    def _tc_historico(self, mundo, preco, quando, origem):
+        """Guarda o gold por TC no histórico do Tibia Coin; falhar aqui nunca derruba a conversão."""
         try:
-            return market_conversao.salvar(BASE_DIR, valores, automatico)
+            return self._voz_obter().store.market_quote_add(mundo, 'Tibia Coin', preco, quando, origem) is not None
+        except (ValueError, OSError, TypeError):
+            return False
+
+    def conversao_tc_cotacao(self, mundo, atualizar=False):
+        r = tibiatrade_cotacao.consultar(mundo, atualizar)
+        if r.get('estado') in ('ok', 'antiga') and r.get('gold_por_tc'):
+            r['registrado'] = self._tc_historico(mundo, r['gold_por_tc'], r['data_base'], 'tibiatrade')
+        return r
+
+    def conversao_tc_salvar(self, valores, automatico=True, mundo=''):
+        try:
+            r = market_conversao.salvar(BASE_DIR, valores, automatico)
+            if not automatico and isinstance(mundo, str) and mundo.strip():
+                r['registrado'] = self._tc_historico(mundo.strip(), int(Decimal(r['valores']['gold_por_tc'])), None, 'manual')
+            return r
         except (ValueError, TypeError):
             return {'erro': 'Confira os três valores de conversão antes de salvar.'}
         except OSError:

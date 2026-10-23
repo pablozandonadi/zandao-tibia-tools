@@ -52,6 +52,7 @@ async function refreshQuote(force=false){
  try{
   const data=await window.pywebview.api.conversao_tc_cotacao(world,force||quoteStale);
   if(revision!==quoteRevision||!el('conversao-automatico').checked||world!==el('assistente-world').value.trim())return;
+  if(data.registrado)refreshPrices(true);  // cotação nova entrou no histórico do Tibia Coin
   if(data.estado==='indisponivel')quoteInterval=60000;
   quoteStale=data.estado==='antiga';
   const age=Date.now()-new Date(data.data_base).getTime();
@@ -84,7 +85,7 @@ async function bootConversion(){
  el('conversao-automatico').addEventListener('change',()=>{manualQuote();refreshQuote();});
  el('conversao-atualizar').addEventListener('click',()=>refreshQuote(true));
  const save=el('conversao-salvar'),feedback=el('conversao-feedback');
- save.addEventListener('click',async()=>{save.disabled=true;feedback.textContent='Salvando…';try{const result=await window.pywebview.api.conversao_tc_salvar(conversionValues(),el('conversao-automatico').checked);feedback.textContent=result.erro||result.message;}catch(e){feedback.textContent='Não foi possível salvar agora.';}finally{save.disabled=false;}});
+ save.addEventListener('click',async()=>{save.disabled=true;feedback.textContent='Salvando…';try{const result=await window.pywebview.api.conversao_tc_salvar(conversionValues(),el('conversao-automatico').checked,el('assistente-world').value.trim());feedback.textContent=result.erro||result.message+(result.registrado?' Valor manual registrado no histórico do Tibia Coin.':'');if(result.registrado)refreshPrices(true);}catch(e){feedback.textContent='Não foi possível salvar agora.';}finally{save.disabled=false;}});
  try{const data=await window.pywebview.api.conversao_tc_carregar();for(const key of conversionKeys)el('conversao-'+key).value=String(data.valores[key]).replace('.',',');el('conversao-automatico').checked=data.automatico!==false;feedback.textContent=data.aviso||'';}
  catch(e){feedback.textContent='Não foi possível carregar a conversão salva. Valores padrão em uso.';}
  finally{for(const key of conversionKeys)el('conversao-'+key).disabled=false;el('conversao-automatico').disabled=false;el('conversao-atualizar').disabled=false;save.disabled=false;conversionReady=true;conversionInput();if(active==='market')refreshQuote();}
