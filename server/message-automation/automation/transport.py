@@ -9,7 +9,8 @@ class NotDispatched(Invalid): pass
 
 class FakeTransport:
     real=False
-    def __init__(self): self.sessions={};self.sent=[]
+    def __init__(self): self.sessions={};self.sent=[];self.inbound={}
+    def inbox(self,session): return self.inbound.pop(session,[])  # testes colocam aqui as linhas de comando "recebidas"
     def pair(self,session): self.sessions[session]='connected';return {'state':'connected','simulated':True}
     def status(self,session): return {'state':self.sessions.get(session,'connected'),'simulated':True}
     def groups(self,session):
@@ -46,6 +47,15 @@ class BridgeTransport:
         if self.status(session)['state']!='connected': raise NotDispatched('Conexão indisponível.')
         return self.request('GET','/sessions/'+session+'/groups')['groups']
     def revoke(self,session): return self.request('DELETE','/sessions/'+session)
+    def inbox(self,session):
+        """Linhas de comando ("!...") recebidas nos grupos desde a última leitura. Falha de rede devolve vazio: ler comandos nunca atrapalha o envio."""
+        try:
+            if self.live_status(self.request('POST','/sessions/'+session+'/resume')).get('state')!='connected': return []
+            result=self.request('POST','/sessions/'+session+'/inbox')
+        except Exception: return []
+        items=result.get('messages') if isinstance(result,dict) and result.get('simulated') is False else None
+        keys=('id','group','sender','text')
+        return [i for i in items if isinstance(i,dict) and all(isinstance(i.get(k),str) and i[k] for k in keys)][:100] if isinstance(items,list) else []
     def send(self,session,group,text,attempt):
         # Any uncertain bridge response after dispatch remains uncertain; never retry here.
         try:

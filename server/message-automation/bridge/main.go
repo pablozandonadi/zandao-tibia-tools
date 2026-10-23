@@ -1,4 +1,4 @@
-// Private send-only adapter. Default mode is fake and never creates a WhatsApp client.
+// Private adapter: sends messages and collects only group commands ("!word ..."). Default mode is fake and never creates a WhatsApp client.
 package main
 
 import (
@@ -27,6 +27,7 @@ import (
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
+	"go.mau.fi/whatsmeow/types/events"
 	"google.golang.org/protobuf/proto"
 	_ "modernc.org/sqlite"
 )
@@ -44,7 +45,22 @@ type session struct {
 	expires  int64
 	cancel   context.CancelFunc
 	attempts map[string]bool
+	imu      sync.Mutex
+	inbox    []inboxItem
 }
+
+// inboxItem is the only thing ever kept from a group: a command line, with opaque handles for group and sender.
+type inboxItem struct {
+	ID     string `json:"id"`
+	Group  string `json:"group"`
+	Sender string `json:"sender"`
+	Text   string `json:"text"`
+	At     int64  `json:"at"`
+}
+
+const inboxMax = 100
+const inboxTTL = 180 * time.Second
+const commandMax = 200
 type bridge struct {
 	mu       sync.Mutex
 	sessions map[string]*session
@@ -149,7 +165,12 @@ func (b *bridge) load(id string) (*session, error) {
 		s.client.AutomaticMessageRerequestFromPhone = false
 		s.client.UseRetryMessageStore = false
 		s.client.SetForceActiveDeliveryReceipts(false)
-		// No application Message/Receipt handler, read receipts, history download or inbox.
+		// No read receipts, history download or message store. The only handler keeps group command lines ("!word ...") in memory.
+		s.client.AddEventHandler(func(evt any) {
+			if m, ok := evt.(*events.Message); ok {
+				b.collect(id, s, m)
+			}
+		})
 	}
 	b.sessions[id] = s
 	return s, nil
@@ -159,6 +180,50 @@ func (b *bridge) handle(id string, jid types.JID) string {
 	mac := hmac.New(sha256.New, []byte(b.token))
 	mac.Write([]byte(id + "\x00" + jid.String()))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+// commandText returns the text of a group message only when it is a short "!command" line; everything else is dropped at once.
+func commandText(m *events.Message) string {
+	if m == nil || m.Message == nil || m.Info.IsFromMe || !m.Info.IsGroup {
+		return ""
+	}
+	text := m.Message.GetConversation()
+	if text == "" {
+		text = m.Message.GetExtendedTextMessage().GetText()
+	}
+	text = strings.TrimSpace(text)
+	if len(text) < 2 || len(text) > commandMax || text[0] != '!' || strings.ContainsAny(text, "\r\n\x00") {
+		return ""
+	}
+	return text
+}
+
+// collect keeps a bounded in-memory list of command lines. Nothing else from the group is stored or logged.
+func (b *bridge) collect(id string, s *session, m *events.Message) {
+	text := commandText(m)
+	if text == "" {
+		return
+	}
+	item := inboxItem{ID: string(m.Info.ID), Group: b.handle(id, m.Info.Chat), Sender: b.handle(id, m.Info.Sender), Text: text, At: m.Info.Timestamp.Unix()}
+	s.imu.Lock()
+	defer s.imu.Unlock()
+	if len(s.inbox) >= inboxMax {
+		s.inbox = s.inbox[1:]
+	}
+	s.inbox = append(s.inbox, item)
+}
+
+// drain hands over the fresh command lines and forgets them.
+func (s *session) drain(now time.Time) []inboxItem {
+	s.imu.Lock()
+	defer s.imu.Unlock()
+	fresh := []inboxItem{}
+	for _, item := range s.inbox {
+		if now.Sub(time.Unix(item.At, 0)) <= inboxTTL {
+			fresh = append(fresh, item)
+		}
+	}
+	s.inbox = nil
+	return fresh
 }
 func (b *bridge) groups(ctx context.Context, id string, s *session) ([]group, map[string]types.JID, error) {
 	if s.revoked {
@@ -420,7 +485,12 @@ func (b *bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
-		case "send":
+		case "inbox":
+				if r.Method == http.MethodPost && !s.revoked {
+					reply(w, 200, map[string]any{"messages": s.drain(time.Now()), "simulated": !b.real})
+					return
+				}
+			case "send":
 			if r.Method == http.MethodPost {
 				var body struct {
 					Group   string `json:"group"`

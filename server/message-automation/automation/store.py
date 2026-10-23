@@ -22,6 +22,10 @@ class Store:
               UNIQUE(owner,subscription,destination,reference));
             CREATE TABLE IF NOT EXISTS watch_members(watch TEXT NOT NULL,name TEXT NOT NULL,level INTEGER NOT NULL,online INTEGER NOT NULL DEFAULT 0,vocation TEXT,checked REAL NOT NULL DEFAULT 0,PRIMARY KEY(watch,name));
             CREATE TABLE IF NOT EXISTS watch_meta(watch TEXT PRIMARY KEY,last_run REAL NOT NULL DEFAULT 0,since REAL NOT NULL DEFAULT 0,primed INTEGER NOT NULL DEFAULT 0,world TEXT,roster_at REAL NOT NULL DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS command_use(botgroup TEXT NOT NULL,sender TEXT NOT NULL,last REAL NOT NULL,PRIMARY KEY(botgroup,sender));
+            CREATE TABLE IF NOT EXISTS command_seen(botgroup TEXT NOT NULL,msg TEXT NOT NULL,at REAL NOT NULL,PRIMARY KEY(botgroup,msg));
+            CREATE TABLE IF NOT EXISTS rank_history(world TEXT NOT NULL,day TEXT NOT NULL,name TEXT NOT NULL,level INTEGER NOT NULL,xp INTEGER NOT NULL,PRIMARY KEY(world,day,name));
+            CREATE TABLE IF NOT EXISTS rank_meta(world TEXT PRIMARY KEY,last_day TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS watch_events(id TEXT PRIMARY KEY,owner TEXT NOT NULL,watch TEXT NOT NULL,key TEXT NOT NULL,text BLOB NOT NULL,state TEXT NOT NULL,created REAL NOT NULL,sent_at REAL,attempt TEXT,lease REAL,error TEXT,UNIQUE(watch,key));
             ''')
             columns={r['name'] for r in db.execute('PRAGMA table_info(runs)')}
@@ -95,6 +99,8 @@ class Store:
                     db.execute("UPDATE objects SET state='inactive',version=version+1 WHERE id=?",(sub['id'],))
                     db.execute("UPDATE runs SET state='cancelled',error='revoked' WHERE owner=? AND subscription=? AND state IN ('pending','preparing','ready')",(owner,sub['id']))
                     db.execute("UPDATE runs SET state='uncertain',error='revoked_during_dispatch' WHERE owner=? AND subscription=? AND state='sending'",(owner,sub['id']))
+            for group in db.execute("SELECT id FROM objects WHERE owner=? AND kind='botgroup'",(owner,)).fetchall():
+                if self.read(db,owner,group['id'],'botgroup')['data'].get('connection')==key: db.execute("UPDATE objects SET state='inactive',version=version+1 WHERE id=?",(group['id'],))
             for watch in db.execute("SELECT id FROM objects WHERE owner=? AND kind='watch'",(owner,)).fetchall():
                 item=self.read(db,owner,watch['id'],'watch')
                 if item['data'].get('connection')==key:

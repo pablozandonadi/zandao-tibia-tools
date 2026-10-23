@@ -20,6 +20,13 @@
 <div class="row"><label for="watch-minute">Máximo de avisos por minuto</label><input id="watch-minute" type="number" min="1" max="120" value="3"> <span class="muted">(ritmo de envio; o resto espera na fila)</span></div>
 <div class="row"><label class="tick"><input id="watch-deaths" type="checkbox" checked>Mortes</label> <label class="tick"><input id="watch-ups" type="checkbox" checked>Level ups (nos marcos)</label></div>
 <div class="actions"><button id="watch-save" class="primary">Salvar e ativar alerta</button></div></section>
+<section class="card" aria-labelledby="bot-title"><div class="card-head"><h2 id="bot-title">Comandos no grupo</h2><span id="bot-count" class="muted"></span></div>
+<p class="muted">O bot responde no grupo a !help, !duelo, !evolucao e !precocoin. Ele lê só mensagens que começam com ! (o resto é descartado na hora) e não guarda o texto.</p>
+<div id="botgroups"></div>
+<div class="row"><label for="bot-groups">Grupo</label><select id="bot-groups"></select></div>
+<div class="row"><label for="bot-world">Mundo padrão</label><input id="bot-world" maxlength="40" placeholder="Ex.: Rasteibra"></div>
+<div class="row"><label for="bot-cooldown">Intervalo por membro (segundos)</label><input id="bot-cooldown" type="number" min="5" max="600" value="30"></div>
+<div class="actions"><button id="bot-save" class="primary">Salvar e ativar comandos</button></div></section>
 <section class="card" id="editor" hidden aria-labelledby="editor-title"><div class="card-head"><h2 id="editor-title">Nova rotina</h2><button id="editor-cancel" class="ghost">Cancelar</button></div>
 <label>Grupo de destino<input id="group-search" type="search" placeholder="Buscar grupo…" autocomplete="off"><select id="groups"><option value="">Escolha um grupo</option></select></label>
 <fieldset><legend>Horários</legend><div class="grid"><label>Gerar às<input id="ed-generate" type="time"></label><label>Enviar às<input id="ed-send" type="time"></label><label>Fuso horário<input id="ed-zone" maxlength="100" placeholder="Ex.: America/Cuiaba"></label></div><p class="muted">O envio precisa ser no mesmo horário ou depois da geração.</p></fieldset>

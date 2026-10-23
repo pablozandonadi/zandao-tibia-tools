@@ -8,6 +8,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.mau.fi/whatsmeow/proto/waE2E"
+	"go.mau.fi/whatsmeow/types"
+	"go.mau.fi/whatsmeow/types/events"
+	"google.golang.org/protobuf/proto"
 )
 
 const testID = "0123456789abcdef0123456789abcdef"
@@ -122,5 +127,81 @@ func TestPersistentSQLiteStoreWithoutConnecting(t *testing.T) {
 	}
 	if _, err = b.load(testID); err == nil {
 		t.Fatal("revocation tombstone ignored")
+	}
+}
+
+func commandEvent(text string, group, fromMe bool, at time.Time) *events.Message {
+	return &events.Message{
+		Info: types.MessageInfo{
+			MessageSource: types.MessageSource{Chat: types.NewJID("120363000000000001", types.GroupServer), Sender: types.NewJID("5511999990000", types.DefaultUserServer), IsGroup: group, IsFromMe: fromMe},
+			ID:            "ABC123", Timestamp: at,
+		},
+		Message: &waE2E.Message{Conversation: proto.String(text)},
+	}
+}
+
+func TestOnlyGroupCommandsAreCollected(t *testing.T) {
+	b := fixture()
+	s := &session{attempts: map[string]bool{}}
+	now := time.Now()
+	for _, text := range []string{"oi pessoal", "!", "   ", "!" + strings.Repeat("a", 200), "!help\nsegredo", "hello !help", "tem !help aqui"} {
+		b.collect(testID, s, commandEvent(text, true, false, now))
+	}
+	b.collect(testID, s, commandEvent("!help", false, false, now)) // conversa privada
+	b.collect(testID, s, commandEvent("!help", true, true, now))   // mensagem do próprio bot
+	if got := s.drain(now); len(got) != 0 {
+		t.Fatalf("collected non-commands: %v", got)
+	}
+	b.collect(testID, s, commandEvent("  !duelo A x B  ", true, false, now))
+	extended := commandEvent("", true, false, now)
+	extended.Message = &waE2E.Message{ExtendedTextMessage: &waE2E.ExtendedTextMessage{Text: proto.String("!evolucao Fulano")}}
+	b.collect(testID, s, extended)
+	got := s.drain(now)
+	if len(got) != 2 || got[0].Text != "!duelo A x B" || got[1].Text != "!evolucao Fulano" {
+		t.Fatalf("unexpected commands: %v", got)
+	}
+	if len(got[0].Group) != 64 || strings.Contains(got[0].Group+got[0].Sender, "120363") || strings.Contains(got[0].Sender, "5511") || got[0].Group == got[0].Sender {
+		t.Fatal("handles must be opaque HMACs")
+	}
+	if len(s.drain(now)) != 0 {
+		t.Fatal("drain must forget what it handed over")
+	}
+}
+
+func TestInboxExpiresAndIsBounded(t *testing.T) {
+	b := fixture()
+	s := &session{attempts: map[string]bool{}}
+	now := time.Now()
+	b.collect(testID, s, commandEvent("!velho", true, false, now.Add(-10*time.Minute)))
+	for i := 0; i < inboxMax+20; i++ {
+		b.collect(testID, s, commandEvent("!help", true, false, now))
+	}
+	if len(s.inbox) != inboxMax {
+		t.Fatalf("inbox not bounded: %d", len(s.inbox))
+	}
+	for _, item := range s.drain(now) {
+		if item.Text != "!help" {
+			t.Fatal("expired command delivered")
+		}
+	}
+	b.collect(testID, s, commandEvent("!velho", true, false, now.Add(-10*time.Minute)))
+	if len(s.drain(now)) != 0 {
+		t.Fatal("expired command delivered")
+	}
+}
+
+func TestInboxEndpointFakeMode(t *testing.T) {
+	b := fixture()
+	base := "/sessions/" + testID
+	response := call(b, "POST", base+"/inbox", "")
+	if response.Code != 200 || !strings.Contains(response.Body.String(), `"messages":[]`) || !strings.Contains(response.Body.String(), `"simulated":true`) {
+		t.Fatalf("inbox: %d %s", response.Code, response.Body.String())
+	}
+	if call(b, "GET", base+"/inbox", "").Code != 409 {
+		t.Fatal("inbox must be POST only")
+	}
+	call(b, "DELETE", base, "")
+	if call(b, "POST", base+"/inbox", "").Code != 409 {
+		t.Fatal("revoked session returned commands")
 	}
 }

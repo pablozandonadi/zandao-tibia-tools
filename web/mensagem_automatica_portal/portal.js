@@ -10,7 +10,7 @@
  const notice=text=>$('notice').textContent=text;
  const clearQR=()=>{clearTimeout(qrTimer);$('qr').hidden=true;$('qr').removeAttribute('src');};
  function clearRecovery(){recoveryEpoch++;clearTimeout(recoveryTimer);$('recovery-code').textContent='';$('recovery-input').value='';}
- function logout(){closed=true;$('access-controls').hidden=true;clearQR();clearRecovery();connection='';groups=[];subscriptions=[];runs=[];editing=null;configurationData=null;$('routines').replaceChildren();watches=[];$('watches').replaceChildren();$('settings').hidden=true;notice('Gestão encerrada. Feche esta janela.');}
+ function logout(){closed=true;$('access-controls').hidden=true;clearQR();clearRecovery();connection='';groups=[];subscriptions=[];runs=[];editing=null;configurationData=null;$('routines').replaceChildren();watches=[];$('watches').replaceChildren();botgroups=[];$('botgroups').replaceChildren();$('settings').hidden=true;notice('Gestão encerrada. Feche esta janela.');}
  async function api(path,method='GET',body){
   const result=await window.pywebview.api.request('/v1/'+path,method,body||null);
   if(result.error)throw Error(result.error);return result.data;
@@ -104,7 +104,7 @@
   if(status.qrImage&&status.expiresAt>Date.now()/1000&&/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(status.qrImage)){
    $('qr').src=status.qrImage;$('qr').hidden=false;qrTimer=setTimeout(clearQR,Math.min((status.expiresAt-Date.now()/1000)*1000,90000));
   }
-  if(connected){groups=await api('connections/'+connection+'/groups');renderGroups(editing?.destinationLabel);options($('watch-groups'),groups,'Escolha um grupo');$('connection-detail').textContent=groups.length+' grupos disponíveis para envio.';}
+  if(connected){groups=await api('connections/'+connection+'/groups');renderGroups(editing?.destinationLabel);options($('watch-groups'),groups,'Escolha um grupo');options($('bot-groups'),groups,'Escolha um grupo');$('connection-detail').textContent=groups.length+' grupos disponíveis para envio.';}
  }
  // Alertas da guild: o servidor detecta mortes e marcos de level e envia um aviso por evento; aqui só se configura.
  let watches=[];
@@ -141,6 +141,37 @@
   $('watch-guild').value='';await loadWatches();
   notice(mode==='simulation'?'Alerta de simulação ativado. Nenhuma mensagem real será enviada.':'Alerta ativado. Os avisos começam na próxima varredura (cerca de 2 minutos); o que já aconteceu antes não é enviado.');
  });
+ // Comandos no grupo: o servidor lê só as linhas que começam com "!" e responde; aqui só se configura.
+ let botgroups=[];
+ const botBody=(g,active)=>({world:g.world,cooldown:g.cooldown,connection:g.connection,destination:g.destination,active});
+ async function loadBotgroups(){botgroups=await api('botgroups');renderBotgroups();}
+ function renderBotgroups(){
+  const root=$('botgroups');root.replaceChildren();$('bot-count').textContent=botgroups.length+' de 3';
+  for(const g of botgroups){
+   const on=g.state==='active',card=el('article','routine'+(on?' on':'')),head=el('div','routine-head');
+   head.append(el('span','badge '+(on?'good':''),stateLabel(g.state)),el('h3','',text(g.destinationLabel)||'Grupo sem nome'));
+   card.append(head,el('p','muted','Mundo padrão: '+text(g.world)+' · 1 comando a cada '+Number(g.cooldown)+' s por membro'));
+   const actions=el('div','actions');
+   const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};
+   add(on?'Pausar':'Ativar',async()=>{await api('botgroups/'+g.id,'PUT',botBody(g,!on));await loadBotgroups();notice(on?'Comandos pausados.':'Comandos ativados.');});
+   add('Excluir',async b=>{
+    if(armed!==g.id){armed=g.id;b.textContent='Confirmar exclusão';setTimeout(()=>{if(armed===g.id){armed='';b.textContent='Excluir';}},5000);return;}
+    armed='';await api('botgroups/'+g.id,'DELETE');await loadBotgroups();notice('Comandos excluídos.');
+   },'danger');
+   card.append(actions);root.append(card);
+  }
+ }
+ $('bot-save').onclick=guarded(async()=>{
+  if(!connection||!connected)throw Error('Conecte seu WhatsApp antes de salvar.');
+  if(!$('bot-groups').value)throw Error('Escolha o grupo de destino.');
+  const world=$('bot-world').value.trim(),cooldown=Number($('bot-cooldown').value);
+  if(!/^[A-Za-z]{2,40}$/.test(world))throw Error('Informe o mundo padrão, só com letras (ex.: Rasteibra).');
+  if(!Number.isInteger(cooldown)||cooldown<5||cooldown>600)throw Error('Intervalo por membro: use de 5 a 600 segundos.');
+  const dest=await api('destinations','POST',{connection,group:$('bot-groups').value});
+  await api('botgroups','POST',{world,cooldown,connection,destination:dest.id,active:true});
+  await loadBotgroups();
+  notice(mode==='simulation'?'Comandos de simulação ativados. Nenhuma mensagem real será enviada.':'Comandos ativados. Use !help no grupo para testar.');
+ });
  $('new-routine').onclick=()=>openEditor(null);$('editor-cancel').onclick=closeEditor;
  $('group-search').oninput=()=>renderGroups();
  $('preview').onclick=guarded(async()=>showPreview(await api('preview','POST',collect())));
@@ -158,7 +189,7 @@
   const live=mode!=='simulation';$('mode').textContent=live?'Envio real':'Simulação';$('mode').className='badge '+(live?'good':'warn');
   $('mode').title=live?'Integração não oficial — envios reais exigem sua conexão e rotina ativa.':'Modo de simulação — sem envio real.';
   $('activate').textContent=live?'Salvar e ativar':'Salvar e ativar simulação';
-  await refresh();await loadRoutines();await loadWatches().catch(()=>{});if(closed)return;notice('');
+  await refresh();await loadRoutines();await loadWatches().catch(()=>{});await loadBotgroups().catch(()=>{});if(closed)return;notice('');
  }
  $('reveal-recovery').onclick=guarded(async()=>{clearRecovery();const epoch=recoveryEpoch;const r=await window.pywebview.api.reveal_recovery();if(closed||epoch!==recoveryEpoch)return;if(r.error)throw Error(r.error);$('recovery-code').textContent=r.code;recoveryTimer=setTimeout(clearRecovery,30000);});
  $('recovery-input').oninput=()=>{clearTimeout(recoveryTimer);recoveryTimer=setTimeout(clearRecovery,30000);};

@@ -61,11 +61,15 @@ class Watcher:
     def __init__(self,store,transport,fetch=None,clock=None):
         self.store=store;self.transport=transport;self.fetch=fetch or tibia_json;self.clock=clock or (lambda:datetime.now(UTC))
 
-    def run(self,seconds=45,every=20):
-        """Varreduras a cada `every` s durante `seconds` s: o timer do sistema chama uma vez por minuto, então cabem 3 varreduras por chamada."""
+    def run(self,seconds=45,every=20,also=()):
+        """Varreduras a cada `every` s durante `seconds` s: o timer do sistema chama uma vez por minuto, então cabem 3 varreduras por chamada.
+        `also` são tarefas leves no mesmo ritmo (leitura de comandos do grupo); uma falha nelas nunca derruba o vigia."""
         start=time.monotonic()
         while True:
             began=time.monotonic();self.tick()
+            for task in also:
+                try: task()
+                except Exception as error: log.warning('task_failed=%s',type(error).__name__)
             following=began+every
             if following-start>seconds: break
             time.sleep(max(0,following-time.monotonic()))

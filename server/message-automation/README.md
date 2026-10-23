@@ -127,3 +127,14 @@ Recurso só de envio: o servidor consulta a lista pública da guild e a ficha p�
 - **Conteúdo:** nomes vindos do jogo perdem `*`, `_`, `~`, crase e quebras de linha antes de entrar na mensagem. Texto do evento é cifrado no banco como os demais conteúdos.
 - **Falha fechada:** guild vazia ou fonte fora do ar não gera evento nem apaga a memória de levels.
 - **Implantação:** atualizar o checkout da VM (`zt-deploy.sh`) cria as tabelas `watch_*` sozinho; nenhuma unidade systemd nova. Testes: `python -m unittest test_watch` em `server/message-automation`.
+
+## Comandos no grupo (!help, !duelo, !evolucao, !precocoin)
+
+O bot responde a comandos escritos no grupo. Ele **lê apenas linhas que começam com `!`** (até 200 caracteres); todo o resto é descartado na própria ponte, sem gravar nem registrar. As linhas ficam só em memória (máx. 100, validade de 3 min) até o servidor lê-las a cada 20 s (`POST /sessions/<id>/inbox`, loopback e token da ponte).
+
+- **Objeto `botgroup`** (até 3 por instalação, um ativo por grupo): `world` (mundo padrão), `cooldown` (5 a 600 s por membro, padrão 30), `connection`, `destination`. API: `GET/POST /v1/botgroups`, `PUT/DELETE /v1/botgroups/{id}`; mesmas regras de dono, conexão ativa e grupo autorizado.
+- **Comandos:** `!help`; `!precocoin [mundo]` (TibiaTrade, a mesma cotação do Market do app, pacote padrão de 250 TC por R$ 49 a R$ 52); `!duelo a x b` (level, XP em 30 dias, por dia, 7 dias e ontem do ranking do GuildStats, mais quem passa quem no ritmo atual); `!evolucao nome` (XP de ontem, 7 e 30 dias, projeção do próximo level e curva diária). Comando desconhecido não gera resposta (outros bots no grupo não são atrapalhados).
+- **Limites e privacidade:** 1 comando a cada N s por membro (dentro do intervalo, silêncio), no máximo 5 comandos por varredura, grupo não autorizado ignorado. O servidor guarda só o id da mensagem (para não responder duas vezes) e o horário do último uso por membro (identificador opaco, HMAC); o texto recebido nunca é gravado. Nomes vindos do jogo perdem `*`, `_`, `~`, crase e quebras de linha antes de entrar na resposta.
+- **Histórico de XP:** a TibiaData não tem histórico e o GuildStats protege a aba diária. O servidor grava, uma vez por dia depois do meio-dia de Berlim, o ranking de "ontem" (top 500) de cada mundo usado (tabela `rank_history`, 60 dias); a curva diária do `!evolucao` aparece conforme os dias acumulam. Personagem fora do top 500 do mundo não tem dados de XP.
+- **Implantação:** além do código do servidor, é preciso trocar o binário da ponte (`message-bridge`) e reiniciar `zt-whatsapp-bridge`; a sessão do WhatsApp fica no volume cifrado e volta a conectar na próxima chamada. Testes: `python -m unittest test_commands` (servidor) e `go test ./...` (ponte).
+

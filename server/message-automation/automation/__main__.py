@@ -11,6 +11,7 @@ from .store import Store
 from .transport import FakeTransport
 from .worker import Worker
 from .watch import Watcher
+from .commands import Commander
 from .runtime import components
 
 def demo():
@@ -37,7 +38,7 @@ def main():
     if args.command=='tick':
         # Rotinas diárias primeiro; o vigia da guild roda no mesmo minuto e nunca derruba a rotina se falhar.
         Worker(store,transport).tick()
-        return Watcher(store,transport).run()
+        return Watcher(store,transport).run(also=(Commander(store,transport).tick,))
     if not args.file: parser.error('--file obrigatório')
     if args.command=='backup': store.backup(args.file)
     else:

@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from .auth import Verifier
 from .domain import UTC, Invalid, validate
 from .watch import validate_watch
+from .commands import validate_botgroup
 from mensagem_automatica_report import generate
 
 def create_app(store,transport,verifier=None,origins=(),generator=generate):
@@ -169,6 +170,31 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     def watches(user=Depends(owner)):
         labels={d['id']:d['data'].get('label','') for d in store.list(user,'destination')}
         return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],'')} for x in store.list(user,'watch') if x['state']!='revoked']
+    def botgroup_data(user,data,own=None):
+        fields(data,{'world','cooldown','connection','destination','active'})
+        if type(data.get('active',False)) is not bool: raise Invalid('Estado inválido.')
+        config=validate_botgroup(data)
+        conn=connection(user,data.get('connection',''));dest=store.get(user,data.get('destination',''),'destination')
+        if dest['data']['connection']!=conn['id'] or dest['state']!='active': raise Invalid('Destino não autorizado.')
+        if data.get('active'):
+            if conn['state']!='active' or transport.status(conn['id']).get('state')!='connected': raise Invalid('Conexão indisponível.')
+            if not any(g['id']==dest['data']['group'] for g in transport.groups(conn['id'])): raise Invalid('Grupo indisponível.')
+            if any(o['state']=='active' and o['data']['destination']==dest['id'] and o['id']!=own for o in store.list(user,'botgroup')): raise Invalid('Este grupo já tem comandos ativos.')
+        return {**config,'connection':conn['id'],'destination':dest['id']},'active' if data.get('active') else 'inactive'
+    @app.post('/v1/botgroups')
+    async def add_botgroup(request:Request,user=Depends(owner)):
+        data,state=botgroup_data(user,await payload(request));return {'id':store.create(user,'botgroup',data,state,limit=3),'state':state,'mode':'live' if transport.real else 'simulation'}
+    @app.put('/v1/botgroups/{key}')
+    async def update_botgroup(key,request:Request,user=Depends(owner)):
+        if store.get(user,key,'botgroup')['state']=='revoked': raise Invalid('Comandos excluídos.')
+        data,state=botgroup_data(user,await payload(request),own=key);store.update(user,key,'botgroup',data,state);return {'id':key,'state':state}
+    @app.delete('/v1/botgroups/{key}')
+    def delete_botgroup(key,user=Depends(owner)):
+        item=store.get(user,key,'botgroup');store.update(user,key,'botgroup',item['data'],'revoked');return {'id':key,'state':'revoked'}
+    @app.get('/v1/botgroups')
+    def botgroups(user=Depends(owner)):
+        labels={d['id']:d['data'].get('label','') for d in store.list(user,'destination')}
+        return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],'')} for x in store.list(user,'botgroup') if x['state']!='revoked']
     @app.get('/v1/runs')
     def runs(user=Depends(owner)):
         with store.tx() as db: return [dict(x) for x in db.execute('SELECT id,subscription,reference,state,error FROM runs WHERE owner=? ORDER BY generation DESC LIMIT 100',(user,))]
