@@ -40,11 +40,19 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     async def invalid(request,error): return JSONResponse({'error':str(error)},400)
     @app.exception_handler(Exception)
     async def failed(request,error): return JSONResponse({'error':'Serviço temporariamente indisponível.'},503)
+    claim_attempts=defaultdict(deque)
+    def known(request:Request):
+        """Conta autenticada, liberada ou não (usada só para apresentar um código de liberação)."""
+        return authenticate(request,False)
     def owner(request:Request):
+        return authenticate(request,True)
+    def authenticate(request,need_access):
         value=request.headers.get('authorization','')
         if not value.startswith('Bearer ') or len(value)>10000: raise HTTPException(401,'Login necessário.')
         try: identity=verifier.verify(value[7:])
         except Invalid: raise HTTPException(401,'Login indisponível ou credencial inválida.') from None
+        # Recurso fechado (futuro plano pago): quem não foi liberado não usa conexões, rotinas, alertas nem comandos.
+        if need_access and not store.entitled(identity): raise HTTPException(403,'Este recurso ainda não está disponível para a sua conta.')
         with rate_lock:
             stamp=time.monotonic();queue=rates[identity]
             while queue and queue[0]<stamp-60: queue.popleft()
@@ -80,6 +88,15 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     async def recover(request:Request):
         enrollment_limit(request);data=await payload(request);fields(data,{'recovery','credential','newRecovery','operation'})
         return verifier.recover(data.get('recovery'),data.get('credential'),data.get('newRecovery'),data.get('operation'))
+    @app.post('/v1/claim')
+    async def claim(request:Request,user=Depends(known)):
+        data=await payload(request);fields(data,{'code'})
+        with rate_lock:  # poucas tentativas por conta: o código tem 256 bits, mas não há por que deixar insistir
+            stamp=time.monotonic();queue=claim_attempts[user]
+            while queue and queue[0]<stamp-600: queue.popleft()
+            if len(queue)>=5: raise HTTPException(429,'Muitas tentativas. Aguarde alguns minutos.')
+            queue.append(stamp)
+        store.claim(user,data.get('code'));return {'ok':True}
     @app.post('/v1/preview')
     async def preview(request:Request,user=Depends(owner)):
         c=validate(await payload(request));return generator(c,datetime.now(UTC))

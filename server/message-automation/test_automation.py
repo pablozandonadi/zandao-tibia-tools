@@ -30,7 +30,7 @@ def snapshot(c,now): return {'text':'Conteúdo sintético secreto','reference_da
 class CoreTests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=Path(self.tmp.name)
-  self.key=Fernet.generate_key();self.store=Store(self.root/'state.sqlite',self.key);self.transport=FakeTransport()
+  self.key=Fernet.generate_key();self.store=Store(self.root/'state.sqlite',self.key,open_access=True);self.transport=FakeTransport()
  def subscription(self,user='owner',c=None):
   conn=self.store.create(user,'connection',{'riskAccepted':True},'active');self.transport.pair(conn)
   dest=self.store.create(user,'destination',{'connection':conn,'group':'fake-group'},'active')
@@ -142,7 +142,7 @@ class CoreTests(unittest.TestCase):
    if len(calls)==1:raise SourceUnavailable('fixture')
    return snapshot(c,now)
   Worker(self.store,self.transport,flaky).tick(NOW);self.assertEqual(self.runs()[0]['state'],'pending')
-  restarted=Worker(Store(self.store.path,self.key),self.transport,flaky);restarted.tick(NOW+timedelta(seconds=30));self.assertEqual(len(calls),1)
+  restarted=Worker(Store(self.store.path,self.key,open_access=True),self.transport,flaky);restarted.tick(NOW+timedelta(seconds=30));self.assertEqual(len(calls),1)
   restarted.tick(NOW+timedelta(seconds=60));self.assertEqual(self.runs()[0]['state'],'ready');restarted.tick(NOW+timedelta(minutes=5));self.assertEqual(len(self.transport.sent),1)
  def test_generation_retry_bound_and_expiry(self):
   self.subscription();calls=[]

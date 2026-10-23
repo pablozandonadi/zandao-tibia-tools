@@ -19,7 +19,7 @@ class Worker:
         with store.tx() as db:
             db.execute("UPDATE runs SET state='uncertain',error='dispatch_interrupted' WHERE state='sending' AND lease<=?",(stamp,))
             db.execute("UPDATE runs SET state='pending',lease=NULL WHERE state='preparing' AND lease<=?",(stamp,))
-            subs=db.execute("SELECT * FROM objects WHERE kind='subscription' AND state='active' ORDER BY id").fetchall()
+            subs=[s for s in db.execute("SELECT * FROM objects WHERE kind='subscription' AND state='active' ORDER BY id").fetchall() if store.entitled_in(db,s['owner'])]
             for row in subs:
                 owner=row['owner'];data=store.unpack(owner,row['id'],row['body']);c=data['config']
                 for offset in (1,0):

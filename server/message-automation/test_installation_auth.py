@@ -11,7 +11,7 @@ from automation.domain import Invalid
 
 class InstallationTests(unittest.TestCase):
  def setUp(self):
-  self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.store=Store(Path(self.tmp.name)/'db',Fernet.generate_key());self.auth=Verifier(self.store)
+  self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.store=Store(Path(self.tmp.name)/'db',Fernet.generate_key(),open_access=True);self.auth=Verifier(self.store)
  def test_register_idempotent_hash_only_and_capacity(self):
   self.auth.capacity=1;self.auth.register('a'*64,'b'*64);owner=self.auth.verify('a'*64)
   self.auth.register('a'*64,'b'*64);self.assertEqual(self.auth.verify('a'*64),owner)

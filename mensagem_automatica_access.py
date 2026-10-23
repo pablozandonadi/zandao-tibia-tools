@@ -17,7 +17,7 @@ SECRET=re.compile(r'^[a-f0-9]{64}$')
 ID=r'[a-f0-9]{32}'
 ALLOWED={
  'GET':re.compile(r'^/(public-config|v1/(connections(?:/'+ID+r'(?:/groups)?)?|subscriptions|watches|botgroups|runs))$'),
- 'POST':re.compile(r'^/v1/(preview|connections(?:/'+ID+r'/pair)?|destinations|subscriptions|watches|botgroups)$'),
+ 'POST':re.compile(r'^/v1/(preview|claim|connections(?:/'+ID+r'/pair)?|destinations|subscriptions|watches|botgroups)$'),
  'PUT':re.compile(r'^/v1/(subscriptions|watches|botgroups)/'+ID+r'$'),
  'DELETE':re.compile(r'^/v1/(connections|subscriptions|watches|botgroups)/'+ID+r'$')}
 # Servidor da VM Oracle; AUTOMATION_PORTAL_URL continua valendo como override administrativo.
@@ -95,6 +95,7 @@ class InstallationClient:
     return json.loads(result)
   except HTTPError as error:
    if error.code==401:raise AccessError('Acesso inválido. Use seu código de recuperação.') from None
+   if error.code==403:raise AccessError('Este recurso ainda não está disponível para a sua conta.') from None
    if error.code==400:raise AccessRejected('Pedido recusado. Confira seu código de recuperação.') from None
    if error.code==429:raise AccessError('Muitas tentativas. Aguarde antes de tentar novamente.') from None
    raise AccessError('Não foi possível concluir a operação no serviço.') from None
@@ -153,6 +154,17 @@ class ManagementAPI:
  def recover(self,code):
   try:return self._client.recover(code)
   except AccessError as error:return {'error':str(error)}
+
+CLAIM=re.compile(r'^[A-Za-z0-9_-]{43}$')
+def claim_code(code):
+ """Apresenta ao servidor o código de liberação (do dono ou de um recurso pago) para esta instalação. Levanta AccessError se não valer."""
+ import app_paths
+ from versao import CANAL_APP
+ if not isinstance(code,str) or not CLAIM.fullmatch(code.strip()):raise AccessError('Código inválido. Confira se copiou inteiro, sem espaços.')
+ origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)
+ try:InstallationClient(origin,CredentialFile(origin,CANAL_APP)).request('/v1/claim','POST',{'code':code.strip()})
+ except AccessRejected:raise AccessError('Código inválido ou já usado.') from None
+ return True
 
 def open_management(config):
  import webview

@@ -55,7 +55,7 @@ class AutomaticMessageTests(unittest.TestCase):
    with self.assertRaises(SourceUnavailable):generate({**config(),'extras':{'char':True}},NOW,PublicProvider())
  def test_desktop_methods_without_loading_app_or_server(self):
   tree=ast.parse(Path('web_api.py').read_text(encoding='utf-8'));methods=[n for n in ast.walk(tree) if isinstance(n,ast.FunctionDef) and n.name in ('mensagem_automatica_previa','mensagem_automatica_abrir_portal')]
-  cls=ast.ClassDef(name='FixtureAPI',bases=[],keywords=[],body=methods,decorator_list=[]);module=ast.fix_missing_locations(ast.Module(body=[cls],type_ignores=[]));namespace={'os':os};exec(compile(module,'<public-preview-test>','exec'),namespace);api=namespace['FixtureAPI']()
+  cls=ast.ClassDef(name='FixtureAPI',bases=[],keywords=[],body=methods,decorator_list=[]);module=ast.fix_missing_locations(ast.Module(body=[cls],type_ignores=[]));liberado=[True];namespace={'os':os,'_recurso_dono':lambda nome:liberado[0]};exec(compile(module,'<public-preview-test>','exec'),namespace);api=namespace['FixtureAPI']()
   self.assertIn('Mundo:* Antica',api.mensagem_automatica_previa(config())['text'])
   self.assertIn('erro',api.mensagem_automatica_previa({**config(),'blocks':{'mini':True}}))
   with patch('mensagem_automatica_access.open_management',return_value={'ok':True}) as opened:
@@ -63,6 +63,9 @@ class AutomaticMessageTests(unittest.TestCase):
   from mensagem_automatica_access import AccessError
   with patch('mensagem_automatica_access.open_management',side_effect=AccessError('Unavailable')):
    self.assertIn('erro',api.mensagem_automatica_abrir_portal(config()))
+  liberado[0]=False  # instalação sem a liberação do dono: a gestão nem abre
+  with patch('mensagem_automatica_access.open_management',return_value={'ok':True}) as opened:
+   self.assertIn('erro',api.mensagem_automatica_abrir_portal(config()));opened.assert_not_called()
  def test_windows_timezone_is_in_build_lock(self):
   self.assertIn('tzdata==2026.5',Path('requirements-build.lock').read_text())
   self.assertIn('--collect-all tzdata',Path('instalador/gerar_instalador.ps1').read_text())

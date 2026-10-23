@@ -1,6 +1,9 @@
 """SQLite transacional e cifragem autenticada de conteúdo com chave externa."""
+import hashlib
 import json
 import os
+import re
+import secrets
 import sqlite3
 import uuid
 from contextlib import contextmanager, closing
@@ -11,11 +14,15 @@ from .domain import Invalid
 def ident(): return uuid.uuid4().hex
 
 class Store:
-    def __init__(self, path, key):
+    def __init__(self, path, key, open_access=False):
+        self.open_access=open_access  # só para testes e para a demonstração; o servidor real nunca liga isto
         self.path=Path(path);self.path.parent.mkdir(parents=True,exist_ok=True)
         self.cipher=Fernet(key)
         with self.tx() as db:
+            first_time=not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='entitlements'").fetchone()
             db.executescript('''
+            CREATE TABLE IF NOT EXISTS entitlements(owner TEXT PRIMARY KEY,since REAL NOT NULL,note TEXT NOT NULL DEFAULT '');
+            CREATE TABLE IF NOT EXISTS claim_codes(hash TEXT PRIMARY KEY,note TEXT NOT NULL DEFAULT '',uses INTEGER);
             CREATE TABLE IF NOT EXISTS objects(id TEXT PRIMARY KEY,owner TEXT NOT NULL,kind TEXT NOT NULL,state TEXT NOT NULL,body BLOB NOT NULL,version INTEGER NOT NULL DEFAULT 1);
             CREATE INDEX IF NOT EXISTS owners ON objects(owner,kind);
             CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,owner TEXT NOT NULL,subscription TEXT NOT NULL,destination TEXT NOT NULL,reference TEXT NOT NULL,generation REAL,send REAL,state TEXT NOT NULL,snapshot BLOB,receipt BLOB,attempt TEXT,lease REAL,error TEXT,version INTEGER NOT NULL,generation_attempts INTEGER NOT NULL DEFAULT 0,retry_after REAL NOT NULL DEFAULT 0,
@@ -36,7 +43,46 @@ class Store:
                 have={r['name'] for r in db.execute('PRAGMA table_info('+table+')')}
                 for name,definition in additions:
                     if name not in have: db.execute('ALTER TABLE '+table+' ADD COLUMN '+name+' '+definition)
+            # Recurso fechado: só contas liberadas usam o serviço. Quem já tinha dados antes desta regra continua liberado.
+            if first_time: db.execute("INSERT OR IGNORE INTO entitlements(owner,since,note) SELECT DISTINCT owner,strftime('%s','now'),'existente' FROM objects")
         if os.name!='nt': os.chmod(self.path,0o600)
+
+    def entitled_in(self,db,owner):
+        return self.open_access or db.execute('SELECT 1 FROM entitlements WHERE owner=?',(owner,)).fetchone() is not None
+
+    def entitled(self,owner):
+        with self.tx() as db: return self.entitled_in(db,owner)
+
+    def grant(self,owner,note=''):
+        with self.tx() as db:
+            has_installations=db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='installations'").fetchone()
+            if not (has_installations and db.execute('SELECT 1 FROM installations WHERE owner=?',(owner,)).fetchone()) and not db.execute('SELECT 1 FROM objects WHERE owner=?',(owner,)).fetchone(): raise Invalid('Conta não encontrada.')
+            db.execute("INSERT OR IGNORE INTO entitlements(owner,since,note) VALUES(?,strftime('%s','now'),?)",(owner,str(note)[:80]))
+
+    def create_claim(self,note='',uses=None):
+        """Gera um código de liberação (mostrado uma única vez; só o hash fica guardado). uses=None vale sem limite (código do dono)."""
+        code=secrets.token_urlsafe(32)
+        with self.tx() as db: db.execute('INSERT INTO claim_codes(hash,note,uses) VALUES(?,?,?)',(hashlib.sha256(code.encode()).hexdigest(),str(note)[:80],uses))
+        return code
+
+    def claim(self,owner,code):
+        """Libera a conta de quem apresenta um código válido (e ainda com usos)."""
+        if not isinstance(code,str) or not re.fullmatch(r'[A-Za-z0-9_-]{43}',code): raise Invalid('Código inválido.')
+        digest=hashlib.sha256(code.encode()).hexdigest()
+        with self.tx() as db:
+            row=db.execute('SELECT note,uses FROM claim_codes WHERE hash=?',(digest,)).fetchone()
+            if not row or (row['uses'] is not None and row['uses']<=0): raise Invalid('Código inválido ou já usado.')
+            if row['uses'] is not None: db.execute('UPDATE claim_codes SET uses=uses-1 WHERE hash=?',(digest,))
+            db.execute("INSERT OR IGNORE INTO entitlements(owner,since,note) VALUES(?,strftime('%s','now'),?)",(owner,row['note']))
+
+    def ungrant(self,owner):
+        with self.tx() as db: return db.execute('DELETE FROM entitlements WHERE owner=?',(owner,)).rowcount
+
+    def owners(self):
+        """Contas conhecidas (id interno, nunca segredos) com o que cada uma tem e se está liberada."""
+        with self.tx() as db:
+            rows=db.execute("SELECT i.owner AS owner,(SELECT count(*) FROM objects o WHERE o.owner=i.owner AND o.state!='revoked') AS objetos,(SELECT 1 FROM entitlements e WHERE e.owner=i.owner) AS liberada FROM installations i ORDER BY objetos DESC,i.owner").fetchall() if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='installations'").fetchone() else []
+            return [{'owner':r['owner'],'objetos':r['objetos'],'liberada':bool(r['liberada'])} for r in rows]
 
     @contextmanager
     def tx(self):

@@ -59,6 +59,18 @@ from versao import VERSAO_APP
 
 from app_paths import data_dir, install_dir, resource_dir
 BASE_DIR = data_dir()
+RECURSOS_DONO = 'recursos-dono.json'
+
+
+def _recurso_dono(nome):
+    """Recursos fechados (futuro plano pago): só valem nesta instalação se o arquivo de liberação existir. O servidor confere a conta de novo."""
+    try:
+        with open(os.path.join(BASE_DIR, RECURSOS_DONO), encoding='utf-8') as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict) and data.get(nome) is True
+
 
 IMBUEMENTS_PATH = os.path.join(install_dir(), "data", "imbuements.json")
 DADOS_PATH = os.path.join(BASE_DIR, "dados_embuimentos.json")
@@ -1305,8 +1317,31 @@ class API:
         except Exception:
             return {"erro": "Não foi possível consultar os dados da prévia. Nenhuma mensagem foi enviada."}
 
+    def recursos_liberados(self):
+        return {'mensagens_automaticas': _recurso_dono('mensagens_automaticas'), 'admin_ia': _recurso_dono('admin_ia')}
+
+    def liberar_recursos(self, codigo):
+        """Ativa os recursos fechados desta instalação com um código (do dono, ou de um recurso pago): o servidor libera a conta e o app grava o arquivo local."""
+        from mensagem_automatica_access import claim_code, AccessError
+        try:
+            claim_code(codigo)
+        except AccessError as error:
+            return {'erro': str(error)}
+        except Exception:
+            return {'erro': 'Não foi possível falar com o servidor agora. Tente de novo em instantes.'}
+        try:
+            destino = os.path.join(BASE_DIR, RECURSOS_DONO)
+            with open(destino + '.tmp', 'w', encoding='utf-8') as f:
+                json.dump({'mensagens_automaticas': True, 'admin_ia': True}, f)
+            os.replace(destino + '.tmp', destino)
+        except OSError:
+            return {'erro': 'O servidor liberou a sua conta, mas não foi possível salvar a liberação neste computador.'}
+        return {'ok': True, **self.recursos_liberados()}
+
     def mensagem_automatica_abrir_portal(self, config):
         from mensagem_automatica_access import open_management, AccessError
+        if not _recurso_dono('mensagens_automaticas'):
+            return {'erro': 'Este recurso ainda não está disponível.'}
         try:
             return open_management(config)
         except AccessError as error:
@@ -1744,7 +1779,7 @@ class API:
     # ---- Admin dos códigos da IA (só Beta): nunca levanta nem devolve a senha ----
     @staticmethod
     def _admin_ia(chamada):
-        if versao.CANAL_APP != 'beta':
+        if versao.CANAL_APP != 'beta' and not _recurso_dono('admin_ia'):
             return {'erro': 'Indisponível neste canal.'}
         try:
             return chamada()
@@ -1752,7 +1787,7 @@ class API:
             return {'erro': str(e) if isinstance(e, admin_ia.AdminIAError) else 'Não foi possível concluir. Tente novamente.'}
 
     def admin_ia_estado(self):
-        if versao.CANAL_APP != 'beta':
+        if versao.CANAL_APP != 'beta' and not _recurso_dono('admin_ia'):
             return {'beta': False, 'senha': False}
         return {'beta': True, 'senha': admin_ia.carregar_senha(BASE_DIR) is not None}
 

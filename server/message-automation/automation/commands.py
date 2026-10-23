@@ -60,7 +60,7 @@ class Commander:
     def groups(self):
         with self.store.tx() as db:
             rows=db.execute("SELECT id,owner,body FROM objects WHERE kind='botgroup' AND state='active' ORDER BY id").fetchall()
-            return [(r['id'],r['owner'],self.store.unpack(r['owner'],r['id'],r['body'])) for r in rows]
+            return [(r['id'],r['owner'],self.store.unpack(r['owner'],r['id'],r['body'])) for r in rows if self.store.entitled_in(db,r['owner'])]
 
     def maintain(self,now=None):
         """Tarefas de fundo, no ritmo das varreduras: registrar mundos, manter o ranking quente, gravar o histórico do dia e limpar ids antigos."""

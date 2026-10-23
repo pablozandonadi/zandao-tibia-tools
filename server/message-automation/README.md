@@ -138,3 +138,12 @@ O bot responde a comandos escritos no grupo. Ele **lê apenas linhas que começa
 - **Histórico de XP:** a TibiaData não tem histórico e o GuildStats protege a aba diária. O servidor grava, uma vez por dia depois do meio-dia de Berlim, o ranking de "ontem" (top 500) de cada mundo usado (tabela `rank_history`, 60 dias); a curva diária do `!evolucao` aparece conforme os dias acumulam. Personagem fora do top 500 do mundo não tem dados de XP.
 - **Implantação:** além do código do servidor, é preciso trocar o binário da ponte (`message-bridge`) e reiniciar `zt-whatsapp-bridge`; a sessão do WhatsApp fica no volume cifrado e volta a conectar na próxima chamada. Testes: `python -m unittest test_commands` (servidor) e `go test ./...` (ponte).
 
+
+## Recurso fechado e código do dono
+
+O serviço só atende contas **liberadas** (tabela `entitlements`); as demais recebem `403` ("Este recurso ainda não está disponível para a sua conta"). Quem já tinha dados quando a regra entrou continua liberado (migração única); instalações novas não entram sozinhas. Vigia, comandos e rotinas diárias também ignoram contas sem liberação.
+
+- **Liberar por código:** `python -m automation claim-code --note dono` gera um código de 43 caracteres, mostrado uma única vez (o servidor guarda só o hash). No app, em Configurações › "Tenho um código de acesso", `POST /v1/claim` libera a conta de quem digita (máx. 5 tentativas a cada 10 min por conta). `--uses 1` cria um código de uso único (modelo para o plano pago).
+- **Liberar/retirar pela linha de comando:** `python -m automation owners` (lista contas e se estão liberadas), `grant --owner ID --note texto` e `ungrant --owner ID`.
+- **Trocar de computador:** instale o app, abra Configurações › "Tenho um código de acesso" e cole o mesmo código do dono. Ele libera a nova conta no servidor e o menu Mensagens e o Admin no app. O Admin ainda pede a senha do Admin (a do Worker de IA). As rotinas, alertas e comandos criados no PC antigo ficam na conta antiga: use "Recuperar acesso em outro computador" (código de recuperação) para trazê-los.
+- **No app:** o menu Mensagens e o Admin só aparecem com o arquivo local `recursos-dono.json` (gravado ao aceitar o código). Esconder o menu é só comodidade: a barreira real é o `403` do servidor.

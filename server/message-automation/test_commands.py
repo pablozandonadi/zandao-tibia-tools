@@ -168,7 +168,7 @@ def item(text,id_='m1',sender='s1',group='fake-group'): return {'id':id_,'group'
 class CommanderTests(unittest.TestCase):
     def setUp(self):
         tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup)
-        self.store=Store(Path(tmp.name)/'s.sqlite',Fernet.generate_key());self.transport=FakeTransport()
+        self.store=Store(Path(tmp.name)/'s.sqlite',Fernet.generate_key(),open_access=True);self.transport=FakeTransport()
         self.conn=self.store.create('o','connection',{'riskAccepted':True},'active');self.transport.pair(self.conn)
         self.dest=self.store.create('o','destination',{'connection':self.conn,'group':'fake-group'},'active')
         self.fetches=[];self.bot=bot();original=self.bot.ranking
@@ -240,7 +240,7 @@ class ConfigTests(unittest.TestCase):
         from automation.api import create_app
         from automation.auth import Verifier
         tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup)
-        store=Store(Path(tmp.name)/'s.sqlite',Fernet.generate_key());transport=FakeTransport();verifier=Verifier(store)
+        store=Store(Path(tmp.name)/'s.sqlite',Fernet.generate_key(),open_access=True);transport=FakeTransport();verifier=Verifier(store)
         client=TestClient(create_app(store,transport,verifier,origins=('https://portal.test',)))
         a={'Authorization':'Bearer '+'a'*64};b={'Authorization':'Bearer '+'b'*64}
         verifier.register('a'*64,'c'*64);verifier.register('b'*64,'d'*64)

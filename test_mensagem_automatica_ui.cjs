@@ -7,27 +7,42 @@ const fs=require('fs'),assert=require('assert/strict');
   const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.route('**/*',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><body><main id="root"></main></body></html>'}));
   await page.goto('http://mensagem-local.test');
-  await page.addStyleTag({content:'*{box-sizing:border-box}body{margin:0;background:#171b22;color:#eee;font:14px sans-serif}#root{padding:12px;max-width:1000px;margin:auto}'+fs.readFileSync('web/world_board.css','utf8')+fs.readFileSync('web/mensagem_automatica.css','utf8')});
-  await page.addScriptTag({content:`const $=id=>document.getElementById(id);const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const zbOpen=()=>'',zbDate=v=>v;const toast=()=>{};const zbLoad=()=>{};const api={mensagem_automatica_abrir_portal:async c=>{window.managementConfig=c;return window.portalResult||{ok:true};},zandaobot_mensagem:async(...args)=>{window.manualArgs=args;return {mensagem:'Mensagem manual original'};}};${fs.readFileSync('web/world_board.js','utf8')};window.render=r=>{window.context=r;$('root').innerHTML=wbPanel(r);wbBind(r);};`});
-  const r={personagem:'Pirata Teste',mundo:'Antica',dia:'2026-10-20'};
-  await page.evaluate(r=>render(r),r);
-  const manualBefore=await page.locator('#root').innerHTML();
+  // Marcação mínima igual à do index.html: menu escondido, página do menu e o campo do código em Configurações.
+  await page.evaluate(()=>{document.getElementById('root').innerHTML='<div id="mensagens-menu" hidden>Mensagens</div><div class="ma-panel"><button type="button" id="ma-abrir">Abrir</button><p id="ma-status"></p></div><input id="cfg-codigo"><button id="cfg-codigo-ok">Ativar</button><p id="cfg-codigo-status"></p>';
+   window.state={mensagens_automaticas:false,admin_ia:false};window.managementConfig=null;window.portalResult={ok:true};window.adminCalls=0;window.claims=[];window.claimResult={ok:true};
+   window.adminIaCarregar=()=>{window.adminCalls++;};
+   window.api={recursos_liberados:async()=>({...window.state}),assistente_estado:async()=>({context:{character_id:'Pirata Teste',world_id:'Antica'}}),
+    mensagem_automatica_abrir_portal:async c=>{window.managementConfig=c;return window.portalResult;},
+    liberar_recursos:async codigo=>{window.claims.push(codigo);if(window.claimResult.ok)window.state={mensagens_automaticas:true,admin_ia:true};return window.claimResult;}};});
   await page.addScriptTag({content:fs.readFileSync('web/mensagem_automatica.js','utf8')});
-  await page.evaluate(r=>render(r),r);
-  assert.equal(await page.locator('.wb-panel>.ma-panel').count(),1);
-  assert.equal(await page.locator('#root').evaluate(e=>{const copy=e.cloneNode(true);copy.querySelector('.ma-panel').remove();return copy.innerHTML;}),manualBefore,'Manual markup unchanged');
-  await page.locator('.wb-panel').evaluateAll(es=>es.forEach(e=>e.open=true));
-  // Atalho: abre a tela única com as preferências salvas + personagem/mundo em uso.
-  await page.evaluate(r=>localStorage.setItem(maKey(r),JSON.stringify({blocks:{rashid:true},generateAt:'05:00'})),r);
-  await page.locator('[data-ma-portal]').click();await page.waitForFunction(()=>window.managementConfig);
+  await page.evaluate(()=>maAtualizar());
+  assert.equal(await page.locator('#mensagens-menu').isHidden(),true,'sem liberação o menu não aparece');
+  // código errado: mostra o erro e continua escondido
+  await page.evaluate(()=>{window.claimResult={erro:'Código inválido ou já usado.'};});
+  await page.locator('#cfg-codigo').fill('  codigo-errado  ');await page.locator('#cfg-codigo-ok').click();
+  await page.waitForFunction(()=>document.getElementById('cfg-codigo-status').textContent.includes('inválido'));
+  assert.deepEqual(await page.evaluate(()=>claims),['codigo-errado'],'o código é enviado sem espaços');assert.equal(await page.locator('#mensagens-menu').isHidden(),true);
+  // código certo: menu aparece, Admin é reavaliado, campo é limpo
+  await page.evaluate(()=>{window.claimResult={ok:true};});
+  await page.locator('#cfg-codigo').fill('codigo-certo');await page.locator('#cfg-codigo-ok').click();
+  await page.waitForFunction(()=>!document.getElementById('mensagens-menu').hidden);
+  assert.equal(await page.locator('#cfg-codigo').inputValue(),'');assert.match(await page.locator('#cfg-codigo-status').textContent(),/aceito/);assert.ok(await page.evaluate(()=>adminCalls)>=2,'o menu Admin é reavaliado');
+  // campo vazio não chama o servidor
+  await page.locator('#cfg-codigo-ok').click();assert.equal(await page.evaluate(()=>claims.length),2);assert.match(await page.locator('#cfg-codigo-status').textContent(),/Cole o código/);
+  // abrir a gestão leva as preferências salvas + personagem/mundo em uso
+  await page.evaluate(()=>localStorage.setItem(maKey({personagem:'Pirata Teste',mundo:'Antica'}),JSON.stringify({blocks:{rashid:true},generateAt:'05:00'})));
+  await page.locator('#ma-abrir').click();await page.waitForFunction(()=>window.managementConfig);
   assert.deepEqual(await page.evaluate(()=>managementConfig),{blocks:{rashid:true},generateAt:'05:00',personagem:'Pirata Teste',mundo:'Antica'});
-  await page.evaluate(r=>{window.managementConfig=null;window.portalResult={erro:'Portal sintético indisponível.'};localStorage.setItem(maKey(r),'{bad json');},r);
-  await page.locator('[data-ma-portal]').click();await page.waitForFunction(()=>window.managementConfig);
-  assert.deepEqual(await page.evaluate(()=>managementConfig),{personagem:'Pirata Teste',mundo:'Antica'},'Bad storage falls back to identity only');
-  assert.match(await page.locator('[data-ma-status]').textContent(),/Portal sintético/);
-  await page.locator('[data-wb-field="comunidade"]').fill('Manual intacta');await page.locator('#wb-generate').click();assert.equal(await page.locator('#wb-message').inputValue(),'Mensagem manual original');assert.equal(await page.evaluate(()=>manualArgs[1].comunidade),'Manual intacta');
-  for(const width of [1200,320]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`No overflow at ${width}px`);}
-  const index=fs.readFileSync('web/index.html','utf8'),manifest=JSON.parse(fs.readFileSync('packaging-resources.json','utf8'));assert.ok(index.includes('<script src="mensagem_automatica.js"></script>'));assert.ok(manifest.files.includes('web/mensagem_automatica.js'));
-  assert.deepEqual(errors,[]);console.log('Mensagem automática: atalho da tela única, manual intacta, preferências/identidade, storage inválido, 1200/320px passaram.');
+  await page.evaluate(()=>{window.managementConfig=null;window.portalResult={erro:'Este recurso ainda não está disponível.'};localStorage.setItem(maKey({personagem:'Pirata Teste',mundo:'Antica'}),'{bad json');});
+  await page.locator('#ma-abrir').click();await page.waitForFunction(()=>window.managementConfig);
+  assert.deepEqual(await page.evaluate(()=>managementConfig),{personagem:'Pirata Teste',mundo:'Antica'},'storage inválido cai na identidade');
+  assert.match(await page.locator('#ma-status').textContent(),/ainda não está disponível/);
+  // a página "Mensagem do dia" não carrega mais o painel de mensagens automáticas
+  const index=fs.readFileSync('web/index.html','utf8'),board=fs.readFileSync('web/world_board.js','utf8'),manifest=JSON.parse(fs.readFileSync('packaging-resources.json','utf8'));
+  assert.ok(!board.includes('maPanel')&&!board.includes('maBind'));
+  for(const id of ['mensagens-menu','page-mensagens','ma-abrir','cfg-codigo','cfg-codigo-ok'])assert.equal((index.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id+' existe uma vez');
+  assert.match(index,/id="mensagens-menu"[^>]*\shidden/,'o menu já nasce escondido');
+  assert.ok(index.includes('<script src="mensagem_automatica.js"></script>'));assert.ok(manifest.files.includes('web/mensagem_automatica.js'));
+  assert.deepEqual(errors,[]);console.log('Mensagens: menu escondido sem liberação, código errado/certo, Admin reavaliado, gestão com contexto, storage inválido, página sem painel antigo.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

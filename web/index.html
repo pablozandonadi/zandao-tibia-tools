@@ -739,6 +739,7 @@
     <div class="nav-item" id="gs-menu" tabindex="0" data-pagina="guildstats" title="Guild Stats"><span class="nav-icon" aria-hidden="true">📈</span><span class="txt"> Guild Stats</span><div id="gs-hover" role="tooltip">Selecione um personagem nas configurações.</div></div>
     <div class="nav-item" tabindex="0" data-pagina="rede" title="Networking — conexões e estabilidade"><span class="nav-icon" aria-hidden="true">📶</span><span class="txt"> Networking</span></div>
     <div class="nav-item" id="admin-menu" tabindex="0" data-pagina="admin" title="Admin — códigos da IA (Beta)" hidden><span class="nav-icon" aria-hidden="true">🔑</span><span class="txt"> Admin</span></div>
+    <div class="nav-item" id="mensagens-menu" tabindex="0" data-pagina="mensagens" title="Mensagens automáticas no WhatsApp" hidden><span class="nav-icon" aria-hidden="true">📲</span><span class="txt"> Mensagens</span></div>
     <div class="nav-item" tabindex="0" data-pagina="config" title="Configurações"><span class="nav-icon" aria-hidden="true">⚙️</span><span class="txt"> Configurações</span></div>
     <div class="sobrepor">
       <button class="pino" id="j-topo" title="Fixar por cima do Tibia (fica visível mesmo clicando no jogo)">📌<span class="txt"> Fixar por cima</span></button>
@@ -1230,9 +1231,25 @@
       <div id="admin-raiz"></div>
     </section>
 
+    <section class="page" id="page-mensagens">
+      <h1 class="titulo">Mensagens automáticas</h1>
+      <div class="ma-panel">
+        <p class="zb-muted">Envie a mensagem do dia sozinha no WhatsApp, no horário que escolher, mesmo com o PC desligado. Receba avisos de morte e level up da guild e deixe o bot responder comandos no grupo. Rotinas, alertas, comandos e conexão ficam todos na mesma tela.</p>
+        <button type="button" id="ma-abrir">Abrir mensagens automáticas</button>
+        <p id="ma-status" role="status" aria-live="polite"></p>
+      </div>
+    </section>
+
     <!-- ================= CONFIGURAÇÕES ================= -->
     <section class="page" id="page-config">
       <h1 class="titulo">Configurações</h1>
+      <details class="card calmo" id="cfg-codigo-bloco" style="margin-bottom:12px">
+        <summary>Tenho um código de acesso</summary>
+        <p class="dica">Ative um recurso que exige código (por exemplo, o do dono ou o de um plano). O código fica só no servidor e aqui nunca é guardado.</p>
+        <input id="cfg-codigo" type="password" autocomplete="off" spellcheck="false" maxlength="64" placeholder="Cole o código aqui" aria-label="Código de acesso">
+        <button type="button" id="cfg-codigo-ok">Ativar</button>
+        <p id="cfg-codigo-status" role="status" aria-live="polite"></p>
+      </details>
       <div class="grid-ferr">
         <details class="card calmo voz-diagnostico">
           <summary>Acesso online do chat</summary>

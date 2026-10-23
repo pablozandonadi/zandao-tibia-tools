@@ -32,7 +32,7 @@ def death(at,level=500,killers=('a Hydra',),player=False):
 class WatchTests(unittest.TestCase):
     def setUp(self):
         tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup)
-        self.store=Store(Path(tmp.name)/'s.sqlite',Fernet.generate_key());self.transport=FakeTransport();self.feed=Feed()
+        self.store=Store(Path(tmp.name)/'s.sqlite',Fernet.generate_key(),open_access=True);self.transport=FakeTransport();self.feed=Feed()
         self.conn=self.store.create('o','connection',{'riskAccepted':True},'active');self.transport.pair(self.conn)
         self.dest=self.store.create('o','destination',{'connection':self.conn,'group':'fake-group'},'active')
         self.watcher=Watcher(self.store,self.transport,self.feed)

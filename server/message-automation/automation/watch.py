@@ -81,7 +81,7 @@ class Watcher:
         now=now or self.clock();stamp=now.timestamp()
         with self.store.tx() as db:
             rows=db.execute("SELECT id,owner,body FROM objects WHERE kind='watch' AND state='active' ORDER BY id").fetchall()
-            watches=[(r['id'],r['owner'],self.store.unpack(r['owner'],r['id'],r['body'])) for r in rows]
+            watches=[(r['id'],r['owner'],self.store.unpack(r['owner'],r['id'],r['body'])) for r in rows if self.store.entitled_in(db,r['owner'])]
         for key,owner,data in watches:
             try: self.scan(key,owner,data,stamp)
             except Exception as error: log.warning('watch=%s scan_failed=%s',key,type(error).__name__)
