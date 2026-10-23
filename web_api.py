@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -1324,7 +1325,7 @@ class API:
         """Ativa os recursos fechados desta instalação com um código (do dono, ou de um recurso pago): o servidor libera a conta e o app grava o arquivo local."""
         from mensagem_automatica_access import claim_code, AccessError
         try:
-            claim_code(codigo)
+            administrador = claim_code(codigo) is True
         except AccessError as error:
             return {'erro': str(error)}
         except Exception:
@@ -1332,11 +1333,49 @@ class API:
         try:
             destino = os.path.join(BASE_DIR, RECURSOS_DONO)
             with open(destino + '.tmp', 'w', encoding='utf-8') as f:
-                json.dump({'mensagens_automaticas': True, 'admin_ia': True}, f)
+                # só o código do dono abre o menu Admin; o de um cliente pago abre apenas o menu Mensagens
+                json.dump({'mensagens_automaticas': True, 'admin_ia': administrador}, f)
             os.replace(destino + '.tmp', destino)
         except OSError:
             return {'erro': 'O servidor liberou a sua conta, mas não foi possível salvar a liberação neste computador.'}
         return {'ok': True, **self.recursos_liberados()}
+
+    def _admin_mensagens(self, caminho, metodo='GET', corpo=None):
+        """Códigos de acesso ao menu Mensagens (clientes que pagam): só quem tem o menu Admin liberado; o servidor confere a conta administradora de novo."""
+        from mensagem_automatica_access import admin_request, AccessError
+        if not _recurso_dono('admin_ia'):
+            return {'erro': 'Somente o administrador pode fazer isso.'}
+        try:
+            return {'dados': admin_request(caminho, metodo, corpo)}
+        except AccessError as error:
+            return {'erro': str(error)}
+        except Exception:
+            return {'erro': 'Não foi possível falar com o servidor agora. Tente de novo em instantes.'}
+
+    def admin_msg_listar(self):
+        codigos = self._admin_mensagens('/v1/admin/claims')
+        if 'erro' in codigos:
+            return codigos
+        contas = self._admin_mensagens('/v1/admin/accounts')
+        if 'erro' in contas:
+            return contas
+        return {'codigos': codigos['dados'], 'contas': contas['dados']}
+
+    def admin_msg_gerar(self, cliente, usos=1):
+        r = self._admin_mensagens('/v1/admin/claims', 'POST', {'note': cliente, 'uses': usos})
+        return r if 'erro' in r else {'codigo': r['dados'].get('code')}
+
+    def admin_msg_revogar(self, codigo_id):
+        if not isinstance(codigo_id, str) or not re.fullmatch(r'[a-f0-9]{16}', codigo_id):
+            return {'erro': 'Código inválido.'}
+        r = self._admin_mensagens('/v1/admin/claims/' + codigo_id, 'DELETE')
+        return r if 'erro' in r else {'ok': True}
+
+    def admin_msg_remover_conta(self, conta):
+        if not isinstance(conta, str) or not re.fullmatch(r'[a-f0-9]{32}', conta):
+            return {'erro': 'Conta inválida.'}
+        r = self._admin_mensagens('/v1/admin/accounts/' + conta, 'DELETE')
+        return r if 'erro' in r else {'ok': True}
 
     def mensagem_automatica_abrir_portal(self, config):
         from mensagem_automatica_access import open_management, AccessError

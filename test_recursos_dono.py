@@ -55,6 +55,39 @@ class RecursosDonoTests(unittest.TestCase):
         with open(os.path.join(self.dir, 'recursos-dono.json'), encoding='utf-8') as f: self.assertEqual(json.load(f), {'mensagens_automaticas': True, 'admin_ia': True})
         self.assertNotIn('y' * 43, json.dumps(self.api.recursos_liberados()))
 
+    def test_codigo_de_cliente_abre_so_o_menu_mensagens(self):
+        with mock.patch('mensagem_automatica_access.claim_code', return_value=False):
+            r = self.api.liberar_recursos('c' * 43)
+        self.assertEqual(r, {'ok': True, 'mensagens_automaticas': True, 'admin_ia': False})
+
+    def test_gestao_de_codigos_de_clientes_exige_o_menu_admin(self):
+        with mock.patch('mensagem_automatica_access.admin_request', return_value=[]) as pedido:
+            for chamada in (self.api.admin_msg_listar, lambda: self.api.admin_msg_gerar('Ana', 1),
+                            lambda: self.api.admin_msg_revogar('a' * 16), lambda: self.api.admin_msg_remover_conta('b' * 32)):
+                self.assertEqual(chamada(), {'erro': 'Somente o administrador pode fazer isso.'})
+            pedido.assert_not_called()
+            self.escrever('{"mensagens_automaticas": true, "admin_ia": true}')
+            self.assertEqual(self.api.admin_msg_listar(), {'codigos': [], 'contas': []})
+            self.assertEqual([c.args for c in pedido.call_args_list], [('/v1/admin/claims', 'GET', None), ('/v1/admin/accounts', 'GET', None)])
+
+    def test_gerar_revogar_e_remover_conta_chamam_as_rotas_certas(self):
+        self.escrever('{"admin_ia": true}')
+        with mock.patch('mensagem_automatica_access.admin_request', return_value={'code': 'k' * 43}) as pedido:
+            self.assertEqual(self.api.admin_msg_gerar('Ana', 2), {'codigo': 'k' * 43})
+            pedido.assert_called_once_with('/v1/admin/claims', 'POST', {'note': 'Ana', 'uses': 2})
+        with mock.patch('mensagem_automatica_access.admin_request', return_value={}) as pedido:
+            self.assertEqual(self.api.admin_msg_revogar('a' * 16), {'ok': True})
+            pedido.assert_called_with('/v1/admin/claims/' + 'a' * 16, 'DELETE', None)
+            self.assertEqual(self.api.admin_msg_remover_conta('b' * 32), {'ok': True})
+            pedido.assert_called_with('/v1/admin/accounts/' + 'b' * 32, 'DELETE', None)
+            for ruim in ('', '../x', 'A' * 16, 'a' * 15, None, 5):  # nada fora do formato chega ao servidor
+                self.assertIn('erro', self.api.admin_msg_revogar(ruim)); self.assertIn('erro', self.api.admin_msg_remover_conta(ruim))
+            self.assertEqual(pedido.call_count, 2)
+        with mock.patch('mensagem_automatica_access.admin_request', side_effect=acesso.AccessError('Pedido recusado.')):
+            self.assertEqual(self.api.admin_msg_gerar('', 1), {'erro': 'Pedido recusado.'})
+        with mock.patch('mensagem_automatica_access.admin_request', side_effect=RuntimeError('rede')):
+            self.assertIn('erro', self.api.admin_msg_listar())
+
     def test_formato_do_codigo_e_validado_antes_de_ir_ao_servidor(self):
         for ruim in ('', 'curto', 'x' * 44, 'x' * 42, None, 123):
             with self.assertRaises(acesso.AccessError): acesso.claim_code(ruim)
@@ -67,6 +100,16 @@ class RecursosDonoTests(unittest.TestCase):
     def test_proxy_local_so_aceita_claim_por_post(self):
         self.assertTrue(acesso.ALLOWED['POST'].fullmatch('/v1/claim'))
         self.assertFalse(acesso.ALLOWED['GET'].fullmatch('/v1/claim'))
+
+    def test_proxy_local_so_aceita_as_rotas_exatas_de_administracao(self):
+        A = acesso.ALLOWED
+        for metodo, caminho in (('GET', '/v1/admin/claims'), ('GET', '/v1/admin/accounts'), ('POST', '/v1/admin/claims'),
+                                ('DELETE', '/v1/admin/claims/' + 'a' * 16), ('DELETE', '/v1/admin/accounts/' + 'b' * 32)):
+            self.assertTrue(A[metodo].fullmatch(caminho), caminho)
+        for metodo, caminho in (('POST', '/v1/admin/accounts'), ('PUT', '/v1/admin/claims'), ('DELETE', '/v1/admin/claims'),
+                                ('DELETE', '/v1/admin/claims/' + 'a' * 15), ('DELETE', '/v1/admin/claims/' + 'a' * 17),
+                                ('DELETE', '/v1/admin/accounts/' + 'b' * 16), ('GET', '/v1/admin/claims/' + 'a' * 16), ('GET', '/v1/admin/')):
+            self.assertFalse(A.get(metodo) and A[metodo].fullmatch(caminho), caminho)
 
 
 if __name__ == '__main__':

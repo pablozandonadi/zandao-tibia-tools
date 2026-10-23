@@ -5,6 +5,7 @@ import os
 import re
 import secrets
 import sqlite3
+import time
 import uuid
 from contextlib import contextmanager, closing
 from pathlib import Path
@@ -22,7 +23,8 @@ class Store:
             first_time=not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='entitlements'").fetchone()
             db.executescript('''
             CREATE TABLE IF NOT EXISTS entitlements(owner TEXT PRIMARY KEY,since REAL NOT NULL,note TEXT NOT NULL DEFAULT '');
-            CREATE TABLE IF NOT EXISTS claim_codes(hash TEXT PRIMARY KEY,note TEXT NOT NULL DEFAULT '',uses INTEGER);
+            CREATE TABLE IF NOT EXISTS claim_codes(hash TEXT PRIMARY KEY,note TEXT NOT NULL DEFAULT '',uses INTEGER,created REAL NOT NULL DEFAULT 0);
+            CREATE TABLE IF NOT EXISTS admins(owner TEXT PRIMARY KEY);
             CREATE TABLE IF NOT EXISTS objects(id TEXT PRIMARY KEY,owner TEXT NOT NULL,kind TEXT NOT NULL,state TEXT NOT NULL,body BLOB NOT NULL,version INTEGER NOT NULL DEFAULT 1);
             CREATE INDEX IF NOT EXISTS owners ON objects(owner,kind);
             CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,owner TEXT NOT NULL,subscription TEXT NOT NULL,destination TEXT NOT NULL,reference TEXT NOT NULL,generation REAL,send REAL,state TEXT NOT NULL,snapshot BLOB,receipt BLOB,attempt TEXT,lease REAL,error TEXT,version INTEGER NOT NULL,generation_attempts INTEGER NOT NULL DEFAULT 0,retry_after REAL NOT NULL DEFAULT 0,
@@ -39,7 +41,7 @@ class Store:
             for name,definition in [('generation_attempts','INTEGER NOT NULL DEFAULT 0'),('retry_after','REAL NOT NULL DEFAULT 0')]:
                 if name not in columns: db.execute('ALTER TABLE runs ADD COLUMN '+name+' '+definition)
             # Bancos criados antes do vigia usar a lista online do mundo ganham as colunas novas sem perder dados.
-            for table,additions in (('watch_members',[('vocation','TEXT'),('checked','REAL NOT NULL DEFAULT 0')]),('watch_meta',[('world','TEXT'),('roster_at','REAL NOT NULL DEFAULT 0')])):
+            for table,additions in (('watch_members',[('vocation','TEXT'),('checked','REAL NOT NULL DEFAULT 0')]),('watch_meta',[('world','TEXT'),('roster_at','REAL NOT NULL DEFAULT 0')]),('claim_codes',[('created','REAL NOT NULL DEFAULT 0')])):
                 have={r['name'] for r in db.execute('PRAGMA table_info('+table+')')}
                 for name,definition in additions:
                     if name not in have: db.execute('ALTER TABLE '+table+' ADD COLUMN '+name+' '+definition)
@@ -62,8 +64,36 @@ class Store:
     def create_claim(self,note='',uses=None):
         """Gera um código de liberação (mostrado uma única vez; só o hash fica guardado). uses=None vale sem limite (código do dono)."""
         code=secrets.token_urlsafe(32)
-        with self.tx() as db: db.execute('INSERT INTO claim_codes(hash,note,uses) VALUES(?,?,?)',(hashlib.sha256(code.encode()).hexdigest(),str(note)[:80],uses))
+        with self.tx() as db: db.execute('INSERT INTO claim_codes(hash,note,uses,created) VALUES(?,?,?,?)',(hashlib.sha256(code.encode()).hexdigest(),str(note)[:80],uses,time.time()))
         return code
+
+    # ---- administração (só contas administradoras chegam aqui, pela API) ----
+    def is_admin(self,owner):
+        with self.tx() as db: return db.execute('SELECT 1 FROM admins WHERE owner=?',(owner,)).fetchone() is not None
+
+    def admin_claims(self):
+        """Códigos de cliente (nunca o código em si, só quantos usos restam). O código do dono não aparece."""
+        with self.tx() as db: return [{'id':r['hash'][:16],'note':r['note'],'uses':r['uses'],'created':r['created']} for r in db.execute("SELECT hash,note,uses,created FROM claim_codes WHERE note!='dono' ORDER BY created DESC,hash")]
+
+    def admin_new_claim(self,note,uses=1):
+        note=' '.join(str(note).split())
+        if not note or len(note)>60 or note.casefold()=='dono': raise Invalid('Informe o nome do cliente (até 60 caracteres).')
+        if type(uses) is not int or not 1<=uses<=1000: raise Invalid('Usos de 1 a 1000.')
+        return self.create_claim(note,uses)
+
+    def admin_revoke_claim(self,claim_id):
+        if not isinstance(claim_id,str) or not re.fullmatch(r'[a-f0-9]{16}',claim_id): raise Invalid('Código não encontrado.')
+        with self.tx() as db:
+            if db.execute("DELETE FROM claim_codes WHERE substr(hash,1,16)=? AND note!='dono'",(claim_id,)).rowcount==0: raise Invalid('Código não encontrado.')
+
+    def admin_accounts(self):
+        with self.tx() as db: return [{'owner':r['owner'],'note':r['note'],'since':r['since'],'admin':bool(r['admin'])} for r in db.execute('SELECT e.owner AS owner,e.note AS note,e.since AS since,(SELECT 1 FROM admins a WHERE a.owner=e.owner) AS admin FROM entitlements e ORDER BY e.since DESC,e.owner')]
+
+    def admin_remove_account(self,owner):
+        if not isinstance(owner,str) or not re.fullmatch(r'[a-f0-9]{32}',owner): raise Invalid('Conta não encontrada.')
+        with self.tx() as db:
+            if db.execute('SELECT 1 FROM admins WHERE owner=?',(owner,)).fetchone(): raise Invalid('Não é possível remover uma conta de administrador.')
+            if db.execute('DELETE FROM entitlements WHERE owner=?',(owner,)).rowcount==0: raise Invalid('Conta não encontrada.')
 
     def claim(self,owner,code):
         """Libera a conta de quem apresenta um código válido (e ainda com usos)."""
@@ -74,6 +104,7 @@ class Store:
             if not row or (row['uses'] is not None and row['uses']<=0): raise Invalid('Código inválido ou já usado.')
             if row['uses'] is not None: db.execute('UPDATE claim_codes SET uses=uses-1 WHERE hash=?',(digest,))
             db.execute("INSERT OR IGNORE INTO entitlements(owner,since,note) VALUES(?,strftime('%s','now'),?)",(owner,row['note']))
+            if row['note']=='dono': db.execute('INSERT OR IGNORE INTO admins(owner) VALUES(?)',(owner,))  # o código do dono também torna a conta administradora
 
     def ungrant(self,owner):
         with self.tx() as db: return db.execute('DELETE FROM entitlements WHERE owner=?',(owner,)).rowcount

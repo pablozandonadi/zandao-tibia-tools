@@ -46,6 +46,10 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
         return authenticate(request,False)
     def owner(request:Request):
         return authenticate(request,True)
+    def administrator(request:Request):
+        identity=authenticate(request,True)
+        if not store.is_admin(identity): raise HTTPException(403,'Somente o administrador pode fazer isso.')
+        return identity
     def authenticate(request,need_access):
         value=request.headers.get('authorization','')
         if not value.startswith('Bearer ') or len(value)>10000: raise HTTPException(401,'Login necessário.')
@@ -96,7 +100,22 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
             while queue and queue[0]<stamp-600: queue.popleft()
             if len(queue)>=5: raise HTTPException(429,'Muitas tentativas. Aguarde alguns minutos.')
             queue.append(stamp)
-        store.claim(user,data.get('code'));return {'ok':True}
+        store.claim(user,data.get('code'));return {'ok':True,'admin':store.is_admin(user)}
+    # ---- Administração dos códigos de acesso (clientes que pagam pelo menu Mensagens) ----
+    @app.get('/v1/admin/claims')
+    def admin_claims(user=Depends(administrator)): return store.admin_claims()
+    @app.post('/v1/admin/claims')
+    async def admin_new_claim(request:Request,user=Depends(administrator)):
+        data=await payload(request);fields(data,{'note','uses'})
+        return {'code':store.admin_new_claim(data.get('note',''),data.get('uses',1))}  # o código só aparece nesta resposta
+    @app.delete('/v1/admin/claims/{key}')
+    def admin_revoke_claim(key,user=Depends(administrator)):
+        store.admin_revoke_claim(key);return {'id':key,'revoked':True}
+    @app.get('/v1/admin/accounts')
+    def admin_accounts(user=Depends(administrator)): return store.admin_accounts()
+    @app.delete('/v1/admin/accounts/{key}')
+    def admin_remove_account(key,user=Depends(administrator)):
+        store.admin_remove_account(key);return {'owner':key,'removed':True}
     @app.post('/v1/preview')
     async def preview(request:Request,user=Depends(owner)):
         c=validate(await payload(request));return generator(c,datetime.now(UTC))

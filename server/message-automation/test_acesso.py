@@ -77,6 +77,54 @@ class AcessoTests(unittest.TestCase):
         statuses = [client.post('/v1/claim', json={'code': 'z' * 43}, headers=b).status_code for _ in range(6)]
         self.assertEqual(statuses[-1], 429, 'a sexta tentativa errada seguida é barrada')
 
+    def _contas(self):
+        verifier = Verifier(self.store); client = TestClient(create_app(self.store, FakeTransport(), verifier))
+        heads = {}
+        for letter, recovery in (('a', 'c'), ('b', 'd'), ('e', 'f')):
+            verifier.register(letter * 64, recovery * 64); heads[letter] = {'Authorization': 'Bearer ' + letter * 64}
+        return client, heads
+
+    def test_so_administrador_gera_lista_e_revoga_codigos_de_cliente(self):
+        client, h = self._contas()
+        dono = self.store.create_claim('dono')
+        client.post('/v1/claim', json={'code': dono}, headers=h['a'])  # a conta do dono vira administradora
+        for path in ('/v1/admin/claims', '/v1/admin/accounts'):
+            self.assertEqual(client.get(path, headers=h['b']).status_code, 403, 'conta comum (nem liberada) não administra')
+        self.assertEqual(client.post('/v1/admin/claims', json={'note': 'Fulano'}, headers=h['b']).status_code, 403)
+        for bad in ({'note': ''}, {'note': 'dono'}, {'note': 'x' * 61}, {'note': 'Ok', 'uses': 0}, {'note': 'Ok', 'uses': 1001}, {'note': 'Ok', 'extra': 1}, {'uses': 1}):
+            self.assertEqual(client.post('/v1/admin/claims', json=bad, headers=h['a']).status_code, 400, bad)
+        made = client.post('/v1/admin/claims', json={'note': '  Cliente   Um ', 'uses': 1}, headers=h['a'])
+        self.assertEqual(made.status_code, 200); code = made.json()['code']; self.assertRegex(code, r'^[A-Za-z0-9_-]{43}$')
+        listed = client.get('/v1/admin/claims', headers=h['a']).json()
+        self.assertEqual([(c['note'], c['uses']) for c in listed], [('Cliente Um', 1)]); self.assertNotIn(code, str(listed)); self.assertNotIn('dono', [c['note'] for c in listed])
+        # o cliente usa o código: libera, mas não vira administrador
+        self.assertEqual(client.post('/v1/claim', json={'code': code}, headers=h['b']).status_code, 200)
+        self.assertEqual(client.get('/v1/connections', headers=h['b']).status_code, 200)
+        self.assertEqual(client.get('/v1/admin/claims', headers=h['b']).status_code, 403)
+        self.assertEqual(client.get('/v1/admin/claims', headers=h['a']).json()[0]['uses'], 0)
+        self.assertEqual(client.post('/v1/claim', json={'code': code}, headers=h['e']).status_code, 400, 'uso único')
+        # revogar um código ainda não usado
+        again = client.post('/v1/admin/claims', json={'note': 'Cliente Dois'}, headers=h['a']).json()['code']
+        item = next(c for c in client.get('/v1/admin/claims', headers=h['a']).json() if c['note'] == 'Cliente Dois')
+        self.assertEqual(client.delete('/v1/admin/claims/' + item['id'], headers=h['a']).status_code, 200)
+        self.assertEqual(client.post('/v1/claim', json={'code': again}, headers=h['e']).status_code, 400)
+        self.assertEqual(client.delete('/v1/admin/claims/' + item['id'], headers=h['a']).status_code, 400)
+        self.assertEqual(client.delete('/v1/admin/claims/nao-existe', headers=h['a']).status_code, 400)
+
+    def test_remover_conta_corta_o_acesso_mas_nunca_a_do_administrador(self):
+        client, h = self._contas()
+        client.post('/v1/claim', json={'code': self.store.create_claim('dono')}, headers=h['a'])
+        client.post('/v1/claim', json={'code': self.store.admin_new_claim('Cliente')}, headers=h['b'])
+        contas = client.get('/v1/admin/accounts', headers=h['a']).json()
+        self.assertEqual(sorted((c['note'], c['admin']) for c in contas), [('Cliente', False), ('dono', True)])
+        cliente = next(c for c in contas if c['note'] == 'Cliente'); admin = next(c for c in contas if c['admin'])
+        self.assertEqual(client.delete('/v1/admin/accounts/' + admin['owner'], headers=h['a']).status_code, 400, 'administrador não se remove')
+        self.assertEqual(client.delete('/v1/admin/accounts/' + cliente['owner'], headers=h['b']).status_code, 403)
+        self.assertEqual(client.delete('/v1/admin/accounts/' + cliente['owner'], headers=h['a']).status_code, 200)
+        self.assertEqual(client.get('/v1/connections', headers=h['b']).status_code, 403, 'sem acesso depois de removido')
+        self.assertEqual(client.delete('/v1/admin/accounts/' + cliente['owner'], headers=h['a']).status_code, 400)
+        self.assertEqual(client.delete('/v1/admin/accounts/xyz', headers=h['a']).status_code, 400)
+
     def test_liberar_conta_inexistente_e_recusado(self):
         with self.assertRaises(Invalid): self.store.grant('ninguem')
 

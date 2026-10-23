@@ -16,10 +16,10 @@ class AccessRejected(AccessError): pass
 SECRET=re.compile(r'^[a-f0-9]{64}$')
 ID=r'[a-f0-9]{32}'
 ALLOWED={
- 'GET':re.compile(r'^/(public-config|v1/(connections(?:/'+ID+r'(?:/groups)?)?|subscriptions|watches|botgroups|runs))$'),
- 'POST':re.compile(r'^/v1/(preview|claim|connections(?:/'+ID+r'/pair)?|destinations|subscriptions|watches|botgroups)$'),
+ 'GET':re.compile(r'^/(public-config|v1/(connections(?:/'+ID+r'(?:/groups)?)?|subscriptions|watches|botgroups|runs|admin/claims|admin/accounts))$'),
+ 'POST':re.compile(r'^/v1/(preview|claim|connections(?:/'+ID+r'/pair)?|destinations|subscriptions|watches|botgroups|admin/claims)$'),
  'PUT':re.compile(r'^/v1/(subscriptions|watches|botgroups)/'+ID+r'$'),
- 'DELETE':re.compile(r'^/v1/(connections|subscriptions|watches|botgroups)/'+ID+r'$')}
+ 'DELETE':re.compile(r'^/v1/((connections|subscriptions|watches|botgroups)/'+ID+r'|admin/claims/[a-f0-9]{16}|admin/accounts/[a-f0-9]{32})$')}
 # Servidor da VM Oracle; AUTOMATION_PORTAL_URL continua valendo como override administrativo.
 DEFAULT_ORIGIN='https://140.238.185.24'
 class NoRedirect(HTTPRedirectHandler):
@@ -156,15 +156,23 @@ class ManagementAPI:
   except AccessError as error:return {'error':str(error)}
 
 CLAIM=re.compile(r'^[A-Za-z0-9_-]{43}$')
+def admin_request(path,method='GET',body=None):
+ """Pedido de administração (códigos de clientes) feito pela conta desta instalação; o servidor só atende a conta administradora."""
+ import app_paths
+ from versao import CANAL_APP
+ origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)
+ try:return InstallationClient(origin,CredentialFile(origin,CANAL_APP)).request(path,method,body)
+ except AccessRejected:raise AccessError('Pedido recusado. Confira os dados e tente de novo.') from None
+
 def claim_code(code):
- """Apresenta ao servidor o código de liberação (do dono ou de um recurso pago) para esta instalação. Levanta AccessError se não valer."""
+ """Apresenta ao servidor o código de liberação (do dono ou de um recurso pago) para esta instalação. Devolve True se a conta ficou administradora; levanta AccessError se o código não valer."""
  import app_paths
  from versao import CANAL_APP
  if not isinstance(code,str) or not CLAIM.fullmatch(code.strip()):raise AccessError('Código inválido. Confira se copiou inteiro, sem espaços.')
  origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)
- try:InstallationClient(origin,CredentialFile(origin,CANAL_APP)).request('/v1/claim','POST',{'code':code.strip()})
+ try:result=InstallationClient(origin,CredentialFile(origin,CANAL_APP)).request('/v1/claim','POST',{'code':code.strip()})
  except AccessRejected:raise AccessError('Código inválido ou já usado.') from None
- return True
+ return isinstance(result,dict) and result.get('admin') is True
 
 def open_management(config):
  import webview

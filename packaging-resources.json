@@ -1632,6 +1632,7 @@
     "web/assistente_ferramentas.js",
     "web/assistente_canais.js",
     "web/admin_ia.js",
+    "web/admin_mensagens.js",
     "web/chat.js",
     "web/voz.css",
     "web/voz.js",
