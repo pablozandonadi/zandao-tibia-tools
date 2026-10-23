@@ -65,5 +65,6 @@ def consultar(mundo, atualizar=False):
             return {**result, 'estado': 'invalida', 'motivo': 'Cotação inválida para este mundo. Valor manual em uso.'}
         result.update(data_base=created.isoformat(), gold_por_tc=price)
         if age > MAX_AGE:
-            return {**result, 'estado': 'antiga', 'motivo': 'Cotação com mais de 36 horas. Valor manual em uso.'}
+            # o site não atualiza todo mundo todo dia: a última média ainda é melhor que nada
+            return {**result, 'estado': 'antiga', 'motivo': 'Cotação antiga: o TibiaTrade ainda não atualizou este mundo.'}
         return {**result, 'estado': 'ok', 'motivo': 'Média diária de venda; não é uma cotação do Market em tempo real.'}

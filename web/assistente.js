@@ -36,7 +36,7 @@ function stamp(v){return v?new Date(v).toLocaleString('pt-BR'):'Não informado';
 function decimalBR(value){const [whole,fraction]=String(value).split('.');return whole.replace(/\B(?=(\d{3})+(?!\d))/g,'.')+(fraction?','+fraction:'');}
 const conversionKeys=['gold_por_tc','tc_pacote','reais_pacote'];
 function conversionValues(){return Object.fromEntries(conversionKeys.map(key=>[key,el('conversao-'+key).value.trim()]));}
-let conversionRevision=0,conversionTimer,quoteRevision=0,quoteWorld='',quoteAt=0,quoteValue=null,quoteExpires=0,quoteInterval=3600000,quotePending=0,conversionReady=false;
+let conversionRevision=0,conversionTimer,quoteRevision=0,quoteWorld='',quoteAt=0,quoteValue=null,quoteExpires=0,quoteInterval=3600000,quotePending=0,quoteStale=false,conversionReady=false;
 function manualQuote(text='Valor manual em uso.'){
  ++quoteRevision;quoteValue=null;quoteWorld='';quoteAt=0;el('conversao-cotacao').textContent=text;conversionInput();
 }
@@ -50,12 +50,17 @@ async function refreshQuote(force=false){
  const revision=++quoteRevision;quotePending=revision;quoteWorld=world;quoteAt=Date.now();quoteValue=null;quoteInterval=3600000;
  el('conversao-cotacao').textContent=`Consultando ${world}… Valor manual em uso.`;conversionInput();
  try{
-  const data=await window.pywebview.api.conversao_tc_cotacao(world,force);
+  const data=await window.pywebview.api.conversao_tc_cotacao(world,force||quoteStale);
   if(revision!==quoteRevision||!el('conversao-automatico').checked||world!==el('assistente-world').value.trim())return;
   if(data.estado==='indisponivel')quoteInterval=60000;
+  quoteStale=data.estado==='antiga';
   const age=Date.now()-new Date(data.data_base).getTime();
-  if(data.estado==='ok'&&data.mundo.toLowerCase()===world.toLowerCase()&&Number.isSafeInteger(data.gold_por_tc)&&data.gold_por_tc>0&&data.gold_por_tc<=1e12&&age>=-300000&&age<=36*3600000){quoteValue=data.gold_por_tc;quoteExpires=new Date(data.data_base).getTime()+36*3600000;}
-  const info=`${world} · ${quoteValue?decimalBR(quoteValue)+' GP/TC · média diária de venda':data.motivo||'Cotação inválida. Valor manual em uso.'}`;
+  if((data.estado==='ok'||data.estado==='antiga')&&data.mundo.toLowerCase()===world.toLowerCase()&&Number.isSafeInteger(data.gold_por_tc)&&data.gold_por_tc>0&&data.gold_por_tc<=1e12&&age>=-300000){
+   quoteValue=data.gold_por_tc;quoteExpires=Infinity;
+   if(data.estado==='antiga')quoteInterval=900000;  // tenta de novo em 15 min: o site pode ter atualizado
+   if(!el('conversao-gold_por_tc').value.trim())el('conversao-gold_por_tc').value=String(quoteValue);  // reserva para quando o site cair
+  }
+  const info=`${world} · ${quoteValue?decimalBR(quoteValue)+' GP/TC · média diária de venda'+(data.estado==='antiga'?' · ⚠ '+data.motivo:''):data.motivo||'Cotação inválida. Valor manual em uso.'}`;
   el('conversao-cotacao').textContent=info+(data.data_base?` · Base: ${stamp(data.data_base)}`:'')+(data.consulta?` · Consulta: ${stamp(data.consulta)}`:'');
   if(!quoteValue&&!el('conversao-cotacao').textContent.includes('manual'))el('conversao-cotacao').textContent+=' · Valor manual em uso.';
  }catch(e){if(revision!==quoteRevision)return;quoteInterval=60000;el('conversao-cotacao').textContent='Cotação indisponível. Valor manual em uso.';}

@@ -34,8 +34,9 @@ const quote=(world,price)=>({estado:'ok',mundo:world,gold_por_tc:price,data_base
  await input('salvar').events.click();
  assert.deepEqual(saves[0],{values:{gold_por_tc:'46600',tc_pacote:'250',reais_pacote:'50'},automatic:false});
  input('automatico').checked=true;const stale=ui.refreshQuote(true);
- requests[3].resolve({...quote('Honbra',60000),estado:'antiga',data_base:new Date(Date.now()-37*3600000).toISOString(),motivo:'Cotação antiga. Valor manual em uso.'});
- await stale;await wait();assert.equal(calculations.at(-1).gold_por_tc,'46600');
+ requests[3].resolve({...quote('Honbra',60000),estado:'antiga',data_base:new Date(Date.now()-37*3600000).toISOString(),motivo:'Cotação antiga: o TibiaTrade ainda não atualizou este mundo.'});
+ await stale;await wait();assert.equal(calculations.at(-1).gold_por_tc,'60000','cotação antiga é usada, com aviso');
+ assert.match(input('cotacao').textContent,/⚠ Cotação antiga/);
  input('gold_por_tc').value='50k';input('gold_por_tc').events.input();await wait();
  assert.equal(input('automatico').checked,false);assert.equal(calculations.at(-1).gold_por_tc,'50k');
  const realNow=Date.now;let offset=0;Date.now=()=>realNow()+offset;
