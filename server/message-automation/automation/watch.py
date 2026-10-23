@@ -4,6 +4,7 @@ Só envia. Nada do que os membros escrevem no grupo é lido. Dados: apenas a lis
 """
 import logging
 import re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from urllib.parse import quote
@@ -13,7 +14,7 @@ from .transport import NotDispatched
 
 log=logging.getLogger('automation')
 GUILD=re.compile(r"[A-Za-z][A-Za-z '\-.]{1,39}")
-MIN_INTERVAL=50        # varredura a cada minuto (a lista online do mundo é renovada pela TibiaData em cerca de 1 min)
+MIN_INTERVAL=15        # varredura a cada 20 s (3 por tick de 1 min): level up e mortes
 ROSTER_TTL=900         # a pertença à guild muda pouco: renova a cada 15 min
 MAX_FETCH=30           # fichas consultadas por varredura, em rodízio entre os membros online
 DEFAULT_PER_MINUTE=3   # ritmo padrão; o dono escolhe de 1 a 120 por minuto
@@ -59,6 +60,15 @@ def pt(number): return f'{number:,}'.replace(',','.')
 class Watcher:
     def __init__(self,store,transport,fetch=None,clock=None):
         self.store=store;self.transport=transport;self.fetch=fetch or tibia_json;self.clock=clock or (lambda:datetime.now(UTC))
+
+    def run(self,seconds=45,every=20):
+        """Varreduras a cada `every` s durante `seconds` s: o timer do sistema chama uma vez por minuto, então cabem 3 varreduras por chamada."""
+        start=time.monotonic()
+        while True:
+            began=time.monotonic();self.tick()
+            following=began+every
+            if following-start>seconds: break
+            time.sleep(max(0,following-time.monotonic()))
 
     def tick(self,now=None):
         now=now or self.clock();stamp=now.timestamp()
@@ -142,8 +152,10 @@ class Watcher:
             db.execute("UPDATE watch_events SET state='expired' WHERE watch=? AND state='pending' AND created<?",(key,stamp-EVENT_TTL))
             db.execute("UPDATE watch_events SET state='uncertain',error='dispatch_interrupted' WHERE watch=? AND state='sending' AND lease<=?",(key,stamp))
             used=db.execute("SELECT count(*) FROM watch_events WHERE watch=? AND sent_at>=?",(key,stamp-3600)).fetchone()[0]
+            last_minute=db.execute("SELECT count(*) FROM watch_events WHERE watch=? AND sent_at>?",(key,stamp-60)).fetchone()[0]
             per_minute=data.get('perMinute',DEFAULT_PER_MINUTE)  # alertas criados antes do campo existir seguem no ritmo padrão
-            room=per_minute if data['hourlyCap']==0 else min(per_minute,data['hourlyCap']-used)  # hourlyCap 0 = sem teto por hora
+            room=per_minute-last_minute  # o ritmo vale por janela de 60 s, mesmo com várias varreduras por minuto
+            if data['hourlyCap']: room=min(room,data['hourlyCap']-used)  # hourlyCap 0 = sem teto por hora
             if room<=0: return
             pending=db.execute("SELECT id FROM watch_events WHERE watch=? AND state='pending' ORDER BY created,id LIMIT ?",(key,room)).fetchall()
         for row in pending:

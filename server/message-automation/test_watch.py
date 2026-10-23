@@ -1,6 +1,7 @@
 """Alertas da guild: baseline sem enviar, marcos de level, mortes, limite por hora, revogação e falhas de envio."""
 import tempfile
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timedelta
 from pathlib import Path
 from cryptography.fernet import Fernet
@@ -105,8 +106,25 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(len(fichas),45,'com mais online que o limite por varredura, ninguém fica sem conferência')
 
     def test_intervalo_minimo_entre_varreduras(self):
-        self.feed.members=[member('Ana',499)];self.watch();self.tick(0);antes=len(self.feed.calls);self.watcher.tick(T0+timedelta(seconds=20))
-        self.assertEqual(len(self.feed.calls),antes)
+        self.feed.members=[member('Ana',499)];self.watch();self.tick(0);antes=len(self.feed.calls);self.watcher.tick(T0+timedelta(seconds=10))
+        self.assertEqual(len(self.feed.calls),antes,'varredura mais seguida que 15 s é ignorada')
+        self.watcher.tick(T0+timedelta(seconds=20));self.assertGreater(len(self.feed.calls),antes)
+
+    def test_varredura_de_20_segundos_pega_level_e_morte_sem_estourar_o_ritmo_por_minuto(self):
+        at=lambda seconds:self.watcher.tick(T0+timedelta(seconds=seconds))
+        self.feed.members=[member(f'P{i}',100) for i in range(8)];self.watch(perMinute=3);at(0)
+        self.feed.members=[member(f'P{i}',101) for i in range(8)];self.feed.deaths={'P7':[death(T0+timedelta(seconds=5))]}
+        at(20);self.assertEqual(len(self.texts()),3,'3 por minuto, mesmo com a fila grande')
+        at(40);at(60);self.assertEqual(len(self.texts()),3,'a janela de 60 s ainda está cheia')
+        at(80);self.assertEqual(len(self.texts()),6)
+        at(140);at(200);self.assertEqual(len(self.texts()),9)
+        self.assertTrue(any('morreu' in t for t in self.texts()))
+
+    def test_run_faz_tres_varreduras_por_minuto(self):
+        ticks=[];self.watcher.tick=lambda now=None:ticks.append(1);clock=[0.0]
+        with patch('automation.watch.time.monotonic',lambda:clock[0]),patch('automation.watch.time.sleep',lambda s:clock.__setitem__(0,clock[0]+s)):
+            self.watcher.run()
+        self.assertEqual(len(ticks),3);self.assertLess(clock[0],45)
 
     def test_morte_depois_da_criacao_avisa_uma_vez_e_ignora_antiga(self):
         self.feed.members=[member('Bia',800,'online',vocation='Royal Paladin')];self.watch();self.tick(0)
