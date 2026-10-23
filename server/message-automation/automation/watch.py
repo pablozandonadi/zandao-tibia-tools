@@ -24,7 +24,7 @@ def validate_watch(data):
     guild=data.get('guild')
     if not isinstance(guild,str) or not GUILD.fullmatch(' '.join(guild.split())): raise Invalid('Informe o nome da guild.')
     out={'guild':' '.join(guild.split())}
-    for key,low,high,default in (('milestone',5,1000,50),('hourlyCap',1,60,20)):
+    for key,low,high,default in (('milestone',1,1000,1),('hourlyCap',1,60,20)):
         value=data.get(key,default)
         if type(value) is not int or not low<=value<=high: raise Invalid('Valor fora do limite.')
         out[key]=value

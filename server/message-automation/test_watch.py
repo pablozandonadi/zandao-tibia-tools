@@ -41,8 +41,8 @@ class WatchTests(unittest.TestCase):
     def tick(self,minutes): self.watcher.tick(T0+timedelta(minutes=minutes))
 
     def test_validacao_do_contrato(self):
-        self.assertEqual(validate_watch({'guild':'  Piratas   do Rocks '}),{'guild':'Piratas do Rocks','milestone':50,'hourlyCap':20,'deaths':True,'ups':True})
-        for bad in ({},{'guild':'x'},{'guild':'ok guild','milestone':4},{'guild':'ok guild','hourlyCap':61},{'guild':'ok guild','deaths':'sim'},
+        self.assertEqual(validate_watch({'guild':'  Piratas   do Rocks '}),{'guild':'Piratas do Rocks','milestone':1,'hourlyCap':20,'deaths':True,'ups':True})
+        for bad in ({},{'guild':'x'},{'guild':'ok guild','milestone':0},{'guild':'ok guild','milestone':1001},{'guild':'ok guild','hourlyCap':61},{'guild':'ok guild','deaths':'sim'},
                     {'guild':'ok guild','deaths':False,'ups':False},{'guild':'<b>x</b>'}):
             with self.subTest(bad=bad),self.assertRaises(Invalid): validate_watch(bad)
 
@@ -52,7 +52,7 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(self.transport.sent,[])
 
     def test_level_up_so_nos_marcos_e_uma_vez(self):
-        self.feed.members=[member('Ana',499)];self.watch();self.tick(0)
+        self.feed.members=[member('Ana',499)];self.watch(milestone=50);self.tick(0)
         self.feed.members=[member('Ana',500)];self.tick(3)
         self.assertEqual(len(self.texts()),1);self.assertIn('*Ana*',self.texts()[0]);self.assertIn('level *500*',self.texts()[0])
         self.feed.members=[member('Ana',510)];self.tick(6);self.feed.members=[member('Ana',480)];self.tick(9)
@@ -60,6 +60,13 @@ class WatchTests(unittest.TestCase):
         self.assertEqual(len(self.texts()),1,'sem marco novo, sem aviso; voltar ao mesmo marco não repete')
         self.feed.members=[member('Ana',1001)];self.tick(15)
         self.assertEqual(len(self.texts()),2);self.assertIn('1.001',self.texts()[1])
+
+    def test_padrao_avisa_todo_level_sem_repetir(self):
+        self.feed.members=[member('Ana',100)];self.watch();self.tick(0)
+        self.feed.members=[member('Ana',101)];self.tick(3);self.feed.members=[member('Ana',103)];self.tick(6)
+        self.assertEqual(len(self.texts()),2);self.assertIn('level *101*',self.texts()[0]);self.assertIn('level *103*',self.texts()[1])
+        self.feed.members=[member('Ana',102)];self.tick(9);self.feed.members=[member('Ana',103)];self.tick(12)
+        self.assertEqual(len(self.texts()),2,'perder level e voltar ao mesmo não avisa de novo')
 
     def test_intervalo_minimo_entre_varreduras(self):
         self.feed.members=[member('Ana',499)];self.watch();self.tick(0);antes=len(self.feed.calls);self.tick(1)
@@ -139,7 +146,7 @@ class WatchTests(unittest.TestCase):
         dest=client.post('/v1/destinations',json={'connection':conn,'group':'fake-group'},headers=a).json()['id']
         body={'guild':'Piratas do Rocks','milestone':50,'deaths':True,'ups':True,'hourlyCap':20,'connection':conn,'destination':dest,'active':True}
         self.assertEqual(client.post('/v1/watches',json=body).status_code,401)
-        for bad in ({**body,'guild':''},{**body,'milestone':1},{**body,'extra':1},{**body,'deaths':False,'ups':False},{**body,'destination':'outro'}):
+        for bad in ({**body,'guild':''},{**body,'milestone':0},{**body,'extra':1},{**body,'deaths':False,'ups':False},{**body,'destination':'outro'}):
             self.assertEqual(client.post('/v1/watches',json=bad,headers=a).status_code,400,bad)
         self.assertEqual(client.post('/v1/watches',json=body,headers=b).status_code,400,'conexão de outro dono')
         made=client.post('/v1/watches',json=body,headers=a);self.assertEqual(made.status_code,200);key=made.json()['id']

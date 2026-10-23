@@ -115,7 +115,7 @@
   for(const w of watches){
    const on=w.state==='active',card=el('article','routine'+(on?' on':'')),head=el('div','routine-head');
    head.append(el('span','badge '+(on?'good':''),stateLabel(w.state)),el('h3','',text(w.guild)+' → '+(text(w.destinationLabel)||'Grupo sem nome')));
-   card.append(head,el('p','muted',[w.deaths?'Mortes':'',w.ups?'Level ups a cada '+Number(w.milestone):''].filter(Boolean).join(' · ')+' · até '+Number(w.hourlyCap)+' avisos/hora'));
+   card.append(head,el('p','muted',[w.deaths?'Mortes':'',w.ups?(Number(w.milestone)===1?'Todo level up':'Level ups a cada '+Number(w.milestone)):''].filter(Boolean).join(' · ')+' · até '+Number(w.hourlyCap)+' avisos/hora'));
    const actions=el('div','actions');
    const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};
    add(on?'Pausar':'Ativar',async()=>{await api('watches/'+w.id,'PUT',watchBody(w,!on));await loadWatches();notice(on?'Alerta pausado.':'Alerta ativado.');});
@@ -132,7 +132,7 @@
   // Os mesmos limites do servidor, com aviso claro: a recusa dele aparece só como "pedido recusado".
   const milestone=Number($('watch-milestone').value),cap=Number($('watch-cap').value);
   if(!$('watch-guild').value.trim())throw Error('Informe o nome da guild.');
-  if(!Number.isInteger(milestone)||milestone<5||milestone>1000)throw Error('Level up a cada: use um número de 5 a 1000.');
+  if(!Number.isInteger(milestone)||milestone<1||milestone>1000)throw Error('Level up a cada: use um número de 1 a 1000 (1 = todo level).');
   if(!Number.isInteger(cap)||cap<1||cap>60)throw Error('Máximo de avisos por hora: use um número de 1 a 60.');
   if(!$('watch-deaths').checked&&!$('watch-ups').checked)throw Error('Marque mortes, level ups ou os dois.');
   const dest=await api('destinations','POST',{connection,group:$('watch-groups').value});
