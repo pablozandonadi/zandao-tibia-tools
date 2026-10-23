@@ -129,6 +129,12 @@
  $('watch-save').onclick=guarded(async()=>{
   if(!connection||!connected)throw Error('Conecte seu WhatsApp antes de salvar.');
   if(!$('watch-groups').value)throw Error('Escolha o grupo de destino.');
+  // Os mesmos limites do servidor, com aviso claro: a recusa dele aparece só como "pedido recusado".
+  const milestone=Number($('watch-milestone').value),cap=Number($('watch-cap').value);
+  if(!$('watch-guild').value.trim())throw Error('Informe o nome da guild.');
+  if(!Number.isInteger(milestone)||milestone<5||milestone>1000)throw Error('Level up a cada: use um número de 5 a 1000.');
+  if(!Number.isInteger(cap)||cap<1||cap>60)throw Error('Máximo de avisos por hora: use um número de 1 a 60.');
+  if(!$('watch-deaths').checked&&!$('watch-ups').checked)throw Error('Marque mortes, level ups ou os dois.');
   const dest=await api('destinations','POST',{connection,group:$('watch-groups').value});
   await api('watches','POST',{guild:$('watch-guild').value.trim(),milestone:Number($('watch-milestone').value),deaths:$('watch-deaths').checked,ups:$('watch-ups').checked,hourlyCap:Number($('watch-cap').value),connection,destination:dest.id,active:true});
   $('watch-guild').value='';await loadWatches();
