@@ -296,6 +296,7 @@ func (b *bridge) groups(ctx context.Context, id string, s *session) ([]group, ma
 	}
 	joined, err := s.client.GetJoinedGroups(ctx)
 	if err != nil {
+		log.Printf("group list failed: %v", err) // only the WhatsApp error, never a group name
 		return nil, nil, err
 	}
 	groups := []group{}

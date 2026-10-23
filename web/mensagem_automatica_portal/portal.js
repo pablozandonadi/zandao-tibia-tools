@@ -104,7 +104,10 @@
   if(status.qrImage&&status.expiresAt>Date.now()/1000&&/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(status.qrImage)){
    $('qr').src=status.qrImage;$('qr').hidden=false;qrTimer=setTimeout(clearQR,Math.min((status.expiresAt-Date.now()/1000)*1000,90000));
   }
-  if(connected){groups=await api('connections/'+connection+'/groups');renderGroups(editing?.destinationLabel);options($('watch-groups'),groups,'Escolha um grupo');options($('bot-groups'),groups,'Escolha um grupo');$('connection-detail').textContent=groups.length+' grupos disponíveis para envio.';}
+  if(connected){
+   // Sem a lista de grupos (o WhatsApp às vezes demora a responder) o resto da tela continua: rotinas e alertas seguem salvos.
+   try{groups=await api('connections/'+connection+'/groups');}catch(error){$('connection-detail').textContent='Não foi possível listar os grupos agora ('+error.message+'). Suas rotinas, alertas e comandos continuam salvos; use "Atualizar" em instantes.';return;}
+   renderGroups(editing?.destinationLabel);options($('watch-groups'),groups,'Escolha um grupo');options($('bot-groups'),groups,'Escolha um grupo');$('connection-detail').textContent=groups.length+' grupos disponíveis para envio.';}
  }
  // Alertas da guild: o servidor detecta mortes e marcos de level e envia um aviso por evento; aqui só se configura.
  let watches=[];

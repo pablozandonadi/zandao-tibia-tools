@@ -4,7 +4,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
  const browser=await chromium.launch({headless:true,...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{})});
  try{
   const page=await browser.newPage(),errors=[],requests=[],calls=[];page.on('pageerror',e=>errors.push(e.message));
-  const folder=path.resolve(__dirname,'../../web/mensagem_automatica_portal');let connected=false,revoked=false,subscriptions=[],watchesList=[],botList=[],groupLabel='Grupo <script>malicioso</script>',previewText='Prévia <img src=x onerror=alert(1)>',releasePreview,signalPreview;
+  const folder=path.resolve(__dirname,'../../web/mensagem_automatica_portal');let connected=false,revoked=false,groupsFail=false,subscriptions=[],watchesList=[],botList=[],groupLabel='Grupo <script>malicioso</script>',previewText='Prévia <img src=x onerror=alert(1)>',releasePreview,signalPreview;
   const previewStarted=new Promise(r=>signalPreview=r),previewGate=new Promise(r=>releasePreview=r);let first=true;
   const configuration={personagem:'Pirata Teste',mundo:'Antica',blocks:{mundo:true},timezone:'UTC',generateAt:'12:00',sendAt:'12:10'};
   await page.exposeBinding('nativeCall',async(_,action,args=[])=>{
@@ -17,7 +17,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
    else if(p==='/v1/connections'&&method==='POST'){assert.equal(body.riskAccepted,true);connected=true;revoked=false;result={id:'connection'};}
    else if(p==='/v1/connections/connection/pair')result={state:'pairing'};
    else if(p==='/v1/connections/connection'&&method==='GET')result={state:'connected',simulated:true};
-   else if(p==='/v1/connections/connection/groups')result=[{id:'opaque-group',label:groupLabel}];
+   else if(p==='/v1/connections/connection/groups'){if(groupsFail)return {error:'Pedido recusado.'};result=[{id:'opaque-group',label:groupLabel}];}
    else if(p==='/v1/connections/connection'&&method==='DELETE'){revoked=true;connected=false;result={state:'revoked'};}
    else if(p==='/v1/preview'){assert.equal(body.personagem,'Pirata Teste');if(first){first=false;signalPreview();await previewGate;}result={text:previewText,reference_date:'2026-10-21'};}
    else if(p==='/v1/destinations'){assert.equal(body.group,'opaque-group');result={id:'destination'};}
@@ -80,6 +80,13 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   await bot.getByRole('button',{name:'Pausar'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos pausados'));assert.equal(botList[0].state,'inactive');
   await bot.getByRole('button',{name:'Excluir'}).click();await bot.getByRole('button',{name:'Confirmar exclusão'}).click();
   await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos excluídos'));assert.equal(botList.length,0);
+  // Se o WhatsApp não entrega a lista de grupos, o resto da tela segue: os comandos salvos continuam visíveis e há um aviso claro.
+  await page.locator('#bot-groups').selectOption('opaque-group');await page.locator('#bot-world').fill('Rasteibra');await page.locator('#bot-cooldown').fill('30');await page.locator('#bot-save').click();
+  await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos de simulação ativados'));
+  groupsFail=true;await page.reload();await page.waitForFunction(()=>document.getElementById('connection-detail').textContent.includes('Não foi possível listar os grupos'));
+  await page.waitForFunction(()=>document.querySelectorAll('#botgroups article').length===1);assert.equal(await page.locator('#bot-count').textContent(),'1 de 3');
+  groupsFail=false;await page.locator('#refresh').click();await page.waitForFunction(()=>document.getElementById('connection-detail').textContent.includes('grupos disponíveis'));
+  await page.locator('#botgroups article').getByRole('button',{name:'Excluir'}).click();await page.locator('#botgroups article').getByRole('button',{name:'Confirmar exclusão'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos excluídos'));
   await page.locator('#access-controls summary').click();await page.locator('#reveal-recovery').click();await page.waitForFunction(()=>document.getElementById('recovery-code').textContent.length===64);await page.locator('#recovery-input').fill('f'.repeat(64));await page.locator('#recover').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Acesso recuperado'));assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(await page.locator('#recovery-input').inputValue(),'');
   groupLabel='Piratas do Rocks';previewText='Prévia de simulação · Mundo: Antica';await page.locator('#refresh').click();await page.locator('#new-routine').click();await page.waitForFunction(()=>[...document.getElementById('groups').options].some(o=>o.textContent==='Piratas do Rocks'));await page.locator('#preview').click();await page.waitForFunction(()=>document.getElementById('preview-result').textContent.includes('Prévia de simulação'));
   if(process.env.MA_SCREENSHOT_DIR){await page.setViewportSize({width:1200,height:1000});await page.screenshot({path:process.env.MA_SCREENSHOT_DIR+'/portal-mensagem-automatica.png',fullPage:true});}
