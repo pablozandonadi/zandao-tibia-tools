@@ -38,14 +38,15 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   await page.addInitScript(()=>{window.pywebview={api:Object.fromEntries(['boot','request','reveal_recovery','recover'].map(name=>[name,(...args)=>window.nativeCall(name,args)]))};});
   await page.route('**/*',async route=>{const url=new URL(route.request().url());requests.push(url.pathname);assert.equal(url.hostname,'local.test');assert.ok(['/index.html','/portal.js','/portal.css'].includes(url.pathname));return route.fulfill({contentType:url.pathname.endsWith('.js')?'application/javascript':url.pathname.endsWith('.css')?'text/css':'text/html; charset=utf-8',body:fs.readFileSync(path.join(folder,url.pathname.slice(1)))});});
   await page.goto('https://local.test/index.html');await page.locator('#settings').waitFor();
-  await page.locator('#new-routine').click();await page.waitForFunction(()=>document.getElementById('ed-personagem').value==='Pirata Teste');
+  const tab=name=>page.locator('.tabbtn[data-tab="'+name+'"]').click();  // o painel organiza as telas em abas
+  await tab('rotinas');await page.locator('#new-routine').click();await page.waitForFunction(()=>document.getElementById('ed-personagem').value==='Pirata Teste');
   assert.equal(await page.locator('#ed-blocks input').count(),13);assert.equal(await page.locator('#ed-fields input[data-value]').count(),9);assert.equal(await page.locator('#ed-extras input[data-arg]').count(),7);
   assert.equal(await page.locator('[data-group="blocks"][data-key="mundo"]').isChecked(),true);assert.equal(await page.locator('#ed-generate').inputValue(),'12:00');
   assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(calls.some(c=>c.action==='reveal_recovery'),false);
   await page.locator('#preview').click();await previewStarted;assert.equal(await page.locator('#preview-result').textContent(),'');releasePreview();await page.waitForFunction(()=>document.getElementById('preview-result').textContent.includes('<img'));assert.equal(await page.locator('#preview-result img').count(),0);
-  await page.locator('#pair').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Aceite os riscos'));assert.equal(connected,false);
+  await tab('conexao');await page.locator('#pair').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Aceite os riscos'));assert.equal(connected,false);
   await page.locator('#risk').check();await page.locator('#pair').click();await page.waitForFunction(()=>document.getElementById('groups').options.length>1);
-  await page.locator('#group-search').fill('nada assim');assert.equal(await page.locator('#groups option').count(),1);await page.locator('#group-search').fill('MALICIOSO');
+  await tab('rotinas');await page.locator('#group-search').fill('nada assim');assert.equal(await page.locator('#groups option').count(),1);await page.locator('#group-search').fill('MALICIOSO');
   await page.locator('#groups').selectOption('opaque-group');assert.equal(await page.locator('#groups script').count(),0);
   await page.locator('#save').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('salva e pausada'));assert.equal(await page.locator('#editor').isVisible(),false);
   const routine=page.locator('#routines article');await routine.getByRole('button',{name:'Editar'}).click();await page.waitForFunction(()=>document.getElementById('groups').value==='opaque-group');
@@ -54,9 +55,9 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   await routine.getByRole('button',{name:'Pausar'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Rotina pausada'));
   await routine.getByRole('button',{name:'Histórico'}).click();await page.waitForFunction(()=>document.getElementById('runs-result').textContent.includes('Simulado'));
   await page.locator('#runs').click();await page.waitForFunction(()=>document.getElementById('runs-title').textContent==='Todo o histórico');
-  await routine.getByRole('button',{name:'Excluir'}).click();assert.equal(subscriptions.length,1);await routine.getByRole('button',{name:'Confirmar exclusão'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Rotina excluída'));assert.equal(subscriptions.length,0);
+  await tab('rotinas');await routine.getByRole('button',{name:'Excluir'}).click();assert.equal(subscriptions.length,1);await routine.getByRole('button',{name:'Confirmar exclusão'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Rotina excluída'));assert.equal(subscriptions.length,0);
   // Alertas da guild: criar (com nome hostil), pausar e excluir; o texto do servidor nunca vira HTML.
-  await page.locator('#watch-groups').selectOption('opaque-group');await page.locator('#watch-guild').fill('<img src=x onerror=alert(1)>Piratas');
+  await tab('alertas');await page.locator('#watch-groups').selectOption('opaque-group');await page.locator('#watch-guild').fill('<img src=x onerror=alert(1)>Piratas');
   for(const [milestone,cap,expected,minute] of [['0','20','de 1 a 1000','3'],['50','1001','de 0 a 1000','3'],['50','20','por minuto','0']]){
    await page.locator('#watch-milestone').fill(milestone);await page.locator('#watch-cap').fill(cap);await page.locator('#watch-minute').fill(minute);await page.locator('#watch-save').click();
    await page.waitForFunction(text=>document.getElementById('notice').textContent.includes(text),expected);assert.equal(watchesList.length,0);
@@ -69,7 +70,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   await watch.getByRole('button',{name:'Excluir'}).click();assert.equal(watchesList.length,1);await watch.getByRole('button',{name:'Confirmar exclusão'}).click();
   await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Alerta excluído'));assert.equal(watchesList.length,0);
   // Comandos no grupo: valida antes de enviar; criar, pausar e excluir.
-  await page.locator('#bot-groups').selectOption('opaque-group');
+  await tab('comandos');await page.locator('#bot-groups').selectOption('opaque-group');
   for(const [world,cooldown,expected] of [['','30','mundo padrão'],['Antica','2','3 segundos a 24 horas'],['Antica','25h','3 segundos a 24 horas'],['Antica','abc','3 segundos a 24 horas']]){
    await page.locator('#bot-world').fill(world);await page.locator('#bot-cooldown').fill(cooldown);await page.locator('#bot-save').click();
    await page.waitForFunction(text=>document.getElementById('notice').textContent.includes(text),expected);assert.equal(botList.length,0);
@@ -87,18 +88,33 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   // O que o grupo ajusta (!set, !alerta) aparece no app com a marca de origem.
   botList=[{...botList[0],paused:true,changedByGroup:1,disabled:['duelo'],groupConfig:true}];
   watchesList=[{id:'watch',guild:'Piratas',milestone:1,deaths:true,ups:true,hourlyCap:0,perMinute:3,connection:'connection',destination:'destination',destinationLabel:groupLabel,state:'active',source:'group'}];
-  subscriptions=[{id:'subscription',config:{personagem:'TibiaTudo IA',mundo:'Antica',generateAt:'05:50',sendAt:'06:00',timezone:'America/Sao_Paulo'},destinationLabel:groupLabel,state:'active',source:'group'}];
+  subscriptions=[{id:'subscription',destination:'destination',config:{personagem:'TibiaTudo IA',mundo:'Antica',generateAt:'05:50',sendAt:'06:00',timezone:'America/Sao_Paulo'},destinationLabel:groupLabel,state:'active',source:'group'}];
   groupsFail=true;await page.reload();await page.waitForFunction(()=>document.getElementById('connection-detail').textContent.includes('Não foi possível listar os grupos'));
   await page.waitForFunction(()=>document.querySelectorAll('#botgroups article').length===1);assert.equal(await page.locator('#bot-count').textContent(),'1 de 3');
   const botText=await page.locator('#botgroups article').textContent();for(const part of ['pausado pelo grupo','ajustado pelo grupo','desligados aqui: duelo','1 comando a cada 2 min','admins do grupo podem configurar'])assert.ok(botText.includes(part),part);
+  // Visão geral: um cartão por grupo, indicadores, filtros, gráfico e ações rápidas (nomes nunca viram HTML)
+  await tab('geral');
+  assert.equal(await page.locator('#ov-groups article').count(),1);assert.equal(await page.locator('#ov-groups script').count(),0);
+  const card=await page.locator('#ov-groups article').textContent();
+  for(const part of ['Grupo <script>malicioso</script>','Comandos','pausado pelo grupo','Mundo Rasteibra · 1 comando a cada 2 min por membro','Desligados aqui: duelo','Alerta da guild','Guild Piratas','Bom dia','Gera 05:50 · Envia 06:00','criado pelo grupo'])assert.ok(card.includes(part),part);
+  const kpis=await page.locator('#kpis').textContent();for(const part of ['WhatsApp','Conectado','Grupos com bot','Bots ativos','Comandos1 de 3','Alertas1 de 3','Rotinas de bom dia1 de 5','2 vagas livres'])assert.ok(kpis.includes(part),part);
+  assert.equal(await page.locator('#top-wa').textContent(),'WhatsApp: Conectado');assert.equal(await page.locator('#nav-comandos').textContent(),'1');
+  await page.locator('#ov-filters [data-filter="sem"]').click();await page.waitForFunction(()=>document.getElementById('ov-groups').textContent.includes('Nenhum grupo corresponde'));
+  await page.locator('#ov-filters [data-filter="pausados"]').click();assert.equal(await page.locator('#ov-groups article').count(),1,'o grupo tem comandos pausados pelo grupo');
+  await page.locator('#ov-filters [data-filter="todos"]').click();await page.locator('#ov-search').fill('zzz');assert.equal(await page.locator('#ov-groups article').count(),0);await page.locator('#ov-search').fill('malicioso');assert.equal(await page.locator('#ov-groups article').count(),1);await page.locator('#ov-search').fill('');
+  assert.equal(await page.locator('#ov-activity .col').count(),1);assert.equal(await page.locator('#ov-activity .seg.ok').count(),1);assert.match(await page.locator('#ov-activity').getAttribute('aria-label'),/1 envios feitos e 0 com problema/);
+  if(process.env.MA_SCREENSHOT_DIR){await page.setViewportSize({width:1280,height:900});await page.screenshot({path:process.env.MA_SCREENSHOT_DIR+'/painel-geral.png'});}
+  await page.locator('#ov-groups article').getByRole('button',{name:'Retomar comandos'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos retomados'));assert.equal(botList[0].paused,false);assert.equal(botList[0].disabled[0],'duelo','retomar não mexe nos comandos desligados');
+  await page.locator('#ov-groups article').getByRole('button',{name:'Histórico'}).click();await page.waitForFunction(()=>!document.getElementById('tab-historico').hidden&&document.getElementById('runs-title').textContent.startsWith('Histórico · '));
+  await tab('geral');
   assert.ok((await page.locator('#watches article').textContent()).includes('criado pelo grupo'));watchesList=[];
   assert.ok((await page.locator('#routines article').textContent()).includes('criado pelo grupo'));subscriptions=[];
-  groupsFail=false;await page.locator('#refresh').click();await page.waitForFunction(()=>document.getElementById('connection-detail').textContent.includes('grupos disponíveis'));
-  await page.locator('#botgroups article').getByRole('button',{name:'Excluir'}).click();await page.locator('#botgroups article').getByRole('button',{name:'Confirmar exclusão'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos excluídos'));
+  await tab('conexao');groupsFail=false;await page.locator('#refresh').click();await page.waitForFunction(()=>document.getElementById('connection-detail').textContent.includes('grupos disponíveis'));
+  await tab('comandos');await page.locator('#botgroups article').getByRole('button',{name:'Excluir'}).click();await page.locator('#botgroups article').getByRole('button',{name:'Confirmar exclusão'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos excluídos'));
   await page.locator('#access-controls summary').click();await page.locator('#reveal-recovery').click();await page.waitForFunction(()=>document.getElementById('recovery-code').textContent.length===64);await page.locator('#recovery-input').fill('f'.repeat(64));await page.locator('#recover').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Acesso recuperado'));assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(await page.locator('#recovery-input').inputValue(),'');
-  groupLabel='Piratas do Rocks';previewText='Prévia de simulação · Mundo: Antica';await page.locator('#refresh').click();await page.locator('#new-routine').click();await page.waitForFunction(()=>[...document.getElementById('groups').options].some(o=>o.textContent==='Piratas do Rocks'));await page.locator('#preview').click();await page.waitForFunction(()=>document.getElementById('preview-result').textContent.includes('Prévia de simulação'));
+  groupLabel='Piratas do Rocks';previewText='Prévia de simulação · Mundo: Antica';await tab('conexao');await page.locator('#refresh').click();await tab('rotinas');await page.locator('#new-routine').click();await page.waitForFunction(()=>[...document.getElementById('groups').options].some(o=>o.textContent==='Piratas do Rocks'));await page.locator('#preview').click();await page.waitForFunction(()=>document.getElementById('preview-result').textContent.includes('Prévia de simulação'));
   if(process.env.MA_SCREENSHOT_DIR){await page.setViewportSize({width:1200,height:1000});await page.screenshot({path:process.env.MA_SCREENSHOT_DIR+'/portal-mensagem-automatica.png',fullPage:true});}
-  await page.locator('#revoke').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('revogada'));assert.equal(revoked,true);
+  await tab('conexao');await page.locator('#revoke').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('revogada'));assert.equal(revoked,true);
   assert.equal(await page.evaluate(()=>localStorage.length+sessionStorage.length),0);assert.ok(calls.every(c=>!JSON.stringify(c).includes('Bearer')));assert.equal(requests.some(p=>p.startsWith('/v1')||p.includes('google')),false);
   await page.locator('#reveal-recovery').click();await page.waitForFunction(()=>document.getElementById('recovery-code').textContent.length===64);await page.evaluate(()=>window.dispatchEvent(new Event('pagehide')));assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(await page.locator('#settings').isVisible(),false);
   await page.setViewportSize({width:320,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);

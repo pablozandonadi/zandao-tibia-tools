@@ -203,5 +203,5 @@ def open_management(config):
  except Invalid:config={k:config[k].strip()[:40] for k in ('personagem','mundo') if isinstance(config,dict) and isinstance(config.get(k),str)}
  api=ManagementAPI(InstallationClient(origin,credentials),config)
  path=app_paths.resource_dir()/'web'/'mensagem_automatica_portal'/'index.html'
- webview.create_window('Mensagens automáticas',str(path),js_api=api,width=900,height=860,min_size=(320,500))
+ webview.create_window('Mensagens automáticas',str(path),js_api=api,width=1240,height=900,min_size=(320,500))
  return {'ok':True}

@@ -295,6 +295,13 @@ class GroupConfigTests(unittest.TestCase):
         self.assertEqual((after['world'], after['cooldown'], after['paused'], after['disabled'], after['changedByGroup'], after['groupConfig']), ('Jadebra', 90, True, ['duelo'], 123, True))
         client.put('/v1/botgroups/' + made, json={'world': 'Jadebra', 'cooldown': 90, 'connection': conn, 'destination': dest, 'active': True, 'groupConfig': False}, headers=head)
         self.assertEqual(self.store.get(owner, made, 'botgroup')['data']['groupConfig'], False)
+        # o dono retoma pelo app os comandos que o grupo pausou, sem mexer nos comandos desligados
+        body = {'world': 'Jadebra', 'cooldown': 90, 'connection': conn, 'destination': dest, 'active': True}
+        self.assertEqual(client.put('/v1/botgroups/' + made, json={**body, 'paused': 'sim'}, headers=head).status_code, 400)
+        self.assertEqual(client.put('/v1/botgroups/' + made, json={**body, 'paused': False}, headers=head).status_code, 200)
+        after = self.store.get(owner, made, 'botgroup')['data']; self.assertEqual((after['paused'], after['disabled']), (False, ['duelo']))
+        self.assertEqual(client.put('/v1/botgroups/' + made, json=body, headers=head).status_code, 200)
+        self.assertEqual(self.store.get(owner, made, 'botgroup')['data']['paused'], False, 'sem o campo, vale o que estava')
 
 
 if __name__ == '__main__': unittest.main()

@@ -248,9 +248,12 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
         with store.tx() as db: sent={r['watch']:r['at'] for r in db.execute("SELECT watch,max(sent_at) AS at FROM watch_events WHERE state IN ('accepted','simulated') GROUP BY watch")}
         return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],''),'lastSent':sent.get(x['id'])} for x in store.list(user,'watch') if x['state']!='revoked']
     def botgroup_data(user,data,own=None):
-        fields(data,{'world','cooldown','connection','destination','active','groupConfig'})
+        fields(data,{'world','cooldown','connection','destination','active','groupConfig','paused'})
         if type(data.get('active',False)) is not bool: raise Invalid('Estado inválido.')
         config=validate_botgroup(data)
+        if 'paused' in data:  # o dono pode retomar (ou pausar) os comandos de um grupo pelo app; sem o campo, vale o que estava
+            if type(data['paused']) is not bool: raise Invalid('Estado inválido.')
+            config['paused']=data['paused']
         conn=connection(user,data.get('connection',''));dest=store.get(user,data.get('destination',''),'destination')
         if dest['data']['connection']!=conn['id'] or dest['state']!='active': raise Invalid('Destino não autorizado.')
         if data.get('active'):

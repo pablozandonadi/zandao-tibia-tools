@@ -2,33 +2,29 @@
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mensagens automáticas · ZandaoTools</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'"><link rel="stylesheet" href="portal.css">
 </head><body>
-<header class="top"><h1>Mensagens automáticas</h1><span id="mode" class="badge" role="status">Verificando…</span><button id="logout" class="ghost">Encerrar gestão</button></header>
+<header class="top"><div class="brand"><span class="logo" aria-hidden="true">📲</span><div><h1>Painel dos bots do WhatsApp</h1><p class="sub">Comandos, alertas da guild e bom dia, grupo por grupo</p></div></div><span id="mode" class="badge" role="status">Verificando…</span><button id="top-wa" class="chip" type="button" title="Abrir a aba do WhatsApp">WhatsApp: …</button><button id="refresh-all" class="ghost" type="button">↻ Atualizar tudo</button><button id="logout" class="ghost">Encerrar gestão</button></header>
 <p id="notice" role="status" aria-live="polite"></p>
-<main id="settings" hidden>
-<section class="card" aria-labelledby="wa-title"><div class="card-head"><h2 id="wa-title">WhatsApp</h2><span id="connection-state" class="badge">…</span></div>
-<p id="connection-detail" class="muted"></p>
-<div id="pair-box"><p class="muted risk">Integração não oficial com o WhatsApp. Mudanças no WhatsApp podem interromper a conexão e existe risco de bloqueio da conta. Não há garantia de envio ou de manutenção da sessão.</p><label><input id="risk" type="checkbox"> Li e aceito esses riscos para conectar minha própria conta.</label><button id="pair" class="primary">Conectar / mostrar QR</button><img id="qr" hidden alt="QR temporário para parear sua conta WhatsApp"></div>
-<div class="actions"><button id="refresh">Atualizar</button><button id="revoke" class="danger" hidden>Desconectar WhatsApp</button></div></section>
+<main id="settings" class="shell" hidden>
+<nav class="side" aria-label="Seções do painel">
+<button class="tabbtn on" data-tab="geral" type="button">📊 Visão geral</button>
+<button class="tabbtn" data-tab="rotinas" type="button">☀️ Bom dia <span id="nav-rotinas" class="count"></span></button>
+<button class="tabbtn" data-tab="alertas" type="button">🚨 Alertas da guild <span id="nav-alertas" class="count"></span></button>
+<button class="tabbtn" data-tab="comandos" type="button">🤖 Comandos <span id="nav-comandos" class="count"></span></button>
+<button class="tabbtn" data-tab="conexao" type="button">📱 WhatsApp</button>
+<button class="tabbtn" data-tab="historico" type="button">🕘 Histórico</button>
+<button class="tabbtn" data-tab="acesso" type="button">🔑 Recuperar acesso</button>
+</nav>
+<div class="content">
+
+<section class="tab" id="tab-geral" aria-label="Visão geral">
+<div id="kpis" class="kpis"></div>
+<div class="toolbar"><input id="ov-search" type="search" placeholder="Buscar grupo…" aria-label="Buscar grupo" autocomplete="off"><div id="ov-filters" role="group" aria-label="Filtrar grupos"><button class="chip on" data-filter="todos" type="button">Todos</button> <button class="chip" data-filter="ativos" type="button">Com bot ativo</button> <button class="chip" data-filter="pausados" type="button">Pausados</button> <button class="chip" data-filter="sem" type="button">Sem bom dia</button></div></div>
+<div id="ov-groups" class="gcards"></div>
+<section class="card" aria-labelledby="act-title"><div class="card-head"><h2 id="act-title">Bom dia: envios recentes</h2></div><div id="ov-activity" class="chart" role="img" aria-label="Envios de bom dia por dia"></div><div class="legend"><span><i class="dot ok"></i>enviados</span><span><i class="dot bad"></i>com problema (expirou, falhou ou incerto)</span></div></section>
+</section>
+
+<section class="tab" id="tab-rotinas" aria-label="Bom dia" hidden>
 <section class="card" aria-labelledby="routines-title"><div class="card-head"><h2 id="routines-title">Minhas rotinas</h2><span><span id="routine-count" class="muted"></span> <button id="new-routine" class="primary">+ Nova rotina</button></span></div><div id="routines" class="routines"></div></section>
-<section class="card" aria-labelledby="watch-title"><div class="card-head"><h2 id="watch-title">Alertas da guild</h2><span id="watch-count" class="muted"></span></div>
-<p class="muted">Avisa no grupo quando um membro da guild morre ou sobe de level. Só envia: o bot não lê o que é escrito no grupo. O bom dia segue pelas rotinas acima.</p>
-<div id="watches"></div>
-<div class="row"><label for="watch-guild">Guild</label><input id="watch-guild" maxlength="40" placeholder="Ex.: Piratas do Rocks"></div>
-<div class="row"><label for="watch-groups">Grupo</label><select id="watch-groups"></select></div>
-<div class="row"><label for="watch-milestone">Avisar level up a cada</label><input id="watch-milestone" type="number" min="1" max="1000" value="1"> <span class="muted">(1 = todo level que subir; 50 = só nos níveis 100, 150, 200…)</span></div>
-<div class="row"><label for="watch-cap">Máximo de avisos por hora</label><input id="watch-cap" type="number" min="0" max="1000" value="0"> <span class="muted">(0 = sem limite)</span></div>
-<div class="row"><label for="watch-minute">Máximo de avisos por minuto</label><input id="watch-minute" type="number" min="1" max="120" value="3"> <span class="muted">(ritmo de envio; o resto espera na fila)</span></div>
-<div class="row"><label class="tick"><input id="watch-deaths" type="checkbox" checked>Mortes</label> <label class="tick"><input id="watch-ups" type="checkbox" checked>Level ups (nos marcos)</label></div>
-<div class="actions"><button id="watch-save" class="primary">Salvar e ativar alerta</button></div></section>
-<section class="card" aria-labelledby="bot-title"><div class="card-head"><h2 id="bot-title">Comandos no grupo</h2><span id="bot-count" class="muted"></span></div>
-<p class="muted">O bot responde no grupo a !help, !duelo, !evolucao, !precocoin, !pt, !char, !online e !xptop. Ele lê só mensagens que começam com ! (o resto é descartado na hora) e não guarda o texto. Admins do grupo também configuram com !set e !alerta (veja !set ajuda); o que eles criam aparece aqui com a marca "criado pelo grupo".</p>
-<div id="botgroups"></div>
-<div class="row"><label for="bot-groups">Grupo</label><select id="bot-groups"></select></div>
-<div class="row"><label for="bot-world">Mundo padrão</label><input id="bot-world" maxlength="40" placeholder="Ex.: Rasteibra"></div>
-<div class="row"><label for="bot-cooldown">Intervalo por membro</label><input id="bot-cooldown" value="30" maxlength="8" placeholder="30, 30s, 2m, 1h" aria-describedby="bot-cooldown-hint"></div>
-<p id="bot-cooldown-hint" class="muted">De 3 segundos a 24 horas: cada pessoa espera esse tempo entre um comando e o próximo.</p>
-<div class="row"><label><input id="bot-config" type="checkbox" checked> Admins do grupo podem configurar com !set e !alerta</label></div>
-<div class="actions"><button id="bot-save" class="primary">Salvar e ativar comandos</button></div></section>
 <section class="card" id="editor" hidden aria-labelledby="editor-title"><div class="card-head"><h2 id="editor-title">Nova rotina</h2><button id="editor-cancel" class="ghost">Cancelar</button></div>
 <label>Grupo de destino<input id="group-search" type="search" placeholder="Buscar grupo…" autocomplete="off"><select id="groups"><option value="">Escolha um grupo</option></select></label>
 <fieldset><legend>Horários</legend><div class="grid"><label>Gerar às<input id="ed-generate" type="time"></label><label>Enviar às<input id="ed-send" type="time"></label><label>Fuso horário<input id="ed-zone" maxlength="100" placeholder="Ex.: America/Cuiaba"></label></div><p class="muted">O envio precisa ser no mesmo horário ou depois da geração.</p></fieldset>
@@ -38,8 +34,49 @@
 <fieldset><legend>Consultas adicionais</legend><p class="muted">Campo vazio usa o personagem e o mundo acima.</p><div id="ed-extras" class="rows"></div></fieldset>
 <div class="actions"><button id="preview">Prévia</button><button id="save">Salvar pausada</button><button id="activate" class="primary">Salvar e ativar</button></div></section>
 <section class="card" id="preview-card" hidden aria-labelledby="preview-title"><div class="card-head"><h2 id="preview-title">Prévia</h2><button id="close-preview" class="ghost">Fechar</button></div><pre id="preview-result"></pre></section>
+</section>
+
+<section class="tab" id="tab-alertas" aria-label="Alertas da guild" hidden>
+<section class="card" aria-labelledby="watch-title"><div class="card-head"><h2 id="watch-title">Alertas da guild</h2><span id="watch-count" class="muted"></span></div>
+<p class="muted">Avisa no grupo quando um membro da guild morre ou sobe de level. Só envia: o bot não lê o que é escrito no grupo. O bom dia segue pelas rotinas.</p>
+<div id="watches"></div>
+<h4>Novo alerta</h4>
+<div class="row"><label for="watch-guild">Guild</label><input id="watch-guild" maxlength="40" placeholder="Ex.: Piratas do Rocks"></div>
+<div class="row"><label for="watch-groups">Grupo</label><select id="watch-groups"></select></div>
+<div class="row"><label for="watch-milestone">Avisar level up a cada</label><input id="watch-milestone" type="number" min="1" max="1000" value="1"> <span class="muted">(1 = todo level que subir; 50 = só nos níveis 100, 150, 200…)</span></div>
+<div class="row"><label for="watch-cap">Máximo de avisos por hora</label><input id="watch-cap" type="number" min="0" max="1000" value="0"> <span class="muted">(0 = sem limite)</span></div>
+<div class="row"><label for="watch-minute">Máximo de avisos por minuto</label><input id="watch-minute" type="number" min="1" max="120" value="3"> <span class="muted">(ritmo de envio; o resto espera na fila)</span></div>
+<div class="row"><label class="tick"><input id="watch-deaths" type="checkbox" checked>Mortes</label> <label class="tick"><input id="watch-ups" type="checkbox" checked>Level ups (nos marcos)</label></div>
+<div class="actions"><button id="watch-save" class="primary">Salvar e ativar alerta</button></div></section>
+</section>
+
+<section class="tab" id="tab-comandos" aria-label="Comandos no grupo" hidden>
+<section class="card" aria-labelledby="bot-title"><div class="card-head"><h2 id="bot-title">Comandos no grupo</h2><span id="bot-count" class="muted"></span></div>
+<p class="muted">O bot responde no grupo a !help, !duelo, !evolucao, !precocoin, !pt, !char, !online e !xptop. Ele lê só mensagens que começam com ! (o resto é descartado na hora) e não guarda o texto. Admins do grupo também configuram com !set, !alerta e !bomdia (veja !set ajuda); o que eles criam aparece aqui com a marca "criado pelo grupo".</p>
+<div id="botgroups"></div>
+<h4>Novos comandos em um grupo</h4>
+<div class="row"><label for="bot-groups">Grupo</label><select id="bot-groups"></select></div>
+<div class="row"><label for="bot-world">Mundo padrão</label><input id="bot-world" maxlength="40" placeholder="Ex.: Rasteibra"></div>
+<div class="row"><label for="bot-cooldown">Intervalo por membro</label><input id="bot-cooldown" value="30" maxlength="8" placeholder="30, 30s, 2m, 1h" aria-describedby="bot-cooldown-hint"></div>
+<p id="bot-cooldown-hint" class="muted">De 3 segundos a 24 horas: cada pessoa espera esse tempo entre um comando e o próximo.</p>
+<div class="row"><label><input id="bot-config" type="checkbox" checked> Admins do grupo podem configurar com !set, !alerta e !bomdia</label></div>
+<div class="actions"><button id="bot-save" class="primary">Salvar e ativar comandos</button></div></section>
+</section>
+
+<section class="tab" id="tab-conexao" aria-label="WhatsApp" hidden>
+<section class="card" aria-labelledby="wa-title"><div class="card-head"><h2 id="wa-title">WhatsApp</h2><span id="connection-state" class="badge">…</span></div>
+<p id="connection-detail" class="muted"></p>
+<div id="pair-box"><p class="muted risk">Integração não oficial com o WhatsApp. Mudanças no WhatsApp podem interromper a conexão e existe risco de bloqueio da conta. Não há garantia de envio ou de manutenção da sessão.</p><label><input id="risk" type="checkbox"> Li e aceito esses riscos para conectar minha própria conta.</label><button id="pair" class="primary">Conectar / mostrar QR</button><img id="qr" hidden alt="QR temporário para parear sua conta WhatsApp"></div>
+<div class="actions"><button id="refresh">Atualizar</button><button id="revoke" class="danger" hidden>Desconectar WhatsApp</button></div></section>
+</section>
+
+<section class="tab" id="tab-historico" aria-label="Histórico" hidden>
 <section class="card" id="runs-card" hidden aria-labelledby="runs-title"><div class="card-head"><h2 id="runs-title">Histórico</h2><button id="close-runs" class="ghost">Fechar</button></div><div id="runs-result"></div></section>
+<p class="intro">Veja os envios do bom dia de uma rotina pelo botão "Histórico" dela, ou todos de uma vez:</p>
 <button id="runs" class="ghost">Ver todo o histórico</button>
+</section>
+
+</div>
 </main>
 <details class="card" id="access-controls"><summary>Recuperar acesso em outro computador</summary><p>O acesso é automático nesta instalação. Guarde o código em local seguro: quem tiver o código pode recuperar sua área.</p><button id="reveal-recovery">Mostrar meu código de recuperação</button><pre id="recovery-code"></pre><label>Código de recuperação<input id="recovery-input" type="password" autocomplete="off" spellcheck="false" maxlength="64"></label><button id="recover">Recuperar minha área</button></details>
 <script src="portal.js"></script></body></html>

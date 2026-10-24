@@ -8,9 +8,17 @@
  const EXTRAS=[['noticias','O que rolou em Tibia (notícias e avisos)',''],['kill','Top 10 criaturas mortas ontem','mundo'],['exp_mundo','Top 10 XP do servidor (ontem)','mundo'],['exp_guild','Top XP da guild (ontem)','guild'],['guild','Resumo da guild','guild'],['online_guild','Online da guild','guild'],['char','Personagem (ficha e mortes recentes)','personagem'],['transfer','Transferências de mundo (10 dias)','mundo']];
  const NEW_BLOCKS=['dia','saudacao','frase','mundo','server_save'];
  const notice=text=>$('notice').textContent=text;
+ const TABS=['geral','rotinas','alertas','comandos','conexao','historico'];
+ function goTab(name){
+  if(name==='acesso'){const d=$('access-controls');d.open=true;d.scrollIntoView({block:'start'});return;}
+  if(!TABS.includes(name))return;
+  document.querySelectorAll('.tabbtn[data-tab]').forEach(b=>b.classList.toggle('on',b.dataset.tab===name));
+  TABS.forEach(t=>{$('tab-'+t).hidden=t!==name;});
+  if(name==='geral')renderOverview();
+ }
  const clearQR=()=>{clearTimeout(qrTimer);$('qr').hidden=true;$('qr').removeAttribute('src');};
  function clearRecovery(){recoveryEpoch++;clearTimeout(recoveryTimer);$('recovery-code').textContent='';$('recovery-input').value='';}
- function logout(){closed=true;$('access-controls').hidden=true;clearQR();clearRecovery();connection='';groups=[];subscriptions=[];runs=[];editing=null;configurationData=null;$('routines').replaceChildren();watches=[];$('watches').replaceChildren();botgroups=[];$('botgroups').replaceChildren();$('settings').hidden=true;notice('Gestão encerrada. Feche esta janela.');}
+ function logout(){closed=true;$('access-controls').hidden=true;clearQR();clearRecovery();connection='';groups=[];subscriptions=[];runs=[];editing=null;configurationData=null;$('routines').replaceChildren();watches=[];$('watches').replaceChildren();botgroups=[];$('botgroups').replaceChildren();$('ov-groups').replaceChildren();$('kpis').replaceChildren();$('ov-activity').replaceChildren();$('settings').hidden=true;notice('Gestão encerrada. Feche esta janela.');}
  async function api(path,method='GET',body){
   const result=await window.pywebview.api.request('/v1/'+path,method,body||null);
   if(result.error)throw Error(result.error);return result.data;
@@ -23,12 +31,12 @@
  const day=ref=>/^\d{4}-\d{2}-\d{2}$/.test(ref||'')?ref.split('-').reverse().join('/'):'Data indisponível';
  const schedule=c=>c.generateAt&&c.sendAt?'Gera '+text(c.generateAt)+' · Envia '+text(c.sendAt)+' · '+(text(c.timezone)||'sem fuso'):'Sem horário definido';
  function renderRuns(items,title){
-  $('runs-card').hidden=false;$('runs-title').textContent=title;const root=$('runs-result');root.replaceChildren();
+  goTab('historico');$('runs-card').hidden=false;$('runs-title').textContent=title;const root=$('runs-result');root.replaceChildren();
   if(!items.length)root.append(el('p','muted','Nenhuma execução registrada.'));
   else{const list=document.createElement('ul');for(const item of items)list.append(el('li','',day(item.reference)+' · '+stateLabel(item.state)));root.append(list);}
   $('runs-card').scrollIntoView({block:'nearest'});
  }
- function showPreview(r){$('preview-card').hidden=false;$('preview-result').textContent=r.text;$('preview-card').scrollIntoView({block:'nearest'});notice('Prévia gerada. Nenhum envio realizado.');}
+ function showPreview(r){goTab('rotinas');$('preview-card').hidden=false;$('preview-result').textContent=r.text;$('preview-card').scrollIntoView({block:'nearest'});notice('Prévia gerada. Nenhum envio realizado.');}
  function options(element,items,first){element.replaceChildren(new Option(first,''));for(const item of items)element.add(new Option(item.label||item.id,item.id));}
  function renderGroups(preferLabel){
   const query=$('group-search').value.trim().toLowerCase(),current=$('groups').value;
@@ -40,7 +48,7 @@
  // Editor de rotina: o mesmo formulário cria e edita; tudo via DOM, sem HTML montado com dados.
  function tick(parent,group,key,label,checked){const l=el('label','tick'),i=document.createElement('input');i.type='checkbox';i.dataset.group=group;i.dataset.key=key;i.checked=checked;l.append(i,document.createTextNode(label));parent.append(l);}
  function field(kind,key,value,max,placeholder,label){const i=document.createElement('input');i.dataset[kind]=key;i.maxLength=max;i.value=value;i.placeholder=placeholder;i.setAttribute('aria-label',label);return i;}
- function openEditor(s){
+ function openEditor(s,preferLabel){goTab('rotinas');
   editing=s;const c=s?s.config||{}:configurationData||{},on=(g,k)=>c[g]?.[k]===true,val=(g,k,max)=>typeof c[g]?.[k]==='string'?c[g][k].slice(0,max):'';
   $('editor-title').textContent=s?'Editar rotina · '+(text(s.destinationLabel)||'grupo'):'Nova rotina';
   $('ed-personagem').value=text(c.personagem).slice(0,40);$('ed-mundo').value=text(c.mundo).slice(0,40);
@@ -52,7 +60,7 @@
   for(const [k,label] of FIELDS){const row=el('div','row');tick(row,'fields',k,label,on('fields',k));row.append(field('value',k,val('values',k,200),200,'Valor',label+': valor'));fields.append(row);}
   const extras=$('ed-extras');extras.replaceChildren();
   for(const [k,label,kind] of EXTRAS){const row=el('div','row');tick(row,'extras',k,label,on('extras',k));if(kind)row.append(field('arg',k,val('args',k,40),40,'Padrão: '+(kind==='guild'?'guild do personagem':kind==='mundo'?'mundo acima':'personagem acima'),label+': outro '+kind+' (opcional)'));extras.append(row);}
-  $('group-search').value='';renderGroups(s?.destinationLabel);
+  $('group-search').value='';renderGroups(s?.destinationLabel||preferLabel);
   $('editor').hidden=false;$('editor').scrollIntoView({block:'start'});
  }
  function closeEditor(){editing=null;$('editor').hidden=true;}
@@ -72,7 +80,7 @@
   notice(mode==='simulation'?(active?'Agenda de simulação ativada. Nenhuma mensagem real será enviada.':'Configuração de simulação salva e pausada.'):(active?'Rotina salva e ativa: '+schedule(config)+'.':'Rotina salva e pausada.'));
  }
  const routineBody=(s,config,active)=>({config,connection:s.connection,destination:s.destination,active});
- async function loadRoutines(){[subscriptions,runs]=await Promise.all([api('subscriptions'),api('runs')]);renderRoutines();}
+ async function loadRoutines(){[subscriptions,runs]=await Promise.all([api('subscriptions'),api('runs')]);renderRoutines();renderOverview();}
  function renderRoutines(){
   const root=$('routines');root.replaceChildren();$('routine-count').textContent=subscriptions.length+' de 5';
   if(!subscriptions.length){root.append(el('p','muted','Nenhuma rotina ainda. Clique em "+ Nova rotina".'));return;}
@@ -86,7 +94,7 @@
    const actions=el('div','actions');
    const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};
    add('Editar',async()=>openEditor(s),'primary');
-   add(on?'Pausar':'Ativar',async()=>{await api('subscriptions/'+s.id,'PUT',routineBody(s,s.config,!on));await loadRoutines();notice(on?'Rotina pausada.':'Rotina ativada.');});
+   add(on?'Pausar':'Ativar',()=>toggleRoutine(s));
    add('Prévia',async()=>showPreview(await api('preview','POST',s.config)));
    add('Histórico',async()=>renderRuns(runs.filter(r=>r.subscription===s.id),'Histórico · '+name));
    // Exclusão em dois cliques: o primeiro só arma por 5 segundos.
@@ -97,7 +105,7 @@
    card.append(actions);root.append(card);
   }
  }
- function setConnection(label,tone,detail){const b=$('connection-state');b.textContent=label;b.className='badge '+tone;$('connection-detail').textContent=detail;$('pair-box').hidden=connected;$('revoke').hidden=!connection;}
+ function setConnection(label,tone,detail){const b=$('connection-state');b.textContent=label;b.className='badge '+tone;$('connection-detail').textContent=detail;$('pair-box').hidden=connected;$('revoke').hidden=!connection;renderOverview();}
  async function refresh(){
   clearQR();const list=await api('connections');const current=list.find(c=>c.state!=='revoked');connection=current?.id||'';connected=false;groups=[];renderGroups();
   if(!connection){setConnection('Desconectado','bad','Nenhuma conexão ativa. Aceite os riscos e conecte seu WhatsApp.');return;}
@@ -109,12 +117,12 @@
   if(connected){
    // Sem a lista de grupos (o WhatsApp às vezes demora a responder) o resto da tela continua: rotinas e alertas seguem salvos.
    try{groups=await api('connections/'+connection+'/groups');}catch(error){$('connection-detail').textContent='Não foi possível listar os grupos agora ('+error.message+'). Suas rotinas, alertas e comandos continuam salvos; use "Atualizar" em instantes.';return;}
-   renderGroups(editing?.destinationLabel);options($('watch-groups'),groups,'Escolha um grupo');options($('bot-groups'),groups,'Escolha um grupo');$('connection-detail').textContent=groups.length+' grupos disponíveis para envio.';}
+   renderGroups(editing?.destinationLabel);options($('watch-groups'),groups,'Escolha um grupo');options($('bot-groups'),groups,'Escolha um grupo');$('connection-detail').textContent=groups.length+' grupos disponíveis para envio.';renderOverview();}
  }
  // Alertas da guild: o servidor detecta mortes e marcos de level e envia um aviso por evento; aqui só se configura.
  let watches=[];
  const watchBody=(w,active)=>({guild:w.guild,milestone:w.milestone,deaths:w.deaths,ups:w.ups,hourlyCap:w.hourlyCap,perMinute:w.perMinute,connection:w.connection,destination:w.destination,active});
- async function loadWatches(){watches=await api('watches');renderWatches();}
+ async function loadWatches(){watches=await api('watches');renderWatches();renderOverview();}
  function renderWatches(){
   const root=$('watches');root.replaceChildren();$('watch-count').textContent=watches.length+' de 3';
   for(const w of watches){
@@ -125,7 +133,7 @@
    card.append(head,el('p','muted',[w.deaths?'Mortes':'',w.ups?(Number(w.milestone)===1?'Todo level up':'Level ups a cada '+Number(w.milestone)):''].filter(Boolean).join(' · ')+(Number(w.hourlyCap)===0?' · sem limite por hora':' · até '+Number(w.hourlyCap)+' avisos/hora')+' · até '+Number(w.perMinute||3)+' por minuto'));
    const actions=el('div','actions');
    const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};
-   add(on?'Pausar':'Ativar',async()=>{await api('watches/'+w.id,'PUT',watchBody(w,!on));await loadWatches();notice(on?'Alerta pausado.':'Alerta ativado.');});
+   add(on?'Pausar':'Ativar',()=>toggleWatch(w));
    add('Excluir',async b=>{
     if(armed!==w.id){armed=w.id;b.textContent='Confirmar exclusão';setTimeout(()=>{if(armed===w.id){armed='';b.textContent='Excluir';}},5000);return;}
     armed='';await api('watches/'+w.id,'DELETE');await loadWatches();notice('Alerta excluído.');
@@ -155,7 +163,7 @@
  const duration=s=>s>=3600&&s%3600===0?s/3600+' h':s>=60&&s%60===0?s/60+' min':s+' s';
  // "30", "30s", "2m" ou "1h" → segundos (3 s a 24 h), como no !set cooldown do grupo
  function parseDuration(value){const m=/^(\d{1,6})\s*([smh]?)$/i.exec(String(value).trim());if(!m)return NaN;const n=Number(m[1])*({s:1,m:60,h:3600}[(m[2]||'s').toLowerCase()]);return n>=3&&n<=86400?n:NaN;}
- async function loadBotgroups(){botgroups=await api('botgroups');renderBotgroups();}
+ async function loadBotgroups(){botgroups=await api('botgroups');renderBotgroups();renderOverview();}
  function renderBotgroups(){
   const root=$('botgroups');root.replaceChildren();$('bot-count').textContent=botgroups.length+' de 3';
   for(const g of botgroups){
@@ -167,8 +175,8 @@
    card.append(head,el('p','muted','Mundo padrão: '+text(g.world)+' · 1 comando a cada '+duration(Number(g.cooldown))+' por membro · '+extra));
    const actions=el('div','actions');
    const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};
-   add(on?'Pausar':'Ativar',async()=>{await api('botgroups/'+g.id,'PUT',botBody(g,!on));await loadBotgroups();notice(on?'Comandos pausados.':'Comandos ativados.');});
-   add(g.groupConfig===false?'Permitir configuração pelo grupo':'Bloquear configuração pelo grupo',async()=>{await api('botgroups/'+g.id,'PUT',botBody(g,on,g.groupConfig===false));await loadBotgroups();notice(g.groupConfig===false?'Admins do grupo podem configurar com !set e !alerta.':'Configuração pelo grupo bloqueada.');});
+   add(g.paused?'Retomar comandos':(on?'Pausar':'Ativar'),()=>toggleBot(g));
+   add(g.groupConfig===false?'Permitir configuração pelo grupo':'Bloquear configuração pelo grupo',()=>toggleBotConfig(g));
    add('Excluir',async b=>{
     if(armed!==g.id){armed=g.id;b.textContent='Confirmar exclusão';setTimeout(()=>{if(armed===g.id){armed='';b.textContent='Excluir';}},5000);return;}
     armed='';await api('botgroups/'+g.id,'DELETE');await loadBotgroups();notice('Comandos excluídos.');
@@ -187,6 +195,95 @@
   await loadBotgroups();
   notice(mode==='simulation'?'Comandos de simulação ativados. Nenhuma mensagem real será enviada.':'Comandos ativados. Use !help no grupo para testar.');
  });
+ // ---- Visão geral: um cartão por grupo, com os 3 bots e ações rápidas (as mesmas das listas) ----
+ const toggleRoutine=async s=>{const on=s.state==='active';await api('subscriptions/'+s.id,'PUT',routineBody(s,s.config,!on));await loadRoutines();notice(on?'Rotina pausada.':'Rotina ativada.');};
+ const toggleWatch=async w=>{const on=w.state==='active';await api('watches/'+w.id,'PUT',watchBody(w,!on));await loadWatches();notice(on?'Alerta pausado.':'Alerta ativado.');};
+ const toggleBot=async g=>{
+  if(g.paused){await api('botgroups/'+g.id,'PUT',{...botBody(g,true),paused:false});await loadBotgroups();notice('Comandos retomados.');return;}
+  const on=g.state==='active';await api('botgroups/'+g.id,'PUT',botBody(g,!on));await loadBotgroups();notice(on?'Comandos pausados.':'Comandos ativados.');
+ };
+ const toggleBotConfig=async g=>{const on=g.state==='active';await api('botgroups/'+g.id,'PUT',botBody(g,on,g.groupConfig===false));await loadBotgroups();notice(g.groupConfig===false?'Admins do grupo podem configurar com !set, !alerta e !bomdia.':'Configuração pelo grupo bloqueada.');};
+ let filtro='todos';
+ const when=epoch=>typeof epoch==='number'&&epoch>0?new Date(epoch*1000).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'nunca';
+ function pickLabel(select,label){const o=[...select.options].find(x=>x.textContent===label);if(o)select.value=o.value;}
+ function groupRows(){
+  const map=new Map(),get=(destino,label)=>{const key=text(destino);if(!map.has(key))map.set(key,{grupo:'',comandos:null,alerta:null,bomdia:null});const r=map.get(key);if(!r.grupo)r.grupo=text(label);return r;};
+  for(const g of botgroups)get(g.destination,g.destinationLabel).comandos=g;
+  for(const w of watches)get(w.destination,w.destinationLabel).alerta=w;
+  for(const s of subscriptions)get(s.destination,s.destinationLabel).bomdia=s;
+  return [...map.values()].map(r=>({...r,grupo:r.grupo||'Grupo sem nome'})).sort((a,b)=>a.grupo.localeCompare(b.grupo,'pt-BR'));
+ }
+ const botOn=g=>!!g&&g.state==='active'&&!g.paused,itemOn=i=>!!i&&i.state==='active';
+ function box(titulo,tom,badge,linhas,botoes){
+  const b=el('div','bot '+tom),head=el('div','bot-head');head.append(el('strong','',titulo));if(badge)head.append(el('span','badge '+(tom==='on'?'good':''),badge));b.append(head);
+  for(const l of linhas.filter(Boolean))b.append(el('p','muted',l));
+  if(botoes.length){const a=el('div','actions');for(const [label,fn,cls] of botoes){const x=el('button',cls||'',label);x.type='button';x.onclick=guarded(()=>fn(x));a.append(x);}b.append(a);}
+  return b;
+ }
+ const origem=i=>i&&i.source==='group'?'criado pelo grupo':i&&i.changedByGroup?'ajustado pelo grupo':'';
+ function groupCard(r){
+  const live=botOn(r.comandos)||itemOn(r.alerta)||itemOn(r.bomdia),card=el('article','gcard'+(live?' live':'')),head=el('div','gcard-head');
+  head.append(el('h3','',r.grupo));card.append(head);
+  const c=r.comandos,a=r.alerta,s=r.bomdia;
+  card.append(c?box('🤖 Comandos',botOn(c)?'on':'off',c.paused?'pausado pelo grupo':botOn(c)?'ativo':'pausado',
+   ['Mundo '+text(c.world)+' · 1 comando a cada '+duration(Number(c.cooldown))+' por membro',Array.isArray(c.disabled)&&c.disabled.length?'Desligados aqui: '+c.disabled.map(text).join(', '):'','Último uso: '+when(c.lastUse),c.groupConfig===false?'Configuração pelo grupo bloqueada':'Admins do grupo podem configurar',origem(c)],
+   [[c.paused?'Retomar comandos':(botOn(c)?'Pausar':'Ativar'),()=>toggleBot(c)],[c.groupConfig===false?'Permitir configuração pelo grupo':'Bloquear configuração pelo grupo',()=>toggleBotConfig(c)]])
+   :box('🤖 Comandos','none','',['Não configurado neste grupo.'],[['Configurar',()=>{goTab('comandos');pickLabel($('bot-groups'),r.grupo);$('bot-world').focus();}]]));
+  card.append(a?box('🚨 Alerta da guild',itemOn(a)?'on':'off',itemOn(a)?'ativo':'pausado',
+   ['Guild '+text(a.guild),(a.deaths?'Mortes':'')+(a.ups?(a.deaths?' · ':'')+(Number(a.milestone)===1?'todo level up':'level up a cada '+Number(a.milestone)):''),(Number(a.hourlyCap)===0?'Sem limite por hora':'Até '+Number(a.hourlyCap)+' por hora')+' · até '+Number(a.perMinute||3)+' por minuto','Último aviso: '+when(a.lastSent),origem(a)],
+   [[itemOn(a)?'Pausar':'Ativar',()=>toggleWatch(a)]])
+   :box('🚨 Alerta da guild','none','',['Nenhum alerta neste grupo.'],[['Configurar',()=>{goTab('alertas');pickLabel($('watch-groups'),r.grupo);$('watch-guild').focus();}]]));
+  const last=s?runs.find(x=>x.subscription===s.id&&(x.state==='accepted'||x.state==='simulated')):null;
+  card.append(s?box('☀️ Bom dia',itemOn(s)?'on':'off',itemOn(s)?'ligado':'pausado',
+   [schedule(s.config||{}),(text((s.config||{}).personagem)||'Sem personagem')+' · '+(text((s.config||{}).mundo)||'Sem mundo'),'Último envio: '+(last?day(last.reference):'nenhum ainda'),origem(s)],
+   [[itemOn(s)?'Pausar':'Ativar',()=>toggleRoutine(s)],['Editar',async()=>openEditor(s)],['Prévia',async()=>showPreview(await api('preview','POST',s.config))],['Histórico',async()=>renderRuns(runs.filter(x=>x.subscription===s.id),'Histórico · '+r.grupo)]])
+   :box('☀️ Bom dia','none','',['Sem rotina de bom dia neste grupo.'],[['Criar rotina',async()=>openEditor(null,r.grupo)]]));
+  return card;
+ }
+ function kpi(label,value,hint,tone){const k=el('div','kpi');k.append(el('div','label',label),el('div','value'+(tone?' '+tone:''),String(value)),el('div','hint',hint));return k;}
+ function meterKpi(label,used,max){
+  const free=max-used,k=kpi(label,used+' de '+max,used>=max?'limite atingido':free+(free===1?' vaga livre':' vagas livres'),used>=max?'warn':'');
+  const m=document.createElement('meter');m.min=0;m.max=max;m.value=used;m.low=max-0.5;m.high=max-0.5;m.optimum=0;m.setAttribute('aria-label',label+': '+used+' de '+max);k.append(m);return k;
+ }
+ function activity(){
+  const root=$('ov-activity');root.replaceChildren();
+  const days=new Map();for(const r of runs){if(!/^\d{4}-\d{2}-\d{2}$/.test(r.reference||''))continue;const d=days.get(r.reference)||{ok:0,bad:0};if(r.state==='accepted'||r.state==='simulated')d.ok++;else if(['failed','expired','uncertain'].includes(r.state))d.bad++;days.set(r.reference,d);}
+  const list=[...days.entries()].sort((a,b)=>a[0].localeCompare(b[0])).slice(-14).filter(([,d])=>d.ok||d.bad);
+  if(!list.length){root.setAttribute('aria-label','Nenhum envio de bom dia ainda');root.append(el('p','muted','Nenhum envio de bom dia registrado ainda.'));return;}
+  const max=Math.max(...list.map(([,d])=>d.ok+d.bad)),ok=list.reduce((n,[,d])=>n+d.ok,0),bad=list.reduce((n,[,d])=>n+d.bad,0);
+  root.setAttribute('aria-label',ok+' envios feitos e '+bad+' com problema nos últimos '+list.length+' dias com registro');
+  for(const [ref,d] of list){
+   const col=el('div','col'),stack=el('div','stack');
+   if(d.bad){const seg=el('div','seg bad');seg.style.height=(d.bad/max*100)+'%';seg.title=day(ref)+': '+d.bad+' com problema';stack.append(seg);}
+   if(d.ok){const seg=el('div','seg ok');seg.style.height=(d.ok/max*100)+'%';seg.title=day(ref)+': '+d.ok+' enviado'+(d.ok===1?'':'s');stack.append(seg);}
+   col.append(stack,el('div','day',day(ref).slice(0,5)));root.append(col);
+  }
+ }
+ function renderOverview(){
+  if(!$('kpis'))return;
+  const rows=groupRows(),waLabel=connected?'Conectado':connection?'Desconectado':'Sem conexão';
+  const ativos=botgroups.filter(botOn).length+watches.filter(itemOn).length+subscriptions.filter(itemOn).length;
+  $('nav-rotinas').textContent=subscriptions.length||'';$('nav-alertas').textContent=watches.length||'';$('nav-comandos').textContent=botgroups.length||'';
+  $('top-wa').textContent='WhatsApp: '+waLabel;$('top-wa').className='chip'+(connected?' on':'');
+  const kpis=$('kpis');kpis.replaceChildren(
+   kpi('WhatsApp',waLabel,connected?groups.length+' grupos disponíveis':'Veja a aba WhatsApp',connected?'good':'bad'),
+   kpi('Grupos com bot',rows.length,rows.length?'com comandos, alerta ou bom dia':'nenhum bot configurado ainda'),
+   kpi('Bots ativos',ativos,'comandos + alertas + rotinas ligados',ativos?'good':''),
+   meterKpi('Comandos',botgroups.length,3),meterKpi('Alertas',watches.length,3),meterKpi('Rotinas de bom dia',subscriptions.length,5));
+  const query=$('ov-search').value.trim().toLowerCase();
+  const visible=rows.filter(r=>(!query||r.grupo.toLowerCase().includes(query))&&(filtro==='todos'||(filtro==='ativos'&&(botOn(r.comandos)||itemOn(r.alerta)||itemOn(r.bomdia)))||(filtro==='pausados'&&((r.comandos&&!botOn(r.comandos))||(r.alerta&&!itemOn(r.alerta))||(r.bomdia&&!itemOn(r.bomdia))))||(filtro==='sem'&&!r.bomdia)));
+  const root=$('ov-groups');root.replaceChildren();
+  if(!rows.length)root.append(el('p','muted','Nenhum bot configurado ainda. Use as abas Bom dia, Alertas e Comandos para criar o primeiro.'));
+  else if(!visible.length)root.append(el('p','muted','Nenhum grupo corresponde ao filtro.'));
+  for(const r of visible)root.append(groupCard(r));
+  activity();
+ }
+ document.querySelectorAll('.tabbtn[data-tab]').forEach(b=>{b.onclick=()=>goTab(b.dataset.tab);});
+ document.querySelectorAll('#ov-filters [data-filter]').forEach(b=>{b.onclick=()=>{filtro=b.dataset.filter;document.querySelectorAll('#ov-filters [data-filter]').forEach(x=>x.classList.toggle('on',x===b));renderOverview();};});
+ $('ov-search').oninput=renderOverview;$('top-wa').onclick=()=>goTab('conexao');
+ $('refresh-all').onclick=guarded(async()=>{await refresh();await loadRoutines();await loadWatches().catch(()=>{});await loadBotgroups().catch(()=>{});notice('Painel atualizado.');});
+ // as listas se atualizam sozinhas a cada minuto (sem mexer em um formulário aberto)
+ setInterval(()=>{if(closed||!connection||document.hidden||!$('editor').hidden)return;Promise.all([loadRoutines(),loadWatches(),loadBotgroups()]).catch(()=>{});},60000);
  $('new-routine').onclick=()=>openEditor(null);$('editor-cancel').onclick=closeEditor;
  $('group-search').oninput=()=>renderGroups();
  $('preview').onclick=guarded(async()=>showPreview(await api('preview','POST',collect())));
@@ -204,7 +301,7 @@
   const live=mode!=='simulation';$('mode').textContent=live?'Envio real':'Simulação';$('mode').className='badge '+(live?'good':'warn');
   $('mode').title=live?'Integração não oficial — envios reais exigem sua conexão e rotina ativa.':'Modo de simulação — sem envio real.';
   $('activate').textContent=live?'Salvar e ativar':'Salvar e ativar simulação';
-  await refresh();await loadRoutines();await loadWatches().catch(()=>{});await loadBotgroups().catch(()=>{});if(closed)return;notice('');
+  await refresh();await loadRoutines();await loadWatches().catch(()=>{});await loadBotgroups().catch(()=>{});if(closed)return;goTab('geral');notice('');
  }
  $('reveal-recovery').onclick=guarded(async()=>{clearRecovery();const epoch=recoveryEpoch;const r=await window.pywebview.api.reveal_recovery();if(closed||epoch!==recoveryEpoch)return;if(r.error)throw Error(r.error);$('recovery-code').textContent=r.code;recoveryTimer=setTimeout(clearRecovery,30000);});
  $('recovery-input').oninput=()=>{clearTimeout(recoveryTimer);recoveryTimer=setTimeout(clearRecovery,30000);};
