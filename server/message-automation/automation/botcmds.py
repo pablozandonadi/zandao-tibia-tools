@@ -25,19 +25,52 @@ PACKAGE_TC=250
 PACKAGE_REAIS=(Decimal(49),Decimal(52))  # mesmo padrão da calculadora do app
 EMOJI={'knight':'🛡️','paladin':'🏹','druid':'❄️','sorcerer':'🔥','monk':'👊'}
 
-HELP='''📖 *Comandos do bot*
+HELP='''📖 *TibiaTudo IA — comandos disponíveis*
 
-• *!help* — esta lista
-• *!duelo* <char1> x <char2> — dois chars lado a lado e quem passa quem no ritmo atual
-• *!evolucao* <char> — XP dos últimos 30 dias e projeção de level
-• *!precocoin* <mundo> — cotação do Tibia Coin no Tibia Tudo
-• *!pt* <personagem> [voc] — party finder: quem está online na faixa de shared
-• *!char* <nome> — info completa do personagem (qualquer mundo)
-• *!online* <mundo ou guild> — quantos estão online
-• *!xptop* <personagem> — XP dia a dia dos últimos 30 dias
+*📖 Comuns*
 
-Ex.: !duelo Fulano x Ciclano · !pt Zazamyon ek · !online Jadebra
-_Um comando a cada poucos segundos por pessoa._'''
+- `help` — Lista os comandos disponíveis
+
+*⚔️ Tibia*
+
+- `duelo` — Dois personagens lado a lado e quem ultrapassa quem no ritmo atual
+- `evolucao` — XP dos últimos 30 dias e projeção de level
+- `precocoin` — Cotação da Tibia Coin por mundo
+- `pt` — Party finder: jogadores online na faixa de shared experience
+- `char` — Informações completas do personagem em qualquer mundo
+- `online` — Jogadores online de um mundo ou guild
+- `xptop` — XP diário dos últimos 30 dias
+
+*🛠️ Admins do grupo*
+
+- `set` — Configurações do grupo: mundo, espera entre comandos e quais comandos ficam ligados
+- `alerta` — Avisos de morte e level up da guild
+
+*📋 Como utilizar*
+
+- `!help`
+- `!duelo <char1> x <char2>`
+- `!evolucao <char>`
+- `!precocoin <mundo>`
+- `!pt <personagem> [voc]`
+- `!char <nome>`
+- `!online <mundo ou guild>`
+- `!xptop <personagem>`
+
+*🔧 Como configurar (só admins do grupo)*
+
+- `!set` — mostra a configuração do grupo
+- `!set world <mundo>`
+- `!set cooldown <30s, 2m ou 1h>`
+- `!set comandos on/off`
+- `!set cmd <comando> on/off`
+- `!alerta guild <nome>`
+- `!alerta level <n>`
+- `!alerta mortes on/off` · `!alerta ups on/off`
+- `!alerta limite hora <n>` · `!alerta limite minuto <n>`
+- `!alerta on/off` · `!alerta remover`
+
+🌐 *Site:* https://tibia-tudo.web.app'''
 
 T_COIN='🪙 *Tibia Coin — {mundo}*\n• 1 TC ≈ *{preco}* gold (média de venda, {data})\n• 1kk de gold ≈ *{tc_por_kk} TC* ≈ R$ {reais_min} a R$ {reais_max}\n• Pacote de {pacote_tc} TC: R$ {pacote_min} a R$ {pacote_max}\n{aviso}'
 T_DUEL='⚔️ *{nome1} x {nome2}* — últimos 30 dias\n{tabela}\n{resultado}'
