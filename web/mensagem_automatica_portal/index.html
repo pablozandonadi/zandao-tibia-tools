@@ -21,11 +21,13 @@
 <div class="row"><label class="tick"><input id="watch-deaths" type="checkbox" checked>Mortes</label> <label class="tick"><input id="watch-ups" type="checkbox" checked>Level ups (nos marcos)</label></div>
 <div class="actions"><button id="watch-save" class="primary">Salvar e ativar alerta</button></div></section>
 <section class="card" aria-labelledby="bot-title"><div class="card-head"><h2 id="bot-title">Comandos no grupo</h2><span id="bot-count" class="muted"></span></div>
-<p class="muted">O bot responde no grupo a !help, !duelo, !evolucao e !precocoin. Ele lê só mensagens que começam com ! (o resto é descartado na hora) e não guarda o texto.</p>
+<p class="muted">O bot responde no grupo a !help, !duelo, !evolucao, !precocoin, !pt, !char, !online e !xptop. Ele lê só mensagens que começam com ! (o resto é descartado na hora) e não guarda o texto. Admins do grupo também configuram com !set e !alerta (veja !set ajuda); o que eles criam aparece aqui com a marca "criado pelo grupo".</p>
 <div id="botgroups"></div>
 <div class="row"><label for="bot-groups">Grupo</label><select id="bot-groups"></select></div>
 <div class="row"><label for="bot-world">Mundo padrão</label><input id="bot-world" maxlength="40" placeholder="Ex.: Rasteibra"></div>
-<div class="row"><label for="bot-cooldown">Intervalo por membro (segundos)</label><input id="bot-cooldown" type="number" min="5" max="600" value="30"></div>
+<div class="row"><label for="bot-cooldown">Intervalo por membro</label><input id="bot-cooldown" value="30" maxlength="8" placeholder="30, 30s, 2m, 1h" aria-describedby="bot-cooldown-hint"></div>
+<p id="bot-cooldown-hint" class="muted">De 3 segundos a 24 horas: cada pessoa espera esse tempo entre um comando e o próximo.</p>
+<div class="row"><label><input id="bot-config" type="checkbox" checked> Admins do grupo podem configurar com !set e !alerta</label></div>
 <div class="actions"><button id="bot-save" class="primary">Salvar e ativar comandos</button></div></section>
 <section class="card" id="editor" hidden aria-labelledby="editor-title"><div class="card-head"><h2 id="editor-title">Nova rotina</h2><button id="editor-cancel" class="ghost">Cancelar</button></div>
 <label>Grupo de destino<input id="group-search" type="search" placeholder="Buscar grupo…" autocomplete="off"><select id="groups"><option value="">Escolha um grupo</option></select></label>

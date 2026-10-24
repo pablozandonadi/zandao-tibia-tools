@@ -241,7 +241,7 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
         labels={d['id']:d['data'].get('label','') for d in store.list(user,'destination')}
         return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],'')} for x in store.list(user,'watch') if x['state']!='revoked']
     def botgroup_data(user,data,own=None):
-        fields(data,{'world','cooldown','connection','destination','active'})
+        fields(data,{'world','cooldown','connection','destination','active','groupConfig'})
         if type(data.get('active',False)) is not bool: raise Invalid('Estado inválido.')
         config=validate_botgroup(data)
         conn=connection(user,data.get('connection',''));dest=store.get(user,data.get('destination',''),'destination')
@@ -256,8 +256,12 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
         data,state=botgroup_data(user,await payload(request));return {'id':store.create(user,'botgroup',data,state,limit=3),'state':state,'mode':'live' if transport.real else 'simulation'}
     @app.put('/v1/botgroups/{key}')
     async def update_botgroup(key,request:Request,user=Depends(owner)):
-        if store.get(user,key,'botgroup')['state']=='revoked': raise Invalid('Comandos excluídos.')
-        data,state=botgroup_data(user,await payload(request),own=key);store.update(user,key,'botgroup',data,state);return {'id':key,'state':state}
+        old=store.get(user,key,'botgroup')
+        if old['state']=='revoked': raise Invalid('Comandos excluídos.')
+        body=await payload(request);body.setdefault('groupConfig',old['data'].get('groupConfig',True))  # o app antigo não manda o campo: mantém o que estava
+        data,state=botgroup_data(user,body,own=key)
+        data={**{k:old['data'][k] for k in ('paused','disabled','changedByGroup') if k in old['data']},**data}  # ajustes feitos pelo grupo sobrevivem a uma edição no app
+        store.update(user,key,'botgroup',data,state);return {'id':key,'state':state}
     @app.delete('/v1/botgroups/{key}')
     def delete_botgroup(key,user=Depends(owner)):
         item=store.get(user,key,'botgroup');store.update(user,key,'botgroup',item['data'],'revoked');return {'id':key,'state':'revoked'}

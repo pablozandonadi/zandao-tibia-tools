@@ -10,6 +10,7 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 from .botcmds import Bot, WORLD, WARM_EVERY
 from .domain import UTC, Invalid, reference_day
+from .groupcfg import GroupConfig, COOLDOWN_MIN, COOLDOWN_MAX
 from .store import ident
 
 log=logging.getLogger('automation')
@@ -22,13 +23,16 @@ def validate_botgroup(data):
     world=data.get('world')
     if not isinstance(world,str) or not WORLD.fullmatch(world.strip()): raise Invalid('Informe o mundo padrão do grupo.')
     cooldown=data.get('cooldown',30)
-    if type(cooldown) is not int or not 5<=cooldown<=600: raise Invalid('Intervalo por membro de 5 a 600 segundos.')
-    return {'world':world.strip().capitalize(),'cooldown':cooldown}
+    if type(cooldown) is not int or not COOLDOWN_MIN<=cooldown<=COOLDOWN_MAX: raise Invalid('Intervalo por membro de 3 segundos a 24 horas (86400 segundos).')
+    group_config=data.get('groupConfig',True)
+    if type(group_config) is not bool: raise Invalid('Opção inválida.')
+    return {'world':world.strip().capitalize(),'cooldown':cooldown,'groupConfig':group_config}
 
 class Commander:
     def __init__(self,store,transport,bot=None,clock=None):
         self.store=store;self.transport=transport;self.clock=clock or (lambda:datetime.now(UTC))
         self.bot=bot or Bot(history=self.history,track=self.track,daily=self.daily,settings=lambda:self.store.bot_settings('whatsapp'));self.warmed={}
+        self.config=GroupConfig(store)  # !set e !alerta, só para administradores do grupo
 
     # ---- histórico diário de XP (instantâneo do ranking de "ontem" do mundo) ----
     def track(self,world):
@@ -95,19 +99,32 @@ class Commander:
 
     def process(self,key,owner,data,item,stamp,now):
         if not isinstance(item,dict) or any(not isinstance(item.get(k),str) or not item[k] for k in ('id','group','sender','text')): return False
+        parsed=GroupConfig.parse(item['text']);admin=item.get('admin') is True  # a ponte só marca "admin" para !set/!alerta de administradores do grupo
+        configure=bool(parsed) and admin and data.get('groupConfig',True)       # administrador configurando: sem espera entre comandos
         with self.store.tx() as db:
             conn=self.store.read(db,owner,data['connection'],'connection');dest=self.store.read(db,owner,data['destination'],'destination')
             if conn['state']!='active' or dest['state']!='active' or dest['data']['connection']!=conn['id'] or dest['data']['group']!=item['group']: return False
             if self.transport.real and not conn['data'].get('riskAccepted'): return False
             if db.execute('INSERT OR IGNORE INTO command_seen(botgroup,msg,at) VALUES(?,?,?)',(key,item['id'],stamp)).rowcount==0: return False
-            last=db.execute('SELECT last FROM command_use WHERE botgroup=? AND sender=?',(key,item['sender'])).fetchone()
-            if last and stamp-last['last']<data.get('cooldown',30): return False  # dentro do intervalo: silêncio, sem responder "espere"
+            if not configure:
+                last=db.execute('SELECT last FROM command_use WHERE botgroup=? AND sender=?',(key,item['sender'])).fetchone()
+                if last and stamp-last['last']<data.get('cooldown',30): return False  # dentro do intervalo: silêncio, sem responder "espere"
+        if parsed:
+            if configure: reply=self.config.handle(key,owner,item,now)
+            elif admin: reply='⚙️ A configuração pelo grupo está desligada pelo dono do bot (no app).'
+            else: reply='🔒 Só administradores do grupo usam !set e !alerta.'
+            return self.send_reply(key,conn['id'],dest['data']['group'],item['sender'],stamp,reply,count=not configure)
         if not self.bot.known(item['text']): return False
+        if data.get('paused') or self.bot.key(item['text']) in data.get('disabled',()): return False  # pausado ou desligado por um admin do grupo (!set)
         try: self.transport.typing(conn['id'],dest['data']['group'],'composing')  # "digitando…" enquanto busca os dados
         except Exception: pass
         reply=self.bot.handle(item['text'],data['world'],now.astimezone(ZoneInfo('America/Sao_Paulo')).date())
         if reply is None: return False
-        with self.store.tx() as db: db.execute('INSERT INTO command_use(botgroup,sender,last) VALUES(?,?,?) ON CONFLICT(botgroup,sender) DO UPDATE SET last=excluded.last',(key,item['sender'],stamp))
-        try: self.transport.send(conn['id'],dest['data']['group'],reply[:3500],ident())
+        return self.send_reply(key,conn['id'],dest['data']['group'],item['sender'],stamp,reply,count=True)
+
+    def send_reply(self,key,session,group,sender,stamp,reply,count):
+        if count:
+            with self.store.tx() as db: db.execute('INSERT INTO command_use(botgroup,sender,last) VALUES(?,?,?) ON CONFLICT(botgroup,sender) DO UPDATE SET last=excluded.last',(key,sender,stamp))
+        try: self.transport.send(session,group,reply[:3500],ident())
         except Exception as error: log.warning('botgroup=%s reply_failed=%s',key,type(error).__name__)
         return True

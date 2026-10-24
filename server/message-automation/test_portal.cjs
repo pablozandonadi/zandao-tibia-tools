@@ -70,7 +70,7 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Alerta excluído'));assert.equal(watchesList.length,0);
   // Comandos no grupo: valida antes de enviar; criar, pausar e excluir.
   await page.locator('#bot-groups').selectOption('opaque-group');
-  for(const [world,cooldown,expected] of [['','30','mundo padrão'],['Antica','4','5 a 600']]){
+  for(const [world,cooldown,expected] of [['','30','mundo padrão'],['Antica','2','3 segundos a 24 horas'],['Antica','25h','3 segundos a 24 horas'],['Antica','abc','3 segundos a 24 horas']]){
    await page.locator('#bot-world').fill(world);await page.locator('#bot-cooldown').fill(cooldown);await page.locator('#bot-save').click();
    await page.waitForFunction(text=>document.getElementById('notice').textContent.includes(text),expected);assert.equal(botList.length,0);
   }
@@ -81,10 +81,16 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   await bot.getByRole('button',{name:'Excluir'}).click();await bot.getByRole('button',{name:'Confirmar exclusão'}).click();
   await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos excluídos'));assert.equal(botList.length,0);
   // Se o WhatsApp não entrega a lista de grupos, o resto da tela segue: os comandos salvos continuam visíveis e há um aviso claro.
-  await page.locator('#bot-groups').selectOption('opaque-group');await page.locator('#bot-world').fill('Rasteibra');await page.locator('#bot-cooldown').fill('30');await page.locator('#bot-save').click();
+  await page.locator('#bot-groups').selectOption('opaque-group');await page.locator('#bot-world').fill('Rasteibra');await page.locator('#bot-cooldown').fill('2m');await page.locator('#bot-config').uncheck();await page.locator('#bot-save').click();
   await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos de simulação ativados'));
+  assert.equal(botList[0].cooldown,120);assert.equal(botList[0].groupConfig,false);
+  // O que o grupo ajusta (!set, !alerta) aparece no app com a marca de origem.
+  botList=[{...botList[0],paused:true,changedByGroup:1,disabled:['duelo'],groupConfig:true}];
+  watchesList=[{id:'watch',guild:'Piratas',milestone:1,deaths:true,ups:true,hourlyCap:0,perMinute:3,connection:'connection',destination:'destination',destinationLabel:groupLabel,state:'active',source:'group'}];
   groupsFail=true;await page.reload();await page.waitForFunction(()=>document.getElementById('connection-detail').textContent.includes('Não foi possível listar os grupos'));
   await page.waitForFunction(()=>document.querySelectorAll('#botgroups article').length===1);assert.equal(await page.locator('#bot-count').textContent(),'1 de 3');
+  const botText=await page.locator('#botgroups article').textContent();for(const part of ['pausado pelo grupo','ajustado pelo grupo','desligados aqui: duelo','1 comando a cada 2 min','admins do grupo podem configurar'])assert.ok(botText.includes(part),part);
+  assert.ok((await page.locator('#watches article').textContent()).includes('criado pelo grupo'));watchesList=[];
   groupsFail=false;await page.locator('#refresh').click();await page.waitForFunction(()=>document.getElementById('connection-detail').textContent.includes('grupos disponíveis'));
   await page.locator('#botgroups article').getByRole('button',{name:'Excluir'}).click();await page.locator('#botgroups article').getByRole('button',{name:'Confirmar exclusão'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos excluídos'));
   await page.locator('#access-controls summary').click();await page.locator('#reveal-recovery').click();await page.waitForFunction(()=>document.getElementById('recovery-code').textContent.length===64);await page.locator('#recovery-input').fill('f'.repeat(64));await page.locator('#recover').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Acesso recuperado'));assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(await page.locator('#recovery-input').inputValue(),'');

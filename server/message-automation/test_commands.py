@@ -231,8 +231,10 @@ class CommanderTests(unittest.TestCase):
 
 class ConfigTests(unittest.TestCase):
     def test_validacao(self):
-        self.assertEqual(validate_botgroup({'world':' rasteibra '}),{'world':'Rasteibra','cooldown':30})
-        for bad in ({},{'world':'1'},{'world':'Antica','cooldown':4},{'world':'Antica','cooldown':601},{'world':'Antica','cooldown':'30'}):
+        self.assertEqual(validate_botgroup({'world':' rasteibra '}),{'world':'Rasteibra','cooldown':30,'groupConfig':True})
+        self.assertEqual(validate_botgroup({'world':'Antica','cooldown':3,'groupConfig':False}),{'world':'Antica','cooldown':3,'groupConfig':False})
+        self.assertEqual(validate_botgroup({'world':'Antica','cooldown':86400})['cooldown'],86400)
+        for bad in ({},{'world':'1'},{'world':'Antica','cooldown':2},{'world':'Antica','cooldown':86401},{'world':'Antica','cooldown':'30'},{'world':'Antica','groupConfig':'sim'}):
             with self.assertRaises(Invalid): validate_botgroup(bad)
 
     def test_api_dono_isolamento_grupo_unico_e_exclusao(self):
@@ -272,7 +274,9 @@ class BridgeInboxTests(unittest.TestCase):
     def test_le_so_itens_validos(self):
         good={'id':'m1','group':'g','sender':'s','text':'!help'}
         t,p=self.transport(lambda r:httpx.Response(200,json={'messages':[good,{'id':'x'},'lixo',{**good,'text':''}],'simulated':False}))
-        with p: self.assertEqual(t.inbox('a'*32),[good])
+        with p: self.assertEqual(t.inbox('a'*32),[{**good,'admin':False}])
+        t,p=self.transport(lambda r:httpx.Response(200,json={'messages':[{**good,'admin':True},{**good,'id':'m2','admin':'sim'},{**good,'id':'m3','extra':1}],'simulated':False}))
+        with p: self.assertEqual([(i['id'],i['admin']) for i in t.inbox('a'*32)],[('m1',True),('m2',False),('m3',False)],'só o booleano verdadeiro vale; campo estranho some')
 
     def test_simulado_desconectado_ou_com_erro_devolve_vazio(self):
         t,p=self.transport(lambda r:httpx.Response(200,json={'messages':[{'id':'m','group':'g','sender':'s','text':'!help'}],'simulated':True}))

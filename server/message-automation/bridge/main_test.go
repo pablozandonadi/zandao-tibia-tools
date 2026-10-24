@@ -254,3 +254,45 @@ func TestResolveTargetUsesCacheAndSurvivesSlowGroupList(t *testing.T) {
 		t.Fatal("a group missing from a fresh list must be refused")
 	}
 }
+
+func TestConfigCommandDetection(t *testing.T) {
+	for text, want := range map[string]bool{"!set": true, "!SET world Jadebra": true, "! set cooldown 30": true, "!alerta": true, "!alerta guild X": true, "!help": false, "!setup": false, "!alertas": false, "set": true, "!duelo a x b": false} {
+		if isConfigCommand(text) != want {
+			t.Fatalf("%q: got %v want %v", text, !want, want)
+		}
+	}
+}
+
+func TestParticipantIsAdminMatchesPhoneOrLID(t *testing.T) {
+	phone := types.NewJID("5511999990000", types.DefaultUserServer)
+	lid := types.NewJID("1234567890", types.HiddenUserServer)
+	other := types.NewJID("5511888880000", types.DefaultUserServer)
+	participants := []types.GroupParticipant{
+		{JID: lid, PhoneNumber: phone, LID: lid, IsAdmin: true},
+		{JID: other, PhoneNumber: other, IsAdmin: false},
+	}
+	if !participantIsAdmin(participants, lid, types.EmptyJID) || !participantIsAdmin(participants, phone, types.EmptyJID) || !participantIsAdmin(participants, other.ToNonAD(), lid) {
+		t.Fatal("an admin must be recognised by LID, phone number or the alternative address")
+	}
+	if participantIsAdmin(participants, other, types.EmptyJID) {
+		t.Fatal("a plain member is not an admin")
+	}
+	if participantIsAdmin(participants, types.NewJID("999", types.DefaultUserServer), types.EmptyJID) || participantIsAdmin(nil, lid, phone) {
+		t.Fatal("strangers and empty groups are never admins")
+	}
+	super := []types.GroupParticipant{{JID: other, IsSuperAdmin: true}}
+	if !participantIsAdmin(super, other, types.EmptyJID) {
+		t.Fatal("the group creator counts as admin")
+	}
+}
+
+func TestEnqueueIsBoundedAndCarriesAdminFlag(t *testing.T) {
+	s := &session{}
+	for i := 0; i < inboxMax+5; i++ {
+		s.enqueue(inboxItem{ID: "m", Text: "!set", At: time.Now().Unix(), Admin: i == inboxMax+4})
+	}
+	got := s.drain(time.Now())
+	if len(got) != inboxMax || !got[len(got)-1].Admin || got[0].Admin {
+		t.Fatalf("queue must stay bounded and keep the flag: %d", len(got))
+	}
+}

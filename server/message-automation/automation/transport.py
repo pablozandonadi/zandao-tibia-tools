@@ -62,7 +62,8 @@ class BridgeTransport:
         except Exception: return []
         items=result.get('messages') if isinstance(result,dict) and result.get('simulated') is False else None
         keys=('id','group','sender','text')
-        return [i for i in items if isinstance(i,dict) and all(isinstance(i.get(k),str) and i[k] for k in keys)][:100] if isinstance(items,list) else []
+        # "admin" só é verdadeiro quando a ponte confirmou que quem escreveu é administrador do grupo (usado por !set e !alerta)
+        return [{k:i[k] for k in keys}|{'admin':i.get('admin') is True} for i in items if isinstance(i,dict) and all(isinstance(i.get(k),str) and i[k] for k in keys)][:100] if isinstance(items,list) else []
     def send(self,session,group,text,attempt):
         # Any uncertain bridge response after dispatch remains uncertain; never retry here.
         try:

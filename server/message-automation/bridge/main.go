@@ -60,6 +60,8 @@ type inboxItem struct {
 	Sender string `json:"sender"`
 	Text   string `json:"text"`
 	At     int64  `json:"at"`
+	// Admin is true only when this is a !set/!alerta line and WhatsApp says its author administers the group.
+	Admin bool `json:"admin"`
 }
 
 const inboxMax = 100
@@ -208,12 +210,54 @@ func (b *bridge) collect(id string, s *session, m *events.Message) {
 		return
 	}
 	item := inboxItem{ID: string(m.Info.ID), Group: b.handle(id, m.Info.Chat), Sender: b.handle(id, m.Info.Sender), Text: text, At: m.Info.Timestamp.Unix()}
+	if isConfigCommand(text) && b.real && s.client != nil {
+		// Asking WhatsApp who the admins are takes a network round trip: do it off the event loop and queue the line when known.
+		chat, sender, alt := m.Info.Chat, m.Info.Sender, m.Info.SenderAlt
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+			defer cancel()
+			if info, err := s.client.GetGroupInfo(ctx, chat); err == nil {
+				item.Admin = participantIsAdmin(info.Participants, sender, alt)
+			}
+			s.enqueue(item)
+		}()
+		return
+	}
+	s.enqueue(item)
+}
+
+func (s *session) enqueue(item inboxItem) {
 	s.imu.Lock()
 	defer s.imu.Unlock()
 	if len(s.inbox) >= inboxMax {
 		s.inbox = s.inbox[1:]
 	}
 	s.inbox = append(s.inbox, item)
+}
+
+// isConfigCommand tells the lines that change the group's settings ("!set ...", "!alerta ...") from the other commands.
+func isConfigCommand(text string) bool {
+	word := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(text), "!")))
+	return word == "set" || word == "alerta" || strings.HasPrefix(word, "set ") || strings.HasPrefix(word, "alerta ")
+}
+
+func sameUser(a, b types.JID) bool {
+	return !a.IsEmpty() && !b.IsEmpty() && a.User == b.User && a.Server == b.Server
+}
+
+// participantIsAdmin matches the author against the admins of the group by phone-number JID or LID, in either address the message used.
+func participantIsAdmin(participants []types.GroupParticipant, sender, alt types.JID) bool {
+	for _, p := range participants {
+		if !p.IsAdmin && !p.IsSuperAdmin {
+			continue
+		}
+		for _, mine := range []types.JID{p.JID, p.PhoneNumber, p.LID} {
+			if sameUser(mine, sender) || sameUser(mine, alt) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // typing shows "typing…" (or clears it) in an authorized group while the bot prepares a reply.

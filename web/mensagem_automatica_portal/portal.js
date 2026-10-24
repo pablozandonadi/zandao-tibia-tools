@@ -118,6 +118,8 @@
   for(const w of watches){
    const on=w.state==='active',card=el('article','routine'+(on?' on':'')),head=el('div','routine-head');
    head.append(el('span','badge '+(on?'good':''),stateLabel(w.state)),el('h3','',text(w.guild)+' → '+(text(w.destinationLabel)||'Grupo sem nome')));
+   if(w.source==='group')head.append(el('span','badge','criado pelo grupo'));
+   else if(w.changedByGroup)head.append(el('span','badge','ajustado pelo grupo'));
    card.append(head,el('p','muted',[w.deaths?'Mortes':'',w.ups?(Number(w.milestone)===1?'Todo level up':'Level ups a cada '+Number(w.milestone)):''].filter(Boolean).join(' · ')+(Number(w.hourlyCap)===0?' · sem limite por hora':' · até '+Number(w.hourlyCap)+' avisos/hora')+' · até '+Number(w.perMinute||3)+' por minuto'));
    const actions=el('div','actions');
    const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};
@@ -146,17 +148,25 @@
  });
  // Comandos no grupo: o servidor lê só as linhas que começam com "!" e responde; aqui só se configura.
  let botgroups=[];
- const botBody=(g,active)=>({world:g.world,cooldown:g.cooldown,connection:g.connection,destination:g.destination,active});
+ const botBody=(g,active,groupConfig=g.groupConfig!==false)=>({world:g.world,cooldown:g.cooldown,connection:g.connection,destination:g.destination,active,groupConfig});
+ // 30 → 30 s · 120 → 2 min · 3600 → 1 h
+ const duration=s=>s>=3600&&s%3600===0?s/3600+' h':s>=60&&s%60===0?s/60+' min':s+' s';
+ // "30", "30s", "2m" ou "1h" → segundos (3 s a 24 h), como no !set cooldown do grupo
+ function parseDuration(value){const m=/^(\d{1,6})\s*([smh]?)$/i.exec(String(value).trim());if(!m)return NaN;const n=Number(m[1])*({s:1,m:60,h:3600}[(m[2]||'s').toLowerCase()]);return n>=3&&n<=86400?n:NaN;}
  async function loadBotgroups(){botgroups=await api('botgroups');renderBotgroups();}
  function renderBotgroups(){
   const root=$('botgroups');root.replaceChildren();$('bot-count').textContent=botgroups.length+' de 3';
   for(const g of botgroups){
    const on=g.state==='active',card=el('article','routine'+(on?' on':'')),head=el('div','routine-head');
    head.append(el('span','badge '+(on?'good':''),stateLabel(g.state)),el('h3','',text(g.destinationLabel)||'Grupo sem nome'));
-   card.append(head,el('p','muted','Mundo padrão: '+text(g.world)+' · 1 comando a cada '+Number(g.cooldown)+' s por membro'));
+   if(g.paused)head.append(el('span','badge','pausado pelo grupo'));
+   if(g.changedByGroup)head.append(el('span','badge','ajustado pelo grupo'));
+   const extra=[Array.isArray(g.disabled)&&g.disabled.length?'desligados aqui: '+g.disabled.map(text).join(', '):'',g.groupConfig===false?'configuração pelo grupo bloqueada':'admins do grupo podem configurar (!set)'].filter(Boolean).join(' · ');
+   card.append(head,el('p','muted','Mundo padrão: '+text(g.world)+' · 1 comando a cada '+duration(Number(g.cooldown))+' por membro · '+extra));
    const actions=el('div','actions');
    const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};
    add(on?'Pausar':'Ativar',async()=>{await api('botgroups/'+g.id,'PUT',botBody(g,!on));await loadBotgroups();notice(on?'Comandos pausados.':'Comandos ativados.');});
+   add(g.groupConfig===false?'Permitir configuração pelo grupo':'Bloquear configuração pelo grupo',async()=>{await api('botgroups/'+g.id,'PUT',botBody(g,on,g.groupConfig===false));await loadBotgroups();notice(g.groupConfig===false?'Admins do grupo podem configurar com !set e !alerta.':'Configuração pelo grupo bloqueada.');});
    add('Excluir',async b=>{
     if(armed!==g.id){armed=g.id;b.textContent='Confirmar exclusão';setTimeout(()=>{if(armed===g.id){armed='';b.textContent='Excluir';}},5000);return;}
     armed='';await api('botgroups/'+g.id,'DELETE');await loadBotgroups();notice('Comandos excluídos.');
@@ -167,11 +177,11 @@
  $('bot-save').onclick=guarded(async()=>{
   if(!connection||!connected)throw Error('Conecte seu WhatsApp antes de salvar.');
   if(!$('bot-groups').value)throw Error('Escolha o grupo de destino.');
-  const world=$('bot-world').value.trim(),cooldown=Number($('bot-cooldown').value);
+  const world=$('bot-world').value.trim(),cooldown=parseDuration($('bot-cooldown').value);
   if(!/^[A-Za-z]{2,40}$/.test(world))throw Error('Informe o mundo padrão, só com letras (ex.: Rasteibra).');
-  if(!Number.isInteger(cooldown)||cooldown<5||cooldown>600)throw Error('Intervalo por membro: use de 5 a 600 segundos.');
+  if(!Number.isInteger(cooldown))throw Error('Intervalo por membro: de 3 segundos a 24 horas (ex.: 30, 30s, 2m, 1h).');
   const dest=await api('destinations','POST',{connection,group:$('bot-groups').value});
-  await api('botgroups','POST',{world,cooldown,connection,destination:dest.id,active:true});
+  await api('botgroups','POST',{world,cooldown,connection,destination:dest.id,active:true,groupConfig:$('bot-config').checked});
   await loadBotgroups();
   notice(mode==='simulation'?'Comandos de simulação ativados. Nenhuma mensagem real será enviada.':'Comandos ativados. Use !help no grupo para testar.');
  });

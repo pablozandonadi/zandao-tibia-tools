@@ -201,6 +201,11 @@ class Bot:
 
     def known(self,text): return self.pick(text) is not None
 
+    def key(self,text):
+        """Nome do comando (help, duelo, precocoin…) ou None; é o nome usado em !set cmd e no Admin."""
+        picked=self.pick(text)
+        return KEYS[picked[0].__name__] if picked else None
+
     def handle(self,text,world='',today=None):
         """Resposta ao comando, ou None se não for um comando conhecido (ou estiver desligado)."""
         picked=self.pick(text)
