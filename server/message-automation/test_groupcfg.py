@@ -135,10 +135,32 @@ class GroupConfigTests(unittest.TestCase):
                         'boostados': {**base, 'boss': {'nome': 'Boss fixture'}, 'criatura': {'nome': 'Criatura fixture'}},
                         'dream_court': {**base, 'estado': 'previsto', 'nome': 'Dream fixture'},
                         'killstatistics': {**base, 'estado': 'disponivel', 'bosses': [{'nome': 'Boss', 'last_day_killed': 1}]}}
+            def extra(self, key, arg, c, now):
+                return f'EXTRA {key} [{arg}]', [{'source': key, 'fetched_at': now.timestamp(), 'reference_date': reference_day(now)}]
         text = generate(config, NOW, Provider())['text']
         for part in ('Bom dia', 'Mundo:* Tornabra', 'Yasir', 'Rashid', 'Criatura do dia', 'Boss do dia', 'Dream Court', 'Dream Court — mortes', 'Outras world changes', 'Próximo SS', 'Evento',
-                     '✍️ TibiaTudo IA, acesso o site https://tibia-tudo.web.app\nby Zandão'):
+                     'EXTRA noticias', 'EXTRA kill', 'EXTRA exp_mundo', 'EXTRA transfer', '✍️ TibiaTudo IA, acesso o site https://tibia-tudo.web.app\nby Zandão'):
             self.assertIn(part, text, part)
+        for part in ('EXTRA exp_guild', 'EXTRA guild', 'EXTRA online_guild', 'EXTRA char'):
+            self.assertNotIn(part, text, 'sem guild definida, só as consultas que não dependem dela (e nunca online/personagem)')
+        self.assertTrue(text.index('EXTRA transfer') < text.index('TibiaTudo IA, acesso'), 'a assinatura fecha a mensagem')
+        self.say('!bomdia guild Piratas do Rocks')
+        text = generate(self.subs()[0]['data']['config'], NOW, Provider())['text']
+        self.assertIn('EXTRA exp_guild [Piratas do Rocks]', text); self.assertIn('EXTRA guild [Piratas do Rocks]', text)
+
+    def test_bomdia_guild_vem_do_alerta_ou_do_comando_e_acompanha_mudancas(self):
+        self.say('!bomdia on')
+        self.assertIn('Para incluir top XP', self.say('!bomdia')); self.assertEqual(self.subs()[0]['data']['config']['args'], {})
+        self.say('!alerta guild Piratas do Rocks')
+        c = self.subs()[0]['data']['config']; self.assertEqual((c['args']['exp_guild'], c['args']['guild'], c['extras']['exp_guild'], c['extras']['guild']), ('Piratas do Rocks',) * 2 + (True, True))
+        self.assertIn('Piratas do Rocks', self.say('!bomdia'))
+        self.assertIn('Outra Guild', self.say('!bomdia guild Outra Guild')); self.assertEqual(self.subs()[0]['data']['config']['args']['exp_guild'], 'Outra Guild')
+        self.say('!alerta guild Piratas do Rocks'); self.assertEqual(self.subs()[0]['data']['config']['args']['exp_guild'], 'Outra Guild', 'a escolha do !bomdia guild manda')
+        self.assertIn('segue', self.say('!bomdia guild auto')); self.assertEqual(self.subs()[0]['data']['config']['args']['exp_guild'], 'Piratas do Rocks')
+        self.say('!alerta remover'); self.assertEqual(self.subs()[0]['data']['config']['args'], {}, 'sem guild, as consultas da guild saem')
+        self.assertIn('Não encontrei', self.say('!bomdia guild Guild Fantasma')); self.assertIn('⚠️', self.say('!bomdia guild <b>x</b>'))
+        self.say('!bomdia horario 07:00'); self.say('!set world Jadebra'); c = self.subs()[0]['data']['config']
+        self.assertEqual((c['sendAt'], c['mundo']), ('07:00', 'Jadebra'))
 
     def test_bomdia_horario_pausa_e_remocao(self):
         self.assertIn('Ligue primeiro', self.say('!bomdia horario 07:00'))

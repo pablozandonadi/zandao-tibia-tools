@@ -18,6 +18,10 @@ DEFAULT_SEND = '06:00'
 GENERATE_BEFORE = 10  # minutos: a mensagem é montada 10 min antes de ir para o grupo
 SIGNATURE = 'TibiaTudo IA, acesso o site https://tibia-tudo.web.app\nby Zandão'
 BOMDIA_ITEMS = 'data, saudação, mensagem do dia, mundo, eventos do Tibia, Yasir, Rashid, criatura boostada, boss boostado, Dream Court, mortes do Dream Court, outras world changes e próximo SS'
+# Consultas adicionais sempre incluídas; as duas da guild só entram quando o grupo tem uma guild definida (!bomdia guild ou !alerta guild).
+BOMDIA_EXTRAS = ('noticias', 'kill', 'exp_mundo', 'transfer')
+BOMDIA_GUILD_EXTRAS = ('exp_guild', 'guild')
+BOMDIA_EXTRAS_TEXT = 'notícias do Tibia, top 10 criaturas mortas ontem, top 10 XP do servidor e transferências de mundo'
 UNITS = {'s': 1, 'm': 60, 'h': 3600}
 TOGGLE = {'on': True, 'ligar': True, 'ligado': True, 'sim': True, 'off': False, 'desligar': False, 'desligado': False, 'nao': False}
 COMMANDS = tuple(KEYS.values())
@@ -44,6 +48,7 @@ BOMDIA_HELP = '''☀️ *!bomdia — mensagem de bom dia automática (só admins
 • *!bomdia* — mostra como está
 • *!bomdia on* / *off* — liga ou pausa (liga às ''' + DEFAULT_SEND + '''; horário de Brasília)
 • *!bomdia horario* <hh:mm> — hora do envio   ex: !bomdia horario 07:30
+• *!bomdia guild* <nome> — guild do top XP e do resumo (ou *auto*: usa a do !alerta)
 • *!bomdia remover* — apaga a rotina
 _A mensagem sempre vem completa: ''' + BOMDIA_ITEMS + '''._'''
 
@@ -178,16 +183,33 @@ class GroupConfig:
         return next((s for s in self.subscriptions(owner, current) if s['data'].get('source') == 'group'), None)
 
     @staticmethod
-    def bomdia_config(world, send):
-        """Sempre a mensagem inteira (os 13 itens) com a assinatura do TibiaTudo IA; só o mundo e o horário variam."""
-        return validate({'personagem': 'TibiaTudo IA', 'mundo': world, 'blocks': {k: True for k in BLOCKS}, 'fields': {'assinatura': True}, 'values': {'assinatura': SIGNATURE},
-                         'generateAt': generation_clock(send), 'sendAt': send, 'timezone': ZONE}, schedule=True)
+    def bomdia_config(world, send, guild=''):
+        """Sempre a mensagem inteira (os 13 itens + as consultas adicionais marcadas) com a assinatura do TibiaTudo IA; só mundo, horário e guild variam."""
+        extras = {k: True for k in BOMDIA_EXTRAS + (BOMDIA_GUILD_EXTRAS if guild else ())}
+        return validate({'personagem': 'TibiaTudo IA', 'mundo': world, 'blocks': {k: True for k in BLOCKS}, 'extras': extras, 'args': {k: guild for k in BOMDIA_GUILD_EXTRAS} if guild else {},
+                         'fields': {'assinatura': True}, 'values': {'assinatura': SIGNATURE}, 'generateAt': generation_clock(send), 'sendAt': send, 'timezone': ZONE}, schedule=True)
+
+    def bomdia_guild(self, owner, current, sub=None):
+        """Guild das consultas da guild: a escolhida em !bomdia guild ou, se não houver, a do alerta deste grupo."""
+        chosen = (sub or {}).get('data', {}).get('guild', '') if sub else ''
+        if chosen:
+            return chosen
+        watch = self.find_watch(owner, current)
+        return watch['data']['guild'] if watch else ''
+
+    def refresh_bomdia(self, owner, current, now, **changes):
+        """Reconstrói a rotina de bom dia do grupo com o mundo, o horário e a guild atuais (muda só se algo mudou)."""
+        sub = self.find_bomdia(owner, current)
+        if not sub:
+            return None
+        data = {**sub['data'], **{k: v for k, v in changes.items() if k == 'guild'}}
+        config = self.bomdia_config(changes.get('world', current['world']), changes.get('send', sub['data']['config']['sendAt']), self.bomdia_guild(owner, current, {'data': data}))
+        if config != sub['data']['config'] or data != sub['data']:
+            self.store.update(owner, sub['id'], 'subscription', {**data, 'config': config, 'changedByGroup': int(now.timestamp())}, sub['state'])
+        return self.find_bomdia(owner, current)
 
     def follow_world(self, owner, current, world, now):
-        sub = self.find_bomdia(owner, current)
-        if sub and sub['data']['config']['mundo'] != world:
-            config = self.bomdia_config(world, sub['data']['config']['sendAt'])
-            self.store.update(owner, sub['id'], 'subscription', {**sub['data'], 'config': config, 'changedByGroup': int(now.timestamp())}, sub['state'])
+        self.refresh_bomdia(owner, current, now, world=world)
 
     @staticmethod
     def bomdia_status(sub, now):
@@ -196,8 +218,11 @@ class GroupConfig:
         config = sub['data']['config']
         local = now.astimezone(ZoneInfo(ZONE)).strftime('%H:%M')
         when = 'hoje' if local < config['generateAt'] else 'amanhã'
+        guild = config['args'].get('exp_guild', '')
+        extras = BOMDIA_EXTRAS_TEXT + (f', top XP da guild e resumo da guild ({clean(guild)})' if guild else '')
         return '\n'.join([f'☀️ *Bom dia automático* — {"ligado" if sub["state"] == "active" else "pausado"}', f'🕕 Envio às *{config["sendAt"]}* (Brasília) · 🌍 {clean(config["mundo"])}',
-                          f'📋 Sempre completo: {BOMDIA_ITEMS}.'] + ([f'➡️ Próximo envio: {when} às {config["sendAt"]}.'] if sub['state'] == 'active' else []))
+                          f'📋 Sempre completo: {BOMDIA_ITEMS}.', f'➕ Consultas: {extras}.'] + ([] if guild else ['ℹ️ Para incluir top XP e resumo da guild: !bomdia guild <nome> (ou !alerta guild <nome>).'])
+                         + ([f'➡️ Próximo envio: {when} às {config["sendAt"]}.'] if sub['state'] == 'active' else []))
 
     def bomdia(self, owner, current, args, now):
         sub = self.find_bomdia(owner, current)
@@ -211,13 +236,14 @@ class GroupConfig:
         if word in ('on', 'ligar', 'off', 'desligar'):
             on = word in ('on', 'ligar')
             if sub:
+                sub = self.refresh_bomdia(owner, current, now) or sub
                 self.store.update(owner, sub['id'], 'subscription', {**sub['data'], 'changedByGroup': stamp}, 'active' if on else 'inactive')
                 return self.bomdia_status({**sub, 'state': 'active' if on else 'inactive'}, now) if on else '⏸️ Bom dia automático *pausado*. Volte com !bomdia on.'
             if not on:
                 return '☀️ O bom dia automático já está desligado.'
             if any(s['state'] == 'active' for s in self.subscriptions(owner, current)):
                 raise Invalid('Este grupo já recebe uma rotina de bom dia criada no app. Pause-a lá para usar o !bomdia.')
-            config = self.bomdia_config(current['world'], DEFAULT_SEND)
+            config = self.bomdia_config(current['world'], DEFAULT_SEND, self.bomdia_guild(owner, current))
             try:
                 self.store.create(owner, 'subscription', {'config': config, 'connection': current['connection'], 'destination': current['destination'], 'source': 'group', 'createdAt': stamp}, 'active', limit=5)
             except Invalid:
@@ -229,9 +255,27 @@ class GroupConfig:
             if not rest:
                 return f'🕕 Envio às *{sub["data"]["config"]["sendAt"]}* (Brasília).'
             send = parse_clock(''.join(rest))
-            config = self.bomdia_config(sub['data']['config']['mundo'], send)
-            self.store.update(owner, sub['id'], 'subscription', {**sub['data'], 'config': config, 'changedByGroup': stamp}, sub['state'])
+            self.refresh_bomdia(owner, current, now, send=send)
             return f'🕕 Bom dia será enviado às *{send}* (Brasília).'
+        if word == 'guild':
+            if not sub:
+                raise Invalid('Ligue primeiro com !bomdia on.')
+            if not rest:
+                guild = self.bomdia_guild(owner, current, sub)
+                return f'🏰 Guild das consultas do bom dia: *{clean(guild)}*' if guild else '🏰 Nenhuma guild definida. Use: !bomdia guild <nome>'
+            name = ' '.join(rest)
+            if norm(name) in ('auto', 'limpar'):
+                self.refresh_bomdia(owner, current, now, guild='')
+                return '🏰 Guild do bom dia: agora segue o !alerta guild do grupo (se houver).'
+            if not GUILD.fullmatch(name):
+                raise Invalid('Informe o nome da guild. Ex.: !bomdia guild Piratas do Rocks')
+            found = self.guild_exists(name)
+            if found is None:
+                raise Invalid('Não consegui conferir a guild agora. Tente de novo em instantes.')
+            if not found:
+                raise Invalid(f'Não encontrei a guild *{clean(name)}*.')
+            self.refresh_bomdia(owner, current, now, guild=name)
+            return f'🏰 O bom dia agora inclui top XP e resumo da guild *{clean(name)}*.'
         if word in ('remover', 'apagar', 'excluir'):
             if not sub:
                 return '☀️ Nenhuma rotina de bom dia neste grupo.'
@@ -275,12 +319,15 @@ class GroupConfig:
             if not found:
                 raise Invalid(f'Não encontrei a guild *{clean(name)}*.')
             if watch:
-                return self.change_watch(owner, watch, {'guild': name}, now, f'🏰 Alerta agora acompanha a guild *{clean(name)}*.')
+                reply = self.change_watch(owner, watch, {'guild': name}, now, f'🏰 Alerta agora acompanha a guild *{clean(name)}*.')
+                self.refresh_bomdia(owner, current, now)
+                return reply
             try:
                 self.store.create(owner, 'watch', {**validate_watch({'guild': name}), 'connection': current['connection'], 'destination': current['destination'],
                                                    'source': 'group', 'createdAt': int(now.timestamp())}, 'active', limit=3)
             except Invalid:
                 raise Invalid('O dono do bot já usa todos os alertas permitidos. Apague um no app para criar este.') from None
+            self.refresh_bomdia(owner, current, now)
             return f'🚨 Alerta criado para a guild *{clean(name)}*: mortes e todo level up. Ajuste com !alerta ajuda'
         if not watch:
             raise Invalid('Este grupo ainda não tem alerta. Crie com: !alerta guild <nome>')
@@ -305,5 +352,6 @@ class GroupConfig:
             return self.change_watch(owner, watch, {}, now, '🚨 Alerta *ligado*.' if on else '⏸️ Alerta *pausado*.', 'active' if on else 'inactive')
         if sub in ('remover', 'apagar', 'excluir'):
             self.store.update(owner, watch['id'], 'watch', watch['data'], 'revoked')
+            self.refresh_bomdia(owner, current, now)
             return '🗑️ Alerta removido.'
         raise Invalid('Não entendi. Veja: !alerta ajuda')

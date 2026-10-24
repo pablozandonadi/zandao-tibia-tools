@@ -72,6 +72,7 @@ HELP='''📖 *TibiaTudo IA — comandos disponíveis*
 - `!alerta on/off` · `!alerta remover`
 - `!bomdia on/off` — liga ou pausa o bom dia
 - `!bomdia horario <hh:mm>` — hora do envio (Brasília)
+- `!bomdia guild <nome>` — guild do top XP e do resumo da guild
 
 🌐 *Site:* https://tibia-tudo.web.app'''
 
