@@ -31,7 +31,7 @@ def demo():
         print(json.dumps({'mode':'simulation','generation':'ready','send':'simulated','attempts':len(transport.sent),'network':False}))
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('command',choices=['demo','tick','backup','restore-offline','owners','grant','ungrant','claim-code']);parser.add_argument('--file');parser.add_argument('--owner');parser.add_argument('--note',default='');parser.add_argument('--uses',type=int);parser.add_argument('--services-stopped',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('command',choices=['demo','tick','backup','restore-offline','owners','grant','ungrant','claim-code','claim-revoke']);parser.add_argument('--file');parser.add_argument('--owner');parser.add_argument('--note',default='');parser.add_argument('--uses',type=int);parser.add_argument('--services-stopped',action='store_true');args=parser.parse_args()
     logging.basicConfig(level=logging.INFO,format='%(levelname)s %(message)s')
     if args.command=='demo': return demo()
     store,transport=components()
@@ -46,6 +46,9 @@ def main():
     if args.command=='claim-code':
         # O código aparece só agora e nunca mais: o servidor guarda apenas o hash. --uses limita quantas contas ele libera (vazio = sem limite).
         print(json.dumps({'code':store.create_claim(args.note or 'dono',args.uses),'note':args.note or 'dono','uses':args.uses}));return
+    if args.command=='claim-revoke':
+        # Troca de código (ex.: o do dono): invalida os antigos com este nome; quem já usou continua liberado. Depois gere um novo com claim-code.
+        print(json.dumps({'note':args.note or 'dono','revogados':store.revoke_claims(args.note or 'dono')}));return
     if args.command in ('grant','ungrant'):
         if not args.owner: parser.error('--owner obrigatório')
         if args.command=='grant': store.grant(args.owner,args.note)

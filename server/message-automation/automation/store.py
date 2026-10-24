@@ -77,6 +77,10 @@ class Store:
     def is_admin(self,owner):
         with self.tx() as db: return db.execute('SELECT 1 FROM admins WHERE owner=?',(owner,)).fetchone() is not None
 
+    def revoke_claims(self,note):
+        """Invalida todos os códigos com este nome (ex.: trocar o código do dono). Contas que já o usaram continuam como estão."""
+        with self.tx() as db: return db.execute('DELETE FROM claim_codes WHERE note=?',(note,)).rowcount
+
     def admin_claims(self):
         """Códigos de cliente (nunca o código em si, só quantos usos restam). O código do dono não aparece."""
         with self.tx() as db: return [{'id':r['hash'][:16],'note':r['note'],'uses':r['uses'],'created':r['created']} for r in db.execute("SELECT hash,note,uses,created FROM claim_codes WHERE note!='dono' ORDER BY created DESC,hash")]
