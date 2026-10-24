@@ -1225,6 +1225,19 @@
       </div>
     </section>
 
+    <!-- ================= MENSAGENS AUTOMÁTICAS (recurso liberado por código) ================= -->
+    <section class="page" id="page-mensagens">
+      <h1 class="titulo">Mensagens automáticas</h1>
+      <p class="dica">Onde os seus bots do WhatsApp estão rodando agora: comandos, alerta da guild e bom dia, grupo por grupo.</p>
+      <div id="ma-resumo" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0"></div>
+      <p id="ma-aviso" class="dica"></p>
+      <div id="ma-painel" style="overflow-x:auto"></div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+        <button class="btn" id="ma-atualizar" type="button">Atualizar</button>
+        <button class="btn btn-primary" id="ma-editor" type="button">Abrir o editor (rotinas, alertas, comandos e conexão)</button>
+      </div>
+    </section>
+
     <!-- ================= ADMIN (só Beta) ================= -->
     <section class="page" id="page-admin">
       <h1 class="titulo">Admin</h1>
@@ -1396,8 +1409,6 @@ function toast(msg, erro = false) {
 
 // ---------- navegação ----------
 function irPara(pagina) {
-  // "Mensagens" não tem página: o clique abre direto a janela de gestão das mensagens automáticas.
-  if (pagina === 'mensagens') { if (typeof maAbrir === 'function') maAbrir(); return; }
   document.querySelectorAll('.nav-item').forEach((x) => x.classList.toggle('active', x.dataset.pagina === pagina));
   document.querySelectorAll('.page').forEach((p) => p.classList.toggle('shown', p.id === 'page-' + pagina));
   $('content').scrollTop = 0;
@@ -1409,6 +1420,7 @@ function irPara(pagina) {
   if (pagina === 'zandaobot') zbLoad();
   if (pagina === 'hist') carregarHistorico();
   if (pagina === 'config') abrirConfiguracoes();
+  if (pagina === 'mensagens' && window.maPainelCarregar) maPainelCarregar();
   if (pagina === 'admin' && window.adminIaCarregar) adminIaCarregar();
   if (pagina === 'admin' && window.adminMensagensCarregar) adminMensagensCarregar();
   if (pagina === 'admin' && window.adminComandosCarregar) adminComandosCarregar();

@@ -168,6 +168,14 @@ def admin_request(path,method='GET',body=None):
   if 'ainda não está disponível' in str(error):raise AccessError('Esta conta ainda não é administradora. Em Configurações › "Tenho um código de acesso", ative o código do dono.') from None
   raise
 
+def owner_get(path):
+ """Leitura (GET) das rotas permitidas pela conta desta instalação; alimenta o painel dentro da janela principal."""
+ import app_paths
+ from versao import CANAL_APP
+ origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)
+ try:return InstallationClient(origin,CredentialFile(origin,CANAL_APP)).request(path,'GET',None)
+ except AccessRejected:raise AccessError('Pedido recusado pelo servidor.') from None
+
 def public_botcmds():
  """Ajustes públicos dos comandos do assistente (sem login: não registra esta instalação no servidor). Levanta AccessError se o servidor não responder."""
  origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)

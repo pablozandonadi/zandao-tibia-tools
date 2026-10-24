@@ -1340,6 +1340,22 @@ class API:
             return {'erro': 'O servidor liberou a sua conta, mas não foi possível salvar a liberação neste computador.'}
         return {'ok': True, **self.recursos_liberados()}
 
+    def mensagens_painel(self):
+        """Painel dentro da janela principal: onde os bots do WhatsApp estão rodando (comandos, alerta e bom dia por grupo)."""
+        from mensagem_automatica_access import owner_get, AccessError
+        from mensagem_automatica_painel import montar
+        if not _recurso_dono('mensagens_automaticas'):
+            return {'erro': 'Este recurso ainda não está disponível.'}
+        try:
+            conexoes = owner_get('/v1/connections')
+            ativa = next((c for c in conexoes if isinstance(c, dict) and c.get('state') != 'revoked' and isinstance(c.get('id'), str) and re.fullmatch(r'[a-f0-9]{32}', c['id'])), None) if isinstance(conexoes, list) else None
+            estado = owner_get('/v1/connections/' + ativa['id']) if ativa else None
+            return montar(estado, owner_get('/v1/subscriptions'), owner_get('/v1/watches'), owner_get('/v1/botgroups'), owner_get('/v1/runs'))
+        except AccessError as error:
+            return {'erro': str(error)}
+        except Exception:
+            return {'erro': 'Não foi possível falar com o servidor agora. Tente de novo em instantes.'}
+
     def _admin_mensagens(self, caminho, metodo='GET', corpo=None):
         """Códigos de acesso ao menu Mensagens (clientes que pagam): só quem tem o menu Admin liberado; o servidor confere a conta administradora de novo."""
         from mensagem_automatica_access import admin_request, AccessError

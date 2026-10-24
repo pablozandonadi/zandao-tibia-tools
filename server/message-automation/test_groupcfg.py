@@ -230,6 +230,26 @@ class GroupConfigTests(unittest.TestCase):
         after = self.store.get(owner, watch, 'watch'); self.assertEqual((after['state'], after['data']['source'], after['data']['milestone']), ('inactive', 'group', 5))
         listed = client.get('/v1/subscriptions', headers=head).json()[0]; self.assertEqual(listed['source'], 'group')
 
+    def test_listas_do_app_trazem_ultimo_uso_e_ultimo_aviso_sem_conteudo(self):
+        from fastapi.testclient import TestClient
+        from automation.api import create_app
+        from automation.auth import Verifier
+        verifier = Verifier(self.store); client = TestClient(create_app(self.store, self.transport, verifier))
+        verifier.register('a' * 64, 'c' * 64); head = {'Authorization': 'Bearer ' + 'a' * 64}
+        conn = client.post('/v1/connections', json={'riskAccepted': True}, headers=head).json()['id']; client.post(f'/v1/connections/{conn}/pair', headers=head)
+        dest = client.post('/v1/destinations', json={'connection': conn, 'group': 'fake-group'}, headers=head).json()['id']
+        group = client.post('/v1/botgroups', json={'world': 'Antica', 'cooldown': 30, 'connection': conn, 'destination': dest, 'active': True}, headers=head).json()['id']
+        watch = client.post('/v1/watches', json={'guild': 'Piratas do Rocks', 'connection': conn, 'destination': dest, 'active': True}, headers=head).json()['id']
+        self.assertEqual((client.get('/v1/botgroups', headers=head).json()[0]['lastUse'], client.get('/v1/watches', headers=head).json()[0]['lastSent']), (None, None), 'ninguém usou ainda')
+        owner = next(o['owner'] for o in self.store.owners() if o['owner'] != 'o')
+        with self.store.tx() as db:
+            db.executemany('INSERT INTO command_use(botgroup,sender,last) VALUES(?,?,?)', [(group, 'x', 1760000100.0), (group, 'y', 1760000500.0)])
+            db.executemany("INSERT INTO watch_events(id,owner,watch,key,text,state,created,sent_at) VALUES(?,?,?,?,?,?,?,?)",
+                           [('e1', owner, watch, 'k1', b'x', 'accepted', 1.0, 1760000300.0), ('e2', owner, watch, 'k2', b'x', 'failed', 2.0, 1760000999.0), ('e3', owner, watch, 'k3', b'x', 'accepted', 3.0, 1760000800.0)])
+        self.assertEqual(client.get('/v1/botgroups', headers=head).json()[0]['lastUse'], 1760000500.0, 'o uso mais recente de qualquer pessoa')
+        self.assertEqual(client.get('/v1/watches', headers=head).json()[0]['lastSent'], 1760000800.0, 'só avisos realmente enviados contam')
+        self.assertNotIn('sender', str(client.get('/v1/botgroups', headers=head).json()), 'nenhum nome de quem usou')
+
     def test_guild_que_nao_deu_para_conferir_nao_cria(self):
         self.commander.config.guild_exists = lambda name: None
         self.assertIn('Não consegui conferir', self.say('!alerta guild Piratas do Rocks')); self.assertEqual(self.watches(), [])

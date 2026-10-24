@@ -245,7 +245,8 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     @app.get('/v1/watches')
     def watches(user=Depends(owner)):
         labels={d['id']:d['data'].get('label','') for d in store.list(user,'destination')}
-        return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],'')} for x in store.list(user,'watch') if x['state']!='revoked']
+        with store.tx() as db: sent={r['watch']:r['at'] for r in db.execute("SELECT watch,max(sent_at) AS at FROM watch_events WHERE state IN ('accepted','simulated') GROUP BY watch")}
+        return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],''),'lastSent':sent.get(x['id'])} for x in store.list(user,'watch') if x['state']!='revoked']
     def botgroup_data(user,data,own=None):
         fields(data,{'world','cooldown','connection','destination','active','groupConfig'})
         if type(data.get('active',False)) is not bool: raise Invalid('Estado inválido.')
@@ -274,7 +275,8 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     @app.get('/v1/botgroups')
     def botgroups(user=Depends(owner)):
         labels={d['id']:d['data'].get('label','') for d in store.list(user,'destination')}
-        return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],'')} for x in store.list(user,'botgroup') if x['state']!='revoked']
+        with store.tx() as db: used={r['botgroup']:r['at'] for r in db.execute('SELECT botgroup,max(last) AS at FROM command_use GROUP BY botgroup')}  # só quando alguém usou, nunca o quê
+        return [{'id':x['id'],'state':x['state'],**x['data'],'destinationLabel':labels.get(x['data']['destination'],''),'lastUse':used.get(x['id'])} for x in store.list(user,'botgroup') if x['state']!='revoked']
     @app.get('/v1/runs')
     def runs(user=Depends(owner)):
         with store.tx() as db: return [dict(x) for x in db.execute('SELECT id,subscription,reference,state,error FROM runs WHERE owner=? ORDER BY generation DESC LIMIT 100',(user,))]
