@@ -224,17 +224,18 @@
  function groupCard(r){
   const live=botOn(r.comandos)||itemOn(r.alerta)||itemOn(r.bomdia),card=el('article','gcard'+(live?' live':'')),head=el('div','gcard-head');
   head.append(el('h3','',r.grupo));card.append(head);
+  const bots=el('div','bots');card.append(bots);
   const c=r.comandos,a=r.alerta,s=r.bomdia;
-  card.append(c?box('🤖 Comandos',botOn(c)?'on':'off',c.paused?'pausado pelo grupo':botOn(c)?'ativo':'pausado',
+  bots.append(c?box('🤖 Comandos',botOn(c)?'on':'off',c.paused?'pausado pelo grupo':botOn(c)?'ativo':'pausado',
    ['Mundo '+text(c.world)+' · 1 comando a cada '+duration(Number(c.cooldown))+' por membro',Array.isArray(c.disabled)&&c.disabled.length?'Desligados aqui: '+c.disabled.map(text).join(', '):'','Último uso: '+when(c.lastUse),c.groupConfig===false?'Configuração pelo grupo bloqueada':'Admins do grupo podem configurar',origem(c)],
    [[c.paused?'Retomar comandos':(botOn(c)?'Pausar':'Ativar'),()=>toggleBot(c)],[c.groupConfig===false?'Permitir configuração pelo grupo':'Bloquear configuração pelo grupo',()=>toggleBotConfig(c)]])
    :box('🤖 Comandos','none','',['Não configurado neste grupo.'],[['Configurar',()=>{goTab('comandos');pickLabel($('bot-groups'),r.grupo);$('bot-world').focus();}]]));
-  card.append(a?box('🚨 Alerta da guild',itemOn(a)?'on':'off',itemOn(a)?'ativo':'pausado',
+  bots.append(a?box('🚨 Alerta da guild',itemOn(a)?'on':'off',itemOn(a)?'ativo':'pausado',
    ['Guild '+text(a.guild),(a.deaths?'Mortes':'')+(a.ups?(a.deaths?' · ':'')+(Number(a.milestone)===1?'todo level up':'level up a cada '+Number(a.milestone)):''),(Number(a.hourlyCap)===0?'Sem limite por hora':'Até '+Number(a.hourlyCap)+' por hora')+' · até '+Number(a.perMinute||3)+' por minuto','Último aviso: '+when(a.lastSent),origem(a)],
    [[itemOn(a)?'Pausar':'Ativar',()=>toggleWatch(a)]])
    :box('🚨 Alerta da guild','none','',['Nenhum alerta neste grupo.'],[['Configurar',()=>{goTab('alertas');pickLabel($('watch-groups'),r.grupo);$('watch-guild').focus();}]]));
   const last=s?runs.find(x=>x.subscription===s.id&&(x.state==='accepted'||x.state==='simulated')):null;
-  card.append(s?box('☀️ Bom dia',itemOn(s)?'on':'off',itemOn(s)?'ligado':'pausado',
+  bots.append(s?box('☀️ Bom dia',itemOn(s)?'on':'off',itemOn(s)?'ligado':'pausado',
    [schedule(s.config||{}),(text((s.config||{}).personagem)||'Sem personagem')+' · '+(text((s.config||{}).mundo)||'Sem mundo'),'Último envio: '+(last?day(last.reference):'nenhum ainda'),origem(s)],
    [[itemOn(s)?'Pausar':'Ativar',()=>toggleRoutine(s)],['Editar',async()=>openEditor(s)],['Prévia',async()=>showPreview(await api('preview','POST',s.config))],['Histórico',async()=>renderRuns(runs.filter(x=>x.subscription===s.id),'Histórico · '+r.grupo)]])
    :box('☀️ Bom dia','none','',['Sem rotina de bom dia neste grupo.'],[['Criar rotina',async()=>openEditor(null,r.grupo)]]));
