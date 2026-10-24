@@ -110,10 +110,13 @@ class Commander:
                 last=db.execute('SELECT last FROM command_use WHERE botgroup=? AND sender=?',(key,item['sender'])).fetchone()
                 if last and stamp-last['last']<data.get('cooldown',30): return False  # dentro do intervalo: silêncio, sem responder "espere"
         if parsed:
+            if configure and GroupConfig.is_slow(item['text']):
+                try: self.transport.typing(conn['id'],dest['data']['group'],'composing')
+                except Exception: pass
             if configure: reply=self.config.handle(key,owner,item,now)
             elif admin: reply='⚙️ A configuração pelo grupo está desligada pelo dono do bot (no app).'
             else: reply='🔒 Só administradores do grupo usam !set, !alerta e !bomdia.'
-            return self.send_reply(key,conn['id'],dest['data']['group'],item['sender'],stamp,reply,count=not configure)
+            return self.send_reply(key,conn['id'],dest['data']['group'],item['sender'],stamp,reply,count=not configure,limit=16000)
         if not self.bot.known(item['text']): return False
         if data.get('paused') or self.bot.key(item['text']) in data.get('disabled',()): return False  # pausado ou desligado por um admin do grupo (!set)
         try: self.transport.typing(conn['id'],dest['data']['group'],'composing')  # "digitando…" enquanto busca os dados
@@ -122,9 +125,9 @@ class Commander:
         if reply is None: return False
         return self.send_reply(key,conn['id'],dest['data']['group'],item['sender'],stamp,reply,count=True)
 
-    def send_reply(self,key,session,group,sender,stamp,reply,count):
+    def send_reply(self,key,session,group,sender,stamp,reply,count,limit=3500):
         if count:
             with self.store.tx() as db: db.execute('INSERT INTO command_use(botgroup,sender,last) VALUES(?,?,?) ON CONFLICT(botgroup,sender) DO UPDATE SET last=excluded.last',(key,sender,stamp))
-        try: self.transport.send(session,group,reply[:3500],ident())
+        try: self.transport.send(session,group,reply[:limit],ident())
         except Exception as error: log.warning('botgroup=%s reply_failed=%s',key,type(error).__name__)
         return True

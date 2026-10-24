@@ -162,6 +162,29 @@ class GroupConfigTests(unittest.TestCase):
         self.say('!bomdia horario 07:00'); self.say('!set world Jadebra'); c = self.subs()[0]['data']['config']
         self.assertEqual((c['sendAt'], c['mundo']), ('07:00', 'Jadebra'))
 
+    def test_bomdia_teste_envia_na_hora_sem_gastar_o_envio_do_dia(self):
+        calls = []
+        long_text = 'A' * 5000 + '\n✍️ TibiaTudo IA, acesso o site https://tibia-tudo.web.app\nby Zandão'
+        self.commander.config.generator = lambda config, now: (calls.append(config), {'text': long_text})[1]
+        reply = self.say('!bomdia teste')
+        self.assertTrue(reply.startswith('🧪 *Teste do bom dia*') and reply.endswith('by Zandão'), 'a mensagem inteira vai, com a assinatura no fim (sem o corte de 3500)')
+        self.assertEqual((len(calls), self.subs()), (1, []), 'sem rotina ligada: usa a configuração padrão e não cria nada')
+        self.assertTrue(all(calls[0]['blocks'][k] for k in calls[0]['blocks']) and calls[0]['sendAt'] == '06:00')
+        self.assertEqual([x for x in self.transport.typing_log if x[2] == 'composing'][-1][1], 'fake-group', 'mostra "digitando…" enquanto monta')
+        self.say('!bomdia on'); self.say('!bomdia guild Piratas do Rocks')
+        self.assertIn('TibiaTudo IA', self.say('!bomdia agora')); self.assertEqual(calls[-1]['args']['exp_guild'], 'Piratas do Rocks', 'usa a rotina do grupo (com a guild)')
+        with self.store.tx() as db: self.assertEqual(db.execute('SELECT count(*) FROM runs').fetchone()[0], 0, 'o teste não consome o envio do dia')
+        self.commander.config.generator = lambda config, now: (_ for _ in ()).throw(RuntimeError('fonte fora do ar'))
+        self.assertIn('Não consegui montar', self.say('!bomdia teste'))
+        self.assertIn('!bomdia', self.say('!bomdia teste', admin=False, sender='intruso'))
+
+    def test_bomdia_horario_diz_a_hora_de_agora_e_quando_envia(self):
+        self.say('!bomdia on')
+        late = self.say('!bomdia horario 22:00')   # NOW é 12:00 em Brasília
+        self.assertIn('Agora são 12:0', late); self.assertIn('em Brasília', late); self.assertIn('*hoje*', late); self.assertIn('!bomdia teste', late)
+        self.assertIn('*amanhã*', self.say('!bomdia horario 06:00'))
+        self.assertIn('agora são 12:', self.say('!bomdia'))
+
     def test_bomdia_horario_pausa_e_remocao(self):
         self.assertIn('Ligue primeiro', self.say('!bomdia horario 07:00'))
         self.say('!bomdia on')

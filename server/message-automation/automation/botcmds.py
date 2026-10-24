@@ -73,6 +73,7 @@ HELP='''📖 *TibiaTudo IA — comandos disponíveis*
 - `!bomdia on/off` — liga ou pausa o bom dia
 - `!bomdia horario <hh:mm>` — hora do envio (Brasília)
 - `!bomdia guild <nome>` — guild do top XP e do resumo da guild
+- `!bomdia teste` — manda um bom dia agora, só para ver
 
 🌐 *Site:* https://tibia-tudo.web.app'''
 

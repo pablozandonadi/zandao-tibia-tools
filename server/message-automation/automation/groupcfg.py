@@ -15,6 +15,7 @@ COOLDOWN_MIN, COOLDOWN_MAX = 3, 86400
 COMMAND = re.compile(r'!\s*(set|alerta|bomdia)\b\s*(.*)', re.I | re.S)
 ZONE = 'America/Sao_Paulo'
 DEFAULT_SEND = '06:00'
+TEST_WORDS = ('teste', 'test', 'agora')
 GENERATE_BEFORE = 10  # minutos: a mensagem é montada 10 min antes de ir para o grupo
 SIGNATURE = 'TibiaTudo IA, acesso o site https://tibia-tudo.web.app\nby Zandão'
 BOMDIA_ITEMS = 'data, saudação, mensagem do dia, mundo, eventos do Tibia, Yasir, Rashid, criatura boostada, boss boostado, Dream Court, mortes do Dream Court, outras world changes e próximo SS'
@@ -49,6 +50,7 @@ BOMDIA_HELP = '''☀️ *!bomdia — mensagem de bom dia automática (só admins
 • *!bomdia on* / *off* — liga ou pausa (liga às ''' + DEFAULT_SEND + '''; horário de Brasília)
 • *!bomdia horario* <hh:mm> — hora do envio   ex: !bomdia horario 07:30
 • *!bomdia guild* <nome> — guild do top XP e do resumo (ou *auto*: usa a do !alerta)
+• *!bomdia teste* — manda um bom dia agora, só para ver (não conta como o de hoje)
 • *!bomdia remover* — apaga a rotina
 _A mensagem sempre vem completa: ''' + BOMDIA_ITEMS + '''._'''
 
@@ -104,9 +106,22 @@ def default_guild_exists(name):
 
 
 class GroupConfig:
-    def __init__(self, store, guild_exists=None):
+    def __init__(self, store, guild_exists=None, generator=None):
         self.store = store
         self.guild_exists = guild_exists or default_guild_exists
+        self.generator = generator  # monta a mensagem do bom dia (nos testes, uma função falsa)
+
+    @staticmethod
+    def is_slow(text):
+        """!bomdia teste consulta várias fontes: o bot mostra "digitando…" enquanto monta."""
+        parsed = GroupConfig.parse(text)
+        return bool(parsed and parsed[0] == 'bomdia' and parsed[1] and norm(parsed[1][0]) in TEST_WORDS)
+
+    def make_message(self, config, now):
+        if self.generator:
+            return self.generator(config, now)['text']
+        from mensagem_automatica_report import generate
+        return generate(config, now)['text']
 
     @staticmethod
     def parse(text):
@@ -220,7 +235,7 @@ class GroupConfig:
         when = 'hoje' if local < config['generateAt'] else 'amanhã'
         guild = config['args'].get('exp_guild', '')
         extras = BOMDIA_EXTRAS_TEXT + (f', top XP da guild e resumo da guild ({clean(guild)})' if guild else '')
-        return '\n'.join([f'☀️ *Bom dia automático* — {"ligado" if sub["state"] == "active" else "pausado"}', f'🕕 Envio às *{config["sendAt"]}* (Brasília) · 🌍 {clean(config["mundo"])}',
+        return '\n'.join([f'☀️ *Bom dia automático* — {"ligado" if sub["state"] == "active" else "pausado"}', f'🕕 Envio às *{config["sendAt"]}* (Brasília; agora são {local}) · 🌍 {clean(config["mundo"])}',
                           f'📋 Sempre completo: {BOMDIA_ITEMS}.', f'➕ Consultas: {extras}.'] + ([] if guild else ['ℹ️ Para incluir top XP e resumo da guild: !bomdia guild <nome> (ou !alerta guild <nome>).'])
                          + ([f'➡️ Próximo envio: {when} às {config["sendAt"]}.'] if sub['state'] == 'active' else []))
 
@@ -249,6 +264,13 @@ class GroupConfig:
             except Invalid:
                 raise Invalid('O dono do bot já usa todas as rotinas permitidas. Apague uma no app para criar esta.') from None
             return self.bomdia_status(self.find_bomdia(owner, current), now)
+        if word in TEST_WORDS:
+            config = sub['data']['config'] if sub else self.bomdia_config(current['world'], DEFAULT_SEND, self.bomdia_guild(owner, current))
+            try:
+                text = self.make_message(config, now)
+            except Exception:
+                raise Invalid('Não consegui montar o bom dia agora (alguma fonte está fora do ar). Tente de novo em instantes.') from None
+            return '🧪 *Teste do bom dia* — não conta como o envio de hoje.\n\n' + text
         if word in ('horario', 'hora'):
             if not sub:
                 raise Invalid('Ligue primeiro com !bomdia on.')
@@ -256,7 +278,8 @@ class GroupConfig:
                 return f'🕕 Envio às *{sub["data"]["config"]["sendAt"]}* (Brasília).'
             send = parse_clock(''.join(rest))
             self.refresh_bomdia(owner, current, now, send=send)
-            return f'🕕 Bom dia será enviado às *{send}* (Brasília).'
+            local = now.astimezone(ZoneInfo(ZONE)).strftime('%H:%M')
+            return f'🕕 Bom dia será enviado às *{send}* (Brasília). Agora são {local} em Brasília: próximo envio *{"amanhã" if local >= send else "hoje"}*. Para ver como fica agora: !bomdia teste'
         if word == 'guild':
             if not sub:
                 raise Invalid('Ligue primeiro com !bomdia on.')
