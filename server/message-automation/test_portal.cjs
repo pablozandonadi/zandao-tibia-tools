@@ -87,10 +87,12 @@ const {chromium}=require('playwright'),fs=require('fs'),path=require('path'),ass
   // O que o grupo ajusta (!set, !alerta) aparece no app com a marca de origem.
   botList=[{...botList[0],paused:true,changedByGroup:1,disabled:['duelo'],groupConfig:true}];
   watchesList=[{id:'watch',guild:'Piratas',milestone:1,deaths:true,ups:true,hourlyCap:0,perMinute:3,connection:'connection',destination:'destination',destinationLabel:groupLabel,state:'active',source:'group'}];
+  subscriptions=[{id:'subscription',config:{personagem:'TibiaTudo IA',mundo:'Antica',generateAt:'05:50',sendAt:'06:00',timezone:'America/Sao_Paulo'},destinationLabel:groupLabel,state:'active',source:'group'}];
   groupsFail=true;await page.reload();await page.waitForFunction(()=>document.getElementById('connection-detail').textContent.includes('Não foi possível listar os grupos'));
   await page.waitForFunction(()=>document.querySelectorAll('#botgroups article').length===1);assert.equal(await page.locator('#bot-count').textContent(),'1 de 3');
   const botText=await page.locator('#botgroups article').textContent();for(const part of ['pausado pelo grupo','ajustado pelo grupo','desligados aqui: duelo','1 comando a cada 2 min','admins do grupo podem configurar'])assert.ok(botText.includes(part),part);
   assert.ok((await page.locator('#watches article').textContent()).includes('criado pelo grupo'));watchesList=[];
+  assert.ok((await page.locator('#routines article').textContent()).includes('criado pelo grupo'));subscriptions=[];
   groupsFail=false;await page.locator('#refresh').click();await page.waitForFunction(()=>document.getElementById('connection-detail').textContent.includes('grupos disponíveis'));
   await page.locator('#botgroups article').getByRole('button',{name:'Excluir'}).click();await page.locator('#botgroups article').getByRole('button',{name:'Confirmar exclusão'}).click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Comandos excluídos'));
   await page.locator('#access-controls summary').click();await page.locator('#reveal-recovery').click();await page.waitForFunction(()=>document.getElementById('recovery-code').textContent.length===64);await page.locator('#recovery-input').fill('f'.repeat(64));await page.locator('#recover').click();await page.waitForFunction(()=>document.getElementById('notice').textContent.includes('Acesso recuperado'));assert.equal(await page.locator('#recovery-code').textContent(),'');assert.equal(await page.locator('#recovery-input').inputValue(),'');

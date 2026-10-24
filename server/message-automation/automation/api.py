@@ -206,8 +206,11 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
         data,state=subscription_data(user,await payload(request));return {'id':store.create(user,'subscription',data,state,limit=5),'state':state,'mode':'live' if transport.real else 'simulation'}
     @app.put('/v1/subscriptions/{key}')
     async def update_subscription(key,request:Request,user=Depends(owner)):
-        if store.get(user,key,'subscription')['state']=='revoked': raise Invalid('Rotina excluída.')
-        data,state=subscription_data(user,await payload(request));store.update(user,key,'subscription',data,state);return {'id':key,'state':state}
+        old=store.get(user,key,'subscription')
+        if old['state']=='revoked': raise Invalid('Rotina excluída.')
+        data,state=subscription_data(user,await payload(request))
+        data={**{k:old['data'][k] for k in ('source','createdAt','changedByGroup') if k in old['data']},**data}  # pausar ou editar no app não apaga a origem "criado pelo grupo"
+        store.update(user,key,'subscription',data,state);return {'id':key,'state':state}
     @app.delete('/v1/subscriptions/{key}')
     def delete_subscription(key,user=Depends(owner)):
         # 'revoked' libera a vaga do limite e cancela execuções pendentes; o histórico de runs fica.
@@ -231,8 +234,11 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
         data,state=watch_data(user,await payload(request));return {'id':store.create(user,'watch',data,state,limit=3),'state':state,'mode':'live' if transport.real else 'simulation'}
     @app.put('/v1/watches/{key}')
     async def update_watch(key,request:Request,user=Depends(owner)):
-        if store.get(user,key,'watch')['state']=='revoked': raise Invalid('Alerta excluído.')
-        data,state=watch_data(user,await payload(request));store.update(user,key,'watch',data,state);return {'id':key,'state':state}
+        old=store.get(user,key,'watch')
+        if old['state']=='revoked': raise Invalid('Alerta excluído.')
+        data,state=watch_data(user,await payload(request))
+        data={**{k:old['data'][k] for k in ('source','createdAt','changedByGroup') if k in old['data']},**data}  # pausar ou editar no app não apaga a origem "criado pelo grupo"
+        store.update(user,key,'watch',data,state);return {'id':key,'state':state}
     @app.delete('/v1/watches/{key}')
     def delete_watch(key,user=Depends(owner)):
         item=store.get(user,key,'watch');store.update(user,key,'watch',item['data'],'revoked');return {'id':key,'state':'revoked'}

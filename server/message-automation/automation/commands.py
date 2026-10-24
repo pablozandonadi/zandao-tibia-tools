@@ -112,7 +112,7 @@ class Commander:
         if parsed:
             if configure: reply=self.config.handle(key,owner,item,now)
             elif admin: reply='⚙️ A configuração pelo grupo está desligada pelo dono do bot (no app).'
-            else: reply='🔒 Só administradores do grupo usam !set e !alerta.'
+            else: reply='🔒 Só administradores do grupo usam !set, !alerta e !bomdia.'
             return self.send_reply(key,conn['id'],dest['data']['group'],item['sender'],stamp,reply,count=not configure)
         if not self.bot.known(item['text']): return False
         if data.get('paused') or self.bot.key(item['text']) in data.get('disabled',()): return False  # pausado ou desligado por um admin do grupo (!set)

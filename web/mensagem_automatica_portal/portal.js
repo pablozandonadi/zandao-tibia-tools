@@ -80,6 +80,8 @@
    const c=s.config||{},on=s.state==='active',name=text(s.destinationLabel)||'Grupo sem nome',last=runs.find(r=>r.subscription===s.id&&(r.state==='accepted'||r.state==='simulated'));
    const card=el('article','routine'+(on?' on':'')),head=el('div','routine-head');
    head.append(el('span','badge '+(on?'good':''),stateLabel(s.state)),el('h3','',name));
+   if(s.source==='group')head.append(el('span','badge','criado pelo grupo'));
+   else if(s.changedByGroup)head.append(el('span','badge','ajustado pelo grupo'));
    card.append(head,el('p','',schedule(c)),el('p','muted',(text(c.personagem)||'Sem personagem')+' · '+(text(c.mundo)||'Sem mundo')),el('p','muted','Último envio: '+(last?day(last.reference)+' · '+stateLabel(last.state):'nenhum ainda')));
    const actions=el('div','actions');
    const add=(label,fn,className)=>{const b=el('button',className,label);b.type='button';b.onclick=guarded(()=>fn(b));actions.append(b);};

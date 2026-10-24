@@ -160,7 +160,7 @@ class NovosComandosTests(unittest.TestCase):
         self.assertIn('Não encontrei',party_bot().handle('!xptop Fantasma','',TODAY))
 
     def test_help_lista_todos(self):
-        for comando in ('!help','!duelo','!evolucao','!precocoin','!pt','!char','!online','!xptop','!set','!alerta','!set cooldown','!alerta guild','https://tibia-tudo.web.app'): self.assertIn(comando,HELP)
+        for comando in ('!help','!duelo','!evolucao','!precocoin','!pt','!char','!online','!xptop','!set','!alerta','!set cooldown','!alerta guild','!bomdia on/off','!bomdia horario','https://tibia-tudo.web.app'): self.assertIn(comando,HELP)
 
 NOW=datetime(2026,10,23,15,tzinfo=UTC)  # 17h em Berlim: depois do server save e do meio-dia
 def item(text,id_='m1',sender='s1',group='fake-group'): return {'id':id_,'group':group,'sender':sender,'text':text}

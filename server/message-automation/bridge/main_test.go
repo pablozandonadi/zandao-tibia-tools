@@ -256,7 +256,7 @@ func TestResolveTargetUsesCacheAndSurvivesSlowGroupList(t *testing.T) {
 }
 
 func TestConfigCommandDetection(t *testing.T) {
-	for text, want := range map[string]bool{"!set": true, "!SET world Jadebra": true, "! set cooldown 30": true, "!alerta": true, "!alerta guild X": true, "!help": false, "!setup": false, "!alertas": false, "set": true, "!duelo a x b": false} {
+	for text, want := range map[string]bool{"!set": true, "!SET world Jadebra": true, "! set cooldown 30": true, "!alerta": true, "!alerta guild X": true, "!help": false, "!setup": false, "!alertas": false, "set": true, "!duelo a x b": false, "!bomdia": true, "!bomdia on": true, "!BomDia horario 07:00": true, "!bomdias": false} {
 		if isConfigCommand(text) != want {
 			t.Fatalf("%q: got %v want %v", text, !want, want)
 		}

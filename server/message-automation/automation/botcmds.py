@@ -45,6 +45,7 @@ HELP='''📖 *TibiaTudo IA — comandos disponíveis*
 
 - `set` — Configurações do grupo: mundo, espera entre comandos e quais comandos ficam ligados
 - `alerta` — Avisos de morte e level up da guild
+- `bomdia` — Mensagem de bom dia automática, sempre completa
 
 *📋 Como utilizar*
 
@@ -69,6 +70,8 @@ HELP='''📖 *TibiaTudo IA — comandos disponíveis*
 - `!alerta mortes on/off` · `!alerta ups on/off`
 - `!alerta limite hora <n>` · `!alerta limite minuto <n>`
 - `!alerta on/off` · `!alerta remover`
+- `!bomdia on/off` — liga ou pausa o bom dia
+- `!bomdia horario <hh:mm>` — hora do envio (Brasília)
 
 🌐 *Site:* https://tibia-tudo.web.app'''
 

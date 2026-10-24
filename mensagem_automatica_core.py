@@ -44,7 +44,8 @@ def validate(data, schedule=False):
         if not isinstance(values,dict) or set(values)-set(allowed): raise Invalid('Campos inválidos.')
         c[group]={}
         for k,v in values.items():
-            if not isinstance(v,str) or len(v)>limit or any(ord(x)<32 for x in v): raise Invalid('Texto inválido.')
+            # só a assinatura pode ter quebra de linha (ex.: "TibiaTudo IA…" e "by Zandão" em linhas separadas)
+            if not isinstance(v,str) or len(v)>limit or any(ord(x)<32 and not (k=='assinatura' and x=='\n') for x in v): raise Invalid('Texto inválido.')
             if group=='args' and v and not re.fullmatch(r"[A-Za-z][A-Za-z '\-.]{1,39}",v): raise Invalid('Argumento inválido.')
             c[group][k]=v.strip()
     for key in ['generateAt','sendAt']:

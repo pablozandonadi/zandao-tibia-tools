@@ -238,7 +238,12 @@ func (s *session) enqueue(item inboxItem) {
 // isConfigCommand tells the lines that change the group's settings ("!set ...", "!alerta ...") from the other commands.
 func isConfigCommand(text string) bool {
 	word := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(text), "!")))
-	return word == "set" || word == "alerta" || strings.HasPrefix(word, "set ") || strings.HasPrefix(word, "alerta ")
+	for _, name := range []string{"set", "alerta", "bomdia"} {
+		if word == name || strings.HasPrefix(word, name+" ") {
+			return true
+		}
+	}
+	return false
 }
 
 func sameUser(a, b types.JID) bool {

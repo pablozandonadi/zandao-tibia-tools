@@ -108,6 +108,83 @@ class GroupConfigTests(unittest.TestCase):
         self.assertIn('removido', self.say('!alerta remover')); self.assertEqual(self.watches(), [])
         self.assertIn('nenhum', self.say('!alerta'))
 
+    def subs(self): return [s for s in self.store.list('o', 'subscription') if s['state'] != 'revoked']
+
+    def test_bomdia_liga_sempre_completo_com_a_assinatura(self):
+        from automation.domain import BLOCKS
+        from automation.groupcfg import SIGNATURE
+        self.assertIn('desligado', self.say('!bomdia')); self.assertEqual(self.subs(), [])
+        reply = self.say('!bomdia on'); self.assertIn('ligado', reply); self.assertIn('06:00', reply); self.assertIn('Yasir', reply); self.assertIn('boss boostado', reply); self.assertIn('amanhã', reply)
+        [s] = self.subs(); c = s['data']['config']
+        self.assertEqual((s['state'], s['data']['source'], s['data']['connection'], s['data']['destination']), ('active', 'group', self.conn, self.dest))
+        self.assertEqual((c['sendAt'], c['generateAt'], c['timezone'], c['mundo']), ('06:00', '05:50', 'America/Sao_Paulo', 'Tornabra'))
+        self.assertTrue(all(c['blocks'][k] for k in BLOCKS) and len(BLOCKS) == 13, 'os 13 itens da tela, sempre')
+        self.assertEqual((c['fields']['assinatura'], c['values']['assinatura']), (True, SIGNATURE))
+        self.assertIn('https://tibia-tudo.web.app', SIGNATURE); self.assertTrue(SIGNATURE.endswith('\nby Zandão'))
+        self.assertIn('ligado', self.say('!bomdia')); self.assertEqual(len(self.subs()), 1, 'ligar de novo não duplica')
+
+    def test_mensagem_gerada_tem_todos_os_itens_e_a_assinatura(self):
+        from mensagem_automatica_report import generate
+        from automation.domain import reference_day
+        self.say('!bomdia on')
+        config = self.subs()[0]['data']['config']
+        class Provider:
+            def summary(self, c, now):
+                base = {'consulta': now.timestamp(), 'dia': reference_day(now)}
+                return {'calendario': {**base, 'estado': 'disponivel', 'eventos': []}, 'yasir': {**base, 'estado': 'presente', 'mudancas': ['Mudança fixture']},
+                        'boostados': {**base, 'boss': {'nome': 'Boss fixture'}, 'criatura': {'nome': 'Criatura fixture'}},
+                        'dream_court': {**base, 'estado': 'previsto', 'nome': 'Dream fixture'},
+                        'killstatistics': {**base, 'estado': 'disponivel', 'bosses': [{'nome': 'Boss', 'last_day_killed': 1}]}}
+        text = generate(config, NOW, Provider())['text']
+        for part in ('Bom dia', 'Mundo:* Tornabra', 'Yasir', 'Rashid', 'Criatura do dia', 'Boss do dia', 'Dream Court', 'Dream Court — mortes', 'Outras world changes', 'Próximo SS', 'Evento',
+                     '✍️ TibiaTudo IA, acesso o site https://tibia-tudo.web.app\nby Zandão'):
+            self.assertIn(part, text, part)
+
+    def test_bomdia_horario_pausa_e_remocao(self):
+        self.assertIn('Ligue primeiro', self.say('!bomdia horario 07:00'))
+        self.say('!bomdia on')
+        for typed, send, generate in (('07:30', '07:30', '07:20'), ('7:05', '07:05', '06:55'), ('8h', '08:00', '07:50'), ('00:05', '00:05', '00:00'), ('18h30', '18:30', '18:20')):
+            self.assertIn(send, self.say('!bomdia horario ' + typed)); c = self.subs()[0]['data']['config']; self.assertEqual((c['sendAt'], c['generateAt']), (send, generate), typed)
+        for bad in ('25:00', '12:60', 'abc', '99'): self.assertIn('⚠️', self.say('!bomdia horario ' + bad), bad)
+        self.assertEqual(self.subs()[0]['data']['config']['sendAt'], '18:30')
+        self.assertIn('pausado', self.say('!bomdia off')); self.assertEqual(self.subs()[0]['state'], 'inactive')
+        self.assertIn('pausado', self.say('!bomdia')); self.assertIn('ligado', self.say('!bomdia on')); self.assertEqual(self.subs()[0]['state'], 'active')
+        self.assertIn('removido', self.say('!bomdia remover')); self.assertEqual(self.subs(), []); self.assertIn('desligado', self.say('!bomdia off'))
+
+    def test_bomdia_so_admin_e_respeita_rotina_do_app(self):
+        self.assertIn('!bomdia', self.say('!bomdia on', admin=False)); self.assertEqual(self.subs(), [])
+        app = self.store.create('o', 'subscription', {'config': {}, 'connection': self.conn, 'destination': self.dest}, 'active', limit=5)
+        self.assertIn('criada no app', self.say('!bomdia on')); self.assertEqual(len(self.subs()), 1)
+        self.store.update('o', app, 'subscription', {'config': {}, 'connection': self.conn, 'destination': self.dest}, 'inactive')
+        self.assertIn('ligado', self.say('!bomdia on'))
+
+    def test_bomdia_respeita_o_limite_de_rotinas_do_dono(self):
+        for n in range(5): self.store.create('o', 'subscription', {'config': {}, 'connection': self.conn, 'destination': f'x{n}'}, 'inactive', limit=5)
+        self.assertIn('todas as rotinas permitidas', self.say('!bomdia on')); self.assertEqual(len([s for s in self.subs() if s['data']['destination'] == self.dest]), 0)
+
+    def test_bomdia_acompanha_o_mundo_do_grupo_e_aparece_no_resumo(self):
+        self.say('!bomdia on'); self.say('!set world Jadebra')
+        self.assertEqual(self.subs()[0]['data']['config']['mundo'], 'Jadebra')
+        summary = self.say('!set'); self.assertIn('Bom dia automático', summary); self.assertIn('bomdia ajuda', summary)
+
+    def test_pausar_ou_editar_no_app_nao_apaga_a_origem_pelo_grupo(self):
+        from fastapi.testclient import TestClient
+        from automation.api import create_app
+        from automation.auth import Verifier
+        verifier = Verifier(self.store); client = TestClient(create_app(self.store, self.transport, verifier))
+        verifier.register('a' * 64, 'c' * 64); head = {'Authorization': 'Bearer ' + 'a' * 64}
+        conn = client.post('/v1/connections', json={'riskAccepted': True}, headers=head).json()['id']; client.post(f'/v1/connections/{conn}/pair', headers=head)
+        dest = client.post('/v1/destinations', json={'connection': conn, 'group': 'fake-group'}, headers=head).json()['id']
+        owner = next(o['owner'] for o in self.store.owners() if o['owner'] != 'o')
+        sub = self.store.create(owner, 'subscription', {'config': GroupConfig.bomdia_config('Antica', '06:00'), 'connection': conn, 'destination': dest, 'source': 'group', 'createdAt': 5}, 'active', limit=5)
+        watch = self.store.create(owner, 'watch', {'guild': 'Piratas do Rocks', 'milestone': 1, 'deaths': True, 'ups': True, 'hourlyCap': 0, 'perMinute': 3, 'connection': conn, 'destination': dest, 'source': 'group', 'createdAt': 6}, 'active', limit=3)
+        body = {'config': GroupConfig.bomdia_config('Antica', '07:00'), 'connection': conn, 'destination': dest, 'active': False}
+        self.assertEqual(client.put('/v1/subscriptions/' + sub, json=body, headers=head).status_code, 200)
+        after = self.store.get(owner, sub, 'subscription'); self.assertEqual((after['state'], after['data']['source'], after['data']['createdAt'], after['data']['config']['sendAt']), ('inactive', 'group', 5, '07:00'))
+        self.assertEqual(client.put('/v1/watches/' + watch, json={'guild': 'Piratas do Rocks', 'milestone': 5, 'connection': conn, 'destination': dest, 'active': False}, headers=head).status_code, 200)
+        after = self.store.get(owner, watch, 'watch'); self.assertEqual((after['state'], after['data']['source'], after['data']['milestone']), ('inactive', 'group', 5))
+        listed = client.get('/v1/subscriptions', headers=head).json()[0]; self.assertEqual(listed['source'], 'group')
+
     def test_guild_que_nao_deu_para_conferir_nao_cria(self):
         self.commander.config.guild_exists = lambda name: None
         self.assertIn('Não consegui conferir', self.say('!alerta guild Piratas do Rocks')); self.assertEqual(self.watches(), [])
