@@ -78,6 +78,15 @@ class CoreTests(unittest.TestCase):
   self.subscription(c={**config(),'generateAt':'07:55','sendAt':'08:10'})
   Worker(self.store,self.transport,snapshot).tick(NOW.replace(hour=8,minute=5))
   self.assertFalse(self.transport.sent);self.assertTrue(any(r['state']=='expired' and r['reference']=='2026-10-20' for r in self.runs()))
+ def test_generation_and_revision_logs_preserve_reason_without_private_text(self):
+  _,_,sub=self.subscription()
+  def broken(c,now):raise Invalid('SENSITIVE-MESSAGE-AND-SECRET')
+  with self.assertLogs('automation',level='INFO') as logs:
+   Worker(self.store,self.transport,broken).tick(NOW)
+   data=self.store.get('owner',sub,'subscription')['data'];data['config']['sendAt']='12:01'
+   self.store.update('owner',sub,'subscription',data,'active');Worker(self.store,self.transport,snapshot).tick(NOW+timedelta(minutes=1))
+  text='\n'.join(logs.output);self.assertIn('generation_failed reference=2026-10-21 error_type=Invalid retry=False',text);self.assertIn('run_replacement reference=2026-10-21 old_version=1 new_version=2 state=failed reason=generation_failed',text)
+  self.assertNotIn('SENSITIVE-MESSAGE',text);self.assertNotIn('Conteúdo sintético',text);self.assertEqual(len(self.transport.sent),1)
  def test_collection_refreshes_clock_and_send_crossing_server_save_expires(self):
   self.subscription(c={**config(),'generateAt':'07:59','sendAt':'08:01'});current=[NOW.replace(hour=7,minute=59)]
   def slow(c,now):

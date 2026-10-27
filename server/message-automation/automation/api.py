@@ -15,9 +15,13 @@ from .commands import validate_botgroup, Commander
 from .botcmds import MODELS
 from .store import BOT_COMMANDS
 from comandos_tibia import MODELOS, responder
-from mensagem_automatica_report import generate
+from mensagem_automatica_report import generate, PublicProvider
+from .xp_sources import XPProvider
 
 def create_app(store,transport,verifier=None,origins=(),generator=generate):
+    if generator is generate:
+        provider=PublicProvider(XPProvider(store))
+        generator=lambda config,now:generate(config,now,provider)
     verifier=verifier or Verifier(store);app=FastAPI(docs_url=None,redoc_url=None,openapi_url=None)
     app.state.store=store;app.state.transport=transport
     rates=defaultdict(deque);rate_lock=Lock()

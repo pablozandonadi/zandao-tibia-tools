@@ -1,12 +1,25 @@
 import json
+import io
 import os
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError
 from mensagem_automatica_access import CredentialFile,InstallationClient,ManagementAPI,AccessError,AccessRejected,origin_url
 
 class AccessTests(unittest.TestCase):
+ def test_validation_error_is_not_a_recovery_failure(self):
+  from unittest.mock import MagicMock
+  opener=MagicMock()
+  opener.open.side_effect=HTTPError('https://service.test/v1/preview',400,'Bad Request',{},io.BytesIO(json.dumps({'error':'Fonte GuildStats indisponível. Tente novamente.'}).encode()))
+  with patch('mensagem_automatica_access.build_opener',return_value=opener):
+   with self.assertRaisesRegex(AccessRejected,'Fonte GuildStats indisponível'):
+    InstallationClient('https://service.test',None)._send('/v1/preview','POST',{})
+  for path,body,expected in [('/v1/preview',b'not json','Confira os dados'),('/v1/preview',b'x'*8193,'Confira os dados'),('/auth/recover',b'{"error":"sensitive detail"}','código de recuperação')]:
+   opener.open.side_effect=HTTPError('https://service.test'+path,400,'Bad Request',{},io.BytesIO(body))
+   with patch('mensagem_automatica_access.build_opener',return_value=opener):
+    with self.assertRaisesRegex(AccessRejected,expected):InstallationClient('https://service.test',None)._send(path,'POST',{})
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
   # Deterministic stand-in only for filesystem/failure tests; real DPAPI tested separately.

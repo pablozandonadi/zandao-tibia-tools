@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh public XP caches independently of WhatsApp commands
+
+[Timer]
+OnBootSec=45s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=zt-xp-collector.service
+
+[Install]
+WantedBy=timers.target

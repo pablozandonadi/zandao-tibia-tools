@@ -31,12 +31,15 @@ def validate_botgroup(data):
 class Commander:
     def __init__(self,store,transport,bot=None,clock=None):
         self.store=store;self.transport=transport;self.clock=clock or (lambda:datetime.now(UTC))
-        self.bot=bot or Bot(history=self.history,track=self.track,daily=self.daily,settings=lambda:self.store.bot_settings('whatsapp'));self.warmed={}
+        from .xp_sources import XPProvider
+        self.xp=XPProvider(store,self.clock) if bot is None else None
+        self.bot=bot or Bot(history=self.history,track=self.track,daily=self.daily,settings=lambda:self.store.bot_settings('whatsapp'),experience=self.xp.report);self.warmed={}
         self.config=GroupConfig(store)  # !set e !alerta, só para administradores do grupo
 
     # ---- histórico diário de XP (instantâneo do ranking de "ontem" do mundo) ----
     def track(self,world):
-        with self.store.tx() as db: db.execute("INSERT OR IGNORE INTO rank_meta(world,last_day) VALUES(?,'')",(world.capitalize(),))
+        with self.store.tx() as db:
+            if db.execute('SELECT count(*) FROM rank_meta').fetchone()[0]<20: db.execute("INSERT OR IGNORE INTO rank_meta(world,last_day) VALUES(?,'')",(world.capitalize(),))
 
     def history(self,world,name):
         with self.store.tx() as db:
@@ -53,7 +56,10 @@ class Commander:
         today=reference_day(now);yesterday=(date.fromisoformat(today)-timedelta(days=1)).isoformat()
         with self.store.tx() as db: worlds=[r['world'] for r in db.execute("SELECT world FROM rank_meta WHERE last_day!=?",(today,))]
         for world in worlds:
-            rows=self.bot.ranking(world,0)
+            if self.xp:
+                cache=self.xp.cache(world,0)
+                rows=cache['rows'] if cache['status']=='ok' and cache['observed']>=now.timestamp()-900 and reference_day(datetime.fromtimestamp(cache['observed'],UTC))==today else None
+            else:rows=self.bot.ranking(world,0)
             if not rows: continue
             with self.store.tx() as db:
                 db.executemany('INSERT OR REPLACE INTO rank_history(world,day,name,level,xp) VALUES(?,?,?,?,?)',[(world,yesterday,name,level,xp) for name,level,xp,_ in rows])
@@ -72,6 +78,7 @@ class Commander:
         with self.store.tx() as db: db.execute('DELETE FROM command_seen WHERE at<?',(now.timestamp()-SEEN_TTL,))
         for key,owner,data in self.groups():
             self.track(data['world'])
+            if self.xp:continue  # HTTP pertence ao collect-xp; o laço rápido só usa o cache.
             last=self.warmed.get(data['world'])
             if last is None or time.monotonic()-last>=WARM_EVERY:
                 self.warmed[data['world']]=time.monotonic()

@@ -1,5 +1,6 @@
 """Execuções diárias persistentes, com claims e tentativas ambíguas sem repetição."""
 import logging
+import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from mensagem_automatica_report import generate
@@ -33,6 +34,10 @@ class Worker:
                     state='pending' if generation and send else 'expired';error=None if state=='pending' else 'dst_nonexistent'
                     if generation and stamp-generation.timestamp()>MAX_AGE: state='expired';error='generation_late'
                     # Rotina editada: execução de versão antiga que nunca despachou cede a vaga do dia; enviada ou incerta nunca.
+                    previous=db.execute("SELECT reference,version,state,error FROM runs WHERE owner=? AND subscription=? AND destination=? AND reference=? AND version<? AND state IN ('failed','expired','cancelled')",(owner,row['id'],data['destination'],ref,row['version'])).fetchall()
+                    for old in previous:
+                        reason=old['error'] if isinstance(old['error'],str) and re.fullmatch(r'[a-z_]{1,60}',old['error']) else 'unknown'
+                        log.info('run_replacement reference=%s old_version=%s new_version=%s state=%s reason=%s',old['reference'],old['version'],row['version'],old['state'],reason)
                     db.execute("DELETE FROM runs WHERE owner=? AND subscription=? AND destination=? AND reference=? AND version<? AND state IN ('failed','expired','cancelled')",(owner,row['id'],data['destination'],ref,row['version']))
                     db.execute('INSERT OR IGNORE INTO runs(id,owner,subscription,destination,reference,generation,send,state,error,version) VALUES(?,?,?,?,?,?,?,?,?,?)',
                                (ident(),owner,row['id'],data['destination'],ref,generation.timestamp() if generation else None,send.timestamp() if send else None,state,error,row['version']))
@@ -76,6 +81,8 @@ class Worker:
                 transient=isinstance(error,(SourceUnavailable,OSError,TimeoutError,ConnectionError))
                 can_retry=transient and current['generation_attempts']<3 and retry<=current['generation']+MAX_AGE and reference_day(failed_at)==current['reference']
                 db.execute("UPDATE runs SET state=?,error=?,retry_after=?,lease=NULL WHERE id=? AND attempt=? AND state='preparing'",('pending' if can_retry else 'failed','source_retry' if can_retry else 'generation_failed',retry,key,claim))
+            kind=type(error).__name__;kind=kind if re.fullmatch(r'[A-Za-z_]{1,60}',kind) else 'Error'
+            log.warning('generation_failed reference=%s error_type=%s retry=%s',current['reference'],kind,can_retry)
             return
         with store.tx() as db:
             current=db.execute('SELECT * FROM runs WHERE id=?',(key,)).fetchone()

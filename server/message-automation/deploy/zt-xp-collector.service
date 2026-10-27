@@ -1,0 +1,28 @@
+[Unit]
+Description=Public XP source collector (no WhatsApp operations)
+After=network-online.target
+
+[Service]
+Type=oneshot
+LimitCORE=0
+TimeoutStartSec=90
+User=zt-automation
+Group=zt-automation
+WorkingDirectory=/opt/zandaotools/server/message-automation
+EnvironmentFile=/etc/zt-automation/service.env
+ExecStart=/opt/zandaotools/server/message-automation/.venv/bin/python -m automation collect-xp
+StateDirectory=zt-automation
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/zt-automation
+MemoryMax=512M
+CPUQuota=50%
+

@@ -12,7 +12,9 @@ from .transport import FakeTransport
 from .worker import Worker
 from .watch import Watcher
 from .commands import Commander
-from .runtime import components
+from .runtime import components, state_store
+from .xp_sources import XPProvider
+from mensagem_automatica_report import generate, PublicProvider
 
 def demo():
     with tempfile.TemporaryDirectory() as folder:
@@ -31,13 +33,26 @@ def demo():
         print(json.dumps({'mode':'simulation','generation':'ready','send':'simulated','attempts':len(transport.sent),'network':False}))
 
 def main():
-    parser=argparse.ArgumentParser();parser.add_argument('command',choices=['demo','tick','backup','restore-offline','owners','grant','ungrant','claim-code','claim-revoke']);parser.add_argument('--file');parser.add_argument('--owner');parser.add_argument('--note',default='');parser.add_argument('--uses',type=int);parser.add_argument('--services-stopped',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('command',choices=['demo','tick','collect-xp','backup','restore-offline','owners','grant','ungrant','claim-code','claim-revoke']);parser.add_argument('--file');parser.add_argument('--owner');parser.add_argument('--note',default='');parser.add_argument('--uses',type=int);parser.add_argument('--services-stopped',action='store_true');args=parser.parse_args()
     logging.basicConfig(level=logging.INFO,format='%(levelname)s %(message)s')
     if args.command=='demo': return demo()
+    if args.command=='collect-xp':
+        try:
+            store=state_store();commander=Commander(store,None)
+            for _,_,data in commander.groups():commander.track(data['world'])
+            with store.tx() as db:worlds=[r['world'] for r in db.execute('SELECT world FROM rank_meta ORDER BY world LIMIT 20')]
+            summary=XPProvider(store).maintain(worlds)
+        except Exception as error:
+            from .xp_sources import failure
+            summary={'attempted':True,'status':'failed','state':failure(error)}
+        print(json.dumps(summary,sort_keys=True))
+        if summary['status']=='failed':raise SystemExit(1)
+        return
     store,transport=components()
     if args.command=='tick':
         # Rotinas diárias primeiro; o vigia da guild roda no mesmo minuto e nunca derruba a rotina se falhar.
-        Worker(store,transport).tick()
+        provider=PublicProvider(XPProvider(store))
+        Worker(store,transport,generator=lambda config,now:generate(config,now,provider)).tick()
         commander=Commander(store,transport)
         return Watcher(store,transport).run(also=(commander.maintain,),fast=(commander.tick,))
     if args.command=='owners':

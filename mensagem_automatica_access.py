@@ -97,7 +97,15 @@ class InstallationClient:
   except HTTPError as error:
    if error.code==401:raise AccessError('Acesso inválido. Use seu código de recuperação.') from None
    if error.code==403:raise AccessError('Este recurso ainda não está disponível para a sua conta.') from None
-   if error.code==400:raise AccessRejected('Pedido recusado. Confira seu código de recuperação.') from None
+   if error.code==400:
+    if path=='/auth/recover':raise AccessRejected('Pedido recusado. Confira seu código de recuperação.') from None
+    reason='Pedido recusado. Confira os dados desta operação.'
+    try:
+     raw=error.read(8193)
+     message=json.loads(raw).get('error') if len(raw)<=8192 else None
+     if isinstance(message,str) and message.strip():reason=' '.join(re.sub(r'[\x00-\x1f\x7f]',' ',message).split())[:500]
+    except (ValueError,AttributeError,OSError):pass
+    raise AccessRejected(reason) from None
    if error.code==429:raise AccessError('Muitas tentativas. Aguarde antes de tentar novamente.') from None
    raise AccessError('Não foi possível concluir a operação no serviço.') from None
   except (URLError,ValueError):raise AccessError('Serviço indisponível. Sua identidade foi preservada para tentar novamente.') from None

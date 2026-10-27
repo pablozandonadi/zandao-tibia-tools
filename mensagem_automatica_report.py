@@ -22,6 +22,7 @@ def require_source(data, now, ref, states=()):
 
 class PublicProvider:
     """Fontes existentes, forçadas; sem aplicar registros pessoais do World Board."""
+    def __init__(self,xp=None):self.xp=xp
     def summary(self,c,now):
         selected={key for key,value in c['blocks'].items() if value}
         result={}
@@ -37,6 +38,16 @@ class PublicProvider:
         return result
 
     def extra(self,key,arg,c,now):
+        if self.xp and key in ('exp_mundo','exp_guild','transfer'):
+            try:return self._extra(key,arg,c,now)
+            except SourceUnavailable:
+                label={'exp_mundo':'🏆 XP do mundo','exp_guild':'🏆 XP da guild','transfer':'🔄 Transferências'}[key]
+                note='Fonte GuildStats temporariamente indisponível; isso não significa ausência de eventos ou XP zero.'
+                if key=='exp_mundo':note=self.xp.ranking_for_extra(arg or c['mundo'])['note']
+                return label+': dados indisponíveis agora. '+note,[{'source':'local-source-status','fetched_at':now.timestamp(),'reference_date':reference_day(now),'status':'unavailable'}]
+        return self._extra(key,arg,c,now)
+
+    def _extra(self,key,arg,c,now):
         # Namespace próprio preserva a formatação existente sem alterar globais do app.
         if not isinstance(getattr(comandos_tibia,'EXTRAS',None),dict) or not callable(getattr(comandos_tibia,'extra',None)):
             raise Invalid('Atualize os módulos de consulta para usar os extras da mensagem automática.')
@@ -65,7 +76,25 @@ class PublicProvider:
         module._get=get
         module.sources=SimpleNamespace(cached=cached,get_text=zandaobot_sources.get_text)
         namespace['_get']=module._get;namespace['sources']=module.sources
+        rankings=[]
+        if self.xp and key in ('exp_mundo','exp_guild'):
+            def ranking(world):
+                record=self.xp.ranking_for_extra(world);rankings.append(record)
+                if not record['rows']:raise SourceUnavailable('Ranking indisponível.')
+                return record['rows']
+            namespace['_ranking']=ranking
         output=module.extra(key,arg,c['mundo'],c['personagem'],datetime.fromisoformat(reference_day(now)).date())
+        if rankings and not rankings[-1]['rows']:
+            return '🏆 XP: dados indisponíveis agora. '+rankings[-1]['note'],[{'source':'local-source-status','fetched_at':now.timestamp(),'reference_date':reference_day(now),'status':'unavailable'}]
+        if rankings and rankings[-1]['rows']:
+            record=rankings[-1]
+            if record['source'].startswith('TibiaData'):
+                # Immutable historical inputs are not presented as a fresh upstream fetch.
+                output=output.replace('XP de ontem','variação de XP entre coletas').replace('top 500 do mundo no GuildStats','listas TibiaData consultadas').replace('top 500 de XP do mundo','duas listas TibiaData consultadas')
+                if 'nenhum membro' in output:output='🏆 XP da guild: nenhum membro foi localizado nas duas listas TibiaData; isso não significa XP zero.'
+                provenance.append({'source':'local-xp-difference','fetched_at':now.timestamp(),'reference_date':reference_day(now),'calculated_at':now.timestamp(),'inputs':[{'source':'TibiaData','observed_at':record['observed'],'period_start':record['start'],'period_end':record['end']}]})
+            else:provenance.append({'source':'GuildStats','fetched_at':record['observed'],'reference_date':reference_day(now)})
+            output+='\n_'+record['note']+'_'
         failures=('indisponível','indisponivel','não consegui','informe ','use:','nome inválido','não tem guild')
         if not output or not provenance or any(x in output.casefold() for x in failures): raise SourceUnavailable('Consulta adicional indisponível.')
         return output,provenance

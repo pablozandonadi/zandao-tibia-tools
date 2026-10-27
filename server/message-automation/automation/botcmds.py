@@ -99,10 +99,13 @@ MODELS={
 
 class Reply:
     """Resposta montada por modelo. O administrador pode trocar o modelo; `{resposta}` é o modelo padrão já preenchido."""
-    def __init__(self,template,variables): self.template=template;self.variables=variables
+    def __init__(self,template,variables,notice=''): self.template=template;self.variables=variables;self.notice=notice
     def text(self,custom=''):
         default=modelos.renderizar(self.template,self.variables)
-        return modelos.renderizar(custom,{**self.variables,'resposta':default}) if custom else default
+        text=modelos.renderizar(custom,{**self.variables,'resposta':default}) if custom else default
+        if not self.notice:return text
+        title,separator,body=text.partition('\n')
+        return title+'\n\n'+self.notice+('\n\n'+body if separator else '')
 
 def clean(value,limit=40):
     return re.sub(r'[*_~`\x00-\x1f]','',str(value))[:limit].strip()
@@ -221,12 +224,13 @@ def default_trade(world):
 KEYS={'help':'help','coin':'precocoin','duel':'duelo','evolution':'evolucao','party':'pt','charinfo':'char','online_cmd':'online','xptop':'xptop'}  # método -> chave do comando no Admin
 
 class Bot:
-    def __init__(self,ranking=None,sheet=None,trade=None,history=None,track=None,character=None,online=None,world=None,guild=None,daily=None,settings=None):
+    def __init__(self,ranking=None,sheet=None,trade=None,history=None,track=None,character=None,online=None,world=None,guild=None,daily=None,settings=None,experience=None):
         self.settings=settings or (lambda:{})  # ajustes do administrador: {comando: {'enabled': bool, 'text': str}}
         self.ranking=ranking or default_ranking;self.sheet=sheet or default_sheet;self.trade=trade or default_trade
         self.character=character or default_character;self.online=online or default_online;self.world=world or default_world;self.guild=guild or default_guild
         self.daily=daily or (lambda world,name:[])
         self.history=history or (lambda world,name:[]);self.track=track or (lambda world:None)
+        self.experience=experience
 
     def pick(self,text):
         """(função, argumento) do comando, ou None se não for um comando conhecido (comandos de outros bots no grupo passam em silêncio)."""
@@ -276,6 +280,7 @@ class Bot:
     def xp(self,info):
         """XP de ontem, 7 e 30 dias de um personagem (None onde está fora do top 500 do mundo)."""
         world=info['world'];self.track(world)
+        if self.experience:return self.experience(world,info['name'])
         with ThreadPoolExecutor(max_workers=3) as pool: tables=dict(zip((0,7,30),pool.map(lambda window:self.ranking(world,window),(0,7,30))))
         return {window:next((r[2] for r in rows or () if r[0].casefold()==info['name'].casefold()),None) for window,rows in tables.items()}
 
@@ -291,21 +296,31 @@ class Bot:
         a,b=pair;label=lambda p:(clean(p['name'],40) if len(clean(p['name'],40))<=11 else clean(p['name'],10)+'…')
         rows=[('Level',*(pt(p['level']) for p in pair)),
               ('XP no mês',*(kk(p['xp'][30]) if p['xp'][30] is not None else '—' for p in pair)),
-              ('XP/dia',*(kk(p['xp'][30]/30) if p['xp'][30] is not None else '—' for p in pair)),
+              ('XP/dia',*(kk(p['xp'].get('_rates',{}).get(30,p['xp'][30]/30)) if p['xp'][30] is not None else '—' for p in pair)),
               ('XP 7 dias',*(kk(p['xp'][7]) if p['xp'][7] is not None else '—' for p in pair)),
               ('XP ontem',*(kk(p['xp'][0]) if p['xp'][0] is not None else '—' for p in pair))]
+        if self.experience:
+            for index,window in ((1,30),(3,7),(4,0)):
+                if any(p['xp'].get('_meta',{}).get(window,{}).get('source','').startswith('TibiaData') for p in pair):
+                    rows[index]=(('XP entre coletas' if window==0 else 'XP '+str(window)+' intervalos'),*rows[index][1:])
         widths=[max(len(r[i]) for r in [('',label(a),label(b)),*rows]) for i in range(3)]
         line=lambda r:'  '.join(r[i].ljust(widths[i]) if i==0 else r[i].rjust(widths[i]) for i in range(3))
         table='\n'.join(['```',line(('',label(a),label(b))),*(line(r) for r in rows),'```'])
         missing=[clean(p['name']) for p in pair if p['xp'][30] is None]
-        result=f'_Sem dados de XP de {", ".join(missing)}: fora do top 500 do mundo no GuildStats._' if missing else self.verdict(a,b,today)
-        return Reply(T_DUEL,{'nome1':clean(a['name']),'nome2':clean(b['name']),'tabela':table,'resultado':result})
+        if self.experience:
+            same=all(p['xp'].get('_projection') for p in pair) and len({p['xp']['_meta'][30]['source'] for p in pair})==1
+            if same and 'start' in a['xp']['_meta'][30]:same=all(abs(a['xp']['_meta'][30][k]-b['xp']['_meta'][30][k])<=900 for k in ('start','end'))
+            result=self.verdict(a,b,today) if same else '_Sem projeção: faltam períodos completos, atuais e comparáveis para os dois personagens._'
+            notice='\n\n'.join('*'+clean(p['name'])+'*\n'+self.xp_notice(p['xp']) for p in pair)
+        else:
+            result=f'_Sem dados de XP de {", ".join(missing)}: fora do top 500 do mundo no GuildStats._' if missing else self.verdict(a,b,today);notice=''
+        return Reply(T_DUEL.replace('últimos 30 dias','dados disponíveis') if self.experience else T_DUEL,{'nome1':clean(a['name']),'nome2':clean(b['name']),'tabela':table,'resultado':result},notice)
 
     def verdict(self,a,b,today):
         import tibia_info
         front,behind=(a,b) if a['level']>=b['level'] else (b,a)
         if front['level']==behind['level']: return '🤝 Os dois estão no mesmo level.'
-        rate_front,rate_behind=front['xp'][30]/30,behind['xp'][30]/30
+        rate_front,rate_behind=(p['xp'].get('_rates',{}).get(30,p['xp'][30]/30) for p in (front,behind))
         gap=tibia_info.xp_total(front['level'])-tibia_info.xp_total(behind['level'])
         fname,bname=clean(front['name']),clean(behind['name'])
         if rate_behind>rate_front:
@@ -321,6 +336,7 @@ class Bot:
         if not info or not WORLD.fullmatch(info.get('world') or ''): return f'Não encontrei o personagem *{clean(arg)}*.'
         xp=self.xp(info);name=clean(info['name'])
         sheet=f'{emoji(info["vocation"])} {clean(info["vocation"])} · 🏆 Lv *{pt(info["level"])}* · 🌍 {clean(info["world"])}'.replace('  ',' ').strip()
+        if self.experience:return self.measured_evolution(info,xp,today,sheet)
         if xp[30] is None:
             return '\n'.join([f'📈 *Evolução — {name}*',sheet,'','Sem dados de XP: o personagem está fora do top 500 do mundo no GuildStats.'])
         rate=xp[30]/30
@@ -339,6 +355,43 @@ class Bot:
             chart='\n'.join([f'📊 *XP por dia (últimos {len(days)} dias)*','```',*(f'{d[8:10]}/{d[5:7]} '+('█'*max(1,round(10*abs(x)/top))).ljust(10)+f' {kk(x)}'+(' 💀' if x<0 else '') for d,x in days),'```'])
         else: chart='_A curva diária começa a ser gravada agora e aparece em poucos dias._'
         return Reply(T_EVOLUTION,{'nome':name,'ficha':sheet,'xp_ganha':gained,'projecao':'\n'.join(projection),'grafico':chart,'level':pt(info['level']),'mundo':clean(info['world']),'vocacao':clean(info['vocation'])})
+
+    def xp_notice(self,xp):
+        lines=[]
+        for window,m in xp.get('_meta',{}).items():
+            period=self.xp_period(xp,window)
+            if 'start' in m:
+                when=lambda k:datetime.fromtimestamp(m[k],timezone.utc).strftime('%d/%m/%Y %H:%M UTC')
+                lines.append(period+': '+kk(xp[window])+' · '+m['source']+' — '+when('start')+' a '+when('end')+'.')
+            else:lines.append(period+': '+m['source']+' — '+str(m['date']).replace('T',' ')[:19]+(' (consulta UTC).' if 'T' in str(m['date']) else '.'))
+        lines.extend(xp.get('_notes',[]))
+        if not xp.get('_meta') and xp.get('_latest_total'):
+            value=xp['_latest_total'];lines.append('TibiaData: XP total '+pt(value['value'])+' na coleta '+value['day']+'. Ganho exige duas coletas válidas em dias adjacentes.')
+        return '\n'.join(lines) or 'GuildStats indisponível; acompanhamento complementar ainda sem histórico suficiente.'
+
+    def xp_period(self,xp,window):
+        if xp.get('_meta',{}).get(window,{}).get('source','').startswith('TibiaData'):return 'Entre coletas' if window==0 else str(window)+' intervalos diários'
+        return 'Ontem' if window==0 else str(window)+' dias'
+
+    def xp_daily_line(self,row,xp,level=False):
+        d,lv,x,source=row
+        if source.startswith('GuildStats'):period=d[8:10]+'/'+d[5:7]+' · GS'
+        else:
+            m=xp['_daily_periods'][d];stamp=lambda k:datetime.fromtimestamp(m[k],timezone.utc).strftime('%d/%m %H:%M')
+            period=stamp('start')+' → '+stamp('end')+' UTC · TD'
+        return period+' — '+('Lv *'+pt(lv)+'* — ' if level else '')+kk(x)+(' 💀' if x<0 else '')
+
+    def measured_evolution(self,info,xp,today,sheet):
+        import tibia_info
+        gained='\n'.join(['*XP ganha*',*('• '+self.xp_period(xp,w)+': '+('*'+kk(xp[w])+'*' if xp[w] is not None else '—') for w in (0,7,30))])
+        projection='🔮 Sem projeção: faltam 30 dias completos e atuais.'
+        rate=xp.get('_rates',{}).get(30)
+        if xp.get('_projection') and rate is not None:
+            need=tibia_info.xp_total(info['level']+1)-tibia_info.xp_total(info['level'])
+            projection='🔮 Sem ganho positivo no período: sem projeção.' if rate<=0 else '🔮 No ritmo observado: Lv '+pt(info['level']+1)+' em ~'+decimal_pt(need/rate,1)+' dias.'
+        rows=xp.get('_daily',[])[:14]
+        chart='\n'.join(['📊 *Histórico disponível*',*(self.xp_daily_line(row,xp) for row in rows)]) if rows else '_Ainda sem histórico diário válido; dias ausentes não são zero._'
+        return Reply(T_EVOLUTION,{'nome':clean(info['name']),'ficha':sheet,'xp_ganha':gained,'projecao':projection,'grafico':chart,'level':pt(info['level']),'mundo':clean(info['world']),'vocacao':clean(info['vocation'])},self.xp_notice(xp))
 
     def charinfo(self,arg,world,today):
         """Ficha completa de qualquer personagem (mesmo conteúdo do comando `char` do Tibia Tudo), no padrão do WhatsApp."""
@@ -427,6 +480,16 @@ class Bot:
         xp=self.xp(info);last=today-timedelta(days=1)
         sheet=f'{emoji(info["vocation"])} {clean(info["vocation"])} · 🏆 Level *{pt(info["level"])}* · 🌍 {clean(info["world"])}'
         guild_line=f'⚔️ *Guilda:* {clean(info["guild"])}' if info.get('guild') else ''
+        if self.experience:
+            rows=xp.get('_daily',[])[:30]
+            daily='\n'.join(self.xp_daily_line(row,xp,True) for row in rows)
+            template=T_XPTOP.replace('📅 até {ate}','📅 Datas e intervalos indicados abaixo').replace('*Resumo (GuildStats)*','*Resumo de XP*').replace('• Ontem: {xp_ontem}','• '+self.xp_period(xp,0)+': {xp_observado_0}').replace('• 7 dias: {xp_7d}','• '+self.xp_period(xp,7)+': {xp_observado_7}').replace('• 30 dias: *{xp_30d}*','• '+self.xp_period(xp,30)+': *{xp_observado_30}*')
+            displayed={w:kk(xp[w]) if xp[w] is not None else '—' for w in (0,7,30)}
+            legacy={w:displayed[w] if not xp.get('_meta',{}).get(w,{}).get('source','').startswith('TibiaData') else '—' for w in (0,7,30)}
+            end_day=max((r[0] for r in rows),default=last.isoformat())
+            return Reply(template,{'ate':end_day[8:10]+'/'+end_day[5:7],'nome':clean(info['name']),'ficha':sheet,'guilda':guild_line,'dias':daily,
+                'aviso':'_GS: histórico GuildStats; TD: variação entre coletas TibiaData. Dias ausentes não são zero._' if rows else '_Ainda sem histórico diário válido._',
+                'xp_ontem':legacy[0],'xp_7d':legacy[7],'xp_30d':legacy[30],'xp_observado_0':displayed[0],'xp_observado_7':displayed[7],'xp_observado_30':displayed[30],'xp_media':kk(xp['_rates'][30]) if 30 in xp.get('_rates',{}) else '—'},self.xp_notice(xp))
         if xp[30] is None:
             lines=['📈 *XP — últimos 30 dias*',f'📅 até {last.strftime("%d/%m")}','',f'📜 *{clean(info["name"])}*',sheet,*([guild_line] if guild_line else []),'']
             return '\n'.join([*lines,'Sem dados de XP: o personagem está fora do top 500 do mundo no GuildStats.'])

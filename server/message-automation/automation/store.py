@@ -41,6 +41,9 @@ class Store:
             CREATE TABLE IF NOT EXISTS rank_history(world TEXT NOT NULL,day TEXT NOT NULL,name TEXT NOT NULL,level INTEGER NOT NULL,xp INTEGER NOT NULL,PRIMARY KEY(world,day,name));
             CREATE TABLE IF NOT EXISTS bot_settings(scope TEXT NOT NULL,cmd TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,text TEXT NOT NULL DEFAULT '',PRIMARY KEY(scope,cmd));
             CREATE TABLE IF NOT EXISTS rank_meta(world TEXT PRIMARY KEY,last_day TEXT NOT NULL DEFAULT '');
+            CREATE TABLE IF NOT EXISTS xp_rank_cache(world TEXT NOT NULL,window INTEGER NOT NULL,observed REAL NOT NULL DEFAULT 0,retry_after REAL NOT NULL DEFAULT 0,status TEXT NOT NULL,body BLOB,PRIMARY KEY(world,window));
+            CREATE TABLE IF NOT EXISTS xp_totals(world TEXT NOT NULL,day TEXT NOT NULL,observed REAL NOT NULL,upstream REAL NOT NULL,fingerprint TEXT NOT NULL,body BLOB NOT NULL,PRIMARY KEY(world,day));
+            CREATE TABLE IF NOT EXISTS xp_refresh(world TEXT PRIMARY KEY,last_attempt REAL NOT NULL DEFAULT 0,lease REAL NOT NULL DEFAULT 0,td_retry REAL NOT NULL DEFAULT 0,status TEXT NOT NULL DEFAULT 'waiting');
             CREATE TABLE IF NOT EXISTS watch_events(id TEXT PRIMARY KEY,owner TEXT NOT NULL,watch TEXT NOT NULL,key TEXT NOT NULL,text BLOB NOT NULL,state TEXT NOT NULL,created REAL NOT NULL,sent_at REAL,attempt TEXT,lease REAL,error TEXT,UNIQUE(watch,key));
             ''')
             columns={r['name'] for r in db.execute('PRAGMA table_info(runs)')}

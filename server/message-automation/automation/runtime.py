@@ -7,7 +7,8 @@ from .store import Store
 from .transport import FakeTransport,BridgeTransport
 from .api import create_app
 
-def components():
+def state_store():
+    """Estado privado comum; não lê token nem configura transporte WhatsApp."""
     state=Path(os.environ['AUTOMATION_STATE_DIR']).resolve();state.mkdir(parents=True,exist_ok=True)
     if os.name!='nt': os.chmod(state,0o700)
     key_path=Path(os.environ['AUTOMATION_KEY_FILE']).resolve()
@@ -16,7 +17,10 @@ def components():
     # Overrides exclusivos deste processo servidor, antes da primeira consulta.
     import tibia_info
     tibia_info.CACHE_PATH=str(state/'cache_tibia.json')
-    store=Store(state/'automation.sqlite',key)
+    return Store(state/'automation.sqlite',key)
+
+def components():
+    store=state_store()
     mode=os.environ.get('AUTOMATION_TRANSPORT','fake')
     if mode=='fake': transport=FakeTransport()
     elif mode=='bridge' and os.environ.get('AUTOMATION_ENABLE_REAL')=='I_ACCEPT_UNOFFICIAL_WHATSAPP':
