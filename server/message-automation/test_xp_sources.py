@@ -166,6 +166,18 @@ class MorningMessageTests(unittest.TestCase):
   self.assertIn('variação de XP entre coletas',output['text']);self.assertIn('26/10 12:00 UTC a 27/10 12:00 UTC',output['text'])
   self.assertNotIn('XP de ontem',output['text']);derived=[s for s in output['sources'] if s['source']=='local-xp-difference'];self.assertEqual(len(derived),2)
   self.assertEqual(derived[0]['inputs'][0]['period_start'],datetime(2026,10,26,12,tzinfo=UTC).timestamp())
+ def test_tibiarise_extra_keeps_its_publication_period_and_is_not_guildstats(self):
+  from mensagem_automatica_report import generate
+  from test_tibiarise import rank
+  import zandaobot
+  self.provider.rise.get=lambda url,limit:json.dumps(rank({'daily':0,'weekly':7,'monthly':30}[url.split('/')[-1]])).encode()
+  self.provider.rise.collect(['Antica'])
+  config={'personagem':'Alpha Knight','mundo':'Antica','blocks':{'mundo':True},'extras':{'exp_mundo':True,'exp_guild':True},'args':{'exp_guild':'Guild Fixture'}}
+  with patch.object(zandaobot,'_consultar',side_effect=self.fixture_response):output=generate(config,NOW,self.source_provider())
+  self.assertIn('TibiaRise',output['text']);self.assertNotIn('XP de ontem',output['text'])
+  self.assertFalse(any(s['source']=='GuildStats' for s in output['sources']))
+  derived=[s for s in output['sources'] if s['source']=='local-tibiarise-ranking'];self.assertEqual(len(derived),2)
+  self.assertEqual(derived[0]['inputs'][0]['published_at'],(NOW-timedelta(hours=5)).timestamp())
 
 class PaginationTests(unittest.TestCase):
  def fixture(self,records=1000,mutate=None):

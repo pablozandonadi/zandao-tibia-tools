@@ -104,8 +104,10 @@ def tibiadata(world,now,get=public_get):
     return {'rows':rows,'upstream':min(stamps),'fingerprint':fingerprint,'day':reference_day(datetime.fromtimestamp(min(stamps),UTC))}
 
 class XPProvider:
-    def __init__(self,store,clock=None,gs=guildstats,td=tibiadata):
+    def __init__(self,store,clock=None,gs=guildstats,td=tibiadata,rise=None):
         self.store=store;self.clock=clock or (lambda:datetime.now(UTC));self.gs=gs;self.td=td
+        from .tibiarise import RiseCache
+        self.rise=rise or RiseCache(store,self.clock,lambda url,limit:public_get(url,limit))
 
     def cache(self,world,window):
         with self.store.tx() as db: row=db.execute('SELECT * FROM xp_rank_cache WHERE world=? AND window=?',(world.capitalize(),window)).fetchone()
@@ -129,8 +131,14 @@ class XPProvider:
                 if gs_due or td_due: options.append((state['last_attempt'],world))
             if options:
                 selected=min(options)[1];db.execute('UPDATE xp_refresh SET lease=?,last_attempt=? WHERE world=?',(stamp+120,stamp,selected))
-        if selected:return self.collect(selected,now)
-        return {'attempted':False,'status':'skipped','reason':'backoff_or_no_due_world','guildstats':[],'tibiadata':{'status':'skipped'}}
+        summary=self.collect(selected,now) if selected else {'attempted':False,'status':'skipped','reason':'backoff_or_no_due_world','guildstats':[],'tibiadata':{'status':'skipped'}}
+        summary['tibiarise']=self.rise.collect(worlds)
+        if summary['tibiarise']:
+            statuses=[r['status'] for r in summary['tibiarise']]
+            if summary['attempted']:statuses.append('ok' if summary['status']=='ok' else 'unavailable' if summary['status']=='failed' else 'partial')
+            summary['attempted']=True
+            summary['status']='ok' if all(s=='ok' for s in statuses) else 'failed' if all(s not in ('ok','partial') for s in statuses) else 'partial'
+        return summary
 
     def collect(self,world,now=None):
         now=now or self.clock();stamp=now.timestamp();world=world.capitalize()
@@ -184,6 +192,7 @@ class XPProvider:
         totals=self.totals(world);key=name.casefold();measures={d:next((r for r in v['rows'] if r[0].casefold()==key),None) for d,v in totals.items()}
         with self.store.tx() as db: historical=[tuple(r) for r in db.execute('SELECT day,level,xp FROM rank_history WHERE world=? AND name=? COLLATE NOCASE ORDER BY day DESC LIMIT 60',(world.capitalize(),name))]
         history={r[0]:r for r in historical};result={0:None,7:None,30:None};notes=[];meta={};daily=[];periods={}
+        rise,rise_daily,rise_periods,_=self.rise.report(world,name)
         for window in (0,7,30):
             c=self.cache(world,window);match=next((r for r in c['rows'] or () if r[0].casefold()==key),None);fresh=bool(match and c['observed']>=now.timestamp()-TTL and reference_day(datetime.fromtimestamp(c['observed'],UTC))==day)
             days=window or 1;required=[(datetime.fromisoformat(last).date()-timedelta(days=i)).isoformat() for i in range(days)]
@@ -191,6 +200,8 @@ class XPProvider:
                 result[window]=match[2];meta[window]={'source':'GuildStats','date':datetime.fromtimestamp(c['observed'],UTC).isoformat(),'fresh':True}
             elif all(d in history for d in required):
                 result[window]=sum(history[d][2] for d in required);meta[window]={'source':'GuildStats — histórico salvo','date':last,'fresh':True}
+            elif window in rise and rise[window][1]['fresh']:
+                result[window],meta[window]=rise[window]
             else:
                 wanted=[(datetime.fromisoformat(day).date()-timedelta(days=i)).isoformat() for i in range(days+1)]
                 if all(measures.get(d) for d in wanted):
@@ -198,6 +209,8 @@ class XPProvider:
                     meta[window]={'source':'TibiaData — variação entre coletas','date':totals[wanted[0]]['observed'],'start':totals[wanted[-1]]['upstream'],'end':totals[wanted[0]]['upstream'],'fresh':True}
                 elif match and c['observed']>=now.timestamp()-RETENTION*86400:
                     result[window]=match[2];meta[window]={'source':'GuildStats — dado antigo','date':datetime.fromtimestamp(c['observed'],UTC).isoformat(),'fresh':False}
+                elif window in rise:
+                    result[window],meta[window]=rise[window]
         if any(value is None for value in result.values()):
             notes.append('Histórico insuficiente para calcular os períodos sem valor.')
         for d in sorted(set(history)|set(measures),reverse=True):
@@ -207,12 +220,16 @@ class XPProvider:
                 if measures.get(d) and measures.get(older):
                     daily.append((d,measures[d][1],measures[d][2]-measures[older][2],'TibiaData — variação entre coletas'))
                     periods[d]={'start':totals[older]['upstream'],'end':totals[d]['upstream']}
+        existing={r[0] for r in daily}
+        for row in rise_daily:
+            if row[0] not in existing:
+                daily.append(row);periods[row[0]]=rise_periods[row[0]]
         rates={}
         for window,value in result.items():
             if value is None:continue
             m=meta[window];days=(m['end']-m['start'])/86400 if 'start' in m else (window or 1)
             if days>0:rates[window]=value/days
-        result.update(_meta=meta,_notes=notes,_daily=sorted(daily,reverse=True),_daily_periods=periods,_projection=bool(meta.get(30,{}).get('fresh')),_rates=rates)
+        result.update(_meta=meta,_notes=notes,_daily=sorted(daily,reverse=True),_daily_periods=periods,_projection=bool(meta.get(30,{}).get('fresh') and meta.get(30,{}).get('complete',True)),_rates=rates)
         if totals: result['_latest_total']=next(({'day':d,'value':measures[d][2]} for d in sorted(totals,reverse=True) if measures.get(d)),None)
         return result
 
@@ -220,6 +237,8 @@ class XPProvider:
         now=self.clock();c=self.cache(world,0)
         if c['rows'] and c['observed']>=now.timestamp()-TTL and reference_day(datetime.fromtimestamp(c['observed'],UTC))==reference_day(now):
             return {'rows':c['rows'],'source':'GuildStats','observed':c['observed'],'note':'GuildStats — consulta '+datetime.fromtimestamp(c['observed'],UTC).strftime('%d/%m/%Y %H:%M UTC')}
+        rise=self.rise.ranking(world)
+        if rise:return rise
         totals=self.totals(world);day=reference_day(now);older=(datetime.fromisoformat(day).date()-timedelta(days=1)).isoformat()
         if day in totals and older in totals:
             before={r[0].casefold():r for r in totals[older]['rows']}

@@ -301,7 +301,7 @@ class Bot:
               ('XP ontem',*(kk(p['xp'][0]) if p['xp'][0] is not None else '—' for p in pair))]
         if self.experience:
             for index,window in ((1,30),(3,7),(4,0)):
-                if any(p['xp'].get('_meta',{}).get(window,{}).get('source','').startswith('TibiaData') for p in pair):
+                if any(p['xp'].get('_meta',{}).get(window,{}).get('source','').startswith(('TibiaData','TibiaRise')) for p in pair):
                     rows[index]=(('XP entre coletas' if window==0 else 'XP '+str(window)+' intervalos'),*rows[index][1:])
         widths=[max(len(r[i]) for r in [('',label(a),label(b)),*rows]) for i in range(3)]
         line=lambda r:'  '.join(r[i].ljust(widths[i]) if i==0 else r[i].rjust(widths[i]) for i in range(3))
@@ -362,7 +362,7 @@ class Bot:
             period=self.xp_period(xp,window)
             if 'start' in m:
                 when=lambda k:datetime.fromtimestamp(m[k],timezone.utc).strftime('%d/%m/%Y %H:%M UTC')
-                lines.append(period+': '+kk(xp[window])+' · '+m['source']+' — '+when('start')+' a '+when('end')+'.')
+                lines.append(period+': '+kk(xp[window])+' · '+m['source']+' — '+when('start')+' a '+when('end')+(' (registro antigo).' if not m.get('fresh') else '.'))
             else:lines.append(period+': '+m['source']+' — '+str(m['date']).replace('T',' ')[:19]+(' (consulta UTC).' if 'T' in str(m['date']) else '.'))
         lines.extend(xp.get('_notes',[]))
         if not xp.get('_meta') and xp.get('_latest_total'):
@@ -370,6 +370,8 @@ class Bot:
         return '\n'.join(lines) or 'GuildStats indisponível; acompanhamento complementar ainda sem histórico suficiente.'
 
     def xp_period(self,xp,window):
+        if xp.get('_meta',{}).get(window,{}).get('source','').startswith('TibiaRise — ranking'):return 'Período publicado' if window==0 else str(window)+' dias (período publicado)'
+        if xp.get('_meta',{}).get(window,{}).get('source','').startswith('TibiaRise'):return 'Último intervalo' if window==0 else str(window)+' intervalos diários'
         if xp.get('_meta',{}).get(window,{}).get('source','').startswith('TibiaData'):return 'Entre coletas' if window==0 else str(window)+' intervalos diários'
         return 'Ontem' if window==0 else str(window)+' dias'
 
@@ -378,7 +380,7 @@ class Bot:
         if source.startswith('GuildStats'):period=d[8:10]+'/'+d[5:7]+' · GS'
         else:
             m=xp['_daily_periods'][d];stamp=lambda k:datetime.fromtimestamp(m[k],timezone.utc).strftime('%d/%m %H:%M')
-            period=stamp('start')+' → '+stamp('end')+' UTC · TD'
+            period=stamp('start')+' → '+stamp('end')+' UTC · '+('TR' if source.startswith('TibiaRise') else 'TD')
         return period+' — '+('Lv *'+pt(lv)+'* — ' if level else '')+kk(x)+(' 💀' if x<0 else '')
 
     def measured_evolution(self,info,xp,today,sheet):
@@ -485,10 +487,10 @@ class Bot:
             daily='\n'.join(self.xp_daily_line(row,xp,True) for row in rows)
             template=T_XPTOP.replace('📅 até {ate}','📅 Datas e intervalos indicados abaixo').replace('*Resumo (GuildStats)*','*Resumo de XP*').replace('• Ontem: {xp_ontem}','• '+self.xp_period(xp,0)+': {xp_observado_0}').replace('• 7 dias: {xp_7d}','• '+self.xp_period(xp,7)+': {xp_observado_7}').replace('• 30 dias: *{xp_30d}*','• '+self.xp_period(xp,30)+': *{xp_observado_30}*')
             displayed={w:kk(xp[w]) if xp[w] is not None else '—' for w in (0,7,30)}
-            legacy={w:displayed[w] if not xp.get('_meta',{}).get(w,{}).get('source','').startswith('TibiaData') else '—' for w in (0,7,30)}
+            legacy={w:displayed[w] if not xp.get('_meta',{}).get(w,{}).get('source','').startswith(('TibiaData','TibiaRise')) else '—' for w in (0,7,30)}
             end_day=max((r[0] for r in rows),default=last.isoformat())
             return Reply(template,{'ate':end_day[8:10]+'/'+end_day[5:7],'nome':clean(info['name']),'ficha':sheet,'guilda':guild_line,'dias':daily,
-                'aviso':'_GS: histórico GuildStats; TD: variação entre coletas TibiaData. Dias ausentes não são zero._' if rows else '_Ainda sem histórico diário válido._',
+                'aviso':'_GS: GuildStats; TD: coletas TibiaData; TR: registros TibiaRise. Dias ausentes não são zero._' if rows else '_Ainda sem histórico diário válido._',
                 'xp_ontem':legacy[0],'xp_7d':legacy[7],'xp_30d':legacy[30],'xp_observado_0':displayed[0],'xp_observado_7':displayed[7],'xp_observado_30':displayed[30],'xp_media':kk(xp['_rates'][30]) if 30 in xp.get('_rates',{}) else '—'},self.xp_notice(xp))
         if xp[30] is None:
             lines=['📈 *XP — últimos 30 dias*',f'📅 até {last.strftime("%d/%m")}','',f'📜 *{clean(info["name"])}*',sheet,*([guild_line] if guild_line else []),'']

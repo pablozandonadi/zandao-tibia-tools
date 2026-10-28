@@ -88,7 +88,12 @@ class PublicProvider:
             return '🏆 XP: dados indisponíveis agora. '+rankings[-1]['note'],[{'source':'local-source-status','fetched_at':now.timestamp(),'reference_date':reference_day(now),'status':'unavailable'}]
         if rankings and rankings[-1]['rows']:
             record=rankings[-1]
-            if record['source'].startswith('TibiaData'):
+            if record['source'].startswith('TibiaRise'):
+                output=output.replace('XP de ontem','XP no período publicado').replace('top 500 do mundo no GuildStats','ranking público do TibiaRise').replace('top 500 de XP do mundo','ranking público do TibiaRise')
+                if 'nenhum membro' in output:output='🏆 XP da guild: nenhum membro foi localizado no ranking público limitado do TibiaRise; isso não significa XP zero.'
+                provenance[:]=[p for p in provenance if p['source']!='GuildStats']
+                provenance.append({'source':'local-tibiarise-ranking','fetched_at':now.timestamp(),'reference_date':reference_day(now),'calculated_at':now.timestamp(),'inputs':[{'source':'TibiaRise','observed_at':record['observed'],'published_at':record['updated'],'period_start':record['start'],'period_end':record['end']}]})
+            elif record['source'].startswith('TibiaData'):
                 # Immutable historical inputs are not presented as a fresh upstream fetch.
                 output=output.replace('XP de ontem','variação de XP entre coletas').replace('top 500 do mundo no GuildStats','listas TibiaData consultadas').replace('top 500 de XP do mundo','duas listas TibiaData consultadas')
                 if 'nenhum membro' in output:output='🏆 XP da guild: nenhum membro foi localizado nas duas listas TibiaData; isso não significa XP zero.'
