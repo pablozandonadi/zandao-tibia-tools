@@ -97,6 +97,49 @@ class RiseTests(unittest.TestCase):
  def test_queue_is_bounded_and_successful_char_does_not_starve_next(self):
   for i in range(205):self.rise.request('Antica','Knight '+chr(65+i//26)+chr(65+i%26))
   with self.store.tx() as db:self.assertEqual(db.execute("SELECT count(*) FROM xp_rise_cache WHERE kind='character'").fetchone()[0],200)
+ def test_current_guildstats_wins_differences_and_does_not_fill_gaps_from_rise(self):
+  self.seed()
+  with self.store.tx() as db:
+   body=self.store.pack('xp-public','gs:antica:0',[('Alpha Knight',500,999,'Knight')])
+   db.execute('INSERT INTO xp_rank_cache VALUES(?,?,?,?,?,?)',('Antica',0,NOW.timestamp(),NOW.timestamp()+900,'ok',body))
+   db.execute('INSERT INTO rank_history VALUES(?,?,?,?,?)',('Antica','2026-10-25','Alpha Knight',500,888))
+  r=self.provider.report('Antica','Alpha Knight')
+  self.assertEqual(r['_source'],'GuildStats');self.assertEqual(r[0],999);self.assertIsNone(r[7]);self.assertIsNone(r[30])
+  self.assertTrue(all(row[3].startswith('GuildStats') for row in r['_daily']));self.assertFalse(r['_projection'])
+  with self.store.tx() as db:
+   body=self.store.pack('xp-public','gs:antica:30',[('Alpha Knight',500,9999,'Knight')])
+   db.execute('INSERT INTO xp_rank_cache VALUES(?,?,?,?,?,?)',('Antica',30,NOW.timestamp(),NOW.timestamp()+900,'ok',body))
+  self.assertEqual(self.provider.report('Antica','Alpha Knight')[30],9999,'GuildStats wins even when the 30-day TibiaRise value differs')
+ def test_blocked_guildstats_never_overrides_or_merges_with_current_rise(self):
+  rows=self.values[0]['experienceTable']+self.values[1]['experienceTable']
+  for row,gain in zip(rows,(13155536,6790008,0)):row['experience']=gain
+  for i in range(len(rows)-2,-1,-1):rows[i]['totalExperience']=rows[i+1]['totalExperience']+rows[i]['experience']
+  self.seed()
+  with self.store.tx() as db:
+   body=self.store.pack('xp-public','gs:antica:0',[('Alpha Knight',500,999,'Knight')])
+   db.execute('INSERT INTO xp_rank_cache VALUES(?,?,?,?,?,?)',('Antica',0,NOW.timestamp(),NOW.timestamp()+900,'blocked',body))
+   db.execute('INSERT INTO rank_history VALUES(?,?,?,?,?)',('Antica','2026-10-25','Alpha Knight',500,6790008))
+  r=self.provider.report('Antica','Alpha Knight')
+  self.assertEqual(r['_source'],'TibiaRise');self.assertEqual(r[0],13155536)
+  self.assertTrue(all(row[3].startswith('TibiaRise') for row in r['_daily']))
+  self.assertEqual(next(row[2] for row in r['_daily'] if row[0]=='2026-10-25'),0)
+  self.assertEqual(next(row[2] for row in r['_daily'] if row[0]=='2026-10-26'),6790008)
+  with self.store.tx() as db:self.assertEqual(db.execute('SELECT xp FROM rank_history').fetchone()[0],6790008)
+ def test_evolution_bars_show_one_footer_without_the_upper_interval_notice(self):
+  self.seed();r=self.provider.report('Antica','Alpha Knight')
+  r['_daily']=[(day,level,value,source) for (day,level,_,source),value in zip(r['_daily'][:3],(20,0,-10))]
+  b=Bot(sheet=lambda name:{'name':name,'world':'Antica','vocation':'Knight','level':500},experience=lambda *a:r)
+  text=b.handle('!evolucao Alpha Knight','Antica',NOW.date())
+  self.assertEqual(text.count('TibiaRise'),1);self.assertIn('Fonte: TibiaRise',text);self.assertIn('até 27/10',text)
+  self.assertNotIn('variação entre registros',text);self.assertNotIn('UTC',text);self.assertNotIn(' · GS',text);self.assertNotIn(' · TR',text)
+  self.assertLess(text.index('Knight ·'),text.index('*XP ganha*'))
+  chart=text.split('```')[1].strip().splitlines();self.assertEqual(len(chart),3)
+  self.assertEqual(chart[0].count('█'),10);self.assertNotIn('█',chart[1]);self.assertEqual(chart[2].count('█'),5);self.assertIn('💀',chart[2])
+  self.assertIn('26/10→27/10',chart[0]);self.assertIn('-',chart[2])
+ def test_xptop_legend_names_only_the_selected_source(self):
+  self.seed();b=Bot(sheet=lambda name:{'name':name,'world':'Antica','vocation':'Knight','level':500},experience=self.provider.report)
+  text=b.handle('!xptop Alpha Knight','Antica',NOW.date())
+  self.assertIn('Fonte: TibiaRise',text);self.assertNotIn('GuildStats',text);self.assertNotIn('TibiaData',text);self.assertNotIn(' · TR',text)
  def test_maintain_success_rise_and_failed_old_sources_is_partial(self):
   self.provider.gs=lambda *a:(_ for _ in ()).throw(OSError())
   self.provider.td=lambda *a:(_ for _ in ()).throw(OSError())

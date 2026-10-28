@@ -188,54 +188,40 @@ class XPProvider:
         return {r['day']:{**dict(r),'rows':self.store.unpack(OWNER,'td:'+world.casefold()+':'+r['day'],r['body'])} for r in values}
 
     def report(self,world,name,today=None):
-        now=self.clock();day=reference_day(now);last=(datetime.fromisoformat(day).date()-timedelta(days=1)).isoformat()
-        totals=self.totals(world);key=name.casefold();measures={d:next((r for r in v['rows'] if r[0].casefold()==key),None) for d,v in totals.items()}
+        now=self.clock();day=reference_day(now);last=(datetime.fromisoformat(day).date()-timedelta(days=1)).isoformat();key=name.casefold()
         with self.store.tx() as db: historical=[tuple(r) for r in db.execute('SELECT day,level,xp FROM rank_history WHERE world=? AND name=? COLLATE NOCASE ORDER BY day DESC LIMIT 60',(world.capitalize(),name))]
         history={r[0]:r for r in historical};result={0:None,7:None,30:None};notes=[];meta={};daily=[];periods={}
         rise,rise_daily,rise_periods,_=self.rise.report(world,name)
-        for window in (0,7,30):
-            c=self.cache(world,window);match=next((r for r in c['rows'] or () if r[0].casefold()==key),None);fresh=bool(match and c['observed']>=now.timestamp()-TTL and reference_day(datetime.fromtimestamp(c['observed'],UTC))==day)
-            days=window or 1;required=[(datetime.fromisoformat(last).date()-timedelta(days=i)).isoformat() for i in range(days)]
-            if fresh:
-                result[window]=match[2];meta[window]={'source':'GuildStats','date':datetime.fromtimestamp(c['observed'],UTC).isoformat(),'fresh':True}
-            elif all(d in history for d in required):
-                result[window]=sum(history[d][2] for d in required);meta[window]={'source':'GuildStats — histórico salvo','date':last,'fresh':True}
-            elif window in rise and rise[window][1]['fresh']:
-                result[window],meta[window]=rise[window]
-            else:
-                wanted=[(datetime.fromisoformat(day).date()-timedelta(days=i)).isoformat() for i in range(days+1)]
-                if all(measures.get(d) for d in wanted):
-                    result[window]=measures[wanted[0]][2]-measures[wanted[-1]][2]
-                    meta[window]={'source':'TibiaData — variação entre coletas','date':totals[wanted[0]]['observed'],'start':totals[wanted[-1]]['upstream'],'end':totals[wanted[0]]['upstream'],'fresh':True}
-                elif match and c['observed']>=now.timestamp()-RETENTION*86400:
+        caches={w:self.cache(world,w) for w in (0,7,30)}
+        matches={w:next((r for r in c['rows'] or () if r[0].casefold()==key),None) for w,c in caches.items()}
+        fresh={w:bool(matches[w] and c['status']=='ok' and c['observed']>=now.timestamp()-TTL and reference_day(datetime.fromtimestamp(c['observed'],UTC))==day) for w,c in caches.items()}
+        # One source owns the whole report; old saved rows cannot overrule current TibiaRise data.
+        source='GuildStats' if any(fresh.values()) else 'TibiaRise' if rise or rise_daily else 'GuildStats' if historical or any(matches.values()) else None
+        if source=='TibiaRise':
+            for window,value in rise.items():result[window],meta[window]=value
+            daily=rise_daily;periods=rise_periods
+        elif source=='GuildStats':
+            for window,c in caches.items():
+                match=matches[window];required=[(datetime.fromisoformat(last).date()-timedelta(days=i)).isoformat() for i in range(window or 1)]
+                if fresh[window]:
+                    result[window]=match[2];meta[window]={'source':'GuildStats','date':datetime.fromtimestamp(c['observed'],UTC).isoformat(),'fresh':True}
+                elif all(d in history for d in required):
+                    result[window]=sum(history[d][2] for d in required);meta[window]={'source':'GuildStats — histórico salvo','date':last,'fresh':any(fresh.values())}
+                elif not any(fresh.values()) and match and c['observed']>=now.timestamp()-RETENTION*86400:
                     result[window]=match[2];meta[window]={'source':'GuildStats — dado antigo','date':datetime.fromtimestamp(c['observed'],UTC).isoformat(),'fresh':False}
-                elif window in rise:
-                    result[window],meta[window]=rise[window]
-        if any(value is None for value in result.values()):
-            notes.append('Histórico insuficiente para calcular os períodos sem valor.')
-        for d in sorted(set(history)|set(measures),reverse=True):
-            if d in history: daily.append((*history[d],'GuildStats — histórico salvo'))
-            else:
-                older=(datetime.fromisoformat(d).date()-timedelta(days=1)).isoformat()
-                if measures.get(d) and measures.get(older):
-                    daily.append((d,measures[d][1],measures[d][2]-measures[older][2],'TibiaData — variação entre coletas'))
-                    periods[d]={'start':totals[older]['upstream'],'end':totals[d]['upstream']}
-        existing={r[0] for r in daily}
-        for row in rise_daily:
-            if row[0] not in existing:
-                daily.append(row);periods[row[0]]=rise_periods[row[0]]
+            daily=[(*row,'GuildStats — histórico salvo') for row in historical]
+        if any(value is None for value in result.values()):notes.append('Histórico insuficiente para calcular os períodos sem valor.')
         rates={}
         for window,value in result.items():
             if value is None:continue
             m=meta[window];days=(m['end']-m['start'])/86400 if 'start' in m else (window or 1)
             if days>0:rates[window]=value/days
-        result.update(_meta=meta,_notes=notes,_daily=sorted(daily,reverse=True),_daily_periods=periods,_projection=bool(meta.get(30,{}).get('fresh') and meta.get(30,{}).get('complete',True)),_rates=rates)
-        if totals: result['_latest_total']=next(({'day':d,'value':measures[d][2]} for d in sorted(totals,reverse=True) if measures.get(d)),None)
+        result.update(_source=source,_meta=meta,_notes=notes,_daily=sorted(daily,reverse=True),_daily_periods=periods,_projection=bool(meta.get(30,{}).get('fresh') and meta.get(30,{}).get('complete',True)),_rates=rates)
         return result
 
     def ranking_for_extra(self,world):
         now=self.clock();c=self.cache(world,0)
-        if c['rows'] and c['observed']>=now.timestamp()-TTL and reference_day(datetime.fromtimestamp(c['observed'],UTC))==reference_day(now):
+        if c['status']=='ok' and c['rows'] and c['observed']>=now.timestamp()-TTL and reference_day(datetime.fromtimestamp(c['observed'],UTC))==reference_day(now):
             return {'rows':c['rows'],'source':'GuildStats','observed':c['observed'],'note':'GuildStats — consulta '+datetime.fromtimestamp(c['observed'],UTC).strftime('%d/%m/%Y %H:%M UTC')}
         rise=self.rise.ranking(world)
         if rise:return rise

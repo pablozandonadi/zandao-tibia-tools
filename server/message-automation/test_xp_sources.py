@@ -56,33 +56,26 @@ class XPTests(unittest.TestCase):
   with self.store.tx() as db:db.execute('INSERT INTO rank_history VALUES(?,?,?,?,?)',('Antica','2026-10-25','Alpha Knight',499,55))
   report=self.provider.report('Antica','Alpha Knight');self.assertIsNone(report[0]);self.assertIsNone(report[30]);self.assertEqual(report['_daily'][0],('2026-10-25',499,55,'GuildStats — histórico salvo'))
   b=Bot(sheet=lambda n:{'name':n,'world':'Antica','level':500,'vocation':'Knight'},experience=self.provider.report)
-  text=b.handle('!xptop Alpha Knight','Antica',NOW.date());self.assertIn('25/10',text);self.assertIn('GS',text)
- def test_adjacent_total_samples_negative_and_zero_are_real_differences_not_missing(self):
+  text=b.handle('!xptop Alpha Knight','Antica',NOW.date());self.assertIn('25/10',text);self.assertIn('GuildStats',text)
+ def test_tibiadata_samples_are_preserved_but_do_not_mix_into_character_reports(self):
   self.seed('2026-10-26');self.seed('2026-10-27',[('Alpha Knight',499,900,'Elite Knight'),('Beta Druid',600,2000,'Elder Druid')])
-  report=self.provider.report('Antica','Alpha Knight');self.assertEqual(report[0],-100);self.assertIn('TibiaData',report['_meta'][0]['source']);self.assertIsNone(report[7]);self.assertIsNone(report[30])
-  self.assertEqual(self.provider.report('Antica','Beta Druid')[0],0)
+  report=self.provider.report('Antica','Alpha Knight')
+  self.assertTrue(all(report[w] is None for w in (0,7,30)));self.assertEqual(report['_daily'],[]);self.assertNotIn('_latest_total',report)
+  self.assertEqual(len(self.provider.totals('Antica')),2)
   extra=self.provider.ranking_for_extra('Antica');self.assertIn('entre coletas',extra['source']);self.assertEqual(extra['rows'][0][2],-100)
  def test_missing_days_and_missing_people_never_turn_into_zero_or_multiday_daily_gain(self):
   self.seed('2026-10-25');self.seed('2026-10-27',[ROWS[1]])
   report=self.provider.report('Antica','Alpha Knight');self.assertIsNone(report[0]);self.assertEqual(report['_daily'],[])
   self.assertIsNone(self.provider.report('Antica','Beta Druid')[0])
   self.assertIsNone(self.provider.ranking_for_extra('Antica')['rows'])
- def test_measured_interval_is_not_yesterday_and_custom_legacy_variable_is_empty(self):
-  self.seed('2026-10-26',at=datetime(2026,10,26,10,tzinfo=UTC))
-  self.seed('2026-10-27',[('Alpha Knight',501,1100,'Elite Knight'),ROWS[1]],at=datetime(2026,10,27,11,tzinfo=UTC))
-  report=self.provider.report('Antica','Alpha Knight')
-  self.assertEqual(report['_daily'][0][0],'2026-10-27');self.assertEqual(report['_rates'][0],96)
-  b=Bot(sheet=lambda n:{'name':n,'world':'Antica','level':500,'vocation':'Knight'},experience=self.provider.report)
-  for command in ('!evolucao Alpha Knight','!xptop Alpha Knight'):
-   text=b.handle(command,'Antica',NOW.date());self.assertIn('Entre coletas',text);self.assertIn('26/10 10:00 → 27/10 11:00 UTC',text);self.assertNotIn('Ontem: *0,00kk*',text)
-  b.settings=lambda:{'xptop':{'text':'Ontem: {xp_ontem}'}}
-  text=b.handle('!xptop Alpha Knight','Antica',NOW.date());self.assertIn('Ontem: —',text);self.assertIn('TibiaData — variação',text)
- def test_complete_windows_require_every_baseline_and_preserve_input_times(self):
+ def test_tibiadata_only_never_creates_a_projection_or_a_second_displayed_source(self):
   for i in range(31):
    day=(NOW-timedelta(days=i)).date().isoformat();self.seed(day,[('Alpha Knight',500,10000-i*10,'Elite Knight')])
-  report=self.provider.report('Antica','Alpha Knight');self.assertEqual(report[7],70);self.assertEqual(report[30],300);self.assertTrue(report['_projection']);self.assertEqual(report['_rates'][30],10)
-  with self.store.tx() as db:db.execute("DELETE FROM xp_totals WHERE day='2026-10-12'")
-  report=self.provider.report('Antica','Alpha Knight');self.assertIsNone(report[30]);self.assertEqual(report[7],70)
+  report=self.provider.report('Antica','Alpha Knight');self.assertIsNone(report[30]);self.assertFalse(report['_projection'])
+  b=Bot(sheet=lambda n:{'name':n,'world':'Antica','level':500,'vocation':'Knight'},experience=self.provider.report)
+  for command in ('!evolucao Alpha Knight','!xptop Alpha Knight'):
+   text=b.handle(command,'Antica',NOW.date());self.assertNotIn('TibiaData',text);self.assertNotIn('Entre coletas',text)
+  self.assertEqual(len(self.provider.totals('Antica')),31)
  def test_collector_does_not_publish_an_old_or_repeated_upstream_publication(self):
   def td(world,now):return {'rows':ROWS,'upstream':now.timestamp(),'fingerprint':'first','day':reference_day(now)}
   self.provider.td=td;summary=self.provider.collect('Antica');self.assertEqual(summary['status'],'partial')

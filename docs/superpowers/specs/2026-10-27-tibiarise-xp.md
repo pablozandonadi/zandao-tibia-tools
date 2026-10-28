@@ -17,3 +17,9 @@ O cache é cifrado em tabela separada e não altera o histórico GuildStats ou m
 Os comandos mostram “Último intervalo” e “7/30 intervalos diários”, com horários UTC reais e fonte. Projeções precisam de períodos completos, recentes e comparáveis. A legenda diária inclui TR; modelos customizados recebem os valores antigos de ontem/GuildStats vazios para medições de outra fonte.
 
 Sem mudanças na agenda, sessão WhatsApp, autenticação, Mensagem do dia manual ou World Board. Validação offline com contratos sintéticos; teste operacional somente de leitura pública, sem envio real.
+
+## Apresentação e prioridade de uma fonte (ajuste solicitado)
+
+O relatório individual compara a disponibilidade dos dois caches e escolhe uma única fonte. GuildStats válido, atual e com o personagem tem prioridade mesmo quando os valores diferem; seus períodos ausentes não são preenchidos com TibiaRise. Sem essa resposta, usa os períodos e a série diária TibiaRise integralmente, sem misturar o histórico salvo GuildStats (as datas podem designar janelas diferentes). O histórico antigo GuildStats só é último recurso datado e sem projeção. TibiaData continua sendo coletada, mas não aparece nesses relatórios individuais.
+
+A evolução remove o bloco superior repetido e apresenta até 14 linhas com barras de dez posições, escala absoluta, sinal/caveira para perdas e barra vazia para zero real. As datas dos intervalos ficam compactas; a fonte por extenso aparece apenas no rodapé com a última data. A legenda do xptop indica apenas a fonte selecionada. Um duelo preserva a origem por personagem e continua sem projeção quando os períodos/fontes dos dois não são comparáveis.

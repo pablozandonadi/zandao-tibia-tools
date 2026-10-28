@@ -377,10 +377,10 @@ class Bot:
 
     def xp_daily_line(self,row,xp,level=False):
         d,lv,x,source=row
-        if source.startswith('GuildStats'):period=d[8:10]+'/'+d[5:7]+' · GS'
+        if source.startswith('GuildStats'):period=d[8:10]+'/'+d[5:7]
         else:
             m=xp['_daily_periods'][d];stamp=lambda k:datetime.fromtimestamp(m[k],timezone.utc).strftime('%d/%m %H:%M')
-            period=stamp('start')+' → '+stamp('end')+' UTC · '+('TR' if source.startswith('TibiaRise') else 'TD')
+            period=stamp('start')+' → '+stamp('end')+' UTC'
         return period+' — '+('Lv *'+pt(lv)+'* — ' if level else '')+kk(x)+(' 💀' if x<0 else '')
 
     def measured_evolution(self,info,xp,today,sheet):
@@ -392,8 +392,24 @@ class Bot:
             need=tibia_info.xp_total(info['level']+1)-tibia_info.xp_total(info['level'])
             projection='🔮 Sem ganho positivo no período: sem projeção.' if rate<=0 else '🔮 No ritmo observado: Lv '+pt(info['level']+1)+' em ~'+decimal_pt(need/rate,1)+' dias.'
         rows=xp.get('_daily',[])[:14]
-        chart='\n'.join(['📊 *Histórico disponível*',*(self.xp_daily_line(row,xp) for row in rows)]) if rows else '_Ainda sem histórico diário válido; dias ausentes não são zero._'
-        return Reply(T_EVOLUTION,{'nome':clean(info['name']),'ficha':sheet,'xp_ganha':gained,'projecao':projection,'grafico':chart,'level':pt(info['level']),'mundo':clean(info['world']),'vocacao':clean(info['vocation'])},self.xp_notice(xp))
+        if rows:
+            top=max(abs(row[2]) for row in rows) or 1
+            lines=[]
+            for day,level,value,source in rows:
+                if day in xp.get('_daily_periods',{}):
+                    period=xp['_daily_periods'][day];start=datetime.fromtimestamp(period['start'],timezone.utc);end=datetime.fromtimestamp(period['end'],timezone.utc)
+                    label=start.strftime('%d/%m')+'→'+end.strftime('%d/%m')
+                else:label=day[8:10]+'/'+day[5:7]
+                bar='█'*max(1,round(10*abs(value)/top)) if value else ''
+                lines.append(label.ljust(11)+' '+bar.ljust(10)+' '+kk(value)+(' 💀' if value<0 else ''))
+            chart='\n'.join(['📊 *XP por dia*','```',*lines,'```'])
+        else:chart='_Ainda sem histórico diário válido; dias ausentes não são zero._'
+        source=xp.get('_source') or next((m['source'].split(' — ')[0] for m in xp.get('_meta',{}).values()),None)
+        if source:
+            old=not any(m.get('fresh') for m in xp.get('_meta',{}).values())
+            chart+='\n_Fonte: '+source+(' · registro antigo' if old else '')+(' · até '+rows[0][0][8:10]+'/'+rows[0][0][5:7] if rows else '')+'._'
+        if xp.get('_notes'):gained+='\n_'+ ' '.join(xp['_notes'])+'_'
+        return Reply(T_EVOLUTION,{'nome':clean(info['name']),'ficha':sheet,'xp_ganha':gained,'projecao':projection,'grafico':chart,'level':pt(info['level']),'mundo':clean(info['world']),'vocacao':clean(info['vocation'])})
 
     def charinfo(self,arg,world,today):
         """Ficha completa de qualquer personagem (mesmo conteúdo do comando `char` do Tibia Tudo), no padrão do WhatsApp."""
@@ -490,7 +506,7 @@ class Bot:
             legacy={w:displayed[w] if not xp.get('_meta',{}).get(w,{}).get('source','').startswith(('TibiaData','TibiaRise')) else '—' for w in (0,7,30)}
             end_day=max((r[0] for r in rows),default=last.isoformat())
             return Reply(template,{'ate':end_day[8:10]+'/'+end_day[5:7],'nome':clean(info['name']),'ficha':sheet,'guilda':guild_line,'dias':daily,
-                'aviso':'_GS: GuildStats; TD: coletas TibiaData; TR: registros TibiaRise. Dias ausentes não são zero._' if rows else '_Ainda sem histórico diário válido._',
+                'aviso':'_Fonte: '+str(xp.get('_source') or 'não disponível')+'. Dias ausentes não são zero._' if rows else '_Ainda sem histórico diário válido._',
                 'xp_ontem':legacy[0],'xp_7d':legacy[7],'xp_30d':legacy[30],'xp_observado_0':displayed[0],'xp_observado_7':displayed[7],'xp_observado_30':displayed[30],'xp_media':kk(xp['_rates'][30]) if 30 in xp.get('_rates',{}) else '—'},self.xp_notice(xp))
         if xp[30] is None:
             lines=['📈 *XP — últimos 30 dias*',f'📅 até {last.strftime("%d/%m")}','',f'📜 *{clean(info["name"])}*',sheet,*([guild_line] if guild_line else []),'']
