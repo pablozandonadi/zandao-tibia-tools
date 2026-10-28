@@ -198,9 +198,8 @@ class XPProvider:
                     meta[window]={'source':'TibiaData — variação entre coletas','date':totals[wanted[0]]['observed'],'start':totals[wanted[-1]]['upstream'],'end':totals[wanted[0]]['upstream'],'fresh':True}
                 elif match and c['observed']>=now.timestamp()-RETENTION*86400:
                     result[window]=match[2];meta[window]={'source':'GuildStats — dado antigo','date':datetime.fromtimestamp(c['observed'],UTC).isoformat(),'fresh':False}
-            if result[window] is None:
-                reason='personagem não listado no ranking consultado' if c['rows'] is not None and c['status']=='ok' else ('acesso bloqueado' if c['status']=='blocked' else 'fonte indisponível')
-                notes.append(('Ontem' if window==0 else str(window)+' dias')+': GuildStats '+reason+'; complemento sem histórico suficiente.')
+        if any(value is None for value in result.values()):
+            notes.append('Histórico insuficiente para calcular os períodos sem valor.')
         for d in sorted(set(history)|set(measures),reverse=True):
             if d in history: daily.append((*history[d],'GuildStats — histórico salvo'))
             else:

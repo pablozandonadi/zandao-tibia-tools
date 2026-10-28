@@ -42,9 +42,15 @@ class XPTests(unittest.TestCase):
   self.assertEqual(self.provider.ranking_for_extra('Antica')['rows'],None,'Bom dia não trata o cache antigo como XP atual')
  def test_blocked_source_is_not_a_character_missing_from_the_ranking(self):
   self.provider.collect('Antica')
+  report=self.provider.report('Antica','Alpha Knight')
+  self.assertTrue(all(report[window] is None for window in (0,7,30)))
+  self.assertEqual(report['_notes'],['Histórico insuficiente para calcular os períodos sem valor.'])
+  self.assertEqual(self.provider.cache('Antica',0)['status'],'blocked')
   b=Bot(sheet=lambda n:{'name':n,'world':'Antica','level':500,'vocation':'Knight'},experience=self.provider.report)
   text=b.handle('!evolucao Alpha Knight','Antica',NOW.date())
-  self.assertIn('acesso bloqueado',text);self.assertNotIn('fora do top 500',text);self.assertNotIn('código de recuperação',text)
+  self.assertEqual(text.count('Histórico insuficiente para calcular os períodos sem valor.'),1)
+  for technical in ('acesso bloqueado','Cloudflare','HTTP','complemento sem histórico','fora do top 500','código de recuperação'):
+   self.assertNotIn(technical,text)
   self.assertIn('!help',b.handle('!help'));self.assertIn('—',text)
  def test_historical_guildstats_rows_are_preserved_and_visible_without_a_month(self):
   with self.store.tx() as db:db.execute('INSERT INTO rank_history VALUES(?,?,?,?,?)',('Antica','2026-10-25','Alpha Knight',499,55))
