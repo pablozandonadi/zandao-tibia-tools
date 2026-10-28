@@ -167,10 +167,49 @@ class MorningMessageTests(unittest.TestCase):
   self.provider.rise.collect(['Antica'])
   config={'personagem':'Alpha Knight','mundo':'Antica','blocks':{'mundo':True},'extras':{'exp_mundo':True,'exp_guild':True},'args':{'exp_guild':'Guild Fixture'}}
   with patch.object(zandaobot,'_consultar',side_effect=self.fixture_response):output=generate(config,NOW,self.source_provider())
-  self.assertIn('TibiaRise',output['text']);self.assertNotIn('XP de ontem',output['text'])
+  self.assertIn('Top 10 XP diário',output['text']);self.assertNotIn('XP de ontem',output['text'])
+  for technical in ('TibiaRise','GuildStats','UTC','maiores ganhos','duplicados','período publicado'):
+   self.assertNotIn(technical,output['text'])
   self.assertFalse(any(s['source']=='GuildStats' for s in output['sources']))
   derived=[s for s in output['sources'] if s['source']=='local-tibiarise-ranking'];self.assertEqual(len(derived),2)
   self.assertEqual(derived[0]['inputs'][0]['published_at'],(NOW-timedelta(hours=5)).timestamp())
+ def daily_record(self,source='TibiaRise — ranking'):
+  return {'rows':[('Alpha Knight',500,1000000,'Knight'),('Beta Druid',600,-2000000,'Druid')],'source':source,'observed':NOW.timestamp(),'updated':(NOW-timedelta(hours=5)).timestamp(),'start':(NOW-timedelta(days=1,hours=4)).timestamp(),'end':(NOW-timedelta(hours=4)).timestamp(),'note':'TibiaRise — ranking UTC; lista pública limitada aos 100 maiores ganhos. Nomes duplicados na fonte foram omitidos.'}
+ def extra_with_record(self,record,key='exp_guild',members=None):
+  from types import SimpleNamespace
+  from mensagem_automatica_report import PublicProvider
+  import zandaobot
+  provider=PublicProvider(SimpleNamespace(ranking_for_extra=lambda world:record))
+  def response(cache,endpoint,*args,**kwargs):
+   if members is not None and endpoint.startswith('/guild/'):
+    return {'dados':{'guild':{'name':'Guild Fixture','world':'Antica','members':[{'name':name,'vocation':'Knight'} for name in members]}},'consulta':NOW.timestamp(),'velho':False}
+   return self.fixture_response(cache,endpoint,*args,**kwargs)
+  with patch.object(zandaobot,'_consultar',side_effect=response):return provider.extra(key,'Guild Fixture' if key=='exp_guild' else 'Antica',{'mundo':'Antica','personagem':'Alpha Knight'},NOW)
+ def test_daily_guild_keeps_partial_coverage_without_technical_source_notes(self):
+  members=['Alpha Knight','Beta Druid']+['Other Knight '+str(i) for i in range(295)]
+  text,sources=self.extra_with_record(self.daily_record(),members=members)
+  self.assertIn('Top XP diário',text);self.assertIn('+1,00kk',text);self.assertIn('-2,00kk',text)
+  self.assertIn('_Ranking parcial: 2 de 297 membros com dados._',text)
+  for technical in ('TibiaRise','GuildStats','UTC','top 500','100 maiores','duplicados','período publicado'):self.assertNotIn(technical,text)
+  source=next(s for s in sources if s['source']=='local-tibiarise-ranking')['inputs'][0]
+  self.assertEqual(source['source'],'TibiaRise');self.assertEqual(source['period_start'],self.daily_record()['start']);self.assertEqual(source['period_end'],self.daily_record()['end'])
+ def test_daily_guild_missing_members_is_not_reported_as_zero(self):
+  text,sources=self.extra_with_record(self.daily_record(),members=['Other Knight'])
+  self.assertEqual(text,'🏆 XP diário da guild: ainda sem dados suficientes para o ranking.')
+  self.assertTrue(sources);self.assertNotIn('zero',text);self.assertNotIn('TibiaRise',text)
+ def test_guildstats_daily_text_also_omits_source_and_full_coverage_note(self):
+  text,sources=self.extra_with_record(self.daily_record('GuildStats'),members=['Alpha Knight','Beta Druid'])
+  self.assertIn('Top XP diário',text);self.assertNotIn('Ranking parcial',text);self.assertNotIn('GuildStats',text)
+  self.assertTrue(any(s['source']=='GuildStats' for s in sources))
+ def test_unavailable_daily_xp_does_not_repeat_source_query_or_leak_note(self):
+  record=self.daily_record();record['rows']=None
+  text,sources=self.extra_with_record(record,key='exp_mundo')
+  self.assertEqual(text,'🏆 XP diário do mundo: indisponível agora.');self.assertEqual(sources[0]['status'],'unavailable')
+ def test_old_daily_period_is_dated_and_multiday_is_not_presented_as_daily(self):
+  record=self.daily_record();record['start']-=86400;record['end']-=86400;record['updated']-=86400
+  text,_=self.extra_with_record(record,key='exp_mundo');self.assertIn('XP diário (até 26/10)',text)
+  record['start']-=86400
+  text,_=self.extra_with_record(record,key='exp_mundo');self.assertEqual(text,'🏆 XP diário do mundo: indisponível agora.')
 
 class PaginationTests(unittest.TestCase):
  def fixture(self,records=1000,mutate=None):

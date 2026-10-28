@@ -45,6 +45,8 @@ class Store:
             CREATE TABLE IF NOT EXISTS xp_totals(world TEXT NOT NULL,day TEXT NOT NULL,observed REAL NOT NULL,upstream REAL NOT NULL,fingerprint TEXT NOT NULL,body BLOB NOT NULL,PRIMARY KEY(world,day));
             CREATE TABLE IF NOT EXISTS xp_refresh(world TEXT PRIMARY KEY,last_attempt REAL NOT NULL DEFAULT 0,lease REAL NOT NULL DEFAULT 0,td_retry REAL NOT NULL DEFAULT 0,status TEXT NOT NULL DEFAULT 'waiting');
             CREATE TABLE IF NOT EXISTS xp_rise_cache(kind TEXT NOT NULL,world TEXT NOT NULL,name TEXT NOT NULL,requested REAL NOT NULL,observed REAL NOT NULL DEFAULT 0,retry_after REAL NOT NULL DEFAULT 0,lease REAL NOT NULL DEFAULT 0,status TEXT NOT NULL DEFAULT 'waiting',body BLOB,PRIMARY KEY(kind,world,name));
+            CREATE TABLE IF NOT EXISTS zenrows_budget(day TEXT PRIMARY KEY,attempts INTEGER NOT NULL);
+            CREATE TABLE IF NOT EXISTS zenrows_retry(resource TEXT PRIMARY KEY,until REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS watch_events(id TEXT PRIMARY KEY,owner TEXT NOT NULL,watch TEXT NOT NULL,key TEXT NOT NULL,text BLOB NOT NULL,state TEXT NOT NULL,created REAL NOT NULL,sent_at REAL,attempt TEXT,lease REAL,error TEXT,UNIQUE(watch,key));
             ''')
             columns={r['name'] for r in db.execute('PRAGMA table_info(runs)')}

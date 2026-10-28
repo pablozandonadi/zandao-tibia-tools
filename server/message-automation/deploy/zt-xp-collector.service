@@ -5,7 +5,7 @@ After=network-online.target
 [Service]
 Type=oneshot
 LimitCORE=0
-TimeoutStartSec=90
+TimeoutStartSec=180
 User=zt-automation
 Group=zt-automation
 WorkingDirectory=/opt/zandaotools/server/message-automation

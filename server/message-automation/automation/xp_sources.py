@@ -45,10 +45,13 @@ def public_get(url,limit):
             if len(raw)>limit: raise ValueError('Resposta excedeu o limite.')
         return bytes(raw)
 
-def guildstats(world,window):
+def parse_guildstats(raw):
     import guild_stats
+    if not isinstance(raw,bytes) or len(raw)>6_000_000:raise ValueError('Ranking GuildStats inválido.')
+    html=raw.decode('utf-8')
+    if re.search(r'<title\b[^>]*>\s*just a moment(?:\.{3}|…)?\s*</title\s*>|<form\b[^>]*\bid\s*=\s*["\']challenge-form["\']',html,re.I):raise ValueError('Ranking GuildStats indisponível.')
     parser=guild_stats.Tables()
-    parser.feed(public_get('https://guildstats.eu/top-experience?world='+quote(world)+'&time='+str(window),6_000_000).decode('utf-8'))
+    parser.feed(html)
     for table in parser.tables:
         headers=[h.casefold() for h in table['headers']]
         if 'name' not in headers or 'voc' not in headers: continue
@@ -61,6 +64,14 @@ def guildstats(world,window):
             except (ValueError,TypeError): raise ValueError('Ranking GuildStats incompleto.') from None
         if rows: return valid_rows(rows)
     raise ValueError('Ranking GuildStats indisponível.')
+
+def guildstats(world,window,get=None):
+    return parse_guildstats((get or public_get)('https://guildstats.eu/top-experience?world='+quote(world)+'&time='+str(window),6_000_000))
+
+def guildstats_fallback(world,window,client,direct=None):
+    url='https://guildstats.eu/top-experience?world='+quote(world)+'&time='+str(window)
+    try:return parse_guildstats(client.fetch(url))
+    except Exception:return guildstats(world,window,direct)
 
 def valid_rows(rows):
     if not isinstance(rows,(list,tuple)) or not 1<=len(rows)<=1000: raise ValueError('Ranking inválido.')
@@ -104,8 +115,11 @@ def tibiadata(world,now,get=public_get):
     return {'rows':rows,'upstream':min(stamps),'fingerprint':fingerprint,'day':reference_day(datetime.fromtimestamp(min(stamps),UTC))}
 
 class XPProvider:
-    def __init__(self,store,clock=None,gs=guildstats,td=tibiadata,rise=None):
-        self.store=store;self.clock=clock or (lambda:datetime.now(UTC));self.gs=gs;self.td=td
+    def __init__(self,store,clock=None,gs=None,td=tibiadata,rise=None,zenrows=None):
+        self.store=store;self.clock=clock or (lambda:datetime.now(UTC));self.td=td
+        from .zenrows import ZenRowsClient
+        client=zenrows or ZenRowsClient(store,self.clock)
+        self.gs=gs if gs is not None else lambda world,window:guildstats_fallback(world,window,client)
         from .tibiarise import RiseCache
         self.rise=rise or RiseCache(store,self.clock,lambda url,limit:public_get(url,limit))
 
@@ -130,7 +144,7 @@ class XPProvider:
                 td_due=state['td_retry']<=stamp and not db.execute('SELECT 1 FROM xp_totals WHERE world=? AND day=?',(world,day)).fetchone()
                 if gs_due or td_due: options.append((state['last_attempt'],world))
             if options:
-                selected=min(options)[1];db.execute('UPDATE xp_refresh SET lease=?,last_attempt=? WHERE world=?',(stamp+120,stamp,selected))
+                selected=min(options)[1];db.execute('UPDATE xp_refresh SET lease=?,last_attempt=? WHERE world=?',(stamp+240,stamp,selected))
         summary=self.collect(selected,now) if selected else {'attempted':False,'status':'skipped','reason':'backoff_or_no_due_world','guildstats':[],'tibiadata':{'status':'skipped'}}
         summary['tibiarise']=self.rise.collect(worlds)
         if summary['tibiarise']:

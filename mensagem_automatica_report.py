@@ -1,5 +1,6 @@
 """Seleção independente: não altera nem chama o gerador manual/World Board."""
 import time
+import re
 from datetime import datetime, timedelta
 from types import SimpleNamespace, FunctionType
 from zoneinfo import ZoneInfo
@@ -41,9 +42,11 @@ class PublicProvider:
         if self.xp and key in ('exp_mundo','exp_guild','transfer'):
             try:return self._extra(key,arg,c,now)
             except SourceUnavailable:
+                if key in ('exp_mundo','exp_guild'):
+                    label='🏆 XP diário do mundo' if key=='exp_mundo' else '🏆 XP diário da guild'
+                    return label+': indisponível agora.',[{'source':'local-source-status','fetched_at':now.timestamp(),'reference_date':reference_day(now),'status':'unavailable'}]
                 label={'exp_mundo':'🏆 XP do mundo','exp_guild':'🏆 XP da guild','transfer':'🔄 Transferências'}[key]
                 note='Fonte GuildStats temporariamente indisponível; isso não significa ausência de eventos ou XP zero.'
-                if key=='exp_mundo':note=self.xp.ranking_for_extra(arg or c['mundo'])['note']
                 return label+': dados indisponíveis agora. '+note,[{'source':'local-source-status','fetched_at':now.timestamp(),'reference_date':reference_day(now),'status':'unavailable'}]
         return self._extra(key,arg,c,now)
 
@@ -84,13 +87,11 @@ class PublicProvider:
                 return record['rows']
             namespace['_ranking']=ranking
         output=module.extra(key,arg,c['mundo'],c['personagem'],datetime.fromisoformat(reference_day(now)).date())
-        if rankings and not rankings[-1]['rows']:
-            return '🏆 XP: dados indisponíveis agora. '+rankings[-1]['note'],[{'source':'local-source-status','fetched_at':now.timestamp(),'reference_date':reference_day(now),'status':'unavailable'}]
         if rankings and rankings[-1]['rows']:
             record=rankings[-1]
             if record['source'].startswith('TibiaRise'):
-                output=output.replace('XP de ontem','XP no período publicado').replace('top 500 do mundo no GuildStats','ranking público do TibiaRise').replace('top 500 de XP do mundo','ranking público do TibiaRise')
-                if 'nenhum membro' in output:output='🏆 XP da guild: nenhum membro foi localizado no ranking público limitado do TibiaRise; isso não significa XP zero.'
+                if not 20*3600<=record['end']-record['start']<=28*3600 or record['end']>now.timestamp()+120:
+                    raise SourceUnavailable('Período diário indisponível.')
                 provenance[:]=[p for p in provenance if p['source']!='GuildStats']
                 provenance.append({'source':'local-tibiarise-ranking','fetched_at':now.timestamp(),'reference_date':reference_day(now),'calculated_at':now.timestamp(),'inputs':[{'source':'TibiaRise','observed_at':record['observed'],'published_at':record['updated'],'period_start':record['start'],'period_end':record['end']}]})
             elif record['source'].startswith('TibiaData'):
@@ -99,7 +100,20 @@ class PublicProvider:
                 if 'nenhum membro' in output:output='🏆 XP da guild: nenhum membro foi localizado nas duas listas TibiaData; isso não significa XP zero.'
                 provenance.append({'source':'local-xp-difference','fetched_at':now.timestamp(),'reference_date':reference_day(now),'calculated_at':now.timestamp(),'inputs':[{'source':'TibiaData','observed_at':record['observed'],'period_start':record['start'],'period_end':record['end']}]})
             else:provenance.append({'source':'GuildStats','fetched_at':record['observed'],'reference_date':reference_day(now)})
-            output+='\n_'+record['note']+'_'
+            if record['source'].startswith(('GuildStats','TibiaRise')):
+                label='XP diário'
+                if record['source'].startswith('TibiaRise'):
+                    end=datetime.fromtimestamp(record['end'],UTC)
+                    if end.date().isoformat()!=reference_day(now):label+=' (até '+end.strftime('%d/%m')+')'
+                output=output.replace('XP de ontem',label)
+                if 'nenhum membro' in output:
+                    output='🏆 XP diário da guild: ainda sem dados suficientes para o ranking.'
+                else:
+                    def coverage(match):
+                        found,total=map(int,match.groups())
+                        return '_Ranking parcial: '+str(found)+' de '+str(total)+' membros com dados._' if found<total else ''
+                    output=re.sub(r'_([0-9]+) de ([0-9]+) membros aparecem no top 500 de XP do mundo\._',coverage,output).rstrip()
+            else:output+='\n_'+record['note']+'_'
         failures=('indisponível','indisponivel','não consegui','informe ','use:','nome inválido','não tem guild')
         if not output or not provenance or any(x in output.casefold() for x in failures): raise SourceUnavailable('Consulta adicional indisponível.')
         return output,provenance
