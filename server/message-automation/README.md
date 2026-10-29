@@ -195,3 +195,7 @@ ZENROWS_WORLDS=Rasteibra
 O teto é de chamadas, **não de gasto financeiro**: `mode=auto` pode escalar o custo por resposta segundo as regras do fornecedor. Confirmar saldo/limites antes de ativar; referência: [ZenRows Fetch a Page](https://docs.zenrows.com/api-reference/fetch/fetch-a-page). O transporte mantém TLS, não segue redirecionamentos do endpoint autenticado, limita HTML a 6 MB e usa timeout de 20 segundos com prazo de leitura de 25 segundos. Falhas expõem somente mensagens controladas, sem URL/chave/corpo remoto. A unidade do coletor passa a ter timeout de 180 segundos e seu lease de mundo é de 240 segundos; não alterar o worker de envios.
 
 Testes totalmente offline: `python -m unittest test_zenrows test_xp_sources test_tibiarise`. Ativar o cliente e testar uma chamada real são etapas administrativas separadas; os testes usam somente chave sintética e não chamam ZenRows/WhatsApp.
+
+### Apresentação do duelo
+
+`!duelo` mostra dois blocos com emoji da vocação, nome, nível e XP do último intervalo, de 7 dias e de 30 dias. A conclusão tem uma linha; dados antigos, incompletos ou períodos/fontes diferentes impedem projeções e recebem um aviso curto. Os modelos existentes mantêm `{nome1}`, `{nome2}`, `{tabela}` (agora os blocos) e `{resultado}`. A seleção de fontes e os cálculos não mudam.

@@ -78,7 +78,7 @@ HELP='''📖 *TibiaTudo IA — comandos disponíveis*
 🌐 *Site:* https://tibia-tudo.web.app'''
 
 T_COIN='🪙 *Tibia Coin — {mundo}*\n• 1 TC ≈ *{preco}* gold (média de venda, {data})\n• 1kk de gold ≈ *{tc_por_kk} TC* ≈ R$ {reais_min} a R$ {reais_max}\n• Pacote de {pacote_tc} TC: R$ {pacote_min} a R$ {pacote_max}\n{aviso}'
-T_DUEL='⚔️ *{nome1} x {nome2}* — últimos 30 dias\n{tabela}\n{resultado}'
+T_DUEL='⚔️ *{nome1} x {nome2}*\n\n{tabela}\n\n{resultado}'
 T_EVOLUTION='📈 *Evolução — {nome}*\n{ficha}\n\n{xp_ganha}\n\n{projecao}\n\n{grafico}'
 T_CHAR='📜 *{nome}*\n{ficha}\n{guilda}\n{casas}\n{residencia}\n{extra}\n{login}\n\n{mortes}'
 T_PARTY='🤝 *Party match — {nome}*{filtro}\n{ficha}\n🔗 Shared: {shared_min}–{shared_max} · jogadores online\n\n{lista}'
@@ -89,7 +89,7 @@ T_XPTOP='📈 *XP — últimos 30 dias*\n📅 até {ate}\n\n📜 *{nome}*\n{fich
 # Catálogo mostrado no Admin: modelo padrão (igual à resposta de hoje), variáveis e um exemplo para a prévia.
 MODELS={
     'help':{'template':HELP,'vars':{},'example':''},
-    'duelo':{'template':T_DUEL,'example':'Zazamyon x Papelaum Meliexp','vars':{'nome1':'primeiro personagem','nome2':'segundo personagem','tabela':'tabela lado a lado (nível e XP)','resultado':'quem passa quem e quando'}},
+    'duelo':{'template':T_DUEL,'example':'Zazamyon x Papelaum Meliexp','vars':{'nome1':'primeiro personagem','nome2':'segundo personagem','tabela':'blocos dos personagens (vocação, nível e XP)','resultado':'comparação resumida ou aviso de projeção'}},
     'evolucao':{'template':T_EVOLUTION,'example':'Zazamyon','vars':{'nome':'personagem','ficha':'vocação, level e mundo','xp_ganha':'bloco de XP ganha (ontem, 7 e 30 dias)','projecao':'bloco da projeção de level','grafico':'gráfico dos últimos dias','level':'level','mundo':'mundo','vocacao':'vocação'}},
     'precocoin':{'template':T_COIN,'example':'Rasteibra','vars':{'mundo':'mundo','preco':'gold por 1 TC','data':'data da cotação (dd/mm)','tc_por_kk':'TC que 1kk de gold compra','reais_min':'R$ mínimo de 1kk','reais_max':'R$ máximo de 1kk','pacote_tc':'TC do pacote','pacote_min':'R$ mínimo do pacote','pacote_max':'R$ máximo do pacote','aviso':'nota sobre a fonte da cotação'}},
     'pt':{'template':T_PARTY,'example':'Zazamyon ek','vars':{'nome':'personagem','filtro':'filtro de vocação (se houver)','ficha':'vocação, level e mundo','shared_min':'menor level da faixa','shared_max':'maior level da faixa','lista':'jogadores por vocação'}},
@@ -293,28 +293,28 @@ class Bot:
         for typed,info in zip(typed_names,infos):
             if not info or not WORLD.fullmatch(info.get('world') or ''): return f'Não encontrei o personagem *{clean(typed)}*.'
         with ThreadPoolExecutor(max_workers=2) as pool: pair=[{**info,'xp':xp} for info,xp in zip(infos,pool.map(self.xp,infos))]
-        a,b=pair;label=lambda p:(clean(p['name'],40) if len(clean(p['name'],40))<=11 else clean(p['name'],10)+'…')
-        rows=[('Level',*(pt(p['level']) for p in pair)),
-              ('XP no mês',*(kk(p['xp'][30]) if p['xp'][30] is not None else '—' for p in pair)),
-              ('XP/dia',*(kk(p['xp'].get('_rates',{}).get(30,p['xp'][30]/30)) if p['xp'][30] is not None else '—' for p in pair)),
-              ('XP 7 dias',*(kk(p['xp'][7]) if p['xp'][7] is not None else '—' for p in pair)),
-              ('XP ontem',*(kk(p['xp'][0]) if p['xp'][0] is not None else '—' for p in pair))]
-        if self.experience:
-            for index,window in ((1,30),(3,7),(4,0)):
-                if any(p['xp'].get('_meta',{}).get(window,{}).get('source','').startswith(('TibiaData','TibiaRise')) for p in pair):
-                    rows[index]=(('XP entre coletas' if window==0 else 'XP '+str(window)+' intervalos'),*rows[index][1:])
-        widths=[max(len(r[i]) for r in [('',label(a),label(b)),*rows]) for i in range(3)]
-        line=lambda r:'  '.join(r[i].ljust(widths[i]) if i==0 else r[i].rjust(widths[i]) for i in range(3))
-        table='\n'.join(['```',line(('',label(a),label(b))),*(line(r) for r in rows),'```'])
-        missing=[clean(p['name']) for p in pair if p['xp'][30] is None]
+        a,b=pair
+        blocks=[]
+        for player in pair:
+            values=player['xp']
+            blocks.append('\n'.join([
+                f'{emoji(player.get("vocation","")) or "👤"} *{clean(player["name"])}* · Lv *{pt(player["level"])}*',
+                *('• '+label+': '+('*'+kk(values[window])+'*' if values[window] is not None else '—')
+                  for window,label in ((0,'Último intervalo'),(7,'7 dias'),(30,'30 dias')))]))
+        missing=any(player['xp'][30] is None for player in pair)
         if self.experience:
             same=all(p['xp'].get('_projection') for p in pair) and len({p['xp']['_meta'][30]['source'] for p in pair})==1
             if same and 'start' in a['xp']['_meta'][30]:same=all(abs(a['xp']['_meta'][30][k]-b['xp']['_meta'][30][k])<=900 for k in ('start','end'))
-            result=self.verdict(a,b,today) if same else '_Sem projeção: faltam períodos completos, atuais e comparáveis para os dois personagens._'
-            notice='\n\n'.join('*'+clean(p['name'])+'*\n'+self.xp_notice(p['xp']) for p in pair)
+            old=any(not meta.get('fresh') for player in pair for meta in player['xp'].get('_meta',{}).values())
+            if same:
+                result=self.verdict(a,b,today).split('\n',1)[0]
+                if old:result+=' ⚠️ Há dados antigos.'
+            elif old:result='⚠️ Dados antigos; sem projeção.'
+            elif missing or not all(p['xp'].get('_projection') for p in pair):result='⚠️ Histórico incompleto; sem projeção.'
+            else:result='⚠️ Períodos ou fontes diferentes; sem projeção.'
         else:
-            result=f'_Sem dados de XP de {", ".join(missing)}: fora do top 500 do mundo no GuildStats._' if missing else self.verdict(a,b,today);notice=''
-        return Reply(T_DUEL.replace('últimos 30 dias','dados disponíveis') if self.experience else T_DUEL,{'nome1':clean(a['name']),'nome2':clean(b['name']),'tabela':table,'resultado':result},notice)
+            result='⚠️ Histórico incompleto; sem projeção.' if missing else self.verdict(a,b,today).split('\n',1)[0]
+        return Reply(T_DUEL,{'nome1':clean(a['name']),'nome2':clean(b['name']),'tabela':'\n\n'.join(blocks),'resultado':result})
 
     def verdict(self,a,b,today):
         import tibia_info

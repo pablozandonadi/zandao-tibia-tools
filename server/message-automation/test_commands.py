@@ -47,11 +47,11 @@ class BotTests(unittest.TestCase):
         old=Bot(trade=lambda w:{'estado':'antiga','gold_por_tc':50000,'data_base':'2026-10-01T00:00:00+00:00','motivo':''})
         self.assertIn('Cotação antiga',old.handle('!tc Antica','',TODAY))
 
-    def test_duelo_tabela_e_quem_passa_quem(self):
+    def test_duelo_blocos_e_quem_passa_quem(self):
         r=bot().handle('!duelo Papelaum Meliexp x Jorjao do Martelo','Tornabra',TODAY)
-        self.assertIn('⚔️ *Papelaum Meliexp x Jorjao do Martelo* — últimos 30 dias',r);self.assertIn('```',r)
-        for esperado in ('Level','1.534','1.541','4,31kkk','4,22kkk','143,67kk','140,67kk','XP ontem','153,97kk'): self.assertIn(esperado,r)
-        self.assertIn('*Papelaum Meliexp* passa *Jorjao do Martelo*',r);self.assertIn('Jorjao do Martelo precisa de 143,67kk/dia pra não ser passado',r)
+        self.assertIn('⚔️ *Papelaum Meliexp x Jorjao do Martelo*',r);self.assertNotIn('```',r)
+        for esperado in ('🔥 *Papelaum Meliexp* · Lv *1.534*','🛡️ *Jorjao do Martelo* · Lv *1.541*','4,31kkk','4,22kkk','Último intervalo','7 dias','30 dias','153,97kk'): self.assertIn(esperado,r)
+        self.assertIn('*Papelaum Meliexp* passa *Jorjao do Martelo*',r);self.assertNotIn('precisa de',r);self.assertNotIn('XP/dia',r)
 
     def test_duelo_quem_esta_na_frente_e_mais_rapido_nao_e_ultrapassado(self):
         r=Bot(ranking=lambda w,x:[('Aa',1000,3_000_000_000,'EK'),('Bb',900,1_000_000_000,'EK')],sheet=lambda n:{'name':n.capitalize(),'level':{'aa':1000,'bb':900}[n.casefold()],'vocation':'EK','world':'Tornabra'}).handle('!duelo aa x bb','',TODAY)
@@ -62,7 +62,7 @@ class BotTests(unittest.TestCase):
         self.assertIn('Use:',b.handle('!duelo so um','Tornabra',TODAY));self.assertIn('Use:',b.handle('!duelo <b>a</b> x c','Tornabra',TODAY))
         self.assertIn('Não encontrei o personagem *Fantasma*',b.handle('!duelo Fantasma x Papelaum Meliexp','Tornabra',TODAY))
         r=b.handle('!duelo Fora do Top x Papelaum Meliexp','Tornabra',TODAY)
-        self.assertIn('fora do top 500',r);self.assertNotIn('passa',r);self.assertIn('—',r)
+        self.assertIn('Histórico incompleto',r);self.assertNotIn('passa',r);self.assertIn('—',r)
 
     def test_nomes_com_marcadores_nao_formatam_a_resposta(self):
         r=bot().handle('!evolucao Marcado','Tornabra',TODAY);self.assertNotIn('*Marcado_Nome*',r);self.assertIn('*Evolução — MarcadoNome*',r)
@@ -85,6 +85,64 @@ class BotTests(unittest.TestCase):
     def test_falha_de_fonte_vira_aviso_curto(self):
         def boom(name): raise OSError('rede')
         self.assertIn('Não consegui consultar',Bot(sheet=boom).handle('!evolucao Alguem','Tornabra',TODAY))
+
+class MeasuredDuelTests(unittest.TestCase):
+    def setUp(self):
+        from copy import deepcopy
+        self.infos=deepcopy(SHEETS)
+        start=datetime(2026,9,23,7,tzinfo=UTC).timestamp();end=datetime(2026,10,23,7,tzinfo=UTC).timestamp()
+        self.xps={}
+        for name in ('papelaum meliexp','jorjao do martelo'):
+            values={w:next(row[2] for row in RANK[('Tornabra',w)] if row[0].casefold()==name) for w in (0,7,30)}
+            values.update(_rates={30:values[30]/30},_projection=True,_meta={w:{'source':'TibiaRise — variação entre registros','fresh':True,'start':start,'end':end} for w in (0,7,30)})
+            self.xps[name]=values
+
+    def render(self,custom=''):
+        return Bot(sheet=lambda name:self.infos.get(name.casefold()),experience=lambda world,name:self.xps[name.casefold()],settings=lambda:{'duelo':{'text':custom}}).handle('!duelo Papelaum Meliexp x Jorjao do Martelo','Tornabra',TODAY)
+
+    def test_stale_compact_values_emojis_and_only_one_short_warning(self):
+        for xp in self.xps.values():
+            xp['_projection']=False
+            for meta in xp['_meta'].values():meta['fresh']=False
+        self.xps['papelaum meliexp'][0]=0;self.xps['jorjao do martelo'][7]=-2_000_000
+        text=self.render()
+        for label in ('Último intervalo:','7 dias:','30 dias:'):self.assertEqual(text.count(label),2)
+        self.assertIn('🔥 *Papelaum Meliexp*',text);self.assertIn('🛡️ *Jorjao do Martelo*',text)
+        self.assertIn('Último intervalo: *0,00kk*',text);self.assertIn('7 dias: *-2,00kk*',text)
+        self.assertEqual(text.count('⚠️ Dados antigos; sem projeção.'),1)
+        for technical in ('TibiaRise','variação entre registros','UTC','registro antigo','```','XP/dia','intervalos diários','dados disponíveis'):
+            self.assertNotIn(technical,text)
+
+    def test_current_comparable_periods_keep_prediction_without_second_advice(self):
+        text=self.render();self.assertIn('*Papelaum Meliexp* passa *Jorjao do Martelo*',text)
+        self.assertNotIn('⚠️',text);self.assertNotIn('precisa de',text)
+
+    def test_projection_guards_remain_for_missing_incomplete_sources_and_periods(self):
+        from copy import deepcopy
+        original=deepcopy(self.xps)
+        for scenario in ('missing','incomplete','sources','periods'):
+            self.xps=deepcopy(original);xp=self.xps['jorjao do martelo']
+            if scenario=='missing':xp[30]=None;xp['_projection']=False
+            if scenario=='incomplete':xp['_projection']=False
+            if scenario=='sources':xp['_meta'][30]['source']='GuildStats'
+            if scenario=='periods':xp['_meta'][30]['end']+=901
+            with self.subTest(scenario=scenario):
+                text=self.render();self.assertIn('sem projeção',text);self.assertNotIn('*Papelaum Meliexp* passa',text)
+                self.assertIn('—' if scenario=='missing' else ('Histórico incompleto' if scenario=='incomplete' else 'Períodos ou fontes diferentes'),text)
+
+    def test_same_level_and_all_vocations_have_compact_identity(self):
+        self.infos['jorjao do martelo']['level']=1534
+        for vocation,icon in (('Elite Knight','🛡️'),('Royal Paladin','🏹'),('Elder Druid','❄️'),('Master Sorcerer','🔥'),('Exalted Monk','👊'),('unknown','👤')):
+            self.infos['papelaum meliexp']['vocation']=vocation
+            with self.subTest(vocation=vocation):
+                text=self.render();self.assertIn(icon+' *Papelaum Meliexp* · Lv *1.534*',text);self.assertIn('mesmo level',text)
+
+    def test_custom_placeholders_and_default_response_still_render(self):
+        text=self.render('Comparação: {nome1} / {nome2}\n{tabela}\n{resultado}')
+        self.assertTrue(text.startswith('Comparação: Papelaum Meliexp / Jorjao do Martelo'))
+        self.assertIn('🔥 *Papelaum Meliexp*',text);self.assertIn('30 dias:',text);self.assertNotIn('TibiaRise',text)
+        self.assertEqual(self.render('{resposta}'),self.render())
+
 
 ZANDAO={'character':{'character':{'name':'Zandao','vocation':'Master Sorcerer','level':524,'world':'Rasteibra','residence':'Roshamuul','achievement_points':357,'account_status':'Premium Account',
         'guild':{'name':'Xandebro','rank':'Member'},'last_login':'2026-10-23T13:30:38Z',
