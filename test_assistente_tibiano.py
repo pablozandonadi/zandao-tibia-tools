@@ -558,9 +558,24 @@ class FinishUpdateTests(StoreCase):
         section=section[:section.index('</section>')]
         phrases=[html.unescape(p) for p in re.findall(r'<q>(.*?)</q>',section)]
         self.assertGreater(len(phrases),40)
+        import assistente_consultas
+        from unittest.mock import patch
+        local_examples = 0
         for phrase in phrases:
-            with self.subTest(phrase=phrase):
-                self.assertIsNotNone(a.parse(phrase,NOW))
+            with self.subTest(phrase=phrase), patch('mensagem_automatica_access.assistant_command', return_value={'text':'Consulta de exemplo'}) as request:
+                # O chat despacha consultas restritas antes do parser de ações locais.
+                query = assistente_consultas.responder(phrase, CTX)
+                if query is not None:
+                    self.assertEqual(query, 'Consulta de exemplo')
+                    request.assert_called_once()
+                    command = assistente_consultas.parse_command(request.call_args.args[0])
+                    self.assertIsNotNone(command)
+                    self.assertIn(command[0], {'help','duelo','evolucao','precocoin','pt','char','online','xptop'})
+                else:
+                    local_examples += 1
+                    request.assert_not_called()
+                    self.assertIsNotNone(a.parse(phrase,NOW))
+        self.assertGreater(local_examples,40, 'Os exemplos locais anteriores continuam cobertos.')
     def test_wiki_cooldown_gives_release_time(self):
         boss=self.call('boss.kill',{'boss_id':'drume'})['boss']
         self.assertEqual((1200,'wiki'),(boss['cooldown_minutes'],boss['status']))
