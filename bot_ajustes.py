@@ -7,7 +7,7 @@ import time
 
 TTL = 300
 MAX_TEXTO = 1500
-CHAVES = ('bomdia', 'kill', 'boss', 'online', 'char', 'death', 'guild', 'exp')
+CHAVES = ('bomdia', 'kill', 'boss', 'online', 'char', 'death', 'guild', 'exp', 'help', 'duelo', 'evolucao', 'precocoin', 'pt', 'xptop')
 _lock = threading.Lock()
 _buscador = None
 _dados = {}

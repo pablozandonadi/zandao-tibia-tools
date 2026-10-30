@@ -31,7 +31,7 @@ class AjustesTests(unittest.TestCase):
         self.assertNotIn('duelo', s.bot_settings('whatsapp'))
         s.bot_reset('whatsapp', 'help'); self.assertEqual(s.bot_settings('whatsapp'), {})
         self.assertEqual(s.bot_settings('assistente'), {})
-        for args in (('x', 'help', True, ''), ('whatsapp', 'naoexiste', True, ''), ('whatsapp', 'help', 1, ''), ('whatsapp', 'help', True, 5), ('whatsapp', 'help', True, 'a' * 1501), ('assistente', 'duelo', True, '')):
+        for args in (('x', 'help', True, ''), ('whatsapp', 'naoexiste', True, ''), ('whatsapp', 'help', 1, ''), ('whatsapp', 'help', True, 5), ('whatsapp', 'help', True, 'a' * 1501)):
             with self.assertRaises(Invalid, msg=args): s.bot_set(*args)
         with self.assertRaises(Invalid): s.bot_settings('x')
         with self.assertRaises(Invalid): s.bot_reset('whatsapp', 'naoexiste')
@@ -42,8 +42,8 @@ class AjustesTests(unittest.TestCase):
         from automation.botcmds import KEYS
         from automation.store import BOT_COMMANDS
         self.assertEqual(set(KEYS.values()), set(BOT_COMMANDS['whatsapp']))
-        self.assertEqual(set(comandos_tibia.HANDLERS), set(BOT_COMMANDS['assistente']))
-        self.assertEqual(set(comandos_tibia.HANDLERS), set(bot_ajustes.CHAVES))
+        self.assertEqual(set(comandos_tibia.HANDLERS) | {'help','duelo','evolucao','precocoin','pt','xptop'}, set(BOT_COMMANDS['assistente']))
+        self.assertEqual(set(BOT_COMMANDS['assistente']), set(bot_ajustes.CHAVES))
         pick = Bot().pick
         for cmd in BOT_COMMANDS['whatsapp']: self.assertTrue(pick('!' + cmd), cmd)
 
@@ -116,7 +116,7 @@ class AjustesTests(unittest.TestCase):
         porta = next(c for c in listed['whatsapp'] if c['cmd'] == 'precocoin')
         self.assertIn('{mundo}', porta['default']); self.assertIn('{preco}', porta['default']); self.assertEqual(porta['example'], 'Rasteibra')
         self.assertEqual(next(v for v in porta['vars'] if v['name'] == 'preco')['desc'], 'gold por 1 TC'); self.assertIn('resposta', [v['name'] for v in porta['vars']])
-        self.assertTrue(all(c['default'] == '{titulo}\n{corpo}' for c in listed['assistente']))
+        self.assertTrue(all(c['default'] == '{titulo}\n{corpo}' for c in listed['assistente'] if c['cmd'] in ('bomdia','kill','boss','online','char','death','guild','exp')))
         self.assertTrue(all(c['vars'] and c['example'] is not None for c in listed['assistente'] + listed['whatsapp'] if c['cmd'] != 'help'))
         self.assertEqual(client.get('/public/botcmds').json(), {})
         for bad in ({'enabled': 'sim', 'text': ''}, {'enabled': True, 'text': 'a' * 1501}, {'enabled': True, 'extra': 1}, {'text': 'x'}):

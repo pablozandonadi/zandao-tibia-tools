@@ -199,3 +199,10 @@ Testes totalmente offline: `python -m unittest test_zenrows test_xp_sources test
 ### Apresentação do duelo
 
 `!duelo` mostra dois blocos com emoji da vocação, nome, nível e XP do último intervalo, de 7 dias e de 30 dias. A conclusão tem uma linha; dados antigos, incompletos ou períodos/fontes diferentes impedem projeções e recebem um aviso curto. Os modelos existentes mantêm `{nome1}`, `{nome2}`, `{tabela}` (agora os blocos) e `{resultado}`. A seleção de fontes e os cálculos não mudam.
+
+
+### Consultas do Assistente Tibiano
+
+`POST /v1/assistant/command` aceita `{text,mundo,personagem}` com a identidade de instalação (`known`), sem exigir liberação ou conexão WhatsApp. Serve apenas help, duelo, evolucao/evo, precocoin/tc, pt/party, char/personagem, online e xptop. Reutiliza Bot/XPProvider e os modelos do scope `assistente`; modelos antigos de char/online mantêm suas variáveis. Não chama transporte nem GroupConfig. O limiter por instalação continua ativo e até quatro consultas executam simultaneamente; corpo e resposta têm limites e campos privados são recusados.
+
+O app usa um adaptador Python com DPAPI e nunca recebe a chave ZenRows. Comandos de texto conhecidos não gastam chamada de IA e falhas não geram estimativas pela IA. Esta integração é somente no chat de texto; a voz existente não muda. Configuração e alertas dos grupos permanecem em Mensagens.

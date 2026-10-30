@@ -16,7 +16,7 @@ PUBLICO, CONTA, CLIENTE, ADMIN = 0, 1, 2, 3
 EXIGE = {
     ('GET', '/health'): PUBLICO, ('GET', '/public-config'): PUBLICO, ('GET', '/portal'): PUBLICO, ('GET', '/public/botcmds'): PUBLICO,
     ('POST', '/auth/register'): PUBLICO, ('POST', '/auth/recover'): PUBLICO,
-    ('POST', '/v1/claim'): CONTA,
+    ('POST', '/v1/claim'): CONTA, ('POST', '/v1/assistant/command'): CONTA,
     ('GET', '/v1/admin/claims'): ADMIN, ('POST', '/v1/admin/claims'): ADMIN, ('DELETE', '/v1/admin/claims/{key}'): ADMIN,
     ('GET', '/v1/admin/accounts'): ADMIN, ('DELETE', '/v1/admin/accounts/{key}'): ADMIN,
     ('GET', '/v1/admin/botcmds'): ADMIN, ('POST', '/v1/admin/botcmds/preview'): ADMIN,

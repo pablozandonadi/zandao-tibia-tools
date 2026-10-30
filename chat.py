@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 import assistente_tibiano as assistente
 import calculadora_gold
 import comandos_tibia
+import assistente_consultas
 from voice import device_id
 from voice.remote_ai_client import RemoteAIClient, RemoteAIError, load_settings, utf16_length, truncate_utf16
 
@@ -109,7 +110,9 @@ class Chat:
                 self._geracao += 1
                 self._perfil = perfil
             geracao = self._geracao
-        consulta = comandos_tibia.responder(texto, context.get('world_id') or '', personagem=context.get('character_id') or '')
+        consulta = assistente_consultas.responder(texto, context)
+        if consulta is None:
+            consulta = comandos_tibia.responder(texto, context.get('world_id') or '', personagem=context.get('character_id') or '')
         if consulta is None:
             consulta = calculadora_gold.responder(texto, self.pasta, lambda: self._preco_tc(context))
         if consulta is not None:

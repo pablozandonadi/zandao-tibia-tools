@@ -15,7 +15,7 @@ from .domain import Invalid
 # Comandos que o administrador pode ligar/desligar e reescrever. cmd -> rótulo mostrado no Admin.
 BOT_COMMANDS={
     'whatsapp':{'help':'!help','duelo':'!duelo','evolucao':'!evolucao','precocoin':'!precocoin','pt':'!pt','char':'!char','online':'!online','xptop':'!xptop'},
-    'assistente':{'bomdia':'bom dia','kill':'kill','boss':'boss','online':'online','char':'char','death':'death','guild':'guild','exp':'exp'}}
+    'assistente':{'bomdia':'bom dia','kill':'kill','boss':'boss','online':'online','char':'char','death':'death','guild':'guild','exp':'exp','help':'ajuda','duelo':'duelo','evolucao':'evolução','precocoin':'preço de TC','pt':'party','xptop':'histórico XP'}}
 
 def ident(): return uuid.uuid4().hex
 

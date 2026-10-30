@@ -3,7 +3,7 @@ from datetime import datetime
 import time
 import logging
 from collections import defaultdict,deque
-from threading import Lock
+from threading import Lock, BoundedSemaphore
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from .auth import Verifier
@@ -17,6 +17,8 @@ from .store import BOT_COMMANDS
 from comandos_tibia import MODELOS, responder
 from mensagem_automatica_report import generate, PublicProvider
 from .xp_sources import XPProvider
+from .assistant_queries import CATALOG as ASSISTANT_MODELS, execute as assistant_execute
+from starlette.concurrency import run_in_threadpool
 
 def create_app(store,transport,verifier=None,origins=(),generator=generate):
     if generator is generate:
@@ -128,7 +130,7 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     # ---- Comandos dos bots: o administrador liga/desliga e reescreve a resposta; o bot do WhatsApp lê daqui, o app lê a parte pública ----
     @app.get('/v1/admin/botcmds')
     def admin_botcmds(user=Depends(administrator)):
-        catalog={'whatsapp':MODELS,'assistente':MODELOS}
+        catalog={'whatsapp':MODELS,'assistente':ASSISTANT_MODELS}
         return {scope:[{'cmd':cmd,'label':label,'enabled':saved.get(cmd,{}).get('enabled',True),'text':saved.get(cmd,{}).get('text',''),'default':catalog[scope][cmd]['template'],
                         'example':catalog[scope][cmd]['example'],'vars':[{'name':name,'desc':desc} for name,desc in {**catalog[scope][cmd]['vars'],'resposta':'a resposta padrão inteira'}.items()]} for cmd,label in cmds.items()]
                 for scope,cmds in BOT_COMMANDS.items() for saved in [store.bot_settings(scope)]}
@@ -143,6 +145,8 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
         if scope=='whatsapp':
             bot=Commander(store,transport).bot;bot.settings=lambda:{cmd:override}
             reply=bot.handle(f'!{cmd} {arg}'.strip(),'Rasteibra',datetime.now(ZoneInfo('America/Sao_Paulo')).date())
+        elif cmd in ('char','online','help','duelo','evolucao','precocoin','pt','xptop'):
+            reply=(await run_in_threadpool(assistant_execute,store,f'!{cmd} {arg}'.strip(),'Rasteibra','',override))['text']
         else: reply=responder(f'{cmd} {arg}'.strip(),'Rasteibra',personagem='',ajuste=override)
         return {'text':(reply or 'Este exemplo não é um uso válido do comando.')[:3500]}
     @app.put('/v1/admin/botcmds/{scope}/{cmd}')
@@ -152,6 +156,13 @@ def create_app(store,transport,verifier=None,origins=(),generator=generate):
     @app.delete('/v1/admin/botcmds/{scope}/{cmd}')
     def admin_botcmd_reset(scope,cmd,user=Depends(administrator)):
         store.bot_reset(scope,cmd);return {'scope':scope,'cmd':cmd,'reset':True}
+    query_slots=BoundedSemaphore(4)
+    @app.post('/v1/assistant/command')
+    async def assistant_command(request:Request,user=Depends(known)):
+        data=await payload(request);fields(data,{'text','mundo','personagem'})
+        if not query_slots.acquire(blocking=False):raise HTTPException(429,'Consultas ocupadas. Tente novamente em instantes.')
+        try:return await run_in_threadpool(assistant_execute,store,data.get('text'),data.get('mundo',''),data.get('personagem',''))
+        finally:query_slots.release()
     @app.get('/public/botcmds')
     def public_botcmds(): return store.bot_settings('assistente')  # sem login: o app de qualquer usuário lê só o que o administrador mudou no assistente
     @app.post('/v1/preview')

@@ -18,7 +18,7 @@ SECRET=re.compile(r'^[a-f0-9]{64}$')
 ID=r'[a-f0-9]{32}'
 ALLOWED={
  'GET':re.compile(r'^/(public-config|v1/(connections(?:/'+ID+r'(?:/groups)?)?|subscriptions|watches|botgroups|runs|admin/claims|admin/accounts|admin/botcmds))$'),
- 'POST':re.compile(r'^/v1/(preview|claim|connections(?:/'+ID+r'/pair)?|destinations|subscriptions|watches|botgroups|admin/claims|admin/botcmds/preview)$'),
+ 'POST':re.compile(r'^/v1/(preview|assistant/command|claim|connections(?:/'+ID+r'/pair)?|destinations|subscriptions|watches|botgroups|admin/claims|admin/botcmds/preview)$'),
  'PUT':re.compile(r'^/v1/((subscriptions|watches|botgroups)/'+ID+r'|admin/botcmds/(whatsapp|assistente)/[a-z]{2,12})$'),
  'DELETE':re.compile(r'^/v1/((connections|subscriptions|watches|botgroups)/'+ID+r'|admin/claims/[a-f0-9]{16}|admin/accounts/[a-f0-9]{32}|admin/botcmds/(whatsapp|assistente)/[a-z]{2,12})$')}
 # Servidor da VM Oracle; AUTOMATION_PORTAL_URL continua valendo como override administrativo.
@@ -213,3 +213,13 @@ def open_management(config):
  path=app_paths.resource_dir()/'web'/'mensagem_automatica_portal'/'index.html'
  webview.create_window('Mensagens automáticas',str(path),js_api=api,width=1240,height=900,min_size=(320,500))
  return {'ok':True}
+
+
+def assistant_command(text,mundo='',personagem=''):
+ """Consulta pelo Python; a identidade protegida nunca vai à UI ou à API de IA."""
+ from versao import CANAL_APP
+ if not isinstance(text,str) or not 1<=len(text)<=180:raise AccessError('Comando inválido.')
+ origin=origin_url(os.environ.get('AUTOMATION_PORTAL_URL','').strip() or DEFAULT_ORIGIN)
+ result=InstallationClient(origin,CredentialFile(origin,CANAL_APP)).request('/v1/assistant/command','POST',{'text':text,'mundo':mundo,'personagem':personagem})
+ if not isinstance(result,dict) or result.get('command') not in ('help','duelo','evolucao','precocoin','pt','char','online','xptop') or not isinstance(result.get('text'),str) or not 1<=len(result['text'])<=12000:raise AccessError('Resposta de consulta inválida.')
+ return {'command':result['command'],'text':result['text']}
