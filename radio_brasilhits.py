@@ -8,7 +8,8 @@ from urllib.parse import urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 BASE = "https://www.brasilhits.com"
-HOSTS = {"www.brasilhits.com", "brasilhits.com", "live.brasilhits.com"}
+# azurafdc = servidor novo de 6 das 8 rádios (nov/2026); fora da lista, a estação ficava sem stream
+HOSTS = {"www.brasilhits.com", "brasilhits.com", "live.brasilhits.com", "azurafdc.brasilhits.com"}
 IDENT = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 MAX_BYTES = 512 * 1024
 

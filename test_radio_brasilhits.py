@@ -20,6 +20,14 @@ class RadioTests(unittest.TestCase):
         self.assertEqual(stations[0]['url'], 'https://live.brasilhits.com/listen/brasilhits-pop/acc')
         self.assertEqual(len(stations[0]['qualities']), 1)
 
+    def test_estacoes_no_servidor_azurafdc_tocam(self):
+        url = 'https://azurafdc.brasilhits.com/listen/brasilhits-rock/acc'
+        s = radio.normalize_catalog(payload(id='rock', slug='brasilhits-rock', streamUrl=url,
+                                            qualities=[{'id': 'hifi', 'url': url.replace('/acc', '/hifi')}]))[0]
+        self.assertEqual(s['url'], url)
+        self.assertEqual(len(s['qualities']), 1)
+        self.assertEqual(radio.safe_url('https://azurafdc.brasilhits.com.evil/x'), '')
+
     def test_reject_untrusted_urls_and_ids(self):
         for value in ['http://live.brasilhits.com/x','https://live.brasilhits.com.evil/x','https://user@live.brasilhits.com/x','https://live.brasilhits.com:999/x','https://127.0.0.1/x']:
             self.assertEqual(radio.safe_url(value), '')
