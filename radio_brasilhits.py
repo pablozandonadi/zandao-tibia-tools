@@ -8,8 +8,8 @@ from urllib.parse import urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 
 BASE = "https://www.brasilhits.com"
-# azurafdc = servidor novo de 6 das 8 rádios (nov/2026); fora da lista, a estação ficava sem stream
-HOSTS = {"www.brasilhits.com", "brasilhits.com", "live.brasilhits.com", "azurafdc.brasilhits.com"}
+# a Brasil Hits troca o servidor de stream sem aviso (live -> azurafdc -> play em nov/2026): vale qualquer subdomínio dela
+DOMINIO = "brasilhits.com"
 IDENT = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 MAX_BYTES = 512 * 1024
 
@@ -19,7 +19,7 @@ def safe_url(value):
         return ""
     try:
         p = urlsplit(value)
-        return value if (p.scheme == "https" and p.hostname in HOSTS
+        return value if (p.scheme == "https" and (p.hostname == DOMINIO or (p.hostname or "").endswith("." + DOMINIO))
                          and not p.username and not p.password and p.port in (None, 443)) else ""
     except ValueError:
         return ""

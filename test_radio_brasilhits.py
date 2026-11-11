@@ -27,6 +27,9 @@ class RadioTests(unittest.TestCase):
         self.assertEqual(s['url'], url)
         self.assertEqual(len(s['qualities']), 1)
         self.assertEqual(radio.safe_url('https://azurafdc.brasilhits.com.evil/x'), '')
+        self.assertTrue(radio.safe_url('https://play.brasilhits.com/listen/brasilhits-rock/acc'))
+        for ruim in ['https://evilbrasilhits.com/x', 'https://brasilhits.com.evil/x', 'https://play.brasilhits.com@evil.com/x']:
+            self.assertEqual(radio.safe_url(ruim), '')
 
     def test_reject_untrusted_urls_and_ids(self):
         for value in ['http://live.brasilhits.com/x','https://live.brasilhits.com.evil/x','https://user@live.brasilhits.com/x','https://live.brasilhits.com:999/x','https://127.0.0.1/x']:
