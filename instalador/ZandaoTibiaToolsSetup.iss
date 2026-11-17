@@ -94,7 +94,8 @@ Type: files; Name: "{userprograms}\Zandao Tibia Tools\Desinstalar Zandao Tibia T
 Type: files; Name: "{userprograms}\Zandao Tibia Tools\Desinstalar Tibia Tudo.lnk"
 #endif
 #endif
-Type: filesandordirs; Name: "{app}\_internal"
+; A _internal antiga não é apagada aqui: se a instalação parasse no meio, o app ficava sem python314.dll.
+; CurStepChanged guarda a antiga e só apaga depois que a nova terminou de copiar; se não terminar, ela volta.
 ; o Simulated Keys saiu do app na v1.0.5: apaga o .exe dele e o atalho de iniciar com o Windows
 #if MyAppChannel == "stable"
 Type: files; Name: "{app}\macro\SimulatedKeys.exe"
@@ -163,4 +164,43 @@ begin
   end;
   if not WebView2Instalado then
     Result := 'WebView2 da Microsoft não instalado. A instalação foi interrompida antes de substituir os arquivos do app. Instale o WebView2 Runtime oficial e tente novamente.';
+end;
+
+// Troca da _internal sem deixar o app quebrado: a antiga é renomeada (não apagada) antes de copiar a nova.
+// Instalação concluída: apaga a antiga. Abortada (erro, Cancelar, arquivo travado): devolve a antiga.
+var
+  InternalAtual, InternalAnterior: String;
+  InternalGuardada, InstalacaoConcluida: Boolean;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then
+  begin
+    InternalAtual := ExpandConstant('{app}\_internal');
+    InternalAnterior := ExpandConstant('{app}\_internal.anterior');
+    if DirExists(InternalAnterior) then
+      DelTree(InternalAnterior, True, True, True);
+    if DirExists(InternalAtual) then
+    begin
+      if not RenameFile(InternalAtual, InternalAnterior) then
+        RaiseException('Não deu para substituir os arquivos do Tibia Tudo (algum ainda está em uso). Feche o programa e rode o instalador de novo.');
+      InternalGuardada := True;
+    end;
+  end
+  else if CurStep = ssPostInstall then
+  begin
+    InstalacaoConcluida := True;
+    if InternalGuardada then
+      DelTree(InternalAnterior, True, True, True);
+  end;
+end;
+
+procedure DeinitializeSetup;
+begin
+  if InternalGuardada and not InstalacaoConcluida then
+    if DirExists(InternalAnterior) then
+    begin
+      DelTree(InternalAtual, True, True, True);
+      RenameFile(InternalAnterior, InternalAtual);
+    end;
 end;
