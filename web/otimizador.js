@@ -38,102 +38,165 @@ function otmPedirWorker(msg) {
   return new Promise((ok, erro) => { OTM.espera.set(id, { ok, erro }); OTM.worker.postMessage({ id, ...msg }); });
 }
 
-// ---------- formulário ----------
+// ---------- formulário: tudo por clique (níveis em botões, disponíveis em chips, arrastar para reordenar) ----------
 function otmOpcaoTexto(op) {
   if (op.tipo === 'revelacao') return `${otmDominio(op.dominio).revelacao} estágio ${OTM_ROMANO[op.estagio]}`;
-  if (op.tipo === 'gemas') return `${op.n} gem vessels`;
+  if (op.tipo === 'gemas') return `${op.n} gem slots`;
   return `${otmPerk(op.perk).nome}${op.copias > 1 ? ' ×' + op.copias : ''}`;
 }
 function otmMetaTexto(m) {
-  if (m === 'gemas') return 'Próximo gem vessel';
-  if (m === 'skill') return 'Skill +1';
+  if (m === 'gemas') return 'Próximo gem slot';
+  if (m === 'skill') return 'Skill: próximo +1';
   if (m.startsWith('perk:')) return `${otmPerk(m.slice(5)).nome}: próxima fatia`;
   if (m.startsWith('revelacao:')) return `${otmDominio(m.slice(10)).revelacao}: próximo estágio`;
   return OTM_STATS[m] || m;
 }
-// perks agrupados por tipo para os <select>
-function otmOpcoesPerks(semGemas = false) {
-  const voc = otmVoc(), grupos = {};
-  voc.perks.forEach((p) => {
-    const f = voc.fatias.find((x) => x.perk === p.id);
-    const tipo = f ? f.tipo : 'passive';
-    if (semGemas && tipo === 'gemVessel') return;
-    (grupos[tipo] ||= []).push(p);
-  });
-  return Object.entries(grupos).map(([t, ps]) => `<optgroup label="${esc(OTM_TIPOS[t] || t)}">${ps.map((p) => `<option value="${esc(p.id)}">${esc(p.nome)}${p.max > 1 ? ` (até ${p.max})` : ''}</option>`).join('')}</optgroup>`).join('');
-}
-const otmLinhaLista = (texto, chave, k, total, extra = '') => `<div class="otm-item"><span>${k + 1}. ${esc(texto)}</span>${extra}
-  <span class="otm-acoes"><button class="btn btn-sm" data-otm-subir="${chave}:${k}" ${k ? '' : 'disabled'} title="Subir (mais prioridade)">↑</button><button class="btn btn-sm" data-otm-descer="${chave}:${k}" ${k < total - 1 ? '' : 'disabled'} title="Descer">↓</button><button class="btn btn-sm btn-danger" data-otm-tirar="${chave}:${k}" title="Tirar">✕</button></span></div>`;
+const otmTipoPerk = (id) => (otmVoc().fatias.find((f) => f.perk === id) || { tipo: 'passive' }).tipo;
+// rótulo de cada nível: augment I/II, skill +1..+4, leech ×1..×4, passivo ✓
+const otmNivelRot = (tipo, n, max) => (max === 1 ? '✓' : tipo === 'skill' ? '+' + n : tipo === 'leech' ? '×' + n : OTM_ROMANO[n] || String(n));
+const otmLetra = (q) => ({ lesser: 'L', regular: 'R', greater: 'G' }[q] || '?');
+const otmFaixa = (n) => Array.from({ length: n }, (_, k) => k + 1);
+// fileira de botões de nível; acende do 1 até o atual
+const otmBotoes = (attr, atual, niveis, rot, titulo = () => '') => `<span class="otm-niv">${niveis.map((n) =>
+  `<button type="button" class="otm-bt${atual && n <= atual ? ' on' : ''}" ${attr(n)} title="${esc(titulo(n))}">${esc(rot(n))}</button>`).join('')}</span>`;
+// botões L/R/G dos gem slots (lesser, regular, greater, na ordem em que liberam)
+const otmSlots = (attr, n) => otmBotoes(attr, n, otmFaixa(8), (k) => otmLetra(otmVoc().ordem_gemas[k - 1]), (k) => `${k} gem slots (o ${k}º é ${otmVoc().ordem_gemas[k - 1]})`);
+// linha de uma lista com prioridade: alça para arrastar, ↑ ↓ ✕
+const otmLinhaLista = (lista, k, total, texto, meio = '') => `<div class="otm-item" data-otm-arrastar="${lista}:${k}">
+  <span class="otm-alca" title="Arraste para mudar a ordem" aria-hidden="true">⠿</span><span class="otm-nome">${k + 1}. ${esc(texto)}</span>${meio}
+  <span class="otm-acoes"><button type="button" class="otm-bt" data-otm-subir="${lista}:${k}" ${k ? '' : 'disabled'} title="Subir (mais prioridade)">↑</button><button type="button" class="otm-bt" data-otm-descer="${lista}:${k}" ${k < total - 1 ? '' : 'disabled'} title="Descer">↓</button><button type="button" class="otm-bt" data-otm-tirar="${lista}:${k}" title="Tirar">✕</button></span></div>`;
 
 function otmDesenharForm() {
   const voc = otmVoc(), p = otmPed(), ob = p.obrigatorio;
-  const obPerks = ob.perks.map((x, k) => `<div class="otm-item"><span>${esc(otmPerk(x.perk).nome)}</span>
-    ${otmPerk(x.perk).max > 1 ? `<label class="dica">cópias <input type="number" class="otm-num" min="1" max="${otmPerk(x.perk).max}" value="${x.copias}" data-otm-copias="${k}"></label>` : ''}
-    <button class="btn btn-sm btn-danger" data-otm-tirar="obperk:${k}" title="Tirar">✕</button></div>`).join('') || '<div class="dica">Nenhum.</div>';
-  const revs = voc.dominios.map((d) => `<label class="otm-rev"><span>${esc(d.revelacao)}</span><select data-otm-rev="${esc(d.id)}">${[0, 1, 2, 3].map((e) => `<option value="${e}" ${(ob.revelacao[d.id] || 0) === e ? 'selected' : ''}>${e ? 'pelo menos ' + OTM_ROMANO[e] + ' (' + voc.estagios[e - 1] + ')' : '—'}</option>`).join('')}</select></label>`).join('');
-  const gemasRev = ob.gemasRevelacao.map((g, k) => `<span class="chip chip-neutro">${esc(otmDominio(g.dominio).revelacao)} +${voc.bonus_gema[g.grau - 1]} <button class="otm-x" data-otm-tirar="gemrev:${k}" title="Tirar a gema">✕</button></span>`).join(' ');
-  const opcionais = p.opcionais.map((op, k) => otmLinhaLista(otmOpcaoTexto(op), 'opc', k, p.opcionais.length)).join('') || '<div class="dica">Nenhum. Adicione abaixo.</div>';
-  const sobras = p.sobras.map((m, k) => otmLinhaLista(otmMetaTexto(m), 'sob', k, p.sobras.length)).join('') || '<div class="dica">Nenhuma: os pontos extras vão para onde der.</div>';
-  const metas = ['gemas', 'skill', ...voc.dominios.map((d) => 'revelacao:' + d.id), ...Object.keys(OTM_STATS), ...voc.perks.filter((x) => !x.id.startsWith('revelation-mastery') && x.id !== 'gem-vessel').map((x) => 'perk:' + x.id)]
-    .filter((m) => !p.sobras.includes(m));
+  const copiasOb = (id) => (ob.perks.find((x) => x.perk === id) || {}).copias || 0;
+  // perks obrigatórios por tipo (vessel tem a barra própria; a Revelation Mastery o cálculo põe sozinho quando compensa)
+  const grupos = {};
+  voc.perks.forEach((pk) => { const t = otmTipoPerk(pk.id); if (t !== 'gemVessel' && t !== 'revelationMastery') (grupos[t] ||= []).push(pk); });
+  const blocoPerks = ['spellAugment', 'passive', 'skill', 'leech'].filter((t) => grupos[t]).map((t) => `<div class="otm-grupo"><div class="campo-label">${esc(OTM_TIPOS[t])}</div>${grupos[t].map((pk) =>
+    `<div class="otm-perk"><span>${esc(pk.nome)}</span>${otmBotoes((n) => `data-otm-ob="${esc(pk.id)}:${n}"`, copiasOb(pk.id), otmFaixa(pk.max), (n) => otmNivelRot(t, n, pk.max), (n) => `Obrigatório: ${pk.nome} ${otmNivelRot(t, n, pk.max)}`)}</div>`).join('')}</div>`).join('');
+  const revs = voc.dominios.map((d) => {
+    const gemas = ob.gemasRevelacao.map((g, k) => (g.dominio === d.id ? `<span class="otm-gema">◆ +${voc.bonus_gema[g.grau - 1]} ${['', 'I', 'II', 'III', 'IV'][g.grau]}<button type="button" class="otm-x" data-otm-tirar="gemrev:${k}" title="Tirar a gema">✕</button></span>` : '')).join('');
+    return `<div class="otm-revdom"><div class="otm-perk"><b>${esc(d.revelacao)}</b>${otmBotoes((n) => `data-otm-rev="${esc(d.id)}:${n}"`, ob.revelacao[d.id] || 0, [1, 2, 3], (n) => OTM_ROMANO[n], (n) => `Pelo menos estágio ${OTM_ROMANO[n]} (${voc.estagios[n - 1]} pontos)`)}</div>
+      <div class="otm-perk"><span class="dica">+ gema</span>${otmBotoes((n) => `data-otm-gemrev="${esc(d.id)}:${n}"`, 0, [1, 2, 3, 4], (n) => '+' + voc.bonus_gema[n - 1], (n) => `Gema greater com mod de revelação, grau ${n} (+${voc.bonus_gema[n - 1]})`)}</div>${gemas ? `<div>${gemas}</div>` : ''}</div>`;
+  }).join('');
+  // opcionais: cada linha tem os próprios níveis; abaixo, os disponíveis para clicar
+  const opcionais = p.opcionais.map((op, k) => {
+    let meio = '';
+    if (op.tipo === 'perk') { const pk = otmPerk(op.perk), t = otmTipoPerk(op.perk); if (pk.max > 1) meio = otmBotoes((n) => `data-otm-opcniv="${k}:${n}"`, op.copias, otmFaixa(pk.max), (n) => otmNivelRot(t, n, pk.max)); }
+    else if (op.tipo === 'revelacao') meio = otmBotoes((n) => `data-otm-opcniv="${k}:${n}"`, op.estagio, [1, 2, 3], (n) => OTM_ROMANO[n]);
+    else meio = otmSlots((n) => `data-otm-opcniv="${k}:${n}"`, op.n);
+    const nome = op.tipo === 'perk' ? otmPerk(op.perk).nome : op.tipo === 'revelacao' ? otmDominio(op.dominio).revelacao : 'Gem slots';
+    return otmLinhaLista('opc', k, p.opcionais.length, nome, meio);
+  }).join('') || '<div class="otm-vazio">Nenhum opcional. Clique nos disponíveis abaixo.</div>';
+  const usado = (fn) => p.opcionais.some(fn);
+  const chip = (attr, texto) => `<button type="button" class="otm-bt otm-chip" ${attr}>+ ${esc(texto)}</button>`;
+  const disponiveis = [
+    ...voc.perks.filter((pk) => otmTipoPerk(pk.id) !== 'gemVessel' && !copiasOb(pk.id) && !usado((o) => o.tipo === 'perk' && o.perk === pk.id)).map((pk) => chip(`data-otm-opcadd="perk:${esc(pk.id)}"`, pk.nome)),
+    ...voc.dominios.filter((d) => !usado((o) => o.tipo === 'revelacao' && o.dominio === d.id)).map((d) => chip(`data-otm-opcadd="rev:${esc(d.id)}"`, d.revelacao + ' (estágio)')),
+    ...(usado((o) => o.tipo === 'gemas') ? [] : [chip('data-otm-opcadd="gemas"', 'Gem slots')])].join('');
+  const sobras = p.sobras.map((m, k) => otmLinhaLista('sob', k, p.sobras.length, otmMetaTexto(m))).join('') || '<div class="otm-vazio">Nenhuma meta: os pontos extras vão para onde der.</div>';
+  const metas = ['gemas', 'skill', ...voc.dominios.map((d) => 'revelacao:' + d.id), ...Object.keys(OTM_STATS),
+    ...voc.perks.filter((x) => !['gemVessel', 'revelationMastery'].includes(otmTipoPerk(x.id))).map((x) => 'perk:' + x.id)].filter((m) => !p.sobras.includes(m));
   $('otm-form').innerHTML = `
     <div class="otm-linha">
-      <label><span class="campo-label">Vocação</span><select id="otm-voc">${OTM_VOCS.map(([v, n]) => `<option value="${v}" ${v === OTM.voc ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
-      <label><span class="campo-label">Pontos</span><input type="number" id="otm-pontos" class="otm-num" min="0" max="4000" value="${p.pontos}" title="Pontos de promoção: level − 50 + pergaminhos"></label>
-      <label><span class="campo-label">Mín. de gem vessels</span><select id="otm-gemas">${[0, 1, 2, 3, 4, 5, 6, 7, 8].map((n) => `<option value="${n}" ${ob.gemas === n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+      <span class="otm-niv">${OTM_VOCS.map(([v, n]) => `<button type="button" class="otm-bt otm-voc${v === OTM.voc ? ' on' : ''}" data-otm-voc="${v}">${n}</button>`).join('')}</span>
+      <label class="otm-pontos"><span class="campo-label">Pontos</span><input type="number" id="otm-pontos" class="otm-num" min="0" max="4000" value="${p.pontos}" title="Pontos de promoção: level − 50 + pergaminhos"></label>
+      <button class="btn btn-primary btn-sm" id="otm-calcular">Recalcular</button><span class="dica" id="otm-status"></span>
     </div>
-    <h4 class="sub3">Obrigatórios</h4>
-    <div class="otm-lista">${obPerks}</div>
-    <div class="otm-linha"><select id="otm-add-ob"><option value="">+ perk obrigatório…</option>${otmOpcoesPerks(true)}</select></div>
-    <h4 class="sub3">Revelação: estágio mínimo</h4>
-    <div class="otm-revs">${revs}</div>
-    <div class="otm-linha"><select id="otm-gemrev-dom">${voc.dominios.map((d) => `<option value="${esc(d.id)}">${esc(d.revelacao)}</option>`).join('')}</select>
-      <select id="otm-gemrev-grau">${voc.bonus_gema.map((b, k) => `<option value="${k + 1}" ${k === 3 ? 'selected' : ''}>grau ${k + 1}: +${b}</option>`).join('')}</select>
-      <button class="btn btn-sm" id="otm-gemrev-add" title="Uma gema greater com mod de Revelação que você tem">+ gema de revelação</button></div>
-    <div class="otm-linha">${gemasRev}</div>
-    <p class="dica" style="margin:4px 0 0">Estágios I / II / III = ${voc.estagios.join(' / ')} pontos no quadrante. A Revelation Mastery cheia soma +${voc.bonus_mastery}. A gema de revelação só vale num slot greater liberado (3º, 5º, 7º e 8º vessel) e o cálculo só usa se precisar.</p>
-    <h4 class="sub3">Opcionais (a ordem é a prioridade)</h4>
-    <p class="dica" style="margin:0 0 6px">Um opcional de cima vale mais que todos os de baixo juntos.</p>
-    <div class="otm-lista">${opcionais}</div>
-    <div class="otm-linha"><select id="otm-add-opc"><option value="">+ opcional…</option>
-      <optgroup label="Perks">${voc.perks.filter((x) => x.id !== 'gem-vessel').map((x) => `<option value="perk:${esc(x.id)}">${esc(x.nome)}</option>`).join('')}</optgroup>
-      <optgroup label="Revelação">${voc.dominios.flatMap((d) => [1, 2, 3].map((e) => `<option value="rev:${esc(d.id)}:${e}">${esc(d.revelacao)} estágio ${OTM_ROMANO[e]}</option>`)).join('')}</optgroup>
-      <optgroup label="Gem vessels">${[1, 2, 3, 4, 5, 6, 7, 8].map((n) => `<option value="gemas:${n}">${n} vessels (${esc(voc.ordem_gemas[n - 1])})</option>`).join('')}</optgroup></select></div>
-    <h4 class="sub3">Pontos extras (a ordem é a prioridade)</h4>
-    <div class="otm-lista">${sobras}</div>
-    <div class="otm-linha"><select id="otm-add-sob"><option value="">+ meta…</option>${metas.map((m) => `<option value="${esc(m)}">${esc(otmMetaTexto(m))}</option>`).join('')}</select></div>
-    <div class="otm-linha" style="margin-top:12px"><button class="btn btn-primary" id="otm-calcular">Calcular</button><span class="dica" id="otm-status"></span></div>`;
+    <div class="otm-sec"><h4 class="sub3">Perks obrigatórios <span class="dica">(selecionados: ${ob.perks.length})</span></h4><div class="otm-grupos">${blocoPerks}</div></div>
+    <div class="otm-sec"><h4 class="sub3">Revelação e gemas</h4>
+      <div class="otm-perk otm-slots"><span>Mín. de gem slots</span><input type="range" id="otm-gemas" min="0" max="8" value="${ob.gemas}"><b id="otm-gemas-n">${ob.gemas}</b>${otmSlots((n) => `data-otm-gemas="${n}"`, ob.gemas)}</div>
+      <p class="dica" style="margin:6px 0">Estágios I / II / III = ${voc.estagios.join(' / ')} pontos no quadrante. O cálculo põe a Revelation Mastery (+${voc.bonus_mastery}) sozinho quando compensa. A gema de revelação só vale num slot greater liberado (3º, 5º, 7º e 8º vessel) e só é usada se precisar.</p>
+      <div class="otm-revs">${revs}</div></div>
+    <div class="otm-grade2">
+      <div class="otm-sec"><h4 class="sub3">Opcionais: a ordem é a prioridade</h4><p class="dica" style="margin:0 0 6px">Arraste para reordenar. Um de cima vale mais que todos os de baixo juntos.</p>
+        <div class="otm-lista">${opcionais}</div>
+        <div class="campo-label" style="margin-top:8px">Disponíveis (não obrigatórios)</div><div class="otm-chips">${disponiveis || '<span class="dica">Nada mais para adicionar.</span>'}</div></div>
+      <div class="otm-sec"><h4 class="sub3">Pontos extras: a ordem é a prioridade</h4><p class="dica" style="margin:0 0 6px">O que sobra vai primeiro para a meta de cima. "Próximo estágio" empurra a revelação até o próximo limite (ex.: 475 → 500).</p>
+        <div class="otm-lista">${sobras}</div>
+        <div class="campo-label" style="margin-top:8px">Disponíveis</div><div class="otm-chips">${metas.map((m) => chip(`data-otm-sobadd="${esc(m)}"`, otmMetaTexto(m))).join('')}</div></div>
+    </div>`;
 }
 
-function otmMudou() { otmGuardar(); otmDesenharForm(); }
+// cada mudança guarda, redesenha e recalcula sozinho (um pouco depois do último clique)
+let otmTimer = null;
+function otmMudou() {
+  otmGuardar(); otmDesenharForm();
+  clearTimeout(otmTimer);
+  otmTimer = setTimeout(otmCalcular, 450);
+}
+const otmAlterna = (atual, n) => (atual === n ? n - 1 : n);   // clicar no nível já aceso desce um (no 1: desliga)
+function otmMover(arr, de, para) { if (para < 0 || para >= arr.length || de === para) return; const [x] = arr.splice(de, 1); arr.splice(para, 0, x); }
+$('otm-form').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  const p = otmPed(), ob = p.obrigatorio, d = b.dataset;
+  if (b.id === 'otm-calcular') { clearTimeout(otmTimer); otmCalcular(); return; }
+  if (d.otmVoc) { if (d.otmVoc !== OTM.voc) { OTM.voc = d.otmVoc; OTM.res = null; OTM.pn = null; otmDesenharResultado(); otmMudou(); } return; }
+  if (d.otmOb) {
+    const [id, n0] = d.otmOb.split(':'), x = ob.perks.find((y) => y.perk === id), novo = otmAlterna(x ? x.copias : 0, +n0);
+    if (!novo) ob.perks = ob.perks.filter((y) => y.perk !== id);
+    else if (x) x.copias = novo; else ob.perks.push({ perk: id, copias: novo });
+  } else if (d.otmRev) { const [dom, n0] = d.otmRev.split(':'), novo = otmAlterna(ob.revelacao[dom] || 0, +n0); if (novo) ob.revelacao[dom] = novo; else delete ob.revelacao[dom]; }
+  else if (d.otmGemrev) {
+    const [dom, n0] = d.otmGemrev.split(':');
+    if (ob.gemasRevelacao.length >= 4) { toast('No máximo 4 gemas de revelação (são 4 slots greater).', true); return; }
+    ob.gemasRevelacao.push({ dominio: dom, grau: +n0 });
+  } else if (d.otmGemas !== undefined) ob.gemas = otmAlterna(ob.gemas, +d.otmGemas);
+  else if (d.otmOpcniv) {
+    const [k, n0] = d.otmOpcniv.split(':').map(Number), op = p.opcionais[k];
+    if (op.tipo === 'perk') op.copias = n0; else if (op.tipo === 'revelacao') op.estagio = n0; else op.n = n0;
+  } else if (d.otmOpcadd) {
+    const [tipo, a] = d.otmOpcadd.split(':');
+    p.opcionais.push(tipo === 'perk' ? { tipo: 'perk', perk: a, copias: otmPerk(a).max } : tipo === 'rev' ? { tipo: 'revelacao', dominio: a, estagio: 1 } : { tipo: 'gemas', n: Math.min(8, (ob.gemas || 0) + 1) });
+  } else if (d.otmSobadd) p.sobras.push(d.otmSobadd);
+  else {
+    const [acao, alvo] = ['otmSubir', 'otmDescer', 'otmTirar'].map((k) => [k, d[k]]).find(([, v]) => v !== undefined) || [];
+    if (!acao) return;
+    const [lista, k0] = alvo.split(':'), k = +k0;
+    const arr = lista === 'opc' ? p.opcionais : lista === 'sob' ? p.sobras : ob.gemasRevelacao;
+    if (acao === 'otmTirar') arr.splice(k, 1);
+    else otmMover(arr, k, acao === 'otmSubir' ? k - 1 : k + 1);
+  }
+  otmMudou();
+});
+// a barra dos gem slots: mostra o número enquanto arrasta e só aplica ao soltar (redesenhar no meio quebraria o arraste)
+$('otm-form').addEventListener('input', (e) => { if (e.target.id === 'otm-gemas') $('otm-gemas-n').textContent = e.target.value; });
 $('otm-form').addEventListener('change', (e) => {
-  const t = e.target, p = otmPed(), ob = p.obrigatorio;
-  if (t.id === 'otm-voc') { OTM.voc = t.value; OTM.res = null; otmMudou(); otmCalcular(); return; }
-  if (t.id === 'otm-pontos') p.pontos = Math.max(0, Math.min(4000, Math.floor(+t.value || 0)));
-  else if (t.id === 'otm-gemas') ob.gemas = +t.value;
-  else if (t.dataset.otmRev) { const e2 = +t.value; if (e2) ob.revelacao[t.dataset.otmRev] = e2; else delete ob.revelacao[t.dataset.otmRev]; }
-  else if (t.dataset.otmCopias !== undefined) { const x = ob.perks[+t.dataset.otmCopias]; x.copias = Math.max(1, Math.min(otmPerk(x.perk).max, Math.floor(+t.value || 1))); }
-  else if (t.id === 'otm-add-ob' && t.value) { if (!ob.perks.some((x) => x.perk === t.value)) ob.perks.push({ perk: t.value, copias: 1 }); }
-  else if (t.id === 'otm-add-opc' && t.value) {
-    const [tipo, a, b] = t.value.split(':');
-    p.opcionais.push(tipo === 'perk' ? { tipo: 'perk', perk: a, copias: otmPerk(a).max > 1 ? otmPerk(a).max : 1 } : tipo === 'rev' ? { tipo: 'revelacao', dominio: a, estagio: +b } : { tipo: 'gemas', n: +a });
-  } else if (t.id === 'otm-add-sob' && t.value) p.sobras.push(t.value);
+  const p = otmPed();
+  if (e.target.id === 'otm-gemas') p.obrigatorio.gemas = +e.target.value;
+  else if (e.target.id === 'otm-pontos') p.pontos = Math.max(0, Math.min(4000, Math.floor(+e.target.value || 0)));
   else return;
   otmMudou();
 });
-$('otm-form').addEventListener('click', (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  const p = otmPed(), ob = p.obrigatorio;
-  if (b.id === 'otm-calcular') { otmCalcular(); return; }
-  if (b.id === 'otm-gemrev-add') { if (ob.gemasRevelacao.length < 4) ob.gemasRevelacao.push({ dominio: $('otm-gemrev-dom').value, grau: +$('otm-gemrev-grau').value }); else toast('No máximo 4 gemas (são 4 slots greater).', true); otmMudou(); return; }
-  const [acao, alvo] = ['otmSubir', 'otmDescer', 'otmTirar'].map((k) => [k, b.dataset[k]]).find(([, v]) => v !== undefined) || [];
-  if (!acao) return;
-  const [lista, k0] = alvo.split(':'), k = +k0;
-  const arr = lista === 'opc' ? p.opcionais : lista === 'sob' ? p.sobras : lista === 'obperk' ? ob.perks : ob.gemasRevelacao;
-  if (acao === 'otmTirar') arr.splice(k, 1);
-  else { const j = acao === 'otmSubir' ? k - 1 : k + 1; if (j >= 0 && j < arr.length) [arr[k], arr[j]] = [arr[j], arr[k]]; }
-  otmMudou();
+// arrastar para reordenar (opcionais ou pontos extras), com eventos de ponteiro: funciona com mouse e toque
+let otmArraste = null;
+$('otm-form').addEventListener('pointerdown', (e) => {
+  const it = e.target.closest('[data-otm-arrastar]');
+  if (!it || e.button !== 0 || e.target.closest('button')) return;
+  const [lista, k] = it.dataset.otmArrastar.split(':');
+  otmArraste = { lista, k: +k, alvo: +k };
+  it.classList.add('arrastando');
+  it.setPointerCapture(e.pointerId);
+  e.preventDefault();
 });
+$('otm-form').addEventListener('pointermove', (e) => {
+  if (!otmArraste) return;
+  const linhas = [...document.querySelectorAll(`#otm-form [data-otm-arrastar^="${otmArraste.lista}:"]`)];
+  let alvo = linhas.length - 1;
+  for (let i = 0; i < linhas.length; i++) { const r = linhas[i].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { alvo = i; break; } }
+  otmArraste.alvo = alvo;
+  linhas.forEach((l, i) => l.classList.toggle('alvo', i === alvo && alvo !== otmArraste.k));
+});
+function otmSoltar() {
+  if (!otmArraste) return;
+  const { lista, k, alvo } = otmArraste, p = otmPed();
+  otmArraste = null;
+  if (alvo === k) { otmDesenharForm(); return; }
+  otmMover(lista === 'opc' ? p.opcionais : p.sobras, k, alvo);
+  otmMudou();
+}
+$('otm-form').addEventListener('pointerup', otmSoltar);
+$('otm-form').addEventListener('pointercancel', otmSoltar);
 
 // ---------- cálculo ----------
 async function otmCalcular() {
@@ -141,16 +204,21 @@ async function otmCalcular() {
   if (st) st.textContent = 'Calculando…';
   if (btn) btn.disabled = true;
   OTM.pn = null;
+  const vocacao = OTM.voc, pedido = JSON.parse(JSON.stringify(otmPed()));   // a foto do pedido: cliques durante o cálculo não misturam
   try {
-    OTM.res = await otmPedirWorker({ tipo: 'otimizar', vocacao: OTM.voc, voc: otmVoc(), pedido: otmPed() });
-    OTM.res.vocacao = OTM.voc;
+    const res = await otmPedirWorker({ tipo: 'otimizar', vocacao, voc: OTM.dados.vocacoes[vocacao], pedido });
+    if (vocacao !== OTM.voc) return;   // trocou de vocação no meio: o cálculo novo já vem
+    OTM.res = res;
+    OTM.res.vocacao = vocacao;
+    OTM.res.pedido = pedido;
     OTM.variante = 0; OTM.fatia = null;
-    if (st) st.textContent = '';
+    if ($('otm-status')) $('otm-status').textContent = '';
   } catch (e) {
     OTM.res = null;
-    if (st) st.textContent = 'O cálculo falhou: ' + e.message;
+    if ($('otm-status')) $('otm-status').textContent = 'O cálculo falhou: ' + e.message;
+  } finally {
+    if ($('otm-calcular')) $('otm-calcular').disabled = false;   // o formulário pode ter sido redesenhado no meio
   }
-  if (btn) btn.disabled = false;
   otmDesenharResultado();
 }
 
@@ -202,7 +270,7 @@ function otmResumo(voc, r, ped) {
 function otmDesenharResultado() {
   const alvo = $('otm-res'), r = OTM.res;
   if (!r) { alvo.innerHTML = ''; return; }
-  const voc = OTM.dados.vocacoes[r.vocacao], ped = OTM.pedidos[r.vocacao];
+  const voc = OTM.dados.vocacoes[r.vocacao], ped = r.pedido;
   let cab = '', roda = null;
   if (r.status === 'nao_cabe') {
     const conf = r.conflitos.map((c) => `<li>${esc(c.tipo === 'perk' ? otmPerk(c.perk).nome + (c.copias > 1 ? ' ×' + c.copias : '') : c.tipo === 'revelacao' ? otmDominio(c.dominio).revelacao + ' estágio ' + OTM_ROMANO[c.estagio] : c.n + ' gem vessels')}:
@@ -254,7 +322,7 @@ function otmPnHtml() {
 async function otmCalcularPn() {
   if (OTM.pn || !OTM.res) return;
   OTM.pn = null;
-  try { OTM.pn = await otmPedirWorker({ tipo: 'pontos', vocacao: OTM.res.vocacao, voc: OTM.dados.vocacoes[OTM.res.vocacao], pedido: OTM.pedidos[OTM.res.vocacao], resultado: OTM.res.status === 'ok' ? OTM.res : null }); }
+  try { OTM.pn = await otmPedirWorker({ tipo: 'pontos', vocacao: OTM.res.vocacao, voc: OTM.dados.vocacoes[OTM.res.vocacao], pedido: OTM.res.pedido, resultado: OTM.res.status === 'ok' ? OTM.res : null }); }
   catch (e) { OTM.pn = { erro: 'O cálculo falhou: ' + e.message }; }
   if ($('otm-pn')) $('otm-pn').innerHTML = otmPnHtml();
 }
