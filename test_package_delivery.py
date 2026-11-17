@@ -48,6 +48,27 @@ class DeliveryTests(unittest.TestCase):
             self.assertFalse((snapshot/'preferencias.json').exists())
             self.assertTrue((storage/'atualizacao-pendente.json').exists())
 
+    def test_rollback_follows_recovery_junction_to_other_folder(self):
+        # recovery pode ser um atalho de pasta (junction) para outro disco; se o Python não reconhecer como pasta
+        # (WinError 183 na atualização v1.0.50 -> v1.0.51), a cópia vai para o destino real e o aviso fica na pasta de dados
+        import os, sys
+        from unittest import mock
+        from pathlib import Path as P
+        with tempfile.TemporaryDirectory() as directory:
+            app=self.app(directory);storage=Path(directory)/'user';storage.mkdir()
+            alvo=Path(directory)/'outro-disco'/'stable-recovery';alvo.mkdir(parents=True)
+            if sys.platform=='win32':
+                import _winapi;_winapi.CreateJunction(str(alvo),str(storage/'recovery'))
+            else:
+                os.symlink(alvo,storage/'recovery')
+            original=P.is_dir
+            with mock.patch.object(P,'is_dir',lambda self:False if self.name=='recovery' else original(self)):
+                snapshot=Path(prepare_snapshot('1.1.0',source=app,storage=storage))
+            self.assertEqual(snapshot.parent.resolve(),alvo.resolve())
+            self.assertEqual((snapshot/'ZandaoTibiaTools.exe').read_bytes(),b'MZ executable')
+            self.assertTrue((storage/'atualizacao-pendente.json').exists())
+            self.assertFalse((alvo.parent/'atualizacao-pendente.json').exists())
+
     def test_online_credentials_rejected_at_any_package_depth(self):
         for filename in ('voice-online.json','voice-online.dpapi','voice-online.tmp','voice-online.json.tmp','voice-online.dpapi.tmp','admin-online.dpapi','admin-online.dpapi.tmp','voice-device.id','voice-device.id.tmp'):
             with self.subTest(filename=filename), tempfile.TemporaryDirectory() as directory:
