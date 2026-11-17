@@ -7,8 +7,12 @@ e escolhe qual usou em cada hunt.
 - O código do planner: 1ª letra = vocação (K, P, S, D, M) e o resto é o conteúdo da roda (formato do próprio planner).
 - A visualização usa o planner do próprio tibia.com: cada PC baixa os arquivos dele (static.tibia.com) na primeira vez e
   guarda em cache_roda/. Nada disso vai para o GitHub nem para o instalador.
+- Roda nova (update de inverno 2026, com vessels e gemas): código "W26." + JSON em base64url ({"vocation", "points", ...}).
+  Ela abre no planner da comunidade (SITE_INVERNO, prévia não oficial). O código dele não tem licença, então só a página
+  (index.html) é baixada por cada PC (cache_roda_inverno.html, 1 dia); os scripts e imagens vêm do próprio site.
 """
 
+import base64
 import json
 import os
 import re
@@ -43,26 +47,47 @@ MARCADORES = {"skillgrid.js": "createModule", "planner.js": "runWodPlanner", "st
 VOCACOES = {"K": "Knight", "P": "Paladin", "S": "Sorcerer", "D": "Druid", "M": "Monk"}
 _CODIGO_NA_URL = re.compile(r"code=([-_.~a-zA-Z0-9]+)")
 _CODIGO = re.compile(r"^[-_.~a-zA-Z0-9]{8,256}$")
+_W26_NA_URL = re.compile(r"build=(W26\.[-_a-zA-Z0-9]+)")
+_W26 = re.compile(r"^W26\.[-_a-zA-Z0-9]{16,20000}$")
+SITE_INVERNO = "https://tibia-destiny-winter-workbench.palescone.chatgpt.site/"
+PAGINA_INVERNO = os.path.join(BASE_DIR, "cache_roda_inverno.html")
+VALIDADE_INVERNO = 24 * 3600   # prévia: o site muda com frequência
+_CLOUDFLARE = re.compile(r"<script>(?:(?!</script>).)*__CF\$cv\$params(?:(?!</script>).)*</script>", re.S)
 _trava = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
 # código
 # ---------------------------------------------------------------------------
+def _vocacao_w26(codigo):
+    """Vocação de um código "W26." (JSON em base64url), ou None se o código não abrir."""
+    try:
+        b64 = codigo[4:].replace("-", "+").replace("_", "/")
+        dados = json.loads(base64.b64decode(b64 + "=" * (-len(b64) % 4), validate=True).decode("utf-8"))
+        voc = dados.get("vocation") if isinstance(dados, dict) else None
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return voc.title() if isinstance(voc, str) and voc.title() in VOCACOES.values() else None
+
+
 def validar_codigo(txt):
-    """Aceita o código puro ou o link do planner; devolve o código ou None."""
+    """Aceita o código puro ou o link do planner (o do tibia.com ou o da roda nova, "#build=W26..."); devolve o código ou None."""
     if not isinstance(txt, str):
         return None
     t = txt.strip()
-    m = _CODIGO_NA_URL.search(t)
+    m = _W26_NA_URL.search(t) or _CODIGO_NA_URL.search(t)
     if m:
         t = m.group(1)
+    if t.startswith("W26."):
+        return t if _W26.match(t) and _vocacao_w26(t) else None
     if not _CODIGO.match(t) or t[0] not in VOCACOES:
         return None
     return t
 
 
 def vocacao_do_codigo(codigo):
+    if (codigo or "").startswith("W26."):
+        return _vocacao_w26(codigo)
     return VOCACOES.get((codigo or "")[:1])
 
 
@@ -264,3 +289,31 @@ def arquivos_planner(pasta=None, baixar=None):
     if faltando:
         return {"ok": False, "erro": "Não consegui baixar o planner da roda do tibia.com. Confira a internet e tente de novo."}
     return {"ok": True, "arquivos": arquivos}
+
+
+def pagina_inverno(caminho=None, baixar=None):
+    """{"ok": True, "html", "site"}: a página do planner da roda nova, pronta para o iframe (com <base> apontando para o site,
+    para os scripts e imagens virem de lá, e sem o script de verificação da Cloudflare, que quebra fora do site).
+    Cache de 1 dia; sem internet usa a página velha. {"ok": False, "erro"} se não houver nenhuma."""
+    caminho = caminho or PAGINA_INVERNO
+    baixar = baixar or _baixar
+    with _trava:
+        velho = not os.path.isfile(caminho) or time.time() - os.path.getmtime(caminho) > VALIDADE_INVERNO
+        if velho:
+            try:
+                dados = baixar(SITE_INVERNO)
+                if b'id="codes"' not in dados or b"presets.js" not in dados:
+                    raise ValueError("página inesperada")
+                tmp = caminho + ".tmp"
+                with open(tmp, "wb") as f:
+                    f.write(dados)
+                os.replace(tmp, caminho)
+            except Exception:
+                pass  # cai na página velha, se houver
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                html = f.read()
+        except OSError:
+            return {"ok": False, "erro": "Não consegui baixar o planner da roda nova. Confira a internet e tente de novo."}
+    html = _CLOUDFLARE.sub("", html).replace("<head>", f'<head><base href="{SITE_INVERNO}">', 1)
+    return {"ok": True, "html": html, "site": SITE_INVERNO}

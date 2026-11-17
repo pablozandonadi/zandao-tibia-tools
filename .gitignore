@@ -31,6 +31,8 @@ sons_usuario/
 cache_proficiencia.json
 cache_roda_resumo.json
 cache_roda_resumo.json.tmp
+cache_roda_inverno.html
+cache_roda_inverno.html.tmp
 cache_classificador/
 sessoes_classificador.json
 sessoes_classificador.json.tmp

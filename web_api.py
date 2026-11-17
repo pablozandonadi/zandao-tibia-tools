@@ -1190,6 +1190,10 @@ class API:
         """Os arquivos do planner da roda (baixados do tibia.com na primeira vez; ver roda.py)."""
         return roda.arquivos_planner()
 
+    def roda_pagina_inverno(self):
+        """A página do planner da roda nova (update de inverno), baixada do site da comunidade (ver roda.py)."""
+        return roda.pagina_inverno()
+
     def hunt_icones_charms(self):
         """{nome do charm: URL do ícone na TibiaWiki}; {} sem internet e sem cache (a tela mostra só o nome)."""
         return preys_charms.icones_charms()

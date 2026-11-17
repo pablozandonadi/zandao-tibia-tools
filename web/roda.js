@@ -5,7 +5,65 @@
 // Usa do index.html: api (pywebview) e esc().
 let RODA_ARQ = null;       // arquivos do planner (texto), baixados uma vez por sessão
 const RODA_URL_OFICIAL = 'https://www.tibia.com/community/?subtopic=wheelofdestinyplanner&code=';
-const linkRoda = (codigo) => RODA_URL_OFICIAL + encodeURIComponent(codigo);
+// roda nova (update de inverno 2026: vessels e gemas): código "W26.…", aberto no planner da comunidade (prévia não oficial; ver roda.py)
+const RODA_SITE_NOVA = 'https://tibia-destiny-winter-workbench.palescone.chatgpt.site/';
+const ehRodaNova = (codigo) => /^W26\./.test(codigo || '');
+let RODA_NOVA_HTML = null; // a página do planner novo, baixada uma vez por sessão
+const linkRoda = (codigo) => (ehRodaNova(codigo) ? RODA_SITE_NOVA + '#build=' + codigo : RODA_URL_OFICIAL + encodeURIComponent(codigo));
+
+// Ponte que vai no fim da página do planner novo (roda depois dos scripts dele, dentro da caixa isolada): carrega o código,
+// avisa o app do código atual e do resumo (para o Combat Stats) e repassa o que a caixa não consegue fazer sozinha (copiar, avisos).
+const ponteRodaNova = (codigo, editavel) => `<style>
+  header { display: none !important; }
+  dialog[open] { position: fixed; top: 12px; margin: 0 auto; }
+  body.leitura .vocRow, body.leitura .sector-selection .actions, body.leitura #gemActions,
+  body.leitura .codes-panel .code-row:nth-of-type(2) { display: none !important; }
+</style><script>(function () {
+  var CODIGO = ${JSON.stringify(codigo || '').replace(/</g, '\\u003c')}, EDITAVEL = ${editavel ? 'true' : 'false'}, SITE = document.baseURI;
+  function avisar(o) { parent.postMessage(Object.assign({ fonte: 'roda' }, o), '*'); }
+  var $q = function (s) { return document.querySelector(s); };
+  if (!$q('[data-code-export]') || typeof BASE === 'undefined') { avisar({ tipo: 'erro', msg: 'o planner da roda nova não carregou' }); return; }
+  window.onerror = function (m) { avisar({ tipo: 'erro', msg: String(m) }); };
+  if (!EDITAVEL) document.body.classList.add('leitura');
+  // a caixa isolada não tem área de transferência: quem copia é o app ("Copy Full URL" sai como about:srcdoc, vira o link do site)
+  try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: function (t) {
+    avisar({ tipo: 'copiar', texto: String(t).replace(/^about:srcdoc/, SITE) }); return Promise.resolve(); } } }); } catch (e) {}
+  // os avisos (toast) e as janelas do planner ficam no topo da caixa, que é alta: o app mostra o aviso e rola até a janela
+  new MutationObserver(function () { var t = ($q('#toast').textContent || '').trim(); if (t && EDITAVEL && !/preset loaded/i.test(t)) avisar({ tipo: 'aviso', texto: t }); })
+    .observe($q('#toast'), { childList: true, characterData: true, subtree: true });
+  new MutationObserver(function () { if ($q('#dialog').open) avisar({ tipo: 'rolar' }); }).observe($q('#dialog'), { attributes: true });
+  if (CODIGO) { $q('[data-code-import]').value = CODIGO; $q('[data-load-code]').click(); }
+  var VALOR = /^([+-]?[0-9][0-9,]*([.][0-9]+)?%?|Locked|Stage [0-9]|[IVX]+)$/, ROM = ['', 'I', 'II', 'III', 'IV', 'V'];
+  // "Perks Summary" no formato do resumo do planner oficial (nome, valor, nome, valor...), que o Combat Stats já entende
+  function lerResumo() {
+    var voc = ($q('[name=vocation]:checked') || {}).value, conv = (BASE.convictions || {})[voc] || [];
+    return [].map.call(document.querySelectorAll('.summaryGrid > section'), function (sec) {
+      var linhas = [];
+      sec.querySelectorAll('tr').forEach(function (tr) {
+        var td = tr.querySelectorAll('td'); if (td.length < 2) return;
+        var nome = td[0].textContent.trim(), val = td[1].textContent.trim(), m;
+        if (nome === 'Unlocked') { nome = 'Vessels unlocked'; val = val.split('/')[0].trim(); }
+        else if ((m = /^Stage (I{1,3})$/.exec(val))) val = 'Stage ' + m[1].length;
+        else if ((m = /^([0-9]+) filled$/.exec(val))) {   // conviction: N fatias cheias com o mesmo perk
+          var p = conv.find(function (x) { return x.name === nome; }), n = +m[1], d = p && /^([+-][0-9.]+)(%?)/.exec(p.description || '');
+          val = /^Augmented /.test(nome) ? ROM[Math.min(n, 5)] : d ? (d[1][0] === '-' ? '-' : '+') + (+(Math.abs(parseFloat(d[1])) * n).toFixed(2)) + d[2] : '';
+        } else if (nome === 'Hit Points / Mana / Capacity') { var v = val.replace(/ each$/, ''); linhas.push('Hit Points', v, 'Mana', v, 'Capacity', v); return; }
+        if (!nome || !val || nome === 'Promotion Points') return;
+        if (VALOR.test(val)) linhas.push(nome, val); else if (val !== '—' && !/pending/i.test(val)) linhas.push(nome + ': ' + val);
+      });
+      return { titulo: ((sec.querySelector('h3') || {}).textContent || '').trim(), linhas: linhas };
+    });
+  }
+  // o body do site ocupa a janela inteira (cresceria junto com a caixa): mede pelo fim do <main>; 0 = caixa escondida (outra aba)
+  var MAIN = $q('main') || document.body, ultimo = '', ultimaAltura = 0;
+  function altura() { var b = MAIN.getBoundingClientRect().bottom; return b > 0 ? Math.ceil(b + window.scrollY) + 24 : 0; }
+  setInterval(function () {
+    var h = altura(), c = ($q('[data-code-export]') || {}).value || '';
+    if (h && h !== ultimaAltura) { ultimaAltura = h; avisar({ tipo: 'altura', altura: h }); }
+    if (/^W26[.]/.test(c) && c !== ultimo) { ultimo = c; avisar({ tipo: 'codigo', codigo: c }); setTimeout(function () { avisar({ tipo: 'resumo', codigo: c, secoes: lerResumo() }); }, 300); }
+  }, 400);
+  setTimeout(function () { ultimaAltura = altura(); avisar({ tipo: 'pronto', altura: ultimaAltura || undefined }); }, 300);
+})();</script>`;
 
 const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
   html, body { margin: 0; background: #14171c; color: #e8e4d9; font: 13px/1.45 Arial, Helvetica, sans-serif; }
@@ -192,11 +250,21 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
 </script></body></html>`;
 
 // cria o visualizador dentro de `alvo` (um elemento). Resolve true quando a roda aparece, false se caiu no plano B.
-async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoResumo = null } = {}) {
+// nova = planner da roda nova (padrão para códigos "W26."; um código antigo aberto nele é convertido pelo próprio planner)
+async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoResumo = null, nova = ehRodaNova(codigo) } = {}) {
   // por padrão guarda o resumo do planner e mostra embaixo da roda as revelações, augments e gemas com as bolinhas
   if (!aoResumo) aoResumo = (c, s) => { guardarResumoRoda(c, s); mostrarPontosRoda(alvo, s); };
   alvo.innerHTML = '<div class="dica">Carregando a roda...</div>';
-  if (!RODA_ARQ) {
+  let pagina = RODA_IFRAME_HTML;
+  if (nova) {
+    if (!RODA_NOVA_HTML) {
+      const r = await api.roda_pagina_inverno();
+      if (!r.ok) { alvo.innerHTML = planoBRoda(codigo, r.erro); return false; }
+      RODA_NOVA_HTML = r.html;
+    }
+    const ponte = ponteRodaNova(codigo, editavel);
+    pagina = RODA_NOVA_HTML.includes('</body>') ? RODA_NOVA_HTML.replace('</body>', () => ponte + '</body>') : RODA_NOVA_HTML + ponte;
+  } else if (!RODA_ARQ) {
     const r = await api.roda_arquivos();
     if (!r.ok) { alvo.innerHTML = planoBRoda(codigo, r.erro); return false; }
     RODA_ARQ = r.arquivos;
@@ -205,7 +273,7 @@ async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoR
     const frame = document.createElement('iframe');
     frame.className = 'roda-frame';
     frame.setAttribute('sandbox', 'allow-scripts');   // sem allow-same-origin: o código de fora não alcança o app
-    frame.srcdoc = RODA_IFRAME_HTML;
+    frame.srcdoc = pagina;
     let terminou = false;
     const fim = (ok, msg) => {
       if (terminou) return;
@@ -221,10 +289,13 @@ async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoR
       if (d.tipo === 'carregado') {
         frame.contentWindow.postMessage({ tipo: 'iniciar', codigo, editavel, jquery: RODA_ARQ['jquery.js'], skillgrid: RODA_ARQ['skillgrid.js'],
           planner: RODA_ARQ['planner.js'], strings: RODA_ARQ['strings.json'] }, '*');
-      } else if (d.tipo === 'pronto') { frame.style.height = (d.altura + 8) + 'px'; fim(true); }
+      } else if (d.tipo === 'pronto') { if (d.altura) frame.style.height = (d.altura + 8) + 'px'; fim(true); }
       else if (d.tipo === 'altura') frame.style.height = (d.altura + 8) + 'px';
       else if (d.tipo === 'codigo') { if (aoMudar) aoMudar(d.codigo); }
       else if (d.tipo === 'resumo') { if (aoResumo) aoResumo(d.codigo, d.secoes); }
+      else if (d.tipo === 'copiar') copiarDaRoda(String(d.texto || ''));
+      else if (d.tipo === 'aviso') toast(String(d.texto || '').slice(0, 300));
+      else if (d.tipo === 'rolar') frame.scrollIntoView({ behavior: 'smooth', block: 'start' });
       else if (d.tipo === 'erro') { console.warn('roda:', d.msg); fim(false, 'O planner da Tibia não abriu aqui (' + d.msg + ').'); }
     };
     window.addEventListener('message', ouvir);
@@ -232,6 +303,12 @@ async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoR
     alvo.innerHTML = '';
     alvo.appendChild(frame);
   });
+}
+
+// o foco fica dentro da caixa da roda, então o navigator.clipboard do app recusa: copia pelo Windows (api.copiar)
+async function copiarDaRoda(texto) {
+  if (await api.copiar(texto)) toast(/^https?:/.test(texto) ? 'Link da roda copiado.' : 'Código da roda copiado.');
+  else toast('Não consegui copiar sozinho: clique no código do quadro Code e use Ctrl+A e Ctrl+C.', true);
 }
 
 // o resumo que o planner calcula (perks de cada seção) fica guardado por código, para o Combat Stats e o comparativo
@@ -265,7 +342,7 @@ async function mostrarPontosRoda(alvo, secoes) {
 function planoBRoda(codigo, motivo) {
   return `<div class="dica">${esc(motivo || 'Não consegui mostrar a roda.')}</div>
     <div class="roda-planob"><code>${esc(codigo)}</code>
-      <a class="btn btn-sm" href="${esc(linkRoda(codigo))}" target="_blank" rel="noopener noreferrer">Abrir no planner do tibia.com</a></div>`;
+      <a class="btn btn-sm" href="${esc(linkRoda(codigo))}" target="_blank" rel="noopener noreferrer">Abrir no ${ehRodaNova(codigo) ? 'site do planner novo' : 'planner do tibia.com'}</a></div>`;
 }
 
 // ---------- cadastro das rodas (Configurações) ----------
@@ -275,8 +352,8 @@ async function carregarRodas() { RODAS = (await api.roda_listar()) || []; return
 const rodaInicial = async (personagem) => (await api.hunt_ultima_roda(personagem || '')) || {};
 const codigoCurto = (c) => (c.length > 16 ? c.slice(0, 16) + '…' : c);
 
-const linhaRodaCfg = (r) => `<div class="roda-nome"><b>${esc(r.titulo)}</b> <span class="chip chip-neutro">${esc(r.vocacao)}</span> <code class="dim" title="${esc(r.codigo)}">${esc(codigoCurto(r.codigo))}</code></div>
-      <div class="acoes"><button class="btn btn-sm" data-roda-ver="${esc(r.id)}">👁 Ver</button><button class="btn btn-sm" data-roda-editar="${esc(r.id)}" title="Abrir a roda para editar">🛠 Editar</button><button class="btn btn-sm" data-roda-renomear="${esc(r.id)}" title="Renomear">✎</button>
+const linhaRodaCfg = (r) => `<div class="roda-nome"><b>${esc(r.titulo)}</b> <span class="chip chip-neutro">${esc(r.vocacao)}</span>${ehRodaNova(r.codigo) ? ' <span class="chip chip-neutro" title="Roda do update de inverno (vessels e gemas)">❄ nova</span>' : ''} <code class="dim" title="${esc(r.codigo)}">${esc(codigoCurto(r.codigo))}</code></div>
+      <div class="acoes"><button class="btn btn-sm" data-roda-ver="${esc(r.id)}">👁 Ver</button><button class="btn btn-sm" data-roda-editar="${esc(r.id)}" title="Abrir a roda para editar">🛠 Editar</button>${ehRodaNova(r.codigo) ? '' : `<button class="btn btn-sm" data-roda-converter="${esc(r.id)}" title="Abre esta roda no planner novo (update de inverno, com vessels e gemas) para salvar no formato novo">❄ Converter</button>`}<button class="btn btn-sm" data-roda-renomear="${esc(r.id)}" title="Renomear">✎</button>
         <button class="btn btn-sm btn-danger" data-roda-apagar="${esc(r.id)}" title="Apagar">✕</button></div>`;
 function desenharRodasConfig() {
   const minhas = doPers(RODAS, MEUS.atual);
@@ -296,9 +373,9 @@ async function adicionarRoda() {
 $('roda-add').addEventListener('click', adicionarRoda);
 $('roda-codigo').addEventListener('keydown', (e) => { if (e.key === 'Enter') adicionarRoda(); });
 $('cfg-rodas').addEventListener('click', async (e) => {
-  const b = e.target.closest('[data-roda-ver],[data-roda-editar],[data-roda-renomear],[data-roda-apagar]');
+  const b = e.target.closest('[data-roda-ver],[data-roda-editar],[data-roda-converter],[data-roda-renomear],[data-roda-apagar]');
   if (!b) return;
-  const d = b.dataset, roda = RODAS.find((r) => r.id === (d.rodaVer || d.rodaEditar || d.rodaRenomear || d.rodaApagar));
+  const d = b.dataset, roda = RODAS.find((r) => r.id === (d.rodaVer || d.rodaEditar || d.rodaConverter || d.rodaRenomear || d.rodaApagar));
   if (!roda) return;
   if (d.rodaVer) {
     rodaEdicao = null;
@@ -309,6 +386,8 @@ $('cfg-rodas').addEventListener('click', async (e) => {
     $('roda-view-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } else if (d.rodaEditar) {
     abrirEditorRoda(roda);
+  } else if (d.rodaConverter) {
+    abrirEditorRoda(roda, { nova: true });
   } else if (d.rodaRenomear) {
     const novo = prompt('Novo nome da roda:', roda.titulo);
     if (novo === null) return;
@@ -324,18 +403,20 @@ $('roda-view-fechar').addEventListener('click', () => { rodaEdicao = null; $('ro
 
 // ---------- montar / editar uma roda: o planner com os controles liberados; o app acompanha o código que ele gera ----------
 let rodaEdicao = null;   // {id: da roda sendo editada (ou null = roda nova), codigo: o código atual no planner}
-const RODA_VAZIA = 'K0Y2AgDP4jAQA';   // roda vazia de Knight; a vocação se troca nos botões do próprio planner
-async function abrirEditorRoda(roda) {
-  rodaEdicao = { id: roda ? roda.id : null, codigo: roda ? roda.codigo : RODA_VAZIA };
-  $('roda-view-titulo').textContent = roda ? `Editando: ${roda.titulo}` : 'Montar uma roda nova';
+// roda nova (sem roda, código "W26." ou "Converter") abre no planner novo; o código antigo continua no planner do tibia.com
+async function abrirEditorRoda(roda, { nova = !roda || ehRodaNova(roda.codigo) } = {}) {
+  rodaEdicao = { id: roda ? roda.id : null, codigo: roda ? roda.codigo : '' };
+  $('roda-view-titulo').textContent = !roda ? 'Montar uma roda nova' : nova && !ehRodaNova(roda.codigo) ? `Convertendo para a roda nova: ${roda.titulo}` : `Editando: ${roda.titulo}`;
   $('roda-ed-nome').value = roda ? roda.titulo : '';
   $('roda-ed-atualizar').style.display = roda ? '' : 'none';
   $('roda-ed-salvar').textContent = roda ? 'Salvar como nova' : 'Salvar roda';
-  $('roda-ed-status').textContent = 'Monte a roda abaixo (clique na fatia e use os botões, ou botão direito para preencher). O código é acompanhado sozinho.';
+  $('roda-ed-status').textContent = nova
+    ? 'Monte a roda abaixo: clique na fatia e use os botões (dois cliques enche, botão direito enche/esvazia); gemas em "Configure Vessels". O código é acompanhado sozinho.'
+    : 'Monte a roda abaixo (clique na fatia e use os botões, ou botão direito para preencher). O código é acompanhado sozinho.';
   $('roda-editor-barra').style.display = '';
   $('roda-view-box').style.display = '';
   $('roda-view-box').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  await mostrarRoda($('roda-view'), rodaEdicao.codigo, { editavel: true, aoMudar: (c) => {
+  await mostrarRoda($('roda-view'), rodaEdicao.codigo, { editavel: true, nova, aoMudar: (c) => {
     if (!rodaEdicao) return;
     rodaEdicao.codigo = c;
     $('roda-ed-status').textContent = `Código atual: ${codigoCurto(c)}`;
@@ -344,6 +425,7 @@ async function abrirEditorRoda(roda) {
 $('roda-montar').addEventListener('click', () => abrirEditorRoda(null));
 $('roda-ed-salvar').addEventListener('click', async () => {
   if (!rodaEdicao) return;
+  if (!rodaEdicao.codigo) { $('roda-ed-status').textContent = 'Espere a roda carregar.'; return; }
   const r = await api.roda_adicionar($('roda-ed-nome').value, rodaEdicao.codigo, MEUS.atual || '');
   if (!r.ok) { $('roda-ed-status').textContent = r.erro; return; }
   $('roda-msg').textContent = `✔ "${r.roda.titulo}" salva (${r.roda.vocacao}).`;
@@ -357,6 +439,26 @@ $('roda-ed-atualizar').addEventListener('click', async () => {
   $('roda-msg').textContent = `✔ "${r.roda.titulo}" atualizada.`;
   $('roda-ed-status').textContent = `✔ Alterações salvas em "${r.roda.titulo}".`;
   await montarRodasConfig();
+});
+
+// ---------- menu Wheel of Destiny: o planner novo inteiro, com "Salvar nas minhas rodas" ----------
+// a caixa isolada não guarda nada; o último código fica no localStorage do app para a roda voltar como estava
+let WOD_CODIGO = '';
+async function abrirWod() {
+  if ($('wod-view').querySelector('iframe')) return;   // já aberto: mantém o que está sendo montado
+  let ultimo = '';
+  try { ultimo = localStorage.getItem('zt-wod-ultimo') || ''; } catch (e) { /* sem localStorage: começa vazia */ }
+  await mostrarRoda($('wod-view'), ultimo, { editavel: true, nova: true, aoMudar: (c) => {
+    WOD_CODIGO = c;
+    try { localStorage.setItem('zt-wod-ultimo', c); } catch (e) { /* só conveniência */ }
+  } });
+}
+$('wod-salvar').addEventListener('click', async () => {
+  if (!WOD_CODIGO) { $('wod-status').textContent = 'Espere a roda carregar.'; return; }
+  const r = await api.roda_adicionar($('wod-nome').value, WOD_CODIGO, MEUS.atual || '');
+  if (!r.ok) { $('wod-status').textContent = r.erro; return; }
+  $('wod-status').textContent = `✔ Salva como "${r.roda.titulo}" (${r.roda.vocacao})${MEUS.atual ? ' nas rodas de ' + MEUS.atual : ''}.`;
+  await carregarRodas();
 });
 
 // ---------- a roda dentro da hunt (seção "Seu personagem nesta hunt") ----------

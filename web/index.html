@@ -730,6 +730,7 @@
     <div class="nav-item" tabindex="0" data-pagina="hunt" title="Hunt Analyser (Loot Split + Dano)"><span class="nav-icon" aria-hidden="true">🪓</span><span class="txt"> Hunt Analyser</span></div>
     <div class="nav-item" tabindex="0" data-pagina="taskitens" title="Task Itens Analyser"><span class="nav-icon" aria-hidden="true">📦</span><span class="txt"> Task Itens Analyser</span></div>
     <div class="nav-item" tabindex="0" data-pagina="criaturas" title="Planejar dano da hunt"><span class="nav-icon" aria-hidden="true">🐉</span><span class="txt"> Criaturas da hunt</span></div>
+    <div class="nav-item" tabindex="0" data-pagina="wod" title="Wheel of Destiny — planner da roda nova (update de inverno)"><span class="nav-icon" aria-hidden="true">🛞</span><span class="txt"> Wheel of Destiny</span></div>
     <div class="nav-item" tabindex="0" data-pagina="hist" title="Histórico de hunts"><span class="nav-icon" aria-hidden="true">📜</span><span class="txt"> Histórico</span></div>
     <div class="nav-item" tabindex="0" data-pagina="radio" title="Brasil Hits"><span class="nav-icon" aria-hidden="true">📻</span><span class="txt"> Rádio</span></div>
     <div class="nav-item" tabindex="0" data-pagina="mirror" title="Mirror — recortes do Tibia"><span class="nav-icon" aria-hidden="true">▣</span><span class="txt"> Mirror</span></div>
@@ -1256,6 +1257,20 @@
       <div id="admin-cmd-raiz" data-admin-painel="cmd" hidden></div>
     </section>
 
+    <!-- ================= WHEEL OF DESTINY (roda nova) ================= -->
+    <section class="page" id="page-wod">
+      <h1 class="titulo">Wheel of Destiny</h1>
+      <div class="card">
+        <p class="dica" style="margin:0 0 10px">Planner da roda nova (update de inverno 2026): vessels e gemas, revelation mastery e o quadro <b>Code</b> para exportar, copiar o código ou o link, importar (aceita também o código antigo do tibia.com) e zerar. É uma prévia feita pela comunidade, não oficial: o app abre a página do site dela e precisa de internet.</p>
+        <div class="roda-barra">
+          <input type="text" id="wod-nome" placeholder="Nome da roda" maxlength="60">
+          <button class="btn btn-sm btn-primary" id="wod-salvar" title="Guarda esta roda em Configurações › Minhas rodas, no personagem em uso">💾 Salvar nas minhas rodas</button>
+          <span class="dica" id="wod-status"></span>
+        </div>
+        <div id="wod-view"></div>
+      </div>
+    </section>
+
     <!-- ================= CONFIGURAÇÕES ================= -->
     <section class="page" id="page-config">
       <h1 class="titulo">Configurações</h1>
@@ -1289,14 +1304,14 @@
 
         <div class="card" id="cfg-rodas">
           <h2 class="sub">🛞 Minhas rodas (Wheel of Destiny)</h2>
-          <p class="dica" style="margin:0 0 10px">Cole o código do planner do tibia.com (ou o link dele) e dê um nome. Na aba Hunt Analyser você escolhe qual usou em cada hunt. A roda é mostrada com o planner oficial da Tibia, que o app baixa do tibia.com (precisa de internet na primeira vez).</p>
+          <p class="dica" style="margin:0 0 10px">Cole o código do planner (o do tibia.com ou o da roda nova, que começa com <code>W26.</code>) ou o link dele e dê um nome. Na aba Hunt Analyser você escolhe qual usou em cada hunt. A roda antiga é mostrada com o planner oficial da Tibia; a roda nova (update de inverno, com vessels e gemas) abre no planner do menu <b>Wheel of Destiny</b>. Precisa de internet.</p>
           <div id="rodas-lista"></div>
           <div class="roda-form">
             <div><label class="campo-label" for="roda-titulo">Nome</label><input type="text" id="roda-titulo" placeholder="ex.: Beam Master" maxlength="60"></div>
             <div><label class="campo-label" for="roda-codigo">Código ou link do planner</label><input type="text" id="roda-codigo" placeholder="ex.: K0Y2AgDP4jAQA" autocomplete="off" spellcheck="false"></div>
             <button class="btn btn-sm btn-primary" id="roda-add">Adicionar</button>
           </div>
-          <div class="acoes" style="margin-top:8px"><button class="btn btn-sm" id="roda-montar" title="Abre o planner da Tibia com a roda vazia para você montar aqui mesmo">➕ Montar uma roda aqui</button></div>
+          <div class="acoes" style="margin-top:8px"><button class="btn btn-sm" id="roda-montar" title="Abre o planner da roda nova (update de inverno) vazio para você montar aqui mesmo">➕ Montar uma roda aqui</button></div>
           <p class="dica" id="roda-msg" style="margin:8px 0 0"></p>
           <div id="roda-view-box" style="display:none;margin-top:12px">
             <div class="h-titulo"><b id="roda-view-titulo"></b><button class="btn btn-sm" id="roda-view-fechar">Fechar</button></div>
@@ -1425,6 +1440,7 @@ function irPara(pagina) {
   if (pagina === 'zandaobot') zbLoad();
   if (pagina === 'hist') carregarHistorico();
   if (pagina === 'config') abrirConfiguracoes();
+  if (pagina === 'wod') abrirWod();
   if (pagina === 'mensagens' && window.maPainelCarregar) maPainelCarregar();
   if (pagina === 'admin' && window.adminIaCarregar) adminIaCarregar();
   if (pagina === 'admin' && window.adminMensagensCarregar) adminMensagensCarregar();

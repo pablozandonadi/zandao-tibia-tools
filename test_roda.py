@@ -24,6 +24,20 @@ class TestCodigo(unittest.TestCase):
             self.assertEqual(roda.vocacao_do_codigo(letra + "0Y2AgDP4jAQA"), voc)
         self.assertIsNone(roda.vocacao_do_codigo("X0Y2AgDP4jAQA"))
 
+    def test_codigo_da_roda_nova_w26(self):
+        import base64
+        w26 = lambda d: "W26." + base64.urlsafe_b64encode(json.dumps(d).encode()).decode().rstrip("=")
+        cod = w26({"vocation": "sorcerer", "promotionPoints": 950, "points": [0, 50] + [0] * 34})
+        self.assertEqual(roda.validar_codigo(cod), cod)
+        self.assertEqual(roda.vocacao_do_codigo(cod), "Sorcerer")
+        # link "Copy Full URL" do planner novo
+        self.assertEqual(roda.validar_codigo("https://exemplo.site/#build=" + cod), cod)
+        r = roda.adicionar("", cod, os.path.join(tempfile.mkdtemp(), "r.json"))
+        self.assertEqual((r["vocacao"], r["titulo"]), ("Sorcerer", "Roda Sorcerer"))
+        for ruim in ("W26.", "W26.!!!!!!!!!!!!!!!!!!!!", w26({"vocation": "elfo", "points": []}), w26([1, 2, 3]),
+                     "W26." + "A" * 30, cod[:-3] + "%%%"):
+            self.assertIsNone(roda.validar_codigo(ruim), repr(ruim))
+
 
 class TestCadastro(unittest.TestCase):
     def setUp(self):
@@ -165,6 +179,44 @@ class TestArquivosDoPlanner(unittest.TestCase):
         r = roda.arquivos_planner(self.pasta, sem_internet)
         self.assertFalse(r["ok"])
         self.assertIn("internet", r["erro"].lower())
+
+
+class TestPaginaRodaNova(unittest.TestCase):
+    PAGINA = (b'<!doctype html><html><head><title>x</title></head><body><section id="codes"></section>'
+              b'<script src="presets.js?v=4"></script><script>(function(){window.__CF$cv$params={r:1}})();</script></body></html>')
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.arq = os.path.join(self.tmp.name, "cache_roda_inverno.html")
+        self.baixados = []
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _baixar(self, url):
+        self.baixados.append(url)
+        return self.PAGINA
+
+    def test_baixa_prepara_e_usa_o_cache(self):
+        r = roda.pagina_inverno(self.arq, self._baixar)
+        self.assertTrue(r["ok"])
+        self.assertIn(f'<head><base href="{roda.SITE_INVERNO}">', r["html"])   # scripts e imagens vêm do site
+        self.assertNotIn("__CF$cv$params", r["html"])                            # sem o script da Cloudflare
+        self.assertIn('src="presets.js', r["html"])
+        roda.pagina_inverno(self.arq, self._baixar)
+        self.assertEqual(self.baixados, [roda.SITE_INVERNO])                     # segunda vez: do cache
+
+    def test_pagina_errada_ou_sem_internet(self):
+        r = roda.pagina_inverno(self.arq, lambda url: b"<html>Just a moment...</html>")
+        self.assertFalse(r["ok"])
+        self.assertFalse(os.path.exists(self.arq))
+        roda.pagina_inverno(self.arq, self._baixar)
+        velho = time.time() - roda.VALIDADE_INVERNO - 10
+        os.utime(self.arq, (velho, velho))
+
+        def sem_internet(url):
+            raise OSError("sem internet")
+        self.assertTrue(roda.pagina_inverno(self.arq, sem_internet)["ok"])    # cache velho ainda serve
 
 
 if __name__ == "__main__":
