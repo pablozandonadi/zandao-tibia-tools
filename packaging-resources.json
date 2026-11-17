@@ -2037,6 +2037,13 @@
     "web/assets/creatures/zomba.gif",
     "web/assets/creatures/zoralurk.gif",
     "web/assets/creatures/zorvorax.gif",
-    "web/assets/creatures/zulazza_the_corruptor.gif"
+    "web/assets/creatures/zulazza_the_corruptor.gif",
+    "web/otimizador.js",
+    "web/otimizador_motor.js",
+    "web/otimizador_worker.js",
+    "web/roda_otimizador.json",
+    "web/vendor/highs/highs.js",
+    "web/vendor/highs/highs.wasm",
+    "web/vendor/highs/LICENSE.txt"
   ]
 }

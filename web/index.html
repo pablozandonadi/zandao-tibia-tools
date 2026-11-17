@@ -382,6 +382,31 @@
   .set-grupo h4 { margin: 0 0 8px; font-family: var(--font-display); }
   .set-grupo .set-item { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
   /* roda: visualizador numa caixa isolada */
+  /* Optimizer da roda */
+  .otm-grade { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
+  #otm-res .otm-grade { grid-template-columns: minmax(300px, 1.5fr) minmax(240px, 1fr); }
+  @media (max-width: 900px) { .otm-grade, #otm-res .otm-grade { grid-template-columns: 1fr; } }
+  .otm-linha { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin: 6px 0; }
+  .otm-linha select, .otm-revs select { max-width: 100%; }
+  .otm-num { width: 80px; }
+  .otm-lista { display: grid; gap: 4px; }
+  .otm-item { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 4px 6px; border: 1px solid rgba(255,255,255,.1); border-radius: 6px; }
+  .otm-acoes { display: flex; gap: 4px; }
+  .otm-revs { display: grid; gap: 4px; }
+  .otm-rev { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  .otm-x { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 0 0 4px; }
+  .otm-roda { max-width: 460px; margin: 6px auto; }
+  .otm-svg { display: block; width: 100%; height: auto; }
+  .otm-fatia { cursor: pointer; outline: none; }
+  .otm-fatia:hover > path:first-of-type, .otm-fatia:focus-visible > path:first-of-type { fill: #343a46; }
+  .otm-fatia.sel > path:first-of-type { stroke: #fff6c8; stroke-width: 3; }
+  .otm-txt { font: 700 13px var(--font-mono); fill: #0e1014; pointer-events: none; }
+  .otm-legenda { display: flex; gap: 10px; flex-wrap: wrap; font-size: .75rem; margin: 4px 0 8px; }
+  .otm-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  .otm-ul { margin: 4px 0 8px; padding-left: 20px; }
+  .otm-aviso { border: 2px solid var(--bad); border-radius: 10px; padding: 8px 10px; margin-bottom: 10px; }
+  .otm-det { margin-top: 10px; }
+  .otm-det summary { cursor: pointer; font-weight: 700; }
   .roda-frame { display: block; width: 100%; min-height: 420px; border: 2px solid var(--ink-dim); border-radius: 10px; background: #14171c; }
   .roda-planob { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
   .roda-planob code { background: var(--surface-2); border: 2px solid var(--ink-dim); border-radius: 8px; padding: 3px 8px; word-break: break-all; }
@@ -1260,7 +1285,13 @@
     <!-- ================= WHEEL OF DESTINY (roda nova) ================= -->
     <section class="page" id="page-wod">
       <h1 class="titulo">Wheel of Destiny</h1>
-      <div class="card">
+      <div class="abas" id="wod-abas"><span class="pilula on" data-wod-aba="planner" tabindex="0">🛞 Planner</span><span class="pilula" data-wod-aba="otimizador" tabindex="0">🧮 Optimizer</span></div>
+      <div class="card" id="wod-aba-otimizador" style="display:none">
+        <p class="dica" style="margin:0 0 10px">Calcula a melhor distribuição de pontos da roda nova (update de inverno 2026): você diz o que é obrigatório, o que quer em seguida (em ordem) e para onde vão os pontos que sobram. O cálculo é exato (programação inteira, resolvedor HiGHS) e roda no seu PC.</p>
+        <div class="otm-grade"><div id="otm-form"></div><div id="otm-res"></div></div>
+        <div id="otm"></div>
+      </div>
+      <div class="card" id="wod-aba-planner">
         <p class="dica" style="margin:0 0 10px">Planner da roda nova (update de inverno 2026): vessels e gemas, revelation mastery e o quadro <b>Code</b> para exportar, copiar o código ou o link, importar (aceita também o código antigo do tibia.com) e zerar. É uma prévia feita pela comunidade, não oficial: o app abre a página do site dela e precisa de internet.</p>
         <div class="roda-barra">
           <input type="text" id="wod-nome" placeholder="Nome da roda" maxlength="60">
@@ -1440,7 +1471,7 @@ function irPara(pagina) {
   if (pagina === 'zandaobot') zbLoad();
   if (pagina === 'hist') carregarHistorico();
   if (pagina === 'config') abrirConfiguracoes();
-  if (pagina === 'wod') abrirWod();
+  if (pagina === 'wod') wodAbrirMenu();
   if (pagina === 'mensagens' && window.maPainelCarregar) maPainelCarregar();
   if (pagina === 'admin' && window.adminIaCarregar) adminIaCarregar();
   if (pagina === 'admin' && window.adminMensagensCarregar) adminMensagensCarregar();
@@ -3744,6 +3775,7 @@ if (window.pywebview && window.pywebview.api) iniciar();
 else window.addEventListener('pywebviewready', iniciar);
 </script>
 <script src="roda.js"></script>
+<script src="otimizador.js"></script>
 <script src="sets.js"></script>
 <script src="classificador.js"></script>
 <script src="guild_stats.js"></script>

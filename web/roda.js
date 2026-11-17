@@ -13,13 +13,19 @@ const linkRoda = (codigo) => (ehRodaNova(codigo) ? RODA_SITE_NOVA + '#build=' + 
 
 // Ponte que vai no fim da página do planner novo (roda depois dos scripts dele, dentro da caixa isolada): carrega o código,
 // avisa o app do código atual e do resumo (para o Combat Stats) e repassa o que a caixa não consegue fazer sozinha (copiar, avisos).
-const ponteRodaNova = (codigo, editavel) => `<style>
+// soRoda: só o desenho da roda (sem vocação, Code, vessels, seleção e resumo), para mostrar uma roda calculada pelo Optimizer
+const ponteRodaNova = (codigo, editavel, soRoda = false) => `<style>
   header { display: none !important; }
   dialog[open] { position: fixed; top: 12px; margin: 0 auto; }
   body.leitura .vocRow, body.leitura .sector-selection .actions, body.leitura #gemActions,
   body.leitura .codes-panel .code-row:nth-of-type(2) { display: none !important; }
+  body.so-roda .classicSettings, body.so-roda #codes, body.so-roda #content > .card, body.so-roda .layout > .left,
+  body.so-roda footer { display: none !important; }
+  body.so-roda .layout { display: block; }
+  body.so-roda main { padding: 4px; }
 </style><script>(function () {
   var CODIGO = ${JSON.stringify(codigo || '').replace(/</g, '\\u003c')}, EDITAVEL = ${editavel ? 'true' : 'false'}, SITE = document.baseURI;
+  if (${soRoda ? 'true' : 'false'}) document.body.classList.add('so-roda');
   function avisar(o) { parent.postMessage(Object.assign({ fonte: 'roda' }, o), '*'); }
   var $q = function (s) { return document.querySelector(s); };
   if (!$q('[data-code-export]') || typeof BASE === 'undefined') { avisar({ tipo: 'erro', msg: 'o planner da roda nova não carregou' }); return; }
@@ -251,7 +257,7 @@ const RODA_IFRAME_HTML = `<!doctype html><html><head><meta charset="utf-8"><styl
 
 // cria o visualizador dentro de `alvo` (um elemento). Resolve true quando a roda aparece, false se caiu no plano B.
 // nova = planner da roda nova (padrão para códigos "W26."; um código antigo aberto nele é convertido pelo próprio planner)
-async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoResumo = null, nova = ehRodaNova(codigo) } = {}) {
+async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoResumo = null, nova = ehRodaNova(codigo), soRoda = false } = {}) {
   // por padrão guarda o resumo do planner e mostra embaixo da roda as revelações, augments e gemas com as bolinhas
   if (!aoResumo) aoResumo = (c, s) => { guardarResumoRoda(c, s); mostrarPontosRoda(alvo, s); };
   alvo.innerHTML = '<div class="dica">Carregando a roda...</div>';
@@ -262,7 +268,7 @@ async function mostrarRoda(alvo, codigo, { editavel = false, aoMudar = null, aoR
       if (!r.ok) { alvo.innerHTML = planoBRoda(codigo, r.erro); return false; }
       RODA_NOVA_HTML = r.html;
     }
-    const ponte = ponteRodaNova(codigo, editavel);
+    const ponte = ponteRodaNova(codigo, editavel, soRoda);
     pagina = RODA_NOVA_HTML.includes('</body>') ? RODA_NOVA_HTML.replace('</body>', () => ponte + '</body>') : RODA_NOVA_HTML + ponte;
   } else if (!RODA_ARQ) {
     const r = await api.roda_arquivos();
@@ -449,6 +455,16 @@ async function abrirWod() {
   let ultimo = '';
   try { ultimo = localStorage.getItem('zt-wod-ultimo') || ''; } catch (e) { /* sem localStorage: começa vazia */ }
   await mostrarRoda($('wod-view'), ultimo, { editavel: true, nova: true, aoMudar: (c) => {
+    WOD_CODIGO = c;
+    try { localStorage.setItem('zt-wod-ultimo', c); } catch (e) { /* só conveniência */ }
+  } });
+}
+// abre um código (ex.: a roda calculada pelo Optimizer) no planner do menu, no lugar da roda que estava aberta
+function abrirRodaNoPlanner(codigo) {
+  try { localStorage.setItem('zt-wod-ultimo', codigo); } catch (e) { /* abre assim mesmo, só não lembra */ }
+  WOD_CODIGO = '';
+  $('wod-view').innerHTML = '';
+  mostrarRoda($('wod-view'), codigo, { editavel: true, nova: true, aoMudar: (c) => {
     WOD_CODIGO = c;
     try { localStorage.setItem('zt-wod-ultimo', c); } catch (e) { /* só conveniência */ }
   } });
