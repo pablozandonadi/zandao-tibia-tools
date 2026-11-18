@@ -2296,10 +2296,17 @@ let MEUS = { lista: [], atual: '' };
 function receberPersonagens(d) {
   return (d.revisao || 0) < (MEUS.revisao || 0) ? MEUS : d;
 }
-window.personagemEstado = (d) => {
+window.personagemEstado = async (d) => {
   MEUS = receberPersonagens(d);
   sincronizarPersonagem();
   montarListaPersonagens();
+  // troca automática (janela do Tibia): a hunt nova segue o personagem em uso, como no seletor; hunt salva não muda
+  if (H.id || !MEUS.atual || H.entrada.personagem === MEUS.atual) return;
+  H.entrada.personagem = MEUS.atual;
+  H.equip = null;
+  await trocarHerancaDoPersonagem();
+  montarSeletorPersonagem();
+  if (H.a) analisarHunt();
 };
 // rodas, sets e timers pertencem a um personagem (campo "personagem"); os sem dono são os "antigos", que o usuário vincula
 const mesmoPers = (a, b) => (a || '').trim().toLowerCase() === (b || '').trim().toLowerCase();

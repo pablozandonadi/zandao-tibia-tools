@@ -218,9 +218,14 @@ class PersonagemBridgeTests(unittest.TestCase):
         source = (Path(__file__).parent / "web" / "index.html").read_text(encoding="utf-8")
         start = source.index("let MEUS =")
         end = source.index("// rodas, sets", start)
-        js = "const assert = require('node:assert/strict'); const window = {}; let sync = 0; let renders = 0; function sincronizarPersonagem(){sync++;} function montarListaPersonagens(){renders++;}\n"
+        js = ("const assert = require('node:assert/strict'); const window = {}; let sync = 0; let renders = 0; function sincronizarPersonagem(){sync++;} function montarListaPersonagens(){renders++;}\n"
+              "const H = {id: null, a: null, entrada: {personagem: ''}}; let herancas = 0; async function trocarHerancaDoPersonagem(){herancas++;} function montarSeletorPersonagem(){}\n")
         js += source[start:end]
         js += "\nwindow.personagemEstado({atual:'A', lista:[], revisao:2}); window.personagemEstado({atual:'B', lista:[], revisao:1}); assert.equal(MEUS.atual,'A'); MEUS = receberPersonagens({atual:'C',lista:[],revisao:3}); window.personagemEstado({atual:'A', lista:[], revisao:2}); assert.equal(MEUS.atual,'C'); assert.equal(sync,3); assert.equal(renders,3);"
+        # a hunt nova segue a troca automática; a hunt salva (H.id) fica com o personagem dela
+        js += ("\n(async () => { assert.equal(H.entrada.personagem,'C'); H.id = 'salva'; await window.personagemEstado({atual:'D', lista:[], revisao:4}); assert.equal(H.entrada.personagem,'C');"
+               " H.id = null; await window.personagemEstado({atual:'E', lista:[], revisao:5}); assert.equal(H.entrada.personagem,'E'); assert.equal(herancas,3); })()"
+               ".catch((e) => { console.error(e); process.exit(1); });")
         result = subprocess.run([shutil.which("node"), "-e", js], capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
