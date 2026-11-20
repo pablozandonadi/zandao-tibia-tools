@@ -4,7 +4,7 @@ Para lançar uma versão nova: aumente VERSAO_APP, gere o instalador (instalador
 e publique uma Release no GitHub com a tag vX.Y.Z e o ZandaoTibiaToolsSetup.exe anexado.
 """
 
-VERSAO_APP = "1.0.53"
+VERSAO_APP = "1.0.54"
 REPO_GITHUB = "pablozandonadi/zandao-tibia-tools"
 
 
