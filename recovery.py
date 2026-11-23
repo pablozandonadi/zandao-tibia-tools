@@ -10,15 +10,14 @@ from package_tools import PUBLIC_DATA
 from versao import VERSAO_APP
 
 def _pasta_recovery(pasta):
-    """Cria a pasta das cópias de segurança. Se ela já existe mas o Python não a reconhece como pasta (um atalho
-    de pasta/junction para outro disco, usado para liberar o C:), segue o atalho até o destino real e usa ele."""
-    try:
-        pasta.mkdir(parents=True,exist_ok=True)
-        return pasta
-    except FileExistsError:
-        real=Path(os.path.realpath(pasta))
-        if real!=pasta and real.is_dir():return real
-        raise
+    """Cria a pasta das cópias de segurança. Se ela é um atalho de pasta (junction para outro disco, usado para liberar
+    o C:), usa o destino direto, sem atravessar o atalho: o app aberto pelo instalador roda com o RedirectionGuard do
+    Windows, que bloqueia atravessar junction criado sem admin (WinError 448; antes aparecia como WinError 183)."""
+    if os.path.isjunction(pasta) or pasta.is_symlink():  # os dois só leem o atalho, sem atravessar
+        alvo=Path(os.readlink(pasta).removeprefix('\\\\?\\'))
+        pasta=alvo if alvo.is_absolute() else pasta.parent/alvo
+    pasta.mkdir(parents=True,exist_ok=True)
+    return pasta
 
 def prepare_snapshot(target_version, source=None, storage=None):
     if source is None and not getattr(sys,'frozen',False):return None
