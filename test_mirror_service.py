@@ -73,6 +73,13 @@ class MirrorServiceTests(unittest.TestCase):
     def test_follow_window_does_not_start_mirror_never_opened(self):
         service=MirrorService('A',store=MirrorStore(Path(self.temp.name)/'outro.json'),engine_factory=FakeEngine,clients=lambda:[])
         service.seguir_janela(2);self.assertIsNone(service.engine)
+    def test_copy_from_other_character_becomes_active_profile(self):
+        events=[];self.service.emit=events.append
+        hunt=self.service.carregar()['perfil']
+        self.service.definir_personagem('B')
+        data=self.service.copiar('A',hunt['id'])
+        self.assertEqual(data['perfil']['nome'],'Hunt');self.assertEqual(events[-1]['ativo'],data['ativo'])
+        self.assertEqual(self.service.engine.profile['nome'],'Hunt')  # o motor já mostra o preset copiado
     def test_stale_drag_does_not_modify_another_profile(self):
         self.service.recorte('salvar',data={});cid=self.service.carregar()['perfil']['recortes'][0]['id']
         self.service.perfil('novo',name='Boss');self.service._moved(cid,{'x':500,'y':500})

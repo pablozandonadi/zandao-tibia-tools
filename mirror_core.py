@@ -149,10 +149,13 @@ class MirrorStore:
 
     def estado(self, character):
         with self.lock:
-            char = self.cfg['personagens'].get(limpar_nome(character).casefold(), {'ativo': '', 'perfis': []})
+            key = limpar_nome(character).casefold()
+            char = self.cfg['personagens'].get(key, {'ativo': '', 'perfis': []})
             profiles = copy.deepcopy(char['perfis'])
+            outros = [{'personagem': c.get('nome') or k, 'id': p['id'], 'nome': p['nome'], 'recortes': len(p['recortes'])}
+                      for k, c in self.cfg['personagens'].items() if k != key for p in c['perfis']]
             return {'personagem': limpar_nome(character), 'perfis': profiles, 'ativo': char['ativo'],
-                    'perfil': next((p for p in profiles if p['id'] == char['ativo']), None)}
+                    'perfil': next((p for p in profiles if p['id'] == char['ativo']), None), 'outros': outros}
 
     def _profile(self, character):
         char = self._character(character)
@@ -182,13 +185,7 @@ class MirrorStore:
                 raise ValueError('Perfil não encontrado para este personagem.')
             if action in ('novo', 'duplicar'):
                 label = limpar_nome(nome, (pf['nome'] + ' (cópia)') if pf else 'Novo perfil')
-                if any(p['nome'].casefold() == label.casefold() for p in char['perfis']):
-                    raise ValueError('Já existe um perfil com esse nome.')
-                new = {'id': uuid.uuid4().hex, 'nome': label, 'recortes': copy.deepcopy(pf['recortes']) if pf else []}
-                for crop in new['recortes']:
-                    crop['id'] = uuid.uuid4().hex
-                char['perfis'].append(new); char['ativo'] = new['id']
-                return new
+                return self._adicionar(char, label, pf['recortes'] if pf else [])
             if action == 'renomear':
                 label = limpar_nome(nome)
                 if not label or any(p['id'] != pid and p['nome'].casefold() == label.casefold() for p in char['perfis']):
@@ -201,6 +198,31 @@ class MirrorStore:
                 if char['ativo'] == pid:
                     char['ativo'] = char['perfis'][0]['id'] if char['perfis'] else ''
             return pf
+        return self._transaction(update)
+
+    def _adicionar(self, char, label, recortes):
+        """Novo perfil ativo com cópias independentes dos recortes (ids novos)."""
+        if any(p['nome'].casefold() == label.casefold() for p in char['perfis']):
+            raise ValueError('Já existe um perfil com esse nome.')
+        new = {'id': uuid.uuid4().hex, 'nome': label, 'recortes': copy.deepcopy(recortes)}
+        for crop in new['recortes']:
+            crop['id'] = uuid.uuid4().hex
+        char['perfis'].append(new); char['ativo'] = new['id']
+        return new
+
+    def copiar(self, character, origem, pid):
+        """Copia um perfil de outro personagem (o preset dele) para o personagem em uso."""
+        def update():
+            src = self.cfg['personagens'].get(limpar_nome(origem).casefold())
+            pf = next((p for p in (src or {}).get('perfis', []) if p['id'] == pid), None)
+            if pf is None:
+                raise ValueError('Perfil não encontrado no outro personagem.')
+            char = self._character(character, create=True)
+            if char is src:
+                raise ValueError('Esse perfil já é deste personagem: use Duplicar.')
+            taken = any(p['nome'].casefold() == pf['nome'].casefold() for p in char['perfis'])
+            label = limpar_nome(f"{pf['nome']} ({src.get('nome') or origem})") if taken else pf['nome']
+            return self._adicionar(char, label, pf['recortes'])
         return self._transaction(update)
 
     def recorte(self, character, action, cid='', dados=None):

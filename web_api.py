@@ -368,6 +368,9 @@ class API:
     def mirror_perfil(self, acao, id="", nome=""):
         return self._mirror_chamar("perfil", acao, id, nome)
 
+    def mirror_copiar(self, personagem, id):
+        return self._mirror_chamar("copiar", personagem, id)
+
     def mirror_recorte(self, acao, id="", dados=None):
         return self._mirror_chamar("recorte", acao, id, dados)
 
@@ -792,13 +795,16 @@ class API:
                 hwnd, nome = lido
                 d = personagens.carregar()
                 cadastrado = next((p["nome"] for p in d["lista"] if p["nome"].casefold() == nome.casefold()), None)
-                atual = d["atual"]
-                if cadastrado and cadastrado != atual and tibia_em_foco() == lido:
-                    self._personagem_auto_pendente = self.personagem_usar(cadastrado)
-                    atual = cadastrado
-                # O Mirror segue a janela do personagem em uso: Tibia reaberto (janela nova) ou outro cliente.
-                if cadastrado and cadastrado == atual and getattr(self, "_mirror", None):
-                    self._mirror.seguir_janela(hwnd)
+                # Só troca quando o personagem do Tibia muda: a escolha feita à mão no app fica até você entrar em outro.
+                trocar = cadastrado and cadastrado != d["atual"] and \
+                    nome.casefold() != getattr(self, "_personagem_auto_visto", "")
+                if not trocar or tibia_em_foco() == lido:  # releitura: o foco não mudou no meio
+                    if trocar:
+                        self._personagem_auto_pendente = self.personagem_usar(cadastrado)
+                    self._personagem_auto_visto = nome.casefold()
+                    # O Mirror (do personagem em uso) segue a janela em jogo: Tibia reaberto ou outro cliente.
+                    if cadastrado and getattr(self, "_mirror", None):
+                        self._mirror.seguir_janela(hwnd)
             pendente = getattr(self, "_personagem_auto_pendente", None)
         if pendente is not None and not self._personagem_auto_stop.is_set():
             self._emit("personagemEstado", pendente)

@@ -70,6 +70,14 @@ class MirrorService:
         self.emit(data)
         return data
 
+    def copiar(self, origem, pid):
+        with self.lock:
+            self._native()
+            self.store.copiar(self.character, origem, pid)
+            data = self._refresh()
+        self.emit(data)
+        return data
+
     def recorte(self, action, cid='', data=None):
         with self.lock:
             self._native()

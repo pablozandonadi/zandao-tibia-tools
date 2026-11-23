@@ -156,6 +156,23 @@ class TrocaAutomaticaTests(unittest.TestCase):
         self.api._mirror.seguir_janela.assert_not_called()
         self.assertEqual(personagens.carregar()["atual"], "Elite Nestos")
 
+    def test_manual_choice_stays_until_tibia_shows_another_character(self):
+        # Goat Hell sem preset: o usuário escolhe outro à mão para usar o Mirror dele, e a escolha fica
+        self.api._personagem_auto_sincronizar()  # Tibia em Elite Nestos
+        self.api.personagem_usar("Zandao")
+        self.api._mirror.seguir_janela.reset_mock()
+        for lido in ((77, "Elite Nestos"), None, (77, "elite nestos")):  # mesmo char, saiu e voltou para ele
+            self.detect.return_value = lido
+            self.api._personagem_auto_sincronizar()
+            self.assertEqual(personagens.carregar()["atual"], "Zandao")
+        self.api._mirror.seguir_janela.assert_called_with(77)  # o preset do Zandao aparece na janela em jogo
+        self.detect.return_value = (77, "Unknown")  # entrou em outro personagem (não cadastrado)
+        self.api._personagem_auto_sincronizar()
+        self.assertEqual(personagens.carregar()["atual"], "Zandao")
+        self.detect.return_value = (77, "Elite Nestos")  # e voltou: o Tibia mudou, então a troca automática vale
+        self.api._personagem_auto_sincronizar()
+        self.assertEqual(personagens.carregar()["atual"], "Elite Nestos")
+
     def test_callback_is_outside_backend_lock(self):
         def emit(*args):
             acquired = []

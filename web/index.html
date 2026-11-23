@@ -3289,7 +3289,10 @@ function renderAudio() {
   mostrarCfgBarra();
   atualizarEditorAudio();
   const meus = doPers(c.timers, MEUS.atual).slice().sort((a, b) => Number(b.ativo) - Number(a.ativo));   // os timers são do personagem em uso; os outros ficam escondidos e parados
-  $('au-lista').innerHTML = htmlDonoDaLista(c.timers, MEUS.atual, 'os timers') + (meus.length ? meus.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
+  const donos = [...new Set(c.timers.map((t) => (t.personagem || '').trim()).filter((p) => p && !mesmoPers(p, MEUS.atual)))];
+  const copiar = MEUS.atual && donos.length ? `<div class="acoes" style="margin:0 0 10px;align-items:center"><label class="campo-label" for="au-copiar-de" style="margin:0">Copiar timers de</label>
+    <select id="au-copiar-de" style="width:auto;min-width:160px">${donos.map((p) => `<option value="${esc(p)}">${esc(p)} (${doPers(c.timers, p).length})</option>`).join('')}</select><button class="btn btn-sm" id="au-copiar">Copiar</button></div>` : '';
+  $('au-lista').innerHTML = htmlDonoDaLista(c.timers, MEUS.atual, 'os timers') + copiar + (meus.length ? meus.map((t) => `<div class="card calmo au-item ${t.ativo ? '' : 'inativo'}" data-au="${t.id}">
       <div><div class="au-nome">${esc(t.nome)}</div><div class="au-info">${esc(MODOS_AU.find((m) => m[0] === t.modo)[1])} · ${fmtDurMs(t.duracao)}${t.antes ? ` · avisa ${fmtDurMs(t.antes)} antes` : ''} · ${t.sem_som ? '🔇 Sem som' : `🔊 ${esc(nomeSom(t.som))} ${t.volume}%`}${t.alerta ? ' · 📢 alerta' : ''}${t.barra ? ' · ▬ barra' : ''}</div></div>
       <span class="au-tecla" title="Tecla que começa o timer">${esc(AU.teclas[t.id] || '—')}</span>
       <div class="au-tempo"><span class="barra-el"><i style="width:0%"></i></span><b>${fmtDur(t.duracao)}</b></div>
@@ -3307,6 +3310,14 @@ function renderAudio() {
     const t = AU.cfg.timers.find((x) => x.id === b.dataset.auOuvir); api.audio_tocar(t.som, t.volume);
   }));
   $('au-lista').querySelectorAll('[data-au-editar]').forEach((b) => b.addEventListener('click', () => abrirFormAudio(b.dataset.auEditar)));
+  if ($('au-copiar')) $('au-copiar').addEventListener('click', () => {   // presets de alerta de outro personagem: cópia independente (id novo no Python)
+    const de = $('au-copiar-de').value, tenho = new Set(meus.map((t) => t.nome.trim().toLowerCase()));
+    const novos = doPers(c.timers, de).filter((t) => !tenho.has(t.nome.trim().toLowerCase()))
+      .map((t) => ({ ...JSON.parse(JSON.stringify(t)), id: '', personagem: MEUS.atual }));
+    if (!novos.length) { toast(`${MEUS.atual} já tem todos os timers de ${de}.`); return; }
+    AU.cfg.timers.push(...novos); salvarAudio();
+    toast(`${novos.length} timer${novos.length > 1 ? 's copiados' : ' copiado'} de ${de}.`);
+  });
   $('au-lista').querySelectorAll('[data-au-apagar]').forEach((b) => b.addEventListener('click', () => {
     const t = AU.cfg.timers.find((x) => x.id === b.dataset.auApagar);
     if (!confirm(`Apagar o timer "${t.nome}"?`)) return;

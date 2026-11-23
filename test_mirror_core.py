@@ -59,6 +59,24 @@ class MirrorCoreTests(unittest.TestCase):
         self.assertNotEqual(crop['id'],second['recortes'][0]['id'])
         second['recortes'][0]['glow']['cor']='#ffffff'
         self.assertNotEqual(self.store.estado('A')['perfil']['recortes'][0]['glow']['cor'],'#ffffff')
+    def test_copy_profile_from_another_character(self):
+        # Goat Hell sem preset: copia o perfil do Zandao, com recortes independentes
+        ms=self.store.perfil('Zandao','novo',nome='MS')
+        self.store.recorte('Zandao','salvar',dados={'nome':'anel','origem':{'x':4,'y':5,'w':32,'h':32}})
+        outros=self.store.estado('Goat Hell')['outros']
+        self.assertEqual([(o['personagem'],o['nome'],o['recortes']) for o in outros],[('Zandao','MS',1)])
+        copia=self.store.copiar('Goat Hell','zandao',ms['id'])
+        goat=self.store.estado('Goat Hell')
+        self.assertEqual((goat['ativo'],goat['perfil']['nome']),(copia['id'],'MS'))
+        self.assertNotEqual(copia['recortes'][0]['id'],self.store.estado('Zandao')['perfil']['recortes'][0]['id'])
+        self.store.recorte('Goat Hell','salvar',copia['recortes'][0]['id'],{'nome':'outro'})
+        self.assertEqual(self.store.estado('Zandao')['perfil']['recortes'][0]['nome'],'anel')
+        self.assertEqual(self.store.copiar('Goat Hell','Zandao',ms['id'])['nome'],'MS (Zandao)')  # nome repetido ganha o dono
+        self.assertEqual(self.store.estado('Zandao')['outros'][0]['personagem'],'Goat Hell')
+        before=self.path.read_bytes()
+        for origem,pid in (('Zandao','nao-existe'),('Ninguem',ms['id']),('Goat Hell',copia['id'])):
+            with self.assertRaises(ValueError):self.store.copiar('Goat Hell',origem,pid)
+        self.assertEqual(self.path.read_bytes(),before)
     def test_scale_does_not_change_source_and_bulk_is_profile_local(self):
         first=self.store.perfil('A','novo',nome='One')
         crop=self.store.recorte('A','salvar',dados={})
