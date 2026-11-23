@@ -38,3 +38,9 @@ O chat não grava conversa em disco. Negação/ambiguidade podem pedir apenas um
 **Tudo IA** é o canal inicial: comandos locais primeiro; outras perguntas sobre Tibia/Tibia Tudo vão ao Worker. **Local Chat** executa somente os comandos locais e não manda suas mensagens nem respostas ao histórico da IA. **Server Log** é somente leitura e reúne eventos confirmados do Store e alertas do monitor já existente; não lê o chat ou o log do cliente Tibia. Os demais módulos continuam disponíveis nas abas próprias.
 
 A aparência dos canais usa linhas compactas sobre fundo escuro. Enquanto a resposta está pendente há um indicador de digitação, sem segunda chamada automática. Trocar personagem ou mundo limpa as conversas e impede que uma resposta antiga apareça no perfil novo. Para o Tudo IA conversar com a OpenAI é necessário publicar a rota /chat do Worker; a Beta por si só não publica o servidor.
+
+## Bibliotecas tiradas do pacote (23/11/2026)
+
+Para liberar espaço, o instalador não leva mais vosk, sounddevice, piper-tts e onnxruntime (nem numpy, requests e as outras dependências que só elas usavam): eram ~142 MB dos 214 MB do app instalado. Os imports ficam dentro das funções de ouvir e falar, que o modo `silencioso` já bloqueia, então o resto do app (chat, timers, avisos e Market, que usam `voz.Servico`) continua igual. Ao abrir, o app apaga a pasta `voice_models` da pasta de dados (~112 MB de modelos baixados), em `app_paths.initialize_data`.
+
+Para religar a voz, além dos passos acima: devolver o bloco `vosk==0.3.45` … `colorama==0.4.6` ao `requirements-build.lock` (commit ea814a3), os `--collect-all vosk sounddevice _sounddevice_data piper onnxruntime` ao `instalador/gerar_instalador.ps1` e tirar a limpeza de `voice_models` do `app_paths.py`.

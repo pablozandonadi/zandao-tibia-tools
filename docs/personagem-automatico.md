@@ -2,7 +2,9 @@
 
 15/10/2026. Detecção local do título da janela real do Tibia em primeiro plano. Valida visibilidade, processo e prefixo do título, revalida foco e só encontra nomes já cadastrados, sem diferenciar maiúsculas. Usa o nome canônico salvo. Não interpreta o identificador mostrado no seletor de clientes como parte do título.
 
-Monitor backend com Event.wait(1), início idempotente após a interface estar pronta e parada explícita no finally do aplicativo. Continua ativo com Tibia Tudo minimizado. Logout, título desconhecido, cliente minimizado e outro aplicativo preservam o personagem atual. Não adiciona personagens, não busca nomes na internet e não modifica HWNDs vinculados do Mirror.
+Monitor backend com Event.wait(1), início idempotente após a interface estar pronta e parada explícita no finally do aplicativo. Continua ativo com Tibia Tudo minimizado. Logout, título desconhecido, cliente minimizado e outro aplicativo preservam o personagem atual. Não adiciona personagens nem busca nomes na internet.
+
+Mirror (23/11/2026): o motor do Mirror só se ligava sozinho a uma janela do Tibia ao abrir, e só com um cliente aberto. Com o Tibia reaberto (janela nova) ou o personagem em outro cliente, ele ficava sem janela até vincular à mão; por isso "às vezes trocava, às vezes não". Agora `overlay.tibia_em_foco()` devolve (janela, nome) e, quando a janela em foco é do personagem em uso, o monitor chama `MirrorService.seguir_janela(hwnd)`, que religa o Mirror só se a janela for outra. Mirror nunca aberto nesta sessão continua sem motor (não é criado por isso).
 
 Reaproveita a troca manual para atualizar Motor dos timers e MirrorService, com lock comum a seleção/remoção/criação lazy. Reconhecer o mesmo personagem não grava JSON nem reinicia consumidores. Revisão incremental existe apenas no retorno API, sem mudança de schema; callback e respostas antigas não substituem estado mais recente já recebido no navegador. Notificação pendente é repetida se houver falha temporária, sem repetir gravação; novo estado manual invalida retries antigos. Enquanto uma resposta nova está em trânsito, a interface pode continuar mostrando o estado anterior até recebê-la.
 

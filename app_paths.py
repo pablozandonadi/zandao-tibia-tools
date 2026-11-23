@@ -63,4 +63,6 @@ def initialize_data():
     target=data_dir()
     if getattr(sys,'frozen',False):
         migrate_legacy(install_dir(),target)
+    # Voz removida do pacote: os modelos que ela baixou (~112 MB) não servem mais. Ver docs/voz-pausado.md.
+    shutil.rmtree(Path(target)/'voice_models',ignore_errors=True)
     return target

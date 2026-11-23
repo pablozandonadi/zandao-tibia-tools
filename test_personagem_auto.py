@@ -41,43 +41,43 @@ class DetectarPersonagemTests(unittest.TestCase):
         self.native.GetWindowTextW.side_effect = title
 
     def test_reads_only_foreground_client_public_title(self):
-        self.assertEqual(overlay.personagem_tibia_em_foco(), "Elite Nestos")
+        self.assertEqual(overlay.tibia_em_foco(), (123, "Elite Nestos"))
         self.native.GetWindowTextW.assert_called_once()
         self.kernel.CloseHandle.assert_called_once_with(456)
 
     def test_rejects_spoofed_titles_and_unrecognized_executable(self):
         self.path = "other.exe"
-        self.assertEqual(overlay.personagem_tibia_em_foco(), "")
+        self.assertIsNone(overlay.tibia_em_foco())
         self.native.GetWindowTextW.assert_not_called()
 
     def test_logged_out_or_wrong_title_keeps_no_candidate(self):
         for title in ("Tibia", "Tibia - ", "Other - Elite Nestos"):
             with self.subTest(title=title):
                 self.title = title
-                self.assertEqual(overlay.personagem_tibia_em_foco(), "")
+                self.assertIsNone(overlay.tibia_em_foco())
 
     def test_no_foreground_minimized_hidden_or_inaccessible_client(self):
         self.native.GetForegroundWindow.return_value = None
-        self.assertEqual(overlay.personagem_tibia_em_foco(), "")
+        self.assertIsNone(overlay.tibia_em_foco())
         self.native.GetForegroundWindow.return_value = 123
         self.native.IsIconic.return_value = True
-        self.assertEqual(overlay.personagem_tibia_em_foco(), "")
+        self.assertIsNone(overlay.tibia_em_foco())
         self.native.IsIconic.return_value = False
         self.native.IsWindowVisible.return_value = False
-        self.assertEqual(overlay.personagem_tibia_em_foco(), "")
+        self.assertIsNone(overlay.tibia_em_foco())
         self.native.IsWindowVisible.return_value = True
         self.kernel.OpenProcess.return_value = None
-        self.assertEqual(overlay.personagem_tibia_em_foco(), "")
+        self.assertIsNone(overlay.tibia_em_foco())
 
     def test_focus_changed_during_read_is_discarded(self):
         self.native.GetForegroundWindow.side_effect = [123, 999]
-        self.assertEqual(overlay.personagem_tibia_em_foco(), "")
+        self.assertIsNone(overlay.tibia_em_foco())
         self.kernel.CloseHandle.assert_called_once()
 
     def test_pinned_application_is_not_a_tibia_client(self):
         with patch.object(overlay, "_hwnd_app_fixado", 123):
             self.path = "TibiaTudo.exe"
-            self.assertEqual(overlay.personagem_tibia_em_foco(), "")
+            self.assertIsNone(overlay.tibia_em_foco())
 
 
 class TrocaAutomaticaTests(unittest.TestCase):
@@ -97,7 +97,7 @@ class TrocaAutomaticaTests(unittest.TestCase):
         self.api._audio = Mock()
         self.api._mirror = Mock()
         self.api._emit = Mock()
-        self.detect_patch = patch.object(overlay, "personagem_tibia_em_foco", return_value="elite nestos")
+        self.detect_patch = patch.object(overlay, "tibia_em_foco", return_value=(77, "elite nestos"))
         self.detect = self.detect_patch.start()
         self.addCleanup(self.detect_patch.stop)
         self.addCleanup(self.api._personagem_auto_parar)
@@ -115,8 +115,8 @@ class TrocaAutomaticaTests(unittest.TestCase):
         self.api._emit.assert_called_once()
 
     def test_unknown_logged_out_or_background_does_not_clear_selection(self):
-        for name in ("Unknown", ""):
-            self.detect.return_value = name
+        for lido in ((77, "Unknown"), None):
+            self.detect.return_value = lido
             self.api._personagem_auto_sincronizar()
             self.assertEqual(personagens.carregar()["atual"], "Zandao")
         self.api._emit.assert_not_called()
@@ -129,7 +129,7 @@ class TrocaAutomaticaTests(unittest.TestCase):
         self.api._emit.assert_not_called()
 
     def test_focus_recheck_discards_old_candidate(self):
-        self.detect.side_effect = ["Elite Nestos", "Zandao"]
+        self.detect.side_effect = [(77, "Elite Nestos"), (77, "Zandao")]
         self.api._personagem_auto_sincronizar()
         self.assertEqual(personagens.carregar()["atual"], "Zandao")
 
@@ -139,6 +139,22 @@ class TrocaAutomaticaTests(unittest.TestCase):
         new = self.api.personagem_usar("Zandao")
         self.assertGreater(new["revisao"], old["revisao"])
         self.assertEqual(personagens.carregar()["atual"], "Zandao")
+
+    def test_mirror_follows_window_of_character_in_use(self):
+        # Tibia reaberto ou outro cliente: a janela nova vira a do Mirror, mesmo sem trocar de personagem
+        self.api._personagem_auto_sincronizar()
+        self.api._mirror.seguir_janela.assert_called_once_with(77)
+        self.detect.return_value = (88, "Elite Nestos")
+        self.api._personagem_auto_sincronizar()
+        self.api._mirror.seguir_janela.assert_called_with(88)
+        self.api._mirror.seguir_janela.reset_mock()
+        for lido in ((99, "Unknown"), None):
+            self.detect.return_value = lido
+            self.api._personagem_auto_sincronizar()
+        self.detect.side_effect = [(55, "Zandao"), (66, "Zandao")]  # o foco mudou durante a leitura
+        self.api._personagem_auto_sincronizar()
+        self.api._mirror.seguir_janela.assert_not_called()
+        self.assertEqual(personagens.carregar()["atual"], "Elite Nestos")
 
     def test_callback_is_outside_backend_lock(self):
         def emit(*args):
@@ -159,7 +175,7 @@ class TrocaAutomaticaTests(unittest.TestCase):
             self.api._personagem_auto_sincronizar()
         pending = self.api._personagem_auto_pendente
         self.assertEqual(personagens.carregar()["atual"], "Elite Nestos")
-        self.detect.return_value = ""
+        self.detect.return_value = None
         with patch.object(personagens, "_gravar") as write:
             self.api._personagem_auto_sincronizar()
             write.assert_not_called()
@@ -177,7 +193,7 @@ class TrocaAutomaticaTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.api._personagem_auto_sincronizar()
         new = self.api.personagem_usar("Zandao")
-        self.detect.return_value = "Unknown"
+        self.detect.return_value = (77, "Unknown")
         self.api._personagem_auto_sincronizar()
         self.api._emit.assert_called_once()
         self.assertIsNone(self.api._personagem_auto_pendente)

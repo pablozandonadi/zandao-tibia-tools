@@ -86,6 +86,13 @@ class MirrorService:
         self.emit(data)
         return data
 
+    def seguir_janela(self, hwnd):
+        """Liga o Mirror à janela do Tibia do personagem em uso, se ainda não for ela (o motor só se liga sozinho ao abrir)."""
+        with self.lock:
+            if self.closed or self.engine is None or self.engine.status().get('hwnd') == hwnd:
+                return
+            self.vincular(hwnd)
+
     def vincular(self, hwnd):
         with self.lock:
             response = self._native().bind_window(int(hwnd))

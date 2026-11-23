@@ -65,6 +65,14 @@ class MirrorServiceTests(unittest.TestCase):
         self.assertTrue(self.service.cancelar()['cancelado'])
         callback({'origem':{'w':32,'h':32}})
         self.assertEqual(self.service.carregar()['perfil']['recortes'],[])
+    def test_follows_window_of_character_in_use(self):
+        # Tibia reaberto (janela nova) ou outro cliente: o Mirror passa para a janela do personagem em uso
+        bound=[];self.service.engine.bind_window=lambda hwnd:(bound.append(hwnd),{'ok':True})[1]
+        self.service.seguir_janela(1);self.assertEqual(bound,[])
+        self.service.seguir_janela(2);self.assertEqual(bound,[2])
+    def test_follow_window_does_not_start_mirror_never_opened(self):
+        service=MirrorService('A',store=MirrorStore(Path(self.temp.name)/'outro.json'),engine_factory=FakeEngine,clients=lambda:[])
+        service.seguir_janela(2);self.assertIsNone(service.engine)
     def test_stale_drag_does_not_modify_another_profile(self):
         self.service.recorte('salvar',data={});cid=self.service.carregar()['perfil']['recortes'][0]['id']
         self.service.perfil('novo',name='Boss');self.service._moved(cid,{'x':500,'y':500})

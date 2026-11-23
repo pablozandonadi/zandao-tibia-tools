@@ -783,16 +783,22 @@ class API:
                 pass  # Uma janela fechada ou callback indisponível não encerra o monitor.
 
     def _personagem_auto_sincronizar(self):
-        from overlay import personagem_tibia_em_foco
-        nome = personagem_tibia_em_foco()
+        from overlay import tibia_em_foco
+        lido = tibia_em_foco()
         with PERSONAGEM_LOCK:
             if self._personagem_auto_stop.is_set():
                 return
-            if nome:
+            if lido:
+                hwnd, nome = lido
                 d = personagens.carregar()
                 cadastrado = next((p["nome"] for p in d["lista"] if p["nome"].casefold() == nome.casefold()), None)
-                if cadastrado and cadastrado != d["atual"] and personagem_tibia_em_foco() == nome:
+                atual = d["atual"]
+                if cadastrado and cadastrado != atual and tibia_em_foco() == lido:
                     self._personagem_auto_pendente = self.personagem_usar(cadastrado)
+                    atual = cadastrado
+                # O Mirror segue a janela do personagem em uso: Tibia reaberto (janela nova) ou outro cliente.
+                if cadastrado and cadastrado == atual and getattr(self, "_mirror", None):
+                    self._mirror.seguir_janela(hwnd)
             pendente = getattr(self, "_personagem_auto_pendente", None)
         if pendente is not None and not self._personagem_auto_stop.is_set():
             self._emit("personagemEstado", pendente)

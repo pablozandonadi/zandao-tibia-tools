@@ -28,6 +28,14 @@ class PathsTests(unittest.TestCase):
             (old/'sons_usuario'/'alert.wav').write_bytes(b'wave')
             a.migrate_legacy(old,new)
             self.assertEqual((new/'sons_usuario'/'alert.wav').read_bytes(),b'wave')
+    def test_start_removes_only_downloaded_voice_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base=Path(directory);(base/'voice_models'/'vosk').mkdir(parents=True);(base/'voice_models'/'vosk'/'model.bin').write_bytes(b'x')
+            (base/'historico_hunts.json').write_text('hunts')
+            with patch.object(a,'data_dir',return_value=directory):a.initialize_data()
+            self.assertFalse((base/'voice_models').exists())
+            self.assertEqual((base/'historico_hunts.json').read_text(),'hunts')
+            with patch.object(a,'data_dir',return_value=directory):a.initialize_data()  # sem a pasta: não falha
     def test_second_instance_rejected_and_lock_released(self):
         with tempfile.TemporaryDirectory() as directory:
             first,second=InstanceGuard(directory),InstanceGuard(directory)
